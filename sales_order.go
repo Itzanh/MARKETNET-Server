@@ -184,10 +184,22 @@ func addTotalProductsSalesOrder(orderId int32, totalAmount float32, vatPercent f
 	return calcTotalsSaleOrder(orderId)
 }
 
+// Adds the discounts to the fix discount of the order. This function will substract if the amount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addDiscountsSalesOrder(orderId int32, amountTaxExcluded float32) bool {
+	sqlStatement := `UPDATE sales_order SET fix_discount=fix_discount+$2 WHERE id = $1`
+	_, err := db.Exec(sqlStatement, orderId, amountTaxExcluded)
+	if err != nil {
+		return false
+	}
+
+	return calcTotalsSaleOrder(orderId)
+}
+
 // Applies the logic to calculate the totals of the sales order and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func calcTotalsSaleOrder(orderId int32) bool {
-	sqlStatement := `UPDATE sales_order SET total_with_discount=total_products-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
+	sqlStatement := `UPDATE sales_order SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err := db.Exec(sqlStatement, orderId)
 	if err != nil {
 		return false
