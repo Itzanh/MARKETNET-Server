@@ -123,6 +123,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getCustomers())
 	case "COLOR":
 		data, _ = json.Marshal(getColor())
+	case "SALES_INVOICE":
+		data, _ = json.Marshal(getSalesInvoices())
 	default:
 		found = false
 	}
@@ -144,6 +146,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getStock(int32(id)))
 	case "SALES_ORDER_DISCOUNT":
 		data, _ = json.Marshal(getSalesOrderDiscounts(int32(id)))
+	case "SALES_INVOICE_DETAIL":
+		data, _ = json.Marshal(getSalesInvoiceDetail(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -211,6 +215,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrderDiscount SalesOrderDiscount
 		json.Unmarshal(message, &saleOrderDiscount)
 		ok = saleOrderDiscount.insertSalesOrderDiscount()
+	case "SALES_INVOICE":
+		var saleInvoice SalesInvoice
+		json.Unmarshal(message, &saleInvoice)
+		ok = saleInvoice.insertSalesInvoice()
+	case "SALES_INVOICE_DETAIL":
+		var salesInvoiceDetail SalesInvoiceDetail
+		json.Unmarshal(message, &salesInvoiceDetail)
+		ok = salesInvoiceDetail.insertSalesInvoiceDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -359,6 +371,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var saleOrderDiscount SalesOrderDiscount
 		saleOrderDiscount.Id = int32(id)
 		ok = saleOrderDiscount.deleteSalesOrderDiscount()
+	case "SALES_INVOICE":
+		var salesInvoice SalesInvoice
+		salesInvoice.Id = int32(id)
+		ok = salesInvoice.deleteSalesInvoice()
+	case "SALES_INVOICE_DETAIL":
+		var salesInvoiceDetail SalesInvoiceDetail
+		salesInvoiceDetail.Id = int32(id)
+		ok = salesInvoiceDetail.deleteSalesInvoiceDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
