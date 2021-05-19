@@ -29,7 +29,7 @@ type SalesInvoice struct {
 }
 
 func getSalesInvoices() []SalesInvoice {
-	var invoiced []SalesInvoice
+	var invoiced []SalesInvoice = make([]SalesInvoice, 0)
 	sqlStatement := `SELECT * FROM sales_invoice ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
@@ -233,4 +233,30 @@ func (invoiceInfo *SalesOrderDetailInvoice) invoicePartiallySaleOrder() bool {
 	transErr = trans.Commit()
 	return transErr == nil
 	///
+}
+
+type SalesInvoiceRelations struct {
+	Orders []SaleOrder `json:"orders"`
+}
+
+func getSalesInvoiceRelations(invoiceId int32) SalesInvoiceRelations {
+	return SalesInvoiceRelations{Orders: getSalesInvoiceOrders(invoiceId)}
+}
+
+func getSalesInvoiceOrders(orderId int32) []SaleOrder {
+	var sales []SaleOrder = make([]SaleOrder, 0)
+	sqlStatement := `SELECT DISTINCT sales_order.* FROM sales_invoice INNER JOIN sales_invoice_detail ON sales_invoice.id = sales_invoice_detail.invoice INNER JOIN sales_order_detail ON sales_invoice_detail.order_detail = sales_order_detail.id INNER JOIN sales_order ON sales_order_detail.order = sales_order.id WHERE sales_invoice.id = $1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, orderId)
+	if err != nil {
+		return sales
+	}
+	for rows.Next() {
+		s := SaleOrder{}
+		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+		sales = append(sales, s)
+	}
+
+	return sales
 }

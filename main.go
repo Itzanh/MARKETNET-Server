@@ -524,6 +524,18 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var invoiceInfo SalesOrderDetailInvoice
 		json.Unmarshal([]byte(message), &invoiceInfo)
 		data, _ = json.Marshal(invoiceInfo.invoicePartiallySaleOrder())
+	case "GET_SALES_ORDER_RELATIONS":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getSalesOrderRelations(int32(id)))
+	case "GET_SALES_INVOICE_RELATIONS":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getSalesInvoiceRelations(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
