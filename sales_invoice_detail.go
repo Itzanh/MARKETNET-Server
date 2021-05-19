@@ -67,6 +67,13 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail() bool {
 		trans.Rollback()
 		return false
 	}
+	if s.OrderDetail != nil && *s.OrderDetail != 0 {
+		ok := addQuantityInvociedSalesOrderDetail(*s.OrderDetail, s.Quantity)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
 
 	///
 	err = trans.Commit()
@@ -105,6 +112,13 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 	if !ok {
 		trans.Rollback()
 		return false
+	}
+	if detailInMemory.OrderDetail != nil && *detailInMemory.OrderDetail != 0 {
+		ok := addQuantityInvociedSalesOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
 	}
 
 	///

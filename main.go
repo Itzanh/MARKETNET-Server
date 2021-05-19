@@ -90,6 +90,8 @@ func commandProcessor(instruction string, command string, message []byte, mt int
 		instructionDefaults(command, string(message), mt, ws)
 	case "LOCATE":
 		instructionLocate(command, string(message), mt, ws)
+	case "ACTION":
+		instructionAction(command, string(message), mt, ws)
 	}
 }
 
@@ -218,7 +220,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	case "SALES_INVOICE":
 		var saleInvoice SalesInvoice
 		json.Unmarshal(message, &saleInvoice)
-		ok = saleInvoice.insertSalesInvoice()
+		ok, _ = saleInvoice.insertSalesInvoice()
 	case "SALES_INVOICE_DETAIL":
 		var salesInvoiceDetail SalesInvoiceDetail
 		json.Unmarshal(message, &salesInvoiceDetail)
@@ -504,6 +506,24 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 	switch command {
 	case "ADDRESS":
 		data, _ = json.Marshal(locateAddress(int32(id)))
+	}
+	ws.WriteMessage(mt, data)
+}
+
+func instructionAction(command string, message string, mt int, ws *websocket.Conn) {
+	var data []byte
+
+	switch command {
+	case "INVOICE_ALL_SALE_ORDER":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(invoiceAllSaleOrder(int32(id)))
+	case "INVOICE_PARTIAL_SALE_ORDER":
+		var invoiceInfo SalesOrderDetailInvoice
+		json.Unmarshal([]byte(message), &invoiceInfo)
+		data, _ = json.Marshal(invoiceInfo.invoicePartiallySaleOrder())
 	}
 	ws.WriteMessage(mt, data)
 }

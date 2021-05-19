@@ -49,27 +49,28 @@ func (i *SalesInvoice) isValid() bool {
 	return !(i.Customer <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
 
-func (i *SalesInvoice) insertSalesInvoice() bool {
+func (i *SalesInvoice) insertSalesInvoice() (bool, int32) {
 	if !i.isValid() {
-		return false
+		return false, 0
 	}
 
 	i.InvoiceNumber = getNextInvoiceNumber(i.BillingSeries)
 	if i.InvoiceNumber <= 0 {
-		return false
+		return false, 0
 	}
 	i.CurrencyChange = getCurrencyExchange(i.Currency)
 	now := time.Now()
 	i.InvoiceName = i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
 
-	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
-	res, err := db.Exec(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName)
-	if err != nil {
-		return false
+	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`
+	row := db.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName)
+	if row.Err() != nil {
+		return false, 0
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	var invoiceId int32
+	row.Scan(&invoiceId)
+	return invoiceId > 0, invoiceId
 }
 
 func (i *SalesInvoice) deleteSalesInvoice() bool {
@@ -111,4 +112,125 @@ func calcTotalsSaleInvoice(invoiceId int32) bool {
 	sqlStatement = `UPDATE sales_invoice SET total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err = db.Exec(sqlStatement, invoiceId)
 	return err == nil
+}
+
+func invoiceAllSaleOrder(saleOrderId int32) bool {
+	// get the sale order and it's details
+	saleOrder := getSalesOrderRow(saleOrderId)
+	orderDetails := getSalesOrderDetail(saleOrderId)
+
+	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
+		return false
+	}
+
+	// create an invoice for that order
+	invoice := SalesInvoice{}
+	invoice.Customer = saleOrder.Customer
+	invoice.BillingAddress = saleOrder.BillingAddress
+	invoice.BillingSeries = saleOrder.BillingSeries
+	invoice.Currency = saleOrder.Currency
+	invoice.PaymentMethod = saleOrder.PaymentMethod
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	ok, invoiceId := invoice.insertSalesInvoice()
+	if !ok {
+		trans.Rollback()
+		return false
+	}
+	for i := 0; i < len(orderDetails); i++ {
+		orderDetail := orderDetails[i]
+		invoiceDetal := SalesInvoiceDetail{}
+		invoiceDetal.Invoice = invoiceId
+		invoiceDetal.OrderDetail = &orderDetail.Id
+		invoiceDetal.Price = orderDetail.Price
+		invoiceDetal.Product = orderDetail.Product
+		invoiceDetal.Quantity = orderDetail.Quantity
+		invoiceDetal.TotalAmount = orderDetail.TotalAmount
+		invoiceDetal.VatPercent = orderDetail.VatPercent
+		ok = invoiceDetal.insertSalesInvoiceDetail()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
+}
+
+type SalesOrderDetailInvoice struct {
+	SaleOrderId int32                              `json:"saleOrderId"`
+	Selection   []SalesOrderDetailInvoiceSelection `json:"selection"`
+}
+
+type SalesOrderDetailInvoiceSelection struct {
+	Id       int32 `json:"id"`
+	Quantity int32 `json:"quantity"`
+}
+
+func (invoiceInfo *SalesOrderDetailInvoice) invoicePartiallySaleOrder() bool {
+	// get the sale order and it's details
+	saleOrder := getSalesOrderRow(invoiceInfo.SaleOrderId)
+	if saleOrder.Id <= 0 || len(invoiceInfo.Selection) == 0 {
+		return false
+	}
+
+	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	for i := 0; i < len(invoiceInfo.Selection); i++ {
+		orderDetail := getSalesOrderDetailRow(invoiceInfo.Selection[i].Id)
+		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.SaleOrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
+			return false
+		}
+		saleOrderDetails = append(saleOrderDetails, orderDetail)
+	}
+
+	// create an invoice for that order
+	invoice := SalesInvoice{}
+	invoice.Customer = saleOrder.Customer
+	invoice.BillingAddress = saleOrder.BillingAddress
+	invoice.BillingSeries = saleOrder.BillingSeries
+	invoice.Currency = saleOrder.Currency
+	invoice.PaymentMethod = saleOrder.PaymentMethod
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	ok, invoiceId := invoice.insertSalesInvoice()
+	if !ok {
+		trans.Rollback()
+		return false
+	}
+	for i := 0; i < len(saleOrderDetails); i++ {
+		orderDetail := saleOrderDetails[i]
+		invoiceDetal := SalesInvoiceDetail{}
+		invoiceDetal.Invoice = invoiceId
+		invoiceDetal.OrderDetail = &orderDetail.Id
+		invoiceDetal.Price = orderDetail.Price
+		invoiceDetal.Product = orderDetail.Product
+		invoiceDetal.Quantity = invoiceInfo.Selection[i].Quantity
+		invoiceDetal.TotalAmount = orderDetail.TotalAmount
+		invoiceDetal.VatPercent = orderDetail.VatPercent
+		ok = invoiceDetal.insertSalesInvoiceDetail()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
 }

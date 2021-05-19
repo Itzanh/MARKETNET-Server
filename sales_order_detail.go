@@ -142,3 +142,12 @@ type SalesOrderDetailDefaults struct {
 	Price      float32 `json:"price"`
 	VatPercent float32 `json:"vatPercent"`
 }
+
+// Adds an invoiced quantity to the sale order detail. This function will subsctract from the quantity if the amount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
+	sqlStatement := `UPDATE sales_order_detail SET quantity_invoiced = quantity_invoiced + $2 WHERE id = $1`
+	res, err := db.Exec(sqlStatement, detailId, quantity)
+	rows, _ := res.RowsAffected()
+	return err == nil && rows > 0
+}
