@@ -1,5 +1,9 @@
 package main
 
+import (
+	"database/sql"
+)
+
 type SalesInvoiceDetail struct {
 	Id          int32   `json:"id"`
 	Invoice     int32   `json:"invoice"`
@@ -43,19 +47,23 @@ func (d *SalesInvoiceDetail) isValid() bool {
 	return !(d.Invoice <= 0 || d.Product <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
-func (s *SalesInvoiceDetail) insertSalesInvoiceDetail() bool {
+func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) bool {
 	if !s.isValid() {
 		return false
 	}
 
 	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
 
-	///
-	trans, err := db.Begin()
-	if err != nil {
-		return false
+	var trans *sql.Tx
+	if beginTransaction {
+		///
+		trn, err := db.Begin()
+		if err != nil {
+			return false
+		}
+		trans = trn
+		///
 	}
-	///
 
 	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail)
@@ -64,23 +72,29 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail() bool {
 	}
 	ok := addTotalProductsSalesInvoice(s.Invoice, s.Price*float32(s.Quantity), s.VatPercent)
 	if !ok {
-		trans.Rollback()
+		if beginTransaction {
+			trans.Rollback()
+		}
 		return false
 	}
 	if s.OrderDetail != nil && *s.OrderDetail != 0 {
 		ok := addQuantityInvociedSalesOrderDetail(*s.OrderDetail, s.Quantity)
 		if !ok {
-			trans.Rollback()
+			if beginTransaction {
+				trans.Rollback()
+			}
 			return false
 		}
 	}
 
-	///
-	err = trans.Commit()
-	if err != nil {
-		return false
+	if beginTransaction {
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0

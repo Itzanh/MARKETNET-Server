@@ -73,12 +73,6 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	salesOrder := getSalesOrderRow(s.Order)
-	ok = addQuantityPendingServing(s.Product, salesOrder.Warehouse, s.Quantity)
-	if !ok {
-		trans.Rollback()
-		return false
-	}
 
 	///
 	err = trans.Commit()
@@ -115,13 +109,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	salesOrder := getSalesOrderRow(detailInMemory.Order)
 	ok := addTotalProductsSalesOrder(detailInMemory.Order, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)
-	if !ok {
-		trans.Rollback()
-		return false
-	}
-	ok = addQuantityPendingServing(detailInMemory.Product, salesOrder.Warehouse, -detailInMemory.Quantity)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -146,8 +134,65 @@ type SalesOrderDetailDefaults struct {
 // Adds an invoiced quantity to the sale order detail. This function will subsctract from the quantity if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
+
+	detailBefore := getSalesOrderDetailRow(detailId)
+	if detailBefore.Id <= 0 {
+		return false
+	}
+	salesOrder := getSalesOrderRow(detailBefore.Order)
+
 	sqlStatement := `UPDATE sales_order_detail SET quantity_invoiced = quantity_invoiced + $2 WHERE id = $1`
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
-	return err == nil && rows > 0
+	if err != nil && rows == 0 {
+		return false
+	}
+
+	detailAfter := getSalesOrderDetailRow(detailId)
+	if detailAfter.Id <= 0 {
+		return false
+	}
+
+	var ok bool
+	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity {
+		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, detailBefore.Quantity)
+		// set the order detail state applying the workflow logic
+		if ok {
+			sqlStatement = `UPDATE sales_order_detail SET status = $2 WHERE id = $1`
+			db.Exec(sqlStatement, detailId, detailBefore.computeStatus())
+		}
+	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity {
+		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, -detailBefore.Quantity)
+		// reset order detail state to "Waiting for Payment"
+		if ok {
+			sqlStatement = `UPDATE sales_order_detail SET status = '_' WHERE id = $1`
+			db.Exec(sqlStatement, detailId)
+		}
+	}
+
+	if !ok {
+		return false
+	}
+
+	return err == nil
+}
+
+func (s *SalesOrderDetail) computeStatus() string {
+	product := getProductRow(s.Product)
+	if product.Id <= 0 {
+		return ""
+	}
+	order := getSalesOrderRow(s.Order)
+	stock := getStockRow(s.Product, order.Warehouse)
+	if stock.Quantity > 0 { // the product is in stock, send to preparation
+		return "E"
+	} else { // the product is not in stock, purchase or manufacture
+		if product.Manufacturing {
+			return "C"
+		} else {
+			// search for pending purchases
+			// TODO: ADD PURCHASE ORDER FUNCTIONALITY
+			return "A"
+		}
+	}
 }

@@ -6,23 +6,24 @@ import (
 )
 
 type Product struct {
-	Id           int32     `json:"id"`
-	Name         string    `json:"name"`
-	Reference    string    `json:"reference"`
-	BarCode      string    `json:"barCode"`
-	ControlStock bool      `json:"controlStock"`
-	Weight       float32   `json:"weight"`
-	Family       *int16    `json:"family"`
-	Width        float32   `json:"width"`
-	Height       float32   `json:"height"`
-	Depth        float32   `json:"depth"`
-	Off          bool      `json:"off"`
-	Stock        int32     `json:"stock"`
-	VatPercent   float32   `json:"vatPercent"`
-	DateCreated  time.Time `json:"dateCreated"`
-	Description  string    `json:"description"`
-	Color        *int16    `json:"color"`
-	Price        float32   `json:"price"`
+	Id            int32     `json:"id"`
+	Name          string    `json:"name"`
+	Reference     string    `json:"reference"`
+	BarCode       string    `json:"barCode"`
+	ControlStock  bool      `json:"controlStock"`
+	Weight        float32   `json:"weight"`
+	Family        *int16    `json:"family"`
+	Width         float32   `json:"width"`
+	Height        float32   `json:"height"`
+	Depth         float32   `json:"depth"`
+	Off           bool      `json:"off"`
+	Stock         int32     `json:"stock"`
+	VatPercent    float32   `json:"vatPercent"`
+	DateCreated   time.Time `json:"dateCreated"`
+	Description   string    `json:"description"`
+	Color         *int16    `json:"color"`
+	Price         float32   `json:"price"`
+	Manufacturing bool      `json:"manufacturing"`
 }
 
 func getProduct() []Product {
@@ -34,11 +35,24 @@ func getProduct() []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing)
 		products = append(products, p)
 	}
 
 	return products
+}
+
+func getProductRow(productId int32) Product {
+	sqlStatement := `SELECT * FROM public.product WHERE id = $1`
+	row := db.QueryRow(sqlStatement, productId)
+	if row.Err() != nil {
+		return Product{}
+	}
+
+	p := Product{}
+	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing)
+
+	return p
 }
 
 func (p *Product) isValid() bool {
@@ -50,8 +64,8 @@ func (p *Product) insertProduct() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
-	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price)
+	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing)
 	if err != nil {
 		return false
 	}
@@ -65,8 +79,8 @@ func (p *Product) updateProduct() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price)
+	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing)
 	if err != nil {
 		return false
 	}

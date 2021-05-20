@@ -26,6 +26,19 @@ func getStock(productId int32) []Stock {
 	return stock
 }
 
+func getStockRow(productId int32, warehouseId string) Stock {
+	sqlStatement := `SELECT * FROM stock WHERE product = $1 AND warehouse = $2`
+	row := db.QueryRow(sqlStatement, productId, warehouseId)
+	if row.Err() != nil {
+		return Stock{}
+	}
+
+	s := Stock{}
+	row.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaialbe, &s.QuantityPendingManufacture)
+
+	return s
+}
+
 // Inserts a row with 0 stock in all columns
 func createStockRow(productId int32, warehouseId string) bool {
 	sqlStatement := `INSERT INTO stock (product,warehouse) VALUES ($1,$2)`

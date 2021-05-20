@@ -224,7 +224,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	case "SALES_INVOICE_DETAIL":
 		var salesInvoiceDetail SalesInvoiceDetail
 		json.Unmarshal(message, &salesInvoiceDetail)
-		ok = salesInvoiceDetail.insertSalesInvoiceDetail()
+		ok = salesInvoiceDetail.insertSalesInvoiceDetail(true)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)

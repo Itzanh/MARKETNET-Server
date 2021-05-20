@@ -153,7 +153,7 @@ func invoiceAllSaleOrder(saleOrderId int32) bool {
 		invoiceDetal.Quantity = orderDetail.Quantity
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
-		ok = invoiceDetal.insertSalesInvoiceDetail()
+		ok = invoiceDetal.insertSalesInvoiceDetail(false)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -222,7 +222,7 @@ func (invoiceInfo *SalesOrderDetailInvoice) invoicePartiallySaleOrder() bool {
 		invoiceDetal.Quantity = invoiceInfo.Selection[i].Quantity
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
-		ok = invoiceDetal.insertSalesInvoiceDetail()
+		ok = invoiceDetal.insertSalesInvoiceDetail(false)
 		if !ok {
 			trans.Rollback()
 			return false
