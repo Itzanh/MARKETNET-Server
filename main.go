@@ -101,6 +101,10 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 	switch command {
 	case "SALES_ORDER":
 		data, _ = json.Marshal(getSalesOrder())
+	case "SALES_ORDER_PREPARATION":
+		data, _ = json.Marshal(getSalesOrderPreparation())
+	case "SALES_ORDER_AWAITING_SHIPPING":
+		data, _ = json.Marshal(getSalesOrderAwaitingShipping())
 	case "ADDRESS":
 		data, _ = json.Marshal(getAddresses())
 	case "PRODUCT":
@@ -129,6 +133,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getSalesInvoices())
 	case "MANUFACTURING_ORDER_TYPE":
 		data, _ = json.Marshal(getManufacturingOrderType())
+	case "PACKAGES":
+		data, _ = json.Marshal(getPackages())
 	default:
 		found = false
 	}
@@ -167,6 +173,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getSalesOrderDiscounts(int32(id)))
 	case "SALES_INVOICE_DETAIL":
 		data, _ = json.Marshal(getSalesInvoiceDetail(int32(id)))
+	case "SALES_ORDER_PACKAGING":
+		data, _ = json.Marshal(getPackaging(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -250,6 +258,18 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var manufacturingOrder ManufacturingOrder
 		json.Unmarshal(message, &manufacturingOrder)
 		ok = manufacturingOrder.insertManufacturingOrder()
+	case "PACKAGES":
+		var packages Packages
+		json.Unmarshal(message, &packages)
+		ok = packages.insertPackage()
+	case "SALES_ORDER_PACKAGING":
+		var packaging Packaging
+		json.Unmarshal(message, &packaging)
+		ok = packaging.insertPackaging()
+	case "SALES_ORDER_DETAIL_PACKAGED":
+		var salesOrderDetailPackaged SalesOrderDetailPackaged
+		json.Unmarshal(message, &salesOrderDetailPackaged)
+		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackaged()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -314,6 +334,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var manufacturingOrderType ManufacturingOrderType
 		json.Unmarshal(message, &manufacturingOrderType)
 		ok = manufacturingOrderType.updateManufacturingOrderType()
+	case "PACKAGES":
+		var packages Packages
+		json.Unmarshal(message, &packages)
+		ok = packages.updatePackage()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -418,6 +442,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var manufacturingOrder ManufacturingOrder
 		manufacturingOrder.Id = int64(id)
 		ok = manufacturingOrder.deleteManufacturingOrder()
+	case "PACKAGES":
+		var packages Packages
+		packages.Id = int16(id)
+		ok = packages.deletePackage()
+	case "PACKAGING":
+		var packaging Packaging
+		packaging.Id = int32(id)
+		ok = packaging.deletePackaging()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -589,6 +621,10 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var orderInfo SalesOrderDetailManufacturingOrder
 		json.Unmarshal([]byte(message), &orderInfo)
 		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder())
+	case "DELETE_SALES_ORDER_DETAIL_PACKAGED":
+		var salesOrderDetailPackaged SalesOrderDetailPackaged
+		json.Unmarshal([]byte(message), &salesOrderDetailPackaged)
+		data, _ = json.Marshal(salesOrderDetailPackaged.deleteSalesOrderDetailPackaged(true))
 	}
 	ws.WriteMessage(mt, data)
 }

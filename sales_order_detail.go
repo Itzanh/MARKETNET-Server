@@ -201,3 +201,32 @@ func (s *SalesOrderDetail) computeStatus() string {
 		}
 	}
 }
+
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addQuantityPendingPackagingSaleOrderDetail(detailId int32, quantity int32) bool {
+	sqlStatement := `UPDATE sales_order_detail SET quantity_pending_packaging = quantity_pending_packaging + $2 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, detailId, quantity)
+	rows, _ := res.RowsAffected()
+
+	ok := rows > 0 && err == nil
+	if !ok {
+		return false
+	}
+
+	detail := getSalesOrderDetailRow(detailId)
+	var status string
+	if detail.QuantityPendingPackaging <= 0 {
+		status = "F"
+	} else {
+		status = "E"
+	}
+	sqlStatement = `UPDATE sales_order_detail SET status=$2 WHERE id=$1`
+	res, err = db.Exec(sqlStatement, detailId, status)
+	rows, _ = res.RowsAffected()
+	ok = rows > 0 && err == nil
+	if !ok {
+		return false
+	}
+
+	return setSalesOrderState(detail.Order)
+}

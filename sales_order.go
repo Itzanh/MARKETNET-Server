@@ -59,6 +59,32 @@ func getSalesOrder() []SaleOrder {
 	return sales
 }
 
+func getSalesOrderPreparation() []SaleOrder {
+	return getSalesOrderStatus("E")
+}
+
+func getSalesOrderAwaitingShipping() []SaleOrder {
+	return getSalesOrderStatus("F")
+}
+
+func getSalesOrderStatus(status string) []SaleOrder {
+	var sales []SaleOrder = make([]SaleOrder, 0)
+	sqlStatement := `SELECT * FROM sales_order WHERE status = $1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, status)
+	if err != nil {
+		return sales
+	}
+	for rows.Next() {
+		s := SaleOrder{}
+		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+		sales = append(sales, s)
+	}
+
+	return sales
+}
+
 func getSalesOrderRow(id int32) SaleOrder {
 	sqlStatement := `SELECT * FROM sales_order WHERE id = $1 ORDER BY date_created DESC`
 	rows := db.QueryRow(sqlStatement, id)
