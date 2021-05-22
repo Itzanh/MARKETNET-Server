@@ -1,0 +1,298 @@
+package main
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type ManufacturingOrder struct {
+	Id               int64     `json:"id"`
+	OrderDetail      *int32    `json:"orderDetail"`
+	Product          int32     `json:"product"`
+	Type             int16     `json:"type"`
+	Uuid             string    `json:"uuid"`
+	DateCreated      time.Time `json:"dateCreated"`
+	DateLastUpdate   time.Time `json:"dateLastUpdate"`
+	Manufactured     bool      `json:"manufactured"`
+	DateManufactured time.Time `json:"dateManufactured"`
+	UserManufactured *int16    `json:"userManufactured"`
+	UserCreated      int16     `json:"userCreated"`
+	TagPrinted       bool      `json:"tagPrinted"`
+	DateTagPrinted   time.Time `json:"dateTagPrinted"`
+	Order            *int32    `json:"order"`
+	UserTagPrinted   *int16    `json:"userTagPrinted"`
+}
+
+func getManufacturingOrder(orderTypeId int16) []ManufacturingOrder {
+	if orderTypeId == 0 {
+		return getAllManufacturingOrders()
+	} else {
+		return getManufacturingOrdersByType(orderTypeId)
+	}
+}
+
+func getAllManufacturingOrders() []ManufacturingOrder {
+	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT * FROM public.manufacturing_order ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return orders
+	}
+	for rows.Next() {
+		o := ManufacturingOrder{}
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted)
+		orders = append(orders, o)
+	}
+
+	return orders
+}
+
+func getManufacturingOrdersByType(orderTypeId int16) []ManufacturingOrder {
+	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, orderTypeId)
+	if err != nil {
+		return orders
+	}
+	for rows.Next() {
+		o := ManufacturingOrder{}
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted)
+		orders = append(orders, o)
+	}
+
+	return orders
+}
+
+func getManufacturingOrderRow(manufacturingOrderId int64) ManufacturingOrder {
+	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE id = $1`
+	row := db.QueryRow(sqlStatement, manufacturingOrderId)
+	if row.Err() != nil {
+		return ManufacturingOrder{}
+	}
+
+	o := ManufacturingOrder{}
+	row.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted)
+
+	return o
+}
+
+func (o *ManufacturingOrder) isValid() bool {
+	return !((o.OrderDetail != nil && *o.OrderDetail <= 0) || o.Product <= 0 || (o.Order != nil && *o.Order <= 0))
+}
+
+func (o *ManufacturingOrder) insertManufacturingOrder() bool {
+	if !o.isValid() {
+		return false
+	}
+
+	o.Uuid = uuid.New().String()
+	o.UserCreated = 1
+	if o.Type <= 0 {
+		product := getProductRow(o.Product)
+		if product.Id <= 0 {
+			return false
+		}
+		o.Type = *product.ManufacturingOrderType
+	}
+	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order") VALUES ($1, $2, $3, $4, $5, $6)`
+	res, err := db.Exec(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order)
+	if err != nil {
+		return false
+	}
+
+	if o.OrderDetail != nil && *o.OrderDetail > 0 {
+		sqlStatement = `UPDATE sales_order_detail SET status = 'D' WHERE id = $1`
+		res, err = db.Exec(sqlStatement, o.OrderDetail)
+		if err != nil {
+			return false
+		}
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}
+
+func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
+	if o.Id <= 0 {
+		return false
+	}
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	inMemoryManufacturingOrder := getManufacturingOrderRow(o.Id)
+	if inMemoryManufacturingOrder.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `DELETE FROM public.manufacturing_order WHERE id=$1`
+	res, err := db.Exec(sqlStatement, o.Id)
+	if err != nil {
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows <= 0 {
+		trans.Rollback()
+		return false
+	}
+
+	if inMemoryManufacturingOrder.OrderDetail != nil && *inMemoryManufacturingOrder.OrderDetail > 0 {
+		sqlStatement = `UPDATE sales_order_detail SET status = 'C' WHERE id = $1`
+		_, err = db.Exec(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
+}
+
+func toggleManufactuedManufacturingOrder(orderid int64) bool {
+	if orderid <= 0 {
+		return false
+	}
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	sqlStatement := `UPDATE public.manufacturing_order SET manufactured = NOT manufactured WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderid)
+	if err != nil {
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		trans.Rollback()
+		return false
+	}
+
+	inMemoryManufacturingOrder := getManufacturingOrderRow(orderid)
+	if inMemoryManufacturingOrder.Id <= 0 {
+		return false
+	}
+	if inMemoryManufacturingOrder.OrderDetail != nil && *inMemoryManufacturingOrder.OrderDetail > 0 {
+		var status string
+		if inMemoryManufacturingOrder.Manufactured {
+			status = "E"
+		} else {
+			status = "D"
+		}
+		sqlStatement = `UPDATE sales_order_detail SET status = $2 WHERE id = $1`
+		_, err = db.Exec(sqlStatement, inMemoryManufacturingOrder.OrderDetail, status)
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
+}
+
+func manufacturingOrderAllSaleOrder(saleOrderId int32) bool {
+	// get the sale order and it's details
+	saleOrder := getSalesOrderRow(saleOrderId)
+	orderDetails := getSalesOrderDetail(saleOrderId)
+
+	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
+		return false
+	}
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	for i := 0; i < len(orderDetails); i++ {
+		if orderDetails[i].Status == "C" {
+			orderDetail := orderDetails[i]
+			o := ManufacturingOrder{}
+			o.Product = orderDetail.Product
+			o.OrderDetail = &orderDetail.Id
+			o.Order = &saleOrder.Id
+			ok := o.insertManufacturingOrder()
+			if !ok {
+				trans.Rollback()
+				return false
+			}
+		}
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
+}
+
+type SalesOrderDetailManufacturingOrder struct {
+	SaleOrderId int32                                         `json:"saleOrderId"`
+	Selection   []SalesOrderDetailManufacturingOrderSelection `json:"selection"`
+}
+
+type SalesOrderDetailManufacturingOrderSelection struct {
+	Id       int32 `json:"id"`
+	Quantity int32 `json:"quantity"`
+}
+
+func (orderInfo *SalesOrderDetailManufacturingOrder) manufacturingOrderPartiallySaleOrder() bool {
+	// get the sale order and it's details
+	saleOrder := getSalesOrderRow(orderInfo.SaleOrderId)
+	if saleOrder.Id <= 0 || len(orderInfo.Selection) == 0 {
+		return false
+	}
+
+	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	for i := 0; i < len(orderInfo.Selection); i++ {
+		orderDetail := getSalesOrderDetailRow(orderInfo.Selection[i].Id)
+		if orderDetail.Id <= 0 || orderDetail.Order != orderInfo.SaleOrderId || orderInfo.Selection[i].Quantity == 0 || orderInfo.Selection[i].Quantity > orderDetail.Quantity {
+			return false
+		}
+		if orderDetail.Status == "C" {
+			saleOrderDetails = append(saleOrderDetails, orderDetail)
+		}
+	}
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	for i := 0; i < len(saleOrderDetails); i++ {
+		orderDetail := saleOrderDetails[i]
+		o := ManufacturingOrder{}
+		o.Product = orderDetail.Product
+		o.OrderDetail = &orderDetail.Id
+		o.Order = &saleOrder.Id
+		ok := o.insertManufacturingOrder()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
+}

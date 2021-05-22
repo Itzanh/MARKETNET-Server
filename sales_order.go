@@ -220,14 +220,19 @@ func getSaleOrderDefaults() SaleOrderDefaults {
 }
 
 type SalesOrderRelations struct {
-	Invoices []SalesInvoice `json:"invoices"`
+	Invoices            []SalesInvoice       `json:"invoices"`
+	ManufacturingOrders []ManufacturingOrder `json:"manufacturingOrders"`
 }
 
 func getSalesOrderRelations(orderId int32) SalesOrderRelations {
-	return SalesOrderRelations{Invoices: getSalesOrderInvoices(orderId)}
+	return SalesOrderRelations{
+		Invoices:            getSalesOrderInvoices(orderId),
+		ManufacturingOrders: getSalesOrderManufacturingOrders(orderId),
+	}
 }
 
 func getSalesOrderInvoices(orderId int32) []SalesInvoice {
+	// INVOICE
 	var invoiced []SalesInvoice = make([]SalesInvoice, 0)
 	sqlStatement := `SELECT DISTINCT sales_invoice.* FROM sales_order INNER JOIN sales_order_detail ON sales_order.id = sales_order_detail.order INNER JOIN sales_invoice_detail ON sales_order_detail.id = sales_invoice_detail.order_detail INNER JOIN sales_invoice ON sales_invoice.id = sales_invoice_detail.invoice WHERE sales_order.id = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderId)
@@ -242,4 +247,21 @@ func getSalesOrderInvoices(orderId int32) []SalesInvoice {
 	}
 
 	return invoiced
+}
+
+func getSalesOrderManufacturingOrders(orderId int32) []ManufacturingOrder {
+	// MANUFACTURING ORDERS
+	var manufacturingOrders []ManufacturingOrder = make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE "order" = $1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, orderId)
+	if err != nil {
+		return manufacturingOrders
+	}
+	for rows.Next() {
+		o := ManufacturingOrder{}
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted)
+		manufacturingOrders = append(manufacturingOrders, o)
+	}
+
+	return manufacturingOrders
 }
