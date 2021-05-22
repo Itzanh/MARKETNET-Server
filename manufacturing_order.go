@@ -107,6 +107,10 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 		if err != nil {
 			return false
 		}
+		ok := setSalesOrderState(*o.Order)
+		if !ok {
+			return false
+		}
 	}
 
 	rows, _ := res.RowsAffected()
@@ -147,6 +151,10 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 		_, err = db.Exec(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
 		if err != nil {
 			trans.Rollback()
+			return false
+		}
+		ok := setSalesOrderState(*o.Order)
+		if !ok {
 			return false
 		}
 	}
@@ -195,6 +203,26 @@ func toggleManufactuedManufacturingOrder(orderid int64) bool {
 		sqlStatement = `UPDATE sales_order_detail SET status = $2 WHERE id = $1`
 		_, err = db.Exec(sqlStatement, inMemoryManufacturingOrder.OrderDetail, status)
 		if err != nil {
+			trans.Rollback()
+			return false
+		}
+
+		sqlStatement = `SELECT "order" FROM sales_order_detail WHERE id = $1`
+		row := db.QueryRow(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
+		if row.Err() != nil {
+			trans.Rollback()
+			return false
+		}
+
+		var orderId int32
+		row.Scan(&orderId)
+		if orderId <= 0 {
+			trans.Rollback()
+			return false
+		}
+
+		ok := setSalesOrderState(orderId)
+		if !ok {
 			trans.Rollback()
 			return false
 		}

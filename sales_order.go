@@ -265,3 +265,23 @@ func getSalesOrderManufacturingOrders(orderId int32) []ManufacturingOrder {
 
 	return manufacturingOrders
 }
+
+func setSalesOrderState(orderId int32) bool {
+	sqlStatement := `SELECT status FROM sales_order_detail WHERE "order" = $1 ORDER BY status ASC LIMIT 1`
+	row := db.QueryRow(sqlStatement, orderId)
+	if row.Err() != nil {
+		return false
+	}
+
+	var status string
+	row.Scan(&status)
+	if status == "" {
+		return false
+	}
+
+	sqlStatement = `UPDATE sales_order SET status = $2 WHERE id = $1`
+	res, err := db.Exec(sqlStatement, orderId, status)
+	rows, _ := res.RowsAffected()
+
+	return rows > 0 && err == nil
+}

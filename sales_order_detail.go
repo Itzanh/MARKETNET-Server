@@ -174,6 +174,11 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 		return false
 	}
 
+	ok = setSalesOrderState(salesOrder.Id)
+	if !ok {
+		return false
+	}
+
 	return err == nil
 }
 
