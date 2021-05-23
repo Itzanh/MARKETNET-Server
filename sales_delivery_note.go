@@ -54,7 +54,7 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes() (bool, int32) {
 		return false, 0
 	}
 
-	n.DeliveryNoteNumber = getNextSaleInvoiceNumber(n.BillingSeries)
+	n.DeliveryNoteNumber = getNextSaleDeliveryNoteNumber(n.BillingSeries)
 	if n.DeliveryNoteNumber <= 0 {
 		return false, 0
 	}
