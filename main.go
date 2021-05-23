@@ -135,6 +135,10 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getManufacturingOrderType())
 	case "PACKAGES":
 		data, _ = json.Marshal(getPackages())
+	case "WAREHOUSE_MOVEMENTS":
+		data, _ = json.Marshal(getWarehouseMovement())
+	case "WAREHOUSE_WAREHOUSE_MOVEMENTS":
+		data, _ = json.Marshal(getWarehouseMovementByWarehouse(message))
 	default:
 		found = false
 	}
@@ -270,6 +274,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var salesOrderDetailPackaged SalesOrderDetailPackaged
 		json.Unmarshal(message, &salesOrderDetailPackaged)
 		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackaged()
+	case "WAREHOUSE_MOVEMENTS":
+		var warehouseMovement WarehouseMovement
+		json.Unmarshal(message, &warehouseMovement)
+		ok = warehouseMovement.insertWarehouseMovement()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -450,6 +458,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var packaging Packaging
 		packaging.Id = int32(id)
 		ok = packaging.deletePackaging()
+	case "WAREHOUSE_MOVEMENTS":
+		var warehouseMovement WarehouseMovement
+		warehouseMovement.Id = int64(id)
+		ok = warehouseMovement.deleteWarehouseMovement()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -480,6 +492,8 @@ func instructionName(command string, message string, mt int, ws *websocket.Conn)
 		data, _ = json.Marshal(findColorByName(message))
 	case "PRODUCT":
 		data, _ = json.Marshal(findProductByName(message))
+	case "WAREHOUSE":
+		data, _ = json.Marshal(findWarehouseByName(message))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -493,6 +507,8 @@ func instructionGetName(command string, message string, mt int, ws *websocket.Co
 	switch command {
 	case "BILLING_SERIE":
 		name = getNameBillingSerie(message)
+	case "WAREHOUSE":
+		name = getNameWarehouse(message)
 	default:
 		found = false
 	}

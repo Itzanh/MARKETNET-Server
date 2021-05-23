@@ -1,5 +1,9 @@
 package main
 
+import (
+	"strings"
+)
+
 type Warehouse struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
@@ -41,7 +45,7 @@ func (w *Warehouse) insertWarehouse() bool {
 }
 
 func (w *Warehouse) updateWarehouse() bool {
-	if w.Id == "" || !w.isValid() {
+	if !w.isValid() {
 		return false
 	}
 
@@ -68,4 +72,36 @@ func (w *Warehouse) deleteWarehouse() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+type WarehouseName struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func findWarehouseByName(languageName string) []WarehouseName {
+	var warehouses []WarehouseName = make([]WarehouseName, 0)
+	sqlStatement := `SELECT id,name FROM public.warehouse WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
+	if err != nil {
+		return warehouses
+	}
+	for rows.Next() {
+		w := WarehouseName{}
+		rows.Scan(&w.Id, &w.Name)
+		warehouses = append(warehouses, w)
+	}
+
+	return warehouses
+}
+
+func getNameWarehouse(id string) string {
+	sqlStatement := `SELECT name FROM public.warehouse WHERE id = $1`
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return ""
+	}
+	name := ""
+	row.Scan(&name)
+	return name
 }
