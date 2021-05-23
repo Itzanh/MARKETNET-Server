@@ -76,7 +76,7 @@ func (s *BillingSerie) deleteBillingSerie() bool {
 	return rows > 0
 }
 
-func getNextOrderNumber(billingSerieId string) int32 {
+func getNextSaleOrderNumber(billingSerieId string) int32 {
 	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_order.order_number) END AS id FROM sales_order WHERE "billing_series" = $1`
 	row := db.QueryRow(sqlStatement, billingSerieId)
 	if row.Err() != nil {
@@ -88,8 +88,20 @@ func getNextOrderNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func getNextInvoiceNumber(billingSerieId string) int32 {
+func getNextSaleInvoiceNumber(billingSerieId string) int32 {
 	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_invoice.invoice_number) END AS id FROM sales_invoice WHERE "billing_series" = $1`
+	row := db.QueryRow(sqlStatement, billingSerieId)
+	if row.Err() != nil {
+		return 0
+	}
+
+	var orderNumber int32
+	row.Scan(&orderNumber)
+	return (orderNumber + 1)
+}
+
+func getNextSaleDeliveryNoteNumber(billingSerieId string) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_delivery_note.delivery_note_number) END AS id FROM sales_delivery_note WHERE "billing_series" = $1`
 	row := db.QueryRow(sqlStatement, billingSerieId)
 	if row.Err() != nil {
 		return 0

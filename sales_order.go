@@ -109,7 +109,7 @@ func (s *SaleOrder) insertSalesOrder() bool {
 		return false
 	}
 
-	s.OrderNumber = getNextOrderNumber(s.BillingSeries)
+	s.OrderNumber = getNextSaleOrderNumber(s.BillingSeries)
 	if s.OrderNumber <= 0 {
 		return false
 	}
@@ -248,12 +248,14 @@ func getSaleOrderDefaults() SaleOrderDefaults {
 type SalesOrderRelations struct {
 	Invoices            []SalesInvoice       `json:"invoices"`
 	ManufacturingOrders []ManufacturingOrder `json:"manufacturingOrders"`
+	DeliveryNotes       []SalesDeliveryNote  `json:"deliveryNotes"`
 }
 
 func getSalesOrderRelations(orderId int32) SalesOrderRelations {
 	return SalesOrderRelations{
 		Invoices:            getSalesOrderInvoices(orderId),
 		ManufacturingOrders: getSalesOrderManufacturingOrders(orderId),
+		DeliveryNotes:       getSalesOrderDeliveryNotes(orderId),
 	}
 }
 
@@ -290,6 +292,23 @@ func getSalesOrderManufacturingOrders(orderId int32) []ManufacturingOrder {
 	}
 
 	return manufacturingOrders
+}
+
+func getSalesOrderDeliveryNotes(orderId int32) []SalesDeliveryNote {
+	// DELIVERY NOTES
+	var products []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
+	sqlStatement := `SELECT DISTINCT sales_delivery_note.* FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = 1`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return products
+	}
+	for rows.Next() {
+		p := SalesDeliveryNote{}
+		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
+		products = append(products, p)
+	}
+
+	return products
 }
 
 func setSalesOrderState(orderId int32) bool {

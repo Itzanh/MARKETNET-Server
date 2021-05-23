@@ -230,3 +230,20 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int32, quantity int32) 
 
 	return setSalesOrderState(detail.Order)
 }
+
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addQuantityDeliveryNoteSalesOrderDetail(detailId int32, quantity int32) bool {
+
+	detailBefore := getSalesOrderDetailRow(detailId)
+	if detailBefore.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE sales_order_detail SET quantity_delivery_note = quantity_delivery_note + $2 WHERE id = $1`
+	res, err := db.Exec(sqlStatement, detailId, quantity)
+	rows, _ := res.RowsAffected()
+	if err != nil && rows == 0 {
+		return false
+	}
+	return true
+}

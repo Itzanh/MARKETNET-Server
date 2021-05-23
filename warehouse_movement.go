@@ -73,6 +73,26 @@ func getWarehouseMovementRow(movementId int64) WarehouseMovement {
 	return m
 }
 
+func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
+	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
+	if noteId <= 0 {
+		return warehouseMovements
+	}
+
+	sqlStatement := `SELECT * FROM public.warehouse_movement WHERE sales_delivery_note=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, noteId)
+	if err != nil {
+		return warehouseMovements
+	}
+	for rows.Next() {
+		m := WarehouseMovement{}
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		warehouseMovements = append(warehouseMovements, m)
+	}
+
+	return warehouseMovements
+}
+
 func (m *WarehouseMovement) isValid() bool {
 	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1)
 }
@@ -99,6 +119,13 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 		trans.Rollback()
 		return false
 	}
+	if m.SalesOrderDetail != nil {
+		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity))
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
 
 	///
 	err = trans.Commit()
@@ -109,6 +136,14 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+// Abs returns the absolute value of x.
+func abs(x int32) int32 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 func (m *WarehouseMovement) deleteWarehouseMovement() bool {
@@ -138,6 +173,13 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	if !ok {
 		trans.Rollback()
 		return false
+	}
+	if inMemoryMovement.SalesOrderDetail != nil {
+		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity))
+		if !ok {
+			trans.Rollback()
+			return false
+		}
 	}
 
 	///

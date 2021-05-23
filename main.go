@@ -139,6 +139,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getWarehouseMovement())
 	case "WAREHOUSE_WAREHOUSE_MOVEMENTS":
 		data, _ = json.Marshal(getWarehouseMovementByWarehouse(message))
+	case "SALES_DELIVERY_NOTES":
+		data, _ = json.Marshal(getSalesDeliveryNotes())
 	default:
 		found = false
 	}
@@ -179,6 +181,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getSalesInvoiceDetail(int32(id)))
 	case "SALES_ORDER_PACKAGING":
 		data, _ = json.Marshal(getPackaging(int32(id)))
+	case "SALES_DELIVERY_NOTES_DETAILS":
+		data, _ = json.Marshal(getWarehouseMovementBySalesDeliveryNote(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -278,6 +282,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var warehouseMovement WarehouseMovement
 		json.Unmarshal(message, &warehouseMovement)
 		ok = warehouseMovement.insertWarehouseMovement()
+	case "SALES_DELIVERY_NOTES":
+		var salesDeliveryNote SalesDeliveryNote
+		json.Unmarshal(message, &salesDeliveryNote)
+		ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -462,6 +470,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var warehouseMovement WarehouseMovement
 		warehouseMovement.Id = int64(id)
 		ok = warehouseMovement.deleteWarehouseMovement()
+	case "SALES_DELIVERY_NOTES":
+		var salesDeliveryNote SalesDeliveryNote
+		salesDeliveryNote.Id = int32(id)
+		ok = salesDeliveryNote.deleteSalesDeliveryNotes()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -641,6 +653,16 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var salesOrderDetailPackaged SalesOrderDetailPackaged
 		json.Unmarshal([]byte(message), &salesOrderDetailPackaged)
 		data, _ = json.Marshal(salesOrderDetailPackaged.deleteSalesOrderDetailPackaged(true))
+	case "DELIVERY_NOTE_ALL_SALE_ORDER":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(deliveryNoteAllSaleOrder(int32(id)))
+	case "DELIVERY_NOTE_PARTIALLY_SALE_ORDER":
+		var noteInfo SalesOrderDetailDeliveryNote
+		json.Unmarshal([]byte(message), &noteInfo)
+		data, _ = json.Marshal(noteInfo.deliveryNotePartiallySaleOrder())
 	}
 	ws.WriteMessage(mt, data)
 }

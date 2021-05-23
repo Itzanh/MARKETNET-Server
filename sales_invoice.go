@@ -54,7 +54,7 @@ func (i *SalesInvoice) insertSalesInvoice() (bool, int32) {
 		return false, 0
 	}
 
-	i.InvoiceNumber = getNextInvoiceNumber(i.BillingSeries)
+	i.InvoiceNumber = getNextSaleInvoiceNumber(i.BillingSeries)
 	if i.InvoiceNumber <= 0 {
 		return false, 0
 	}
