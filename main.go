@@ -141,6 +141,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getWarehouseMovementByWarehouse(message))
 	case "SALES_DELIVERY_NOTES":
 		data, _ = json.Marshal(getSalesDeliveryNotes())
+	case "INCOTERMS":
+		data, _ = json.Marshal(getIncoterm())
 	default:
 		found = false
 	}
@@ -286,6 +288,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var salesDeliveryNote SalesDeliveryNote
 		json.Unmarshal(message, &salesDeliveryNote)
 		ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
+	case "INCOTERM":
+		var incoterm Incoterm
+		json.Unmarshal(message, &incoterm)
+		ok = incoterm.insertIncoterm()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -354,6 +360,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var packages Packages
 		json.Unmarshal(message, &packages)
 		ok = packages.updatePackage()
+	case "INCOTERM":
+		var incoterm Incoterm
+		json.Unmarshal(message, &incoterm)
+		ok = incoterm.updateIncoterm()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -474,6 +484,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var salesDeliveryNote SalesDeliveryNote
 		salesDeliveryNote.Id = int32(id)
 		ok = salesDeliveryNote.deleteSalesDeliveryNotes()
+	case "INCOTERM":
+		var incoterm Incoterm
+		incoterm.Id = int16(id)
+		ok = incoterm.deleteIncoterm()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
