@@ -39,6 +39,7 @@ type SaleOrder struct {
 	OrderNumber        int32      `json:"orderNumber"`
 	BillingStatus      string     `json:"billingStatus"`
 	OrderName          string     `json:"orderName"`
+	Carrier            *int16     `json:"carrier"`
 }
 
 func getSalesOrder() []SaleOrder {
@@ -52,7 +53,7 @@ func getSalesOrder() []SaleOrder {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier)
 		sales = append(sales, s)
 	}
 
@@ -78,7 +79,7 @@ func getSalesOrderStatus(status string) []SaleOrder {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier)
 		sales = append(sales, s)
 	}
 
@@ -95,7 +96,7 @@ func getSalesOrderRow(id int32) SaleOrder {
 	s := SaleOrder{}
 	rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 		&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-		&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+		&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier)
 
 	return s
 }
@@ -117,8 +118,8 @@ func (s *SaleOrder) insertSalesOrder() bool {
 	now := time.Now()
 	s.OrderName = s.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", s.OrderNumber)
 
-	sqlStatement := `INSERT INTO public.sales_order(warehouse, reference, customer, payment_method, billing_series, currency, currency_change, billing_address, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, dsc, notes, order_number, order_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
-	res, err := db.Exec(sqlStatement, s.Warehouse, s.Reference, s.Customer, s.PaymentMethod, s.BillingSeries, s.Currency, s.CurrencyChange, s.BillingAddress, s.ShippingAddress, s.DiscountPercent, s.FixDiscount, s.ShippingPrice, s.ShippingDiscount, s.Description, s.Notes, s.OrderNumber, s.OrderName)
+	sqlStatement := `INSERT INTO public.sales_order(warehouse, reference, customer, payment_method, billing_series, currency, currency_change, billing_address, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, dsc, notes, order_number, order_name, carrier) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
+	res, err := db.Exec(sqlStatement, s.Warehouse, s.Reference, s.Customer, s.PaymentMethod, s.BillingSeries, s.Currency, s.CurrencyChange, s.BillingAddress, s.ShippingAddress, s.DiscountPercent, s.FixDiscount, s.ShippingPrice, s.ShippingDiscount, s.Description, s.Notes, s.OrderNumber, s.OrderName, s.Carrier)
 	if err != nil {
 		return false
 	}
@@ -152,8 +153,8 @@ func (s *SaleOrder) updateSalesOrder() bool {
 			s.CurrencyChange = getCurrencyExchange(s.Currency)
 		}
 
-		sqlStatement := `UPDATE sales_order SET customer=$2, payment_method=$3, currency=$4, currency_change=$5, billing_address=$6, shipping_address=$7, discount_percent=$8, fix_discount=$9, shipping_price=$10, shipping_discount=$11, dsc=$12, notes=$13, reference=$14 WHERE id = $1`
-		res, err = db.Exec(sqlStatement, s.Id, s.Customer, s.PaymentMethod, s.Currency, s.CurrencyChange, s.BillingAddress, s.ShippingAddress, s.DiscountPercent, s.FixDiscount, s.ShippingPrice, s.ShippingDiscount, s.Description, s.Notes, s.Reference)
+		sqlStatement := `UPDATE sales_order SET customer=$2, payment_method=$3, currency=$4, currency_change=$5, billing_address=$6, shipping_address=$7, discount_percent=$8, fix_discount=$9, shipping_price=$10, shipping_discount=$11, dsc=$12, notes=$13, reference=$14, carrier=$15 WHERE id = $1`
+		res, err = db.Exec(sqlStatement, s.Id, s.Customer, s.PaymentMethod, s.Currency, s.CurrencyChange, s.BillingAddress, s.ShippingAddress, s.DiscountPercent, s.FixDiscount, s.ShippingPrice, s.ShippingDiscount, s.Description, s.Notes, s.Reference, s.Carrier)
 
 		if s.DiscountPercent != inMemoryOrder.DiscountPercent || s.FixDiscount != inMemoryOrder.FixDiscount || s.ShippingPrice != inMemoryOrder.ShippingPrice || s.ShippingDiscount != inMemoryOrder.ShippingDiscount {
 			ok := calcTotalsSaleOrder(s.Id)
@@ -163,8 +164,8 @@ func (s *SaleOrder) updateSalesOrder() bool {
 			}
 		}
 	} else {
-		sqlStatement := `UPDATE sales_order SET customer=$2, billing_address=$3, shipping_address=$4, dsc=$5, notes=$6, reference=$7 WHERE id = $1`
-		res, err = db.Exec(sqlStatement, s.Id, s.Customer, s.BillingAddress, s.ShippingAddress, s.Description, s.Notes, s.Reference)
+		sqlStatement := `UPDATE sales_order SET customer=$2, billing_address=$3, shipping_address=$4, dsc=$5, notes=$6, reference=$7, carrier=$8 WHERE id = $1`
+		res, err = db.Exec(sqlStatement, s.Id, s.Customer, s.BillingAddress, s.ShippingAddress, s.Description, s.Notes, s.Reference, s.Carrier)
 	}
 
 	if err != nil {
@@ -249,6 +250,7 @@ type SalesOrderRelations struct {
 	Invoices            []SalesInvoice       `json:"invoices"`
 	ManufacturingOrders []ManufacturingOrder `json:"manufacturingOrders"`
 	DeliveryNotes       []SalesDeliveryNote  `json:"deliveryNotes"`
+	Shippings           []Shipping           `json:"shippings"`
 }
 
 func getSalesOrderRelations(orderId int32) SalesOrderRelations {
@@ -256,6 +258,7 @@ func getSalesOrderRelations(orderId int32) SalesOrderRelations {
 		Invoices:            getSalesOrderInvoices(orderId),
 		ManufacturingOrders: getSalesOrderManufacturingOrders(orderId),
 		DeliveryNotes:       getSalesOrderDeliveryNotes(orderId),
+		Shippings:           getSalesOrderShippings(orderId),
 	}
 }
 
@@ -297,8 +300,8 @@ func getSalesOrderManufacturingOrders(orderId int32) []ManufacturingOrder {
 func getSalesOrderDeliveryNotes(orderId int32) []SalesDeliveryNote {
 	// DELIVERY NOTES
 	var products []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
-	sqlStatement := `SELECT DISTINCT sales_delivery_note.* FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = 1`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT DISTINCT sales_delivery_note.* FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = $1`
+	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
 		return products
 	}
@@ -309,6 +312,23 @@ func getSalesOrderDeliveryNotes(orderId int32) []SalesDeliveryNote {
 	}
 
 	return products
+}
+
+func getSalesOrderShippings(orderId int32) []Shipping {
+	// SHIPPINGS
+	var shippings []Shipping = make([]Shipping, 0)
+	sqlStatement := `SELECT * FROM public.shipping WHERE "order"=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, orderId)
+	if err != nil {
+		return shippings
+	}
+	for rows.Next() {
+		s := Shipping{}
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber)
+		shippings = append(shippings, s)
+	}
+
+	return shippings
 }
 
 func setSalesOrderState(orderId int32) bool {
@@ -329,4 +349,27 @@ func setSalesOrderState(orderId int32) bool {
 	rows, _ := res.RowsAffected()
 
 	return rows > 0 && err == nil
+}
+
+type SaleOrderLocate struct {
+	Id           int32     `json:"id"`
+	CustomerName string    `json:"customerName"`
+	OrderName    string    `json:"orderName"`
+	DateCreated  time.Time `json:"dateCreated"`
+}
+
+func locateSaleOrder() []SaleOrderLocate {
+	var sales []SaleOrderLocate = make([]SaleOrderLocate, 0)
+	sqlStatement := `SELECT id,(SELECT name FROM customer WHERE id=sales_order.id),order_name,date_created FROM sales_order ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return sales
+	}
+	for rows.Next() {
+		s := SaleOrderLocate{}
+		rows.Scan(&s.Id, &s.CustomerName, &s.OrderName, &s.DateCreated)
+		sales = append(sales, s)
+	}
+
+	return sales
 }

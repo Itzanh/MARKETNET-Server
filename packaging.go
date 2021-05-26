@@ -33,6 +33,27 @@ func getPackaging(salesOrderId int32) []Packaging {
 	return packaging
 }
 
+func getPackagingByShipping(shippingId int32) []Packaging {
+	var packaging []Packaging = make([]Packaging, 0)
+	sqlStatement := `SELECT * FROM public.packaging WHERE shipping=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, shippingId)
+	if err != nil {
+		return packaging
+	}
+	for rows.Next() {
+		p := Packaging{}
+		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping)
+		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id)
+
+		_package := getPackagesRow(p.Package)
+		p.PackageName = _package.Name + " (" + fmt.Sprintf("%dx%dx%d", int(_package.Width), int(_package.Height), int(_package.Depth)) + ")"
+
+		packaging = append(packaging, p)
+	}
+
+	return packaging
+}
+
 func (p *Packaging) isValid() bool {
 	return !(p.Package <= 0 || p.SalesOrder <= 0)
 }

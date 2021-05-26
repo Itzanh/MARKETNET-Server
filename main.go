@@ -145,6 +145,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getIncoterm())
 	case "CARRIERS":
 		data, _ = json.Marshal(getCariers())
+	case "SHIPPINGS":
+		data, _ = json.Marshal(getShippings())
 	default:
 		found = false
 	}
@@ -187,6 +189,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPackaging(int32(id)))
 	case "SALES_DELIVERY_NOTES_DETAILS":
 		data, _ = json.Marshal(getWarehouseMovementBySalesDeliveryNote(int32(id)))
+	case "SHIPPING_PACKAGING":
+		data, _ = json.Marshal(getPackagingByShipping(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -298,6 +302,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var carrier Carrier
 		json.Unmarshal(message, &carrier)
 		ok = carrier.insertCarrier()
+	case "SHIPPING":
+		var shipping Shipping
+		json.Unmarshal(message, &shipping)
+		ok, _ = shipping.insertShipping()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -374,6 +382,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var incoterm Carrier
 		json.Unmarshal(message, &incoterm)
 		ok = incoterm.updateCarrier()
+	case "SHIPPING":
+		var shipping Shipping
+		json.Unmarshal(message, &shipping)
+		ok = shipping.updateShipping()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -502,6 +514,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var carrier Carrier
 		carrier.Id = int16(id)
 		ok = carrier.deleteCarrier()
+	case "SHIPPING":
+		var shipping Shipping
+		shipping.Id = int32(id)
+		ok = shipping.deleteShipping()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -534,6 +550,8 @@ func instructionName(command string, message string, mt int, ws *websocket.Conn)
 		data, _ = json.Marshal(findProductByName(message))
 	case "WAREHOUSE":
 		data, _ = json.Marshal(findWarehouseByName(message))
+	case "CARRIER":
+		data, _ = json.Marshal(findCarrierByName(message))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -584,6 +602,10 @@ func instructionGetName(command string, message string, mt int, ws *websocket.Co
 		name = getAddressName(int32(id))
 	case "PRODUCT":
 		name = getNameProduct(int32(id))
+	case "CARRIER":
+		name = getNameCarrier(int16(id))
+	case "SALE_DELIERY_NOTE":
+		name = getNameSalesDeliveryNote(int32(id))
 	}
 	ws.WriteMessage(mt, []byte(name))
 }
@@ -623,14 +645,31 @@ func instructionDefaults(command string, message string, mt int, ws *websocket.C
 
 func instructionLocate(command string, message string, mt int, ws *websocket.Conn) {
 	var data []byte
+	var found bool = true
 
+	// PARAMETERLESS
+	switch command {
+	case "SALE_ORDER":
+		data, _ = json.Marshal(locateSaleOrder())
+	default:
+		found = false
+	}
+
+	if found {
+		ws.WriteMessage(mt, data)
+		return
+	}
+
+	// NUMERIC
 	id, err := strconv.Atoi(message)
 	if err != nil {
 		return
 	}
 	switch command {
 	case "ADDRESS":
-		data, _ = json.Marshal(locateAddress(int32(id)))
+		data, _ = json.Marshal(locateAddressByCustomer(int32(id)))
+	case "SALE_DELIVERY_NOTE":
+		data, _ = json.Marshal(locateSalesDeliveryNotesBySalesOrder(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -686,11 +725,24 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(deliveryNoteAllSaleOrder(int32(id)))
+		ok, _ := deliveryNoteAllSaleOrder(int32(id))
+		data, _ = json.Marshal(ok)
 	case "DELIVERY_NOTE_PARTIALLY_SALE_ORDER":
 		var noteInfo SalesOrderDetailDeliveryNote
 		json.Unmarshal([]byte(message), &noteInfo)
 		data, _ = json.Marshal(noteInfo.deliveryNotePartiallySaleOrder())
+	case "SHIPPING_SALE_ORDER":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(generateShippingFromSaleOrder(int32(id)))
+	case "TOGGLE_SHIPPING_SENT":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(toggleShippingSent(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

@@ -1,5 +1,7 @@
 package main
 
+import "strings"
+
 type Carrier struct {
 	Id          int16   `json:"id"`
 	Name        string  `json:"name"`
@@ -77,4 +79,36 @@ func (c *Carrier) deleteCarrier() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+type CarrierName struct {
+	Id   int16  `json:"id"`
+	Name string `json:"name"`
+}
+
+func findCarrierByName(languageName string) []CarrierName {
+	var carriers []CarrierName = make([]CarrierName, 0)
+	sqlStatement := `SELECT id,name FROM public.carrier WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
+	if err != nil {
+		return carriers
+	}
+	for rows.Next() {
+		c := CarrierName{}
+		rows.Scan(&c.Id, &c.Name)
+		carriers = append(carriers, c)
+	}
+
+	return carriers
+}
+
+func getNameCarrier(id int16) string {
+	sqlStatement := `SELECT name FROM public.carrier WHERE id = $1`
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return ""
+	}
+	name := ""
+	row.Scan(&name)
+	return name
 }

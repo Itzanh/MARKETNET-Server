@@ -88,13 +88,13 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {
 	return rows > 0
 }
 
-func deliveryNoteAllSaleOrder(saleOrderId int32) bool {
+func deliveryNoteAllSaleOrder(saleOrderId int32) (bool, int32) {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	orderDetails := getSalesOrderDetail(saleOrderId)
 
 	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
-		return false
+		return false, 0
 	}
 
 	// create a delivery note for that order
@@ -109,14 +109,14 @@ func deliveryNoteAllSaleOrder(saleOrderId int32) bool {
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return false, 0
 	}
 	///
 
 	ok, deliveryNoteId := n.insertSalesDeliveryNotes()
 	if !ok {
 		trans.Rollback()
-		return false
+		return false, 0
 	}
 	for i := 0; i < len(orderDetails); i++ {
 		orderDetail := orderDetails[i]
@@ -131,13 +131,13 @@ func deliveryNoteAllSaleOrder(saleOrderId int32) bool {
 		ok = movement.insertWarehouseMovement()
 		if !ok {
 			trans.Rollback()
-			return false
+			return false, 0
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return transErr == nil, deliveryNoteId
 	///
 }
 
@@ -209,4 +209,38 @@ func (noteInfo *SalesOrderDetailDeliveryNote) deliveryNotePartiallySaleOrder() b
 	transErr = trans.Commit()
 	return transErr == nil
 	///
+}
+
+type SalesDeliveryNoteLocate struct {
+	Id               int32     `json:"id"`
+	CustomerName     string    `json:"customerName"`
+	DateCreated      time.Time `json:"dateCreated"`
+	DeliveryNoteName string    `json:"deliveryNoteName"`
+}
+
+func locateSalesDeliveryNotesBySalesOrder(orderId int32) []SalesDeliveryNoteLocate {
+	var products []SalesDeliveryNoteLocate = make([]SalesDeliveryNoteLocate, 0)
+	sqlStatement := `SELECT DISTINCT sales_delivery_note.id,(SELECT name FROM customer WHERE id=sales_delivery_note.customer),sales_delivery_note.date_created,sales_delivery_note.delivery_note_name FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = $1`
+	rows, err := db.Query(sqlStatement, orderId)
+	if err != nil {
+		return products
+	}
+	for rows.Next() {
+		p := SalesDeliveryNoteLocate{}
+		rows.Scan(&p.Id, &p.CustomerName, &p.DateCreated, &p.DeliveryNoteName)
+		products = append(products, p)
+	}
+
+	return products
+}
+
+func getNameSalesDeliveryNote(id int32) string {
+	sqlStatement := `SELECT delivery_note_name FROM public.sales_delivery_note WHERE id = $1`
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return ""
+	}
+	name := ""
+	row.Scan(&name)
+	return name
 }

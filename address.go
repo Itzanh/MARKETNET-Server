@@ -82,7 +82,7 @@ type AddressLocate struct {
 	Address string `json:"address"`
 }
 
-func locateAddress(customerId int32) []AddressLocate {
+func locateAddressByCustomer(customerId int32) []AddressLocate {
 	var addresses []AddressLocate = make([]AddressLocate, 0)
 	sqlStatement := `SELECT id, address FROM address WHERE customer = $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, customerId)
