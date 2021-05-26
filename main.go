@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"net/http"
 
@@ -35,9 +36,10 @@ func main() {
 	db, _ = sql.Open("postgres", psqlInfo)
 	db.Ping()
 
-	for {
-
-	}
+	// idle wait to prevent the main thread from exiting
+	var wg = &sync.WaitGroup{}
+	wg.Add(1)
+	wg.Wait()
 }
 
 func reverse(w http.ResponseWriter, r *http.Request) {
