@@ -368,6 +368,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrder SaleOrder
 		json.Unmarshal(message, &saleOrder)
 		ok = saleOrder.updateSalesOrder()
+	case "SALES_ORDER_DETAIL":
+		var salesOrderDetail SalesOrderDetail
+		json.Unmarshal(message, &salesOrderDetail)
+		ok = salesOrderDetail.updateSalesOrderDetail()
 	case "MANUFACTURING_ORDER_TYPE":
 		var manufacturingOrderType ManufacturingOrderType
 		json.Unmarshal(message, &manufacturingOrderType)

@@ -85,6 +85,57 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 	return rows > 0
 }
 
+func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
+	if s.Id <= 0 || !s.isValid() {
+		return false
+	}
+
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return false
+	}
+	///
+
+	order := getSalesOrderRow(s.Order)
+	if order.Id <= 0 || order.Status != "_" {
+		return false
+	}
+	inMemoryDetail := getSalesOrderDetailRow(s.Id)
+	if inMemoryDetail.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent)
+	if err != nil {
+		return false
+	}
+
+	// take out the old value
+	ok := addTotalProductsSalesOrder(inMemoryDetail.Order, -(inMemoryDetail.Price * float32(inMemoryDetail.Quantity)), inMemoryDetail.VatPercent)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
+	// add the new value
+	ok = addTotalProductsSalesOrder(s.Order, s.Price*float32(s.Quantity), s.VatPercent)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		return false
+	}
+	///
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}
+
 // Deletes an order detail, substracting the stock and the amount from the order total. All the operations are done under a transaction.
 func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 	if s.Id <= 0 {
