@@ -745,6 +745,12 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(toggleShippingSent(int32(id)))
+	case "GET_SALES_DELIVERY_NOTE_RELATIONS":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getSalesDeliveryNoteRelations(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

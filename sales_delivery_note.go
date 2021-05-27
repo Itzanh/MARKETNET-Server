@@ -244,3 +244,49 @@ func getNameSalesDeliveryNote(id int32) string {
 	row.Scan(&name)
 	return name
 }
+
+type SalesDeliveryNoteRelation struct {
+	Orders    []SaleOrder `json:"orders"`
+	Shippings []Shipping  `json:"shippings"`
+}
+
+func getSalesDeliveryNoteRelations(noteId int32) SalesDeliveryNoteRelation {
+	return SalesDeliveryNoteRelation{
+		Orders:    getSalesDeliveryNoteOrders(noteId),
+		Shippings: getSalesDeliveryNoteShippings(noteId),
+	}
+}
+
+func getSalesDeliveryNoteOrders(noteId int32) []SaleOrder {
+	var sales []SaleOrder = make([]SaleOrder, 0)
+	sqlStatement := `SELECT DISTINCT sales_order.* FROM sales_delivery_note INNER JOIN warehouse_movement ON sales_delivery_note.id=warehouse_movement.sales_delivery_note INNER JOIN sales_order ON sales_order.id=warehouse_movement.sales_order WHERE sales_delivery_note.id=$1 ORDER BY sales_order.date_created DESC`
+	rows, err := db.Query(sqlStatement, noteId)
+	if err != nil {
+		return sales
+	}
+	for rows.Next() {
+		s := SaleOrder{}
+		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier)
+		sales = append(sales, s)
+	}
+
+	return sales
+}
+
+func getSalesDeliveryNoteShippings(noteId int32) []Shipping {
+	var shippings []Shipping = make([]Shipping, 0)
+	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM public.shipping WHERE shipping.delivery_note=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, noteId)
+	if err != nil {
+		return shippings
+	}
+	for rows.Next() {
+		s := Shipping{}
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		shippings = append(shippings, s)
+	}
+
+	return shippings
+}
