@@ -27,7 +27,7 @@ var upgrader = websocket.Upgrader{}
 var db *sql.DB
 
 func main() {
-	fmt.Println("Hola Mundo! :D")
+	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
 	go http.ListenAndServe(":12279", nil)
@@ -43,12 +43,18 @@ func main() {
 }
 
 func reverse(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("HERE!")
+	fmt.Println("Client connected! " + r.RemoteAddr)
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	defer ws.Close()
+
+	// AUTHENTICATION
+	if !authentication(ws, r.RemoteAddr) {
+		return
+	}
+	// END AUTHENTICATION
 
 	for {
 		// Receive message
@@ -70,8 +76,41 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		}
 
 		commandProcessor(command[0:commandSeparatorIndex], command[commandSeparatorIndex+1:], message[separatorIndex+1:], mt, ws)
-		//fmt.Println(command[0:commandSeparatorIndex] + " " + command[commandSeparatorIndex+1:] + " " + string(message[separatorIndex+1:]))
 	}
+}
+
+func authentication(ws *websocket.Conn, remoteAddr string) bool {
+	// AUTHENTICATION
+	for i := 0; i < 3; i++ {
+		// Receive message
+		mt, message, err := ws.ReadMessage()
+		if err != nil {
+			return false
+		}
+
+		// Remote the port from the address
+		remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
+
+		// Attempt login in DB
+		var userLogin UserLogin
+		json.Unmarshal(message, &userLogin)
+		result := UserLoginResult{}
+		if len(userLogin.Token) > 0 {
+			t := LoginToken{Name: userLogin.Token, IpAddress: remoteAddr}
+			result.Ok = t.checkLoginToken()
+		} else {
+			result = userLogin.login(remoteAddr)
+		}
+
+		// Return result to client (Ok + Token)
+		data, _ := json.Marshal(result)
+		ws.WriteMessage(mt, data)
+		if result.Ok {
+			return true
+		}
+	}
+	// END AUTHENTICATION
+	return false
 }
 
 func commandProcessor(instruction string, command string, message []byte, mt int, ws *websocket.Conn) {
@@ -149,6 +188,10 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getCariers())
 	case "SHIPPINGS":
 		data, _ = json.Marshal(getShippings())
+	case "USERS":
+		data, _ = json.Marshal(getUser())
+	case "GROUPS":
+		data, _ = json.Marshal(getGroup())
 	default:
 		found = false
 	}
@@ -193,6 +236,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getWarehouseMovementBySalesDeliveryNote(int32(id)))
 	case "SHIPPING_PACKAGING":
 		data, _ = json.Marshal(getPackagingByShipping(int32(id)))
+	case "GET_USER_GROUPS":
+		data, _ = json.Marshal(getUserGroups(int16(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -308,6 +353,18 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var shipping Shipping
 		json.Unmarshal(message, &shipping)
 		ok, _ = shipping.insertShipping()
+	case "USER":
+		var userInsert UserInsert
+		json.Unmarshal(message, &userInsert)
+		ok = userInsert.insertUser()
+	case "GROUP":
+		var group Group
+		json.Unmarshal(message, &group)
+		ok = group.insertGroup()
+	case "USER_GROUP":
+		var userGroup UserGroup
+		json.Unmarshal(message, &userGroup)
+		ok = userGroup.insertUserGroup()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -392,6 +449,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var shipping Shipping
 		json.Unmarshal(message, &shipping)
 		ok = shipping.updateShipping()
+	case "USER":
+		var user User
+		json.Unmarshal(message, &user)
+		ok = user.updateUser()
+	case "GROUP":
+		var group Group
+		json.Unmarshal(message, &group)
+		ok = group.updateGroup()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -412,6 +477,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var warehouse Warehouse
 		warehouse.Id = message
 		ok = warehouse.deleteWarehouse()
+	case "USER_GROUP":
+		var userGroup UserGroup
+		json.Unmarshal([]byte(message), &userGroup)
+		ok = userGroup.deleteUserGroup()
 	default:
 		found = false
 	}
@@ -524,6 +593,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var shipping Shipping
 		shipping.Id = int32(id)
 		ok = shipping.deleteShipping()
+	case "USER":
+		var user User
+		user.Id = int16(id)
+		ok = user.deleteUser()
+	case "GROUP":
+		var group Group
+		group.Id = int16(id)
+		ok = group.deleteGroup()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -755,6 +832,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(getSalesDeliveryNoteRelations(int32(id)))
+	case "USER_PWD":
+		var userPassword UserPassword
+		json.Unmarshal([]byte(message), &userPassword)
+		data, _ = json.Marshal(userPassword.userPassword())
+	case "USER_OFF":
+		var user User
+		json.Unmarshal([]byte(message), &user)
+		data, _ = json.Marshal(user.offUser())
+
 	}
 	ws.WriteMessage(mt, data)
 }
