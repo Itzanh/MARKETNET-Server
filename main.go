@@ -192,6 +192,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getUser())
 	case "GROUPS":
 		data, _ = json.Marshal(getGroup())
+	case "SUPPLIERS":
+		data, _ = json.Marshal(getSuppliers())
 	default:
 		found = false
 	}
@@ -365,6 +367,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var userGroup UserGroup
 		json.Unmarshal(message, &userGroup)
 		ok = userGroup.insertUserGroup()
+	case "SUPPLIER":
+		var supplier Supplier
+		json.Unmarshal(message, &supplier)
+		ok = supplier.insertSupplier()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -457,6 +463,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var group Group
 		json.Unmarshal(message, &group)
 		ok = group.updateGroup()
+	case "SUPPLIER":
+		var supplier Supplier
+		json.Unmarshal(message, &supplier)
+		ok = supplier.updateSupplier()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -601,6 +611,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var group Group
 		group.Id = int16(id)
 		ok = group.deleteGroup()
+	case "SUPPLIER":
+		var supplier Supplier
+		supplier.Id = int32(id)
+		ok = supplier.deleteSupplier()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -635,6 +649,8 @@ func instructionName(command string, message string, mt int, ws *websocket.Conn)
 		data, _ = json.Marshal(findWarehouseByName(message))
 	case "CARRIER":
 		data, _ = json.Marshal(findCarrierByName(message))
+	case "SUPPLIER":
+		data, _ = json.Marshal(findSupplierByName(message))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -689,6 +705,8 @@ func instructionGetName(command string, message string, mt int, ws *websocket.Co
 		name = getNameCarrier(int16(id))
 	case "SALE_DELIERY_NOTE":
 		name = getNameSalesDeliveryNote(int32(id))
+	case "SUPPLIER":
+		name = getNameSupplier(int32(id))
 	}
 	ws.WriteMessage(mt, []byte(name))
 }
@@ -722,6 +740,8 @@ func instructionDefaults(command string, message string, mt int, ws *websocket.C
 		data, _ = json.Marshal(getCustomerDefaults(int32(id)))
 	case "SALES_ORDER_DETAIL":
 		data, _ = json.Marshal(getOrderDetailDefaults(int32(id)))
+	case "SUPPLIER":
+		data, _ = json.Marshal(getSupplierDefaults(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
