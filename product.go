@@ -137,13 +137,18 @@ func getNameProduct(id int32) string {
 	return name
 }
 
-func getOrderDetailDefaults(roductId int32) SalesOrderDetailDefaults {
+type OrderDetailDefaults struct {
+	Price      float32 `json:"price"`
+	VatPercent float32 `json:"vatPercent"`
+}
+
+func getOrderDetailDefaults(roductId int32) OrderDetailDefaults {
 	sqlStatement := `SELECT price, vat_percent FROM product WHERE id = $1`
 	row := db.QueryRow(sqlStatement, roductId)
 	if row.Err() != nil {
-		return SalesOrderDetailDefaults{}
+		return OrderDetailDefaults{}
 	}
-	s := SalesOrderDetailDefaults{}
+	s := OrderDetailDefaults{}
 	row.Scan(&s.Price, &s.VatPercent)
 	return s
 }

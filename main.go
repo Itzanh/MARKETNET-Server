@@ -194,6 +194,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getGroup())
 	case "SUPPLIERS":
 		data, _ = json.Marshal(getSuppliers())
+	case "PURCHASE_ORDER":
+		data, _ = json.Marshal(getPurchaseOrder())
 	default:
 		found = false
 	}
@@ -209,7 +211,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		return
 	}
 	switch command {
-	case "MANUFACTURING_ORDER":
+	case "MANUFACTURING_ORDER": // accepts the "0" value
 		data, _ = json.Marshal(getManufacturingOrder(int16(id)))
 		found = true
 	default:
@@ -240,6 +242,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPackagingByShipping(int32(id)))
 	case "GET_USER_GROUPS":
 		data, _ = json.Marshal(getUserGroups(int16(id)))
+	case "PURCHASE_ORDER_DETAIL":
+		data, _ = json.Marshal(getPurchaseOrderDetail(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -371,6 +375,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var supplier Supplier
 		json.Unmarshal(message, &supplier)
 		ok = supplier.insertSupplier()
+	case "PURCHASE_ORDER":
+		var purchaseOrder PurchaseOrder
+		json.Unmarshal(message, &purchaseOrder)
+		ok = purchaseOrder.insertPurchaseOrder()
+	case "PURCHASE_ORDER_DETAIL":
+		var purchaseOrderDetail PurchaseOrderDetail
+		json.Unmarshal(message, &purchaseOrderDetail)
+		ok = purchaseOrderDetail.insertPurchaseOrderDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -467,6 +479,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var supplier Supplier
 		json.Unmarshal(message, &supplier)
 		ok = supplier.updateSupplier()
+	case "PURCHASE_ORDER":
+		var PurchaseOrdep PurchaseOrder
+		json.Unmarshal(message, &PurchaseOrdep)
+		ok = PurchaseOrdep.updatePurchaseOrder()
+	case "PURCHASE_ORDER_DETAIL":
+		var purchaseOrderDetail PurchaseOrderDetail
+		json.Unmarshal(message, &purchaseOrderDetail)
+		ok = purchaseOrderDetail.updatePurchaseOrderDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -615,6 +635,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var supplier Supplier
 		supplier.Id = int32(id)
 		ok = supplier.deleteSupplier()
+	case "PURCHASE_ORDER":
+		var purchaseOrder PurchaseOrder
+		purchaseOrder.Id = int32(id)
+		ok = purchaseOrder.deletePurchaseOrder()
+	case "PURCHASE_ORDER_DETAIL":
+		var purchaseOrderDetail PurchaseOrderDetail
+		purchaseOrderDetail.Id = int32(id)
+		ok = purchaseOrderDetail.deletePurchaseOrderDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -721,6 +749,8 @@ func instructionDefaults(command string, message string, mt int, ws *websocket.C
 	switch command {
 	case "SALES_ORDER":
 		data, _ = json.Marshal(getSaleOrderDefaults())
+	case "PURCHASE_ORDER":
+		data, _ = json.Marshal(getPurchaseOrderDefaults())
 	default:
 		found = false
 	}
@@ -769,8 +799,10 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 		return
 	}
 	switch command {
-	case "ADDRESS":
+	case "ADDRESS_CUSTOMER":
 		data, _ = json.Marshal(locateAddressByCustomer(int32(id)))
+	case "ADDRESS_SUPPLIER":
+		data, _ = json.Marshal(locateAddressBySupplier(int32(id)))
 	case "SALE_DELIVERY_NOTE":
 		data, _ = json.Marshal(locateSalesDeliveryNotesBySalesOrder(int32(id)))
 	}

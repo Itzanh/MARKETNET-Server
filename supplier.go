@@ -122,27 +122,13 @@ func getNameSupplier(id int32) string {
 	return name
 }
 
-type SupplierDefauls struct {
-	MainShippingAddress     *int32   `json:"mainShippingAddress"`
-	MainShippingAddressName *string  `json:"mainShippingAddressName"`
-	MainBillingAddress      *int32   `json:"mainBillingAddress"`
-	MainBillingAddressName  *string  `json:"mainBillingAddressName"`
-	PaymentMethod           *int32   `json:"paymentMethod"`
-	PaymentMethodName       *string  `json:"paymentMethodName"`
-	BillingSeries           *string  `json:"billingSeries"`
-	BillingSeriesName       *string  `json:"billingSeriesName"`
-	Currency                *int16   `json:"currency"`
-	CurrencyName            *string  `json:"currencyName"`
-	CurrencyChange          *float32 `json:"currencyChange"`
-}
-
-func getSupplierDefaults(customerId int32) SupplierDefauls {
-	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = customer.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = customer.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = customer.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = customer.billing_series), (SELECT currency FROM country WHERE country.id = customer.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)), (SELECT change FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)) FROM public.suppliers WHERE id = $1`
+func getSupplierDefaults(customerId int32) ContactDefauls {
+	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = suppliers.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = suppliers.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = suppliers.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = suppliers.billing_series), (SELECT currency FROM country WHERE country.id = suppliers.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = suppliers.country)), (SELECT change FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = suppliers.country)) FROM public.suppliers WHERE id = $1`
 	row := db.QueryRow(sqlStatement, customerId)
 	if row.Err() != nil {
-		return SupplierDefauls{}
+		return ContactDefauls{}
 	}
-	s := SupplierDefauls{}
+	s := ContactDefauls{}
 	row.Scan(&s.MainShippingAddress, &s.MainShippingAddressName, &s.MainBillingAddress, &s.MainBillingAddressName, &s.PaymentMethod, &s.PaymentMethodName, &s.BillingSeries, &s.BillingSeriesName, &s.Currency, &s.CurrencyName, &s.CurrencyChange)
 	return s
 }

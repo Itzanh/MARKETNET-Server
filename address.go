@@ -99,6 +99,22 @@ func locateAddressByCustomer(customerId int32) []AddressLocate {
 	return addresses
 }
 
+func locateAddressBySupplier(supplierId int32) []AddressLocate {
+	var addresses []AddressLocate = make([]AddressLocate, 0)
+	sqlStatement := `SELECT id, address FROM address WHERE supplier=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, supplierId)
+	if err != nil {
+		return addresses
+	}
+	for rows.Next() {
+		a := AddressLocate{}
+		rows.Scan(&a.Id, &a.Address)
+		addresses = append(addresses, a)
+	}
+
+	return addresses
+}
+
 func getAddressName(addressId int32) string {
 	sqlStatement := `SELECT address FROM address WHERE id = $1`
 	row := db.QueryRow(sqlStatement, addressId)

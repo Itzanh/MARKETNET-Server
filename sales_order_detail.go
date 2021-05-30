@@ -16,7 +16,7 @@ type SalesOrderDetail struct {
 
 func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT * FROM sales_order_detail WHERE "order" = $1 ORDER BY id ASC`
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE "order"=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
 		return details
@@ -31,7 +31,7 @@ func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 }
 
 func getSalesOrderDetailRow(detailId int32) SalesOrderDetail {
-	sqlStatement := `SELECT * FROM sales_order_detail WHERE id = $1 ORDER BY id ASC`
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE id=$1`
 	row := db.QueryRow(sqlStatement, detailId)
 	if row.Err() != nil {
 		return SalesOrderDetail{}
@@ -175,11 +175,6 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
-}
-
-type SalesOrderDetailDefaults struct {
-	Price      float32 `json:"price"`
-	VatPercent float32 `json:"vatPercent"`
 }
 
 // Adds an invoiced quantity to the sale order detail. This function will subsctract from the quantity if the amount is negative.

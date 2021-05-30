@@ -112,6 +112,18 @@ func getNextSaleDeliveryNoteNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
+func getNextPurchaseOrderNumber(billingSerieId string) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_order.order_number) END AS id FROM purchase_order WHERE "billing_series" = $1`
+	row := db.QueryRow(sqlStatement, billingSerieId)
+	if row.Err() != nil {
+		return 0
+	}
+
+	var orderNumber int32
+	row.Scan(&orderNumber)
+	return (orderNumber + 1)
+}
+
 type BillingSerieName struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`

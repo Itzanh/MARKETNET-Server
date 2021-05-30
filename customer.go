@@ -122,7 +122,8 @@ func getNameCustomer(id int32) string {
 	return name
 }
 
-type CustomerDefauls struct {
+// Used both in customers and suppliers
+type ContactDefauls struct {
 	MainShippingAddress     *int32   `json:"mainShippingAddress"`
 	MainShippingAddressName *string  `json:"mainShippingAddressName"`
 	MainBillingAddress      *int32   `json:"mainBillingAddress"`
@@ -136,13 +137,13 @@ type CustomerDefauls struct {
 	CurrencyChange          *float32 `json:"currencyChange"`
 }
 
-func getCustomerDefaults(customerId int32) CustomerDefauls {
+func getCustomerDefaults(customerId int32) ContactDefauls {
 	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = customer.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = customer.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = customer.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = customer.billing_series), (SELECT currency FROM country WHERE country.id = customer.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)), (SELECT change FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)) FROM public.customer WHERE id = $1`
 	row := db.QueryRow(sqlStatement, customerId)
 	if row.Err() != nil {
-		return CustomerDefauls{}
+		return ContactDefauls{}
 	}
-	c := CustomerDefauls{}
+	c := ContactDefauls{}
 	row.Scan(&c.MainShippingAddress, &c.MainShippingAddressName, &c.MainBillingAddress, &c.MainBillingAddressName, &c.PaymentMethod, &c.PaymentMethodName, &c.BillingSeries, &c.BillingSeriesName, &c.Currency, &c.CurrencyName, &c.CurrencyChange)
 	return c
 }
