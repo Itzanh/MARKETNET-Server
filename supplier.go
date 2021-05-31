@@ -20,7 +20,7 @@ type Supplier struct {
 	MainShippingAddress *int32    `json:"mainShippingAddress"`
 	MainBillingAddress  *int32    `json:"mainBillingAddress"`
 	Language            *int16    `json:"language"`
-	PaymentMethod       *int32    `json:"paymentMethod"`
+	PaymentMethod       *int16    `json:"paymentMethod"`
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
 }
@@ -39,6 +39,19 @@ func getSuppliers() []Supplier {
 	}
 
 	return customers
+}
+
+func getSupplierRow(supplierId int32) Supplier {
+	sqlStatement := `SELECT * FROM public.suppliers WHERE id=$1`
+	row := db.QueryRow(sqlStatement, supplierId)
+	if row.Err() != nil {
+		return Supplier{}
+	}
+
+	s := Supplier{}
+	row.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.City, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated)
+
+	return s
 }
 
 func (s *Supplier) isValid() bool {

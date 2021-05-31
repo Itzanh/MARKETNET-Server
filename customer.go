@@ -20,7 +20,7 @@ type Customer struct {
 	MainShippingAddress *int32    `json:"mainShippingAddress"`
 	MainBillingAddress  *int32    `json:"mainBillingAddress"`
 	Language            *int16    `json:"language"`
-	PaymentMethod       *int32    `json:"paymentMethod"`
+	PaymentMethod       *int16    `json:"paymentMethod"`
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
 }

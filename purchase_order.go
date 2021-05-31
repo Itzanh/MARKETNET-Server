@@ -77,27 +77,28 @@ func (p *PurchaseOrder) isValid() bool {
 	return !(len(p.Warehouse) == 0 || len(p.SupplierReference) > 40 || p.Supplier <= 0 || p.PaymentMethod <= 0 || len(p.BillingSeries) == 0 || p.Currency <= 0 || p.BillingAddress <= 0 || p.ShippingAddress <= 0 || len(p.Notes) > 250)
 }
 
-func (p *PurchaseOrder) insertPurchaseOrder() bool {
+func (p *PurchaseOrder) insertPurchaseOrder() (bool, int32) {
 	if !p.isValid() {
-		return false
+		return false, 0
 	}
 
 	p.OrderNumber = getNextPurchaseOrderNumber(p.BillingSeries)
 	if p.OrderNumber <= 0 {
-		return false
+		return false, 0
 	}
 	p.CurrencyChange = getCurrencyExchange(p.Currency)
 	now := time.Now()
 	p.OrderName = p.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", p.OrderNumber)
 
-	sqlStatement := `INSERT INTO public.purchase_order(warehouse, supplier_reference, supplier, payment_method, billing_series, currency, currency_change, billing_address, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, dsc, notes, order_number, order_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
-	res, err := db.Exec(sqlStatement, p.Warehouse, p.SupplierReference, p.Supplier, p.PaymentMethod, p.BillingSeries, p.Currency, p.CurrencyChange, p.BillingAddress, p.ShippingAddress, p.DiscountPercent, p.FixDiscount, p.ShippingPrice, p.ShippingDiscount, p.Description, p.Notes, p.OrderNumber, p.OrderName)
-	if err != nil {
-		return false
+	sqlStatement := `INSERT INTO public.purchase_order(warehouse, supplier_reference, supplier, payment_method, billing_series, currency, currency_change, billing_address, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, dsc, notes, order_number, order_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`
+	row := db.QueryRow(sqlStatement, p.Warehouse, p.SupplierReference, p.Supplier, p.PaymentMethod, p.BillingSeries, p.Currency, p.CurrencyChange, p.BillingAddress, p.ShippingAddress, p.DiscountPercent, p.FixDiscount, p.ShippingPrice, p.ShippingDiscount, p.Description, p.Notes, p.OrderNumber, p.OrderName)
+	if row.Err() != nil {
+		return false, 0
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	var invoiceId int32
+	row.Scan(&invoiceId)
+	return invoiceId > 0, invoiceId
 }
 
 func (p *PurchaseOrder) updatePurchaseOrder() bool {

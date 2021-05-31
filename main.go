@@ -196,6 +196,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getSuppliers())
 	case "PURCHASE_ORDER":
 		data, _ = json.Marshal(getPurchaseOrder())
+	case "NEEDS":
+		data, _ = json.Marshal(getNeeds())
 	default:
 		found = false
 	}
@@ -378,7 +380,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	case "PURCHASE_ORDER":
 		var purchaseOrder PurchaseOrder
 		json.Unmarshal(message, &purchaseOrder)
-		ok = purchaseOrder.insertPurchaseOrder()
+		ok, _ = purchaseOrder.insertPurchaseOrder()
 	case "PURCHASE_ORDER_DETAIL":
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(message, &purchaseOrderDetail)
@@ -892,7 +894,10 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var user User
 		json.Unmarshal([]byte(message), &user)
 		data, _ = json.Marshal(user.offUser())
-
+	case "PURCHASE_NEEDS":
+		var needs []PurchaseNeed
+		json.Unmarshal([]byte(message), &needs)
+		data, _ = json.Marshal(generatePurchaseOrdersFromNeeds(needs))
 	}
 	ws.WriteMessage(mt, data)
 }
