@@ -67,6 +67,26 @@ func addQuantityPendingServing(productId int32, warehouseId string, quantity int
 	return err == nil
 }
 
+// Adds an amount to the quantity pending of receiving, and add to the amount from the quantity available.
+// This function will do this operation inversely if the parameter quantity is a negative number.
+// Creates the stock row if it doesn't exists.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func addQuantityPendingReveiving(productId int32, warehouseId string, quantity int32) bool {
+	sqlStatement := `UPDATE public.stock SET quantity_pending_received=quantity_pending_received+$3, quantity_available=quantity_available+$3 WHERE product=$1 AND warehouse=$2`
+	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity)
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
+		if createStockRow(productId, warehouseId) { // we create the row, and retry the operation
+			return addQuantityPendingReveiving(productId, warehouseId, quantity)
+		} else {
+			return false // the row could neither not be created or updated
+		}
+	}
+
+	return err == nil
+}
+
 // Add an amount to the stock column on the stock row for this product.
 // This function will do this operation inversely if the parameter quantity is a negative number.
 // Creates the stock row if it doesn't exists.
@@ -78,7 +98,7 @@ func addQuantityStock(productId int32, warehouseId string, quantity int32) bool 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
 		if createStockRow(productId, warehouseId) { // we create the row, and retry the operation
-			return addQuantityPendingServing(productId, warehouseId, quantity)
+			return addQuantityStock(productId, warehouseId, quantity)
 		} else {
 			return false // the row could neither not be created or updated
 		}

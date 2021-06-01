@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"sort"
 )
 
@@ -61,9 +59,6 @@ func (n PurchaseNeeds) Less(i, j int) bool {
 }
 
 func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
-	fmt.Println("generatePurchaseOrdersFromNeeds")
-	data, _ := json.Marshal(needs)
-	fmt.Println(string(data))
 	if len(needs) == 0 {
 		return false
 	}
@@ -79,7 +74,6 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 		product := getProductRow(needs[i].ProductId)
 		quantityNeeded := getNeedRow(product.Id)
 		if product.Manufacturing || product.Supplier == nil || *product.Supplier <= 0 || needs[i].Quantity <= 0 || quantityNeeded > needs[i].Quantity {
-			fmt.Println("ERROR 1")
 			trans.Rollback()
 			return false
 		}
@@ -118,7 +112,6 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id).Currency
 			ok, orderId := o.insertPurchaseOrder()
 			if !ok || orderId <= 0 {
-				fmt.Println("ERROR 2")
 				trans.Rollback()
 				return false
 			}
@@ -130,11 +123,26 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 				d.Price = supplierNeeds[j].product.Price
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
-				ok := d.insertPurchaseOrderDetail()
+				ok, detailId := d.insertPurchaseOrderDetail()
 				if !ok {
-					fmt.Println("ERROR 3")
 					trans.Rollback()
 					return false
+				}
+
+				// advance the status to "Purchase order pending" of the pending sales order details
+				details := getSalesOrderDetailWaitingForPurchaseOrder(supplierNeeds[j].product.Id)
+				for k := 0; k < len(details); k++ {
+					sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=$2 WHERE id=$1`
+					_, err := db.Exec(sqlStatement, details[k].Id, detailId)
+					if err != nil {
+						trans.Rollback()
+						return false
+					}
+					ok := setSalesOrderState(details[k].Order)
+					if !ok {
+						trans.Rollback()
+						return false
+					}
 				}
 			}
 

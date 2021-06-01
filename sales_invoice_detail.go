@@ -128,6 +128,20 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 		return false
 	}
 	if detailInMemory.OrderDetail != nil && *detailInMemory.OrderDetail != 0 {
+		detail := getSalesOrderDetailRow(*detailInMemory.OrderDetail)
+		if detail.Id <= 0 {
+			trans.Rollback()
+			return false
+		}
+		// if the detail had a purchase order pending, rollback the quantity assigned
+		if detail.Status == "B" {
+			ok = addQuantityAssignedSalePurchaseOrder(*detail.PurchaseOrderDetail, -detail.Quantity)
+			if !ok {
+				trans.Rollback()
+				return false
+			}
+		}
+		// revert back the status
 		ok := addQuantityInvociedSalesOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity)
 		if !ok {
 			trans.Rollback()

@@ -13,6 +13,7 @@ type SalesOrderDetail struct {
 	// _ = Waiting for payment, A = Waiting for purchase order, B = Purchase order pending, C = Waiting for manufacturing orders, D = Manufacturing orders pending, E = Sent to preparation, F = Awaiting for shipping, G = Shipped, H = Receiced by the customer
 	Status                   string `json:"status"`
 	QuantityPendingPackaging int32  `json:"quantityPendingPackaging"`
+	PurchaseOrderDetail      *int32 `json:"purchaseOrderDetail"`
 }
 
 func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
@@ -24,7 +25,7 @@ func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
 		details = append(details, d)
 	}
 
@@ -39,9 +40,43 @@ func getSalesOrderDetailRow(detailId int32) SalesOrderDetail {
 	}
 
 	d := SalesOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging)
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
 
 	return d
+}
+
+// Used for purchases
+func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDetail {
+	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE product=$1 AND status='A'`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return details
+	}
+	for rows.Next() {
+		d := SalesOrderDetail{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		details = append(details, d)
+	}
+
+	return details
+}
+
+// Used for purchases
+func getSalesOrderDetailPurchaseOrderPending(purchaseOrderDetail int32) []SalesOrderDetail {
+	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
+	rows, err := db.Query(sqlStatement, purchaseOrderDetail)
+	if err != nil {
+		return details
+	}
+	for rows.Next() {
+		d := SalesOrderDetail{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		details = append(details, d)
+	}
+
+	return details
 }
 
 func (s *SalesOrderDetail) isValid() bool {
@@ -103,12 +138,11 @@ func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
 	}
 	///
 
-	order := getSalesOrderRow(s.Order)
-	if order.Id <= 0 || order.Status != "_" {
-		return false
-	}
 	inMemoryDetail := getSalesOrderDetailRow(s.Id)
 	if inMemoryDetail.Id <= 0 {
+		return false
+	}
+	if inMemoryDetail.QuantityInvoiced > 0 {
 		return false
 	}
 
@@ -156,7 +190,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 	///
 
 	detailInMemory := getSalesOrderDetailRow(s.Id)
-	if detailInMemory.Id <= 0 {
+	if detailInMemory.Id <= 0 || detailInMemory.QuantityInvoiced > 0 {
 		trans.Rollback()
 		return false
 	}
@@ -198,7 +232,7 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 	}
 	salesOrder := getSalesOrderRow(detailBefore.Order)
 
-	sqlStatement := `UPDATE sales_order_detail SET quantity_invoiced = quantity_invoiced + $2 WHERE id = $1`
+	sqlStatement := `UPDATE sales_order_detail SET quantity_invoiced=quantity_invoiced+$2 WHERE id = $1`
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 	if err != nil && rows == 0 {
@@ -215,14 +249,15 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, detailBefore.Quantity)
 		// set the order detail state applying the workflow logic
 		if ok {
-			sqlStatement = `UPDATE sales_order_detail SET status = $2 WHERE id = $1`
-			db.Exec(sqlStatement, detailId, detailBefore.computeStatus())
+			status, purchaseOrderDetail := detailBefore.computeStatus()
+			sqlStatement = `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
+			db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
 		}
 	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity {
 		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, -detailBefore.Quantity)
 		// reset order detail state to "Waiting for Payment"
 		if ok {
-			sqlStatement = `UPDATE sales_order_detail SET status = '_' WHERE id = $1`
+			sqlStatement = `UPDATE sales_order_detail SET status='_',purchase_order_detail=NULL WHERE id=$1`
 			db.Exec(sqlStatement, detailId)
 		}
 	}
@@ -239,22 +274,39 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 	return err == nil
 }
 
-func (s *SalesOrderDetail) computeStatus() string {
+func (s *SalesOrderDetail) computeStatus() (string, *int32) {
 	product := getProductRow(s.Product)
 	if product.Id <= 0 {
-		return ""
+		return "", nil
 	}
 	order := getSalesOrderRow(s.Order)
 	stock := getStockRow(s.Product, order.Warehouse)
 	if stock.Quantity > 0 { // the product is in stock, send to preparation
-		return "E"
+		return "E", nil
 	} else { // the product is not in stock, purchase or manufacture
 		if product.Manufacturing {
-			return "C"
+			return "C", nil
 		} else {
 			// search for pending purchases
-			// TODO: ADD PURCHASE ORDER FUNCTIONALITY
-			return "A"
+			sqlStatement := `SELECT id FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note = 0 AND quantity - quantity_assigned_sale >= $2 ORDER BY (SELECT date_created FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order") ASC LIMIT 1`
+			row := db.QueryRow(sqlStatement, s.Product, s.Quantity)
+			if row.Err() != nil {
+				return "A", nil
+			}
+			var purchaseDetailId int32
+			row.Scan(&purchaseDetailId)
+			if purchaseDetailId <= 0 {
+				return "A", nil
+			}
+
+			// add quantity assigned to sale orders
+			ok := addQuantityAssignedSalePurchaseOrder(purchaseDetailId, s.Quantity)
+			if !ok {
+				return "A", nil
+			}
+
+			// set the purchase order detail
+			return "B", &purchaseDetailId
 		}
 	}
 }
