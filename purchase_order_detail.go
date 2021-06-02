@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type PurchaseOrderDetail struct {
 	Id                       int32   `json:"id"`
 	Order                    int32   `json:"order"`
@@ -90,7 +88,6 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail() (bool, int32) {
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
 	row = db.QueryRow(sqlStatement, s.Order)
 	if row.Err() != nil {
-		fmt.Println(row.Err())
 		trans.Rollback()
 		return false, 0
 	}
@@ -304,12 +301,59 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int32, quantity int32) 
 
 	sqlStatement := `UPDATE purchase_order_detail SET quantity_delivery_note=quantity_delivery_note+$2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, detailId, quantity)
-	if err != nil {
-		fmt.Println(err)
-	}
 	rows, _ := res.RowsAffected()
 	if err != nil && rows == 0 {
 		return false
 	}
-	return true
+
+	if quantity > 0 { // the purchase order has been added to a delivery note, advance the status from the pending sales order details
+		return setSalesOrderDetailStateAllPendingPurchaseOrder(detailId)
+	} else { // the delivery note details has been removed, roll back the sales order detail status
+		return undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId)
+	}
+}
+
+// All the purchase order detail has been added to a delivery note. Advance the status from all the pending sales details to "Sent to preparation".
+//
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int32) bool {
+	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
+	rows, err := db.Query(sqlStatement, detailId)
+	if err != nil {
+		return false
+	}
+
+	sqlStatement = `UPDATE sales_order_detail SET status='E' WHERE purchase_order_detail=$1 AND status='B'`
+	_, err = db.Exec(sqlStatement, detailId)
+
+	for rows.Next() {
+		var orderId int32
+		rows.Scan(&orderId)
+		setSalesOrderState(orderId)
+	}
+
+	return err == nil
+}
+
+// The purchase order detail was added to a delivery note and it advanced the status from the sales details, but the delivery note was deleted.
+// Roll back the status change.
+//
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int32) bool {
+	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
+	rows, err := db.Query(sqlStatement, detailId)
+	if err != nil {
+		return false
+	}
+
+	sqlStatement = `UPDATE sales_order_detail SET status='B' WHERE purchase_order_detail=$1 AND status='E'`
+	_, err = db.Exec(sqlStatement, detailId)
+
+	for rows.Next() {
+		var orderId int32
+		rows.Scan(&orderId)
+		setSalesOrderState(orderId)
+	}
+
+	return err == nil
 }
