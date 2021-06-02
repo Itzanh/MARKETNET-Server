@@ -264,20 +264,20 @@ func getSalesOrderRelations(orderId int32) SalesOrderRelations {
 
 func getSalesOrderInvoices(orderId int32) []SalesInvoice {
 	// INVOICE
-	var invoiced []SalesInvoice = make([]SalesInvoice, 0)
+	var invoices []SalesInvoice = make([]SalesInvoice, 0)
 	sqlStatement := `SELECT DISTINCT sales_invoice.* FROM sales_order INNER JOIN sales_order_detail ON sales_order.id = sales_order_detail.order INNER JOIN sales_invoice_detail ON sales_order_detail.id = sales_invoice_detail.order_detail INNER JOIN sales_invoice ON sales_invoice.id = sales_invoice_detail.invoice WHERE sales_order.id = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
-		return invoiced
+		return invoices
 	}
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
-		invoiced = append(invoiced, i)
+		invoices = append(invoices, i)
 	}
 
-	return invoiced
+	return invoices
 }
 
 func getSalesOrderManufacturingOrders(orderId int32) []ManufacturingOrder {
@@ -299,19 +299,19 @@ func getSalesOrderManufacturingOrders(orderId int32) []ManufacturingOrder {
 
 func getSalesOrderDeliveryNotes(orderId int32) []SalesDeliveryNote {
 	// DELIVERY NOTES
-	var products []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
+	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
 	sqlStatement := `SELECT DISTINCT sales_delivery_note.* FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = $1`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
-		return products
+		return notes
 	}
 	for rows.Next() {
 		p := SalesDeliveryNote{}
 		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
-		products = append(products, p)
+		notes = append(notes, p)
 	}
 
-	return products
+	return notes
 }
 
 func getSalesOrderShippings(orderId int32) []Shipping {

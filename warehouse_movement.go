@@ -10,7 +10,7 @@ type WarehouseMovement struct {
 	Product               int32     `json:"product"`
 	Quantity              int32     `json:"quantity"`
 	DateCreated           time.Time `json:"dateCreated"`
-	Type                  string    `json:"type"`
+	Type                  string    `json:"type"` // O = Out, I = In
 	SalesOrder            *int32    `json:"salesOrder"`
 	SalesOrderDetail      *int32    `json:"salesOrderDetail"`
 	SalesInvoice          *int32    `json:"salesInvoice"`
@@ -93,6 +93,26 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
 	return warehouseMovements
 }
 
+func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovement {
+	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
+	if noteId <= 0 {
+		return warehouseMovements
+	}
+
+	sqlStatement := `SELECT * FROM public.warehouse_movement WHERE purchase_delivery_note=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, noteId)
+	if err != nil {
+		return warehouseMovements
+	}
+	for rows.Next() {
+		m := WarehouseMovement{}
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		warehouseMovements = append(warehouseMovements, m)
+	}
+
+	return warehouseMovements
+}
+
 func (m *WarehouseMovement) isValid() bool {
 	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1)
 }
@@ -121,6 +141,13 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	if m.SalesOrderDetail != nil {
 		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity))
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+	if m.PurchaseOrderDetail != nil {
+		ok = addQuantityDeliveryNotePurchaseOrderDetail(*m.PurchaseOrderDetail, abs(m.Quantity))
 		if !ok {
 			trans.Rollback()
 			return false
@@ -176,6 +203,13 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	if inMemoryMovement.SalesOrderDetail != nil {
 		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity))
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+	if inMemoryMovement.PurchaseOrderDetail != nil {
+		ok = addQuantityDeliveryNotePurchaseOrderDetail(*inMemoryMovement.PurchaseOrderDetail, -abs(inMemoryMovement.Quantity))
 		if !ok {
 			trans.Rollback()
 			return false

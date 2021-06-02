@@ -293,3 +293,23 @@ func addQuantityAssignedSalePurchaseOrder(detailId int32, quantity int32) bool {
 	}
 	return true
 }
+
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addQuantityDeliveryNotePurchaseOrderDetail(detailId int32, quantity int32) bool {
+
+	detailBefore := getPurchaseOrderDetailRow(detailId)
+	if detailBefore.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE purchase_order_detail SET quantity_delivery_note=quantity_delivery_note+$2 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, detailId, quantity)
+	if err != nil {
+		fmt.Println(err)
+	}
+	rows, _ := res.RowsAffected()
+	if err != nil && rows == 0 {
+		return false
+	}
+	return true
+}

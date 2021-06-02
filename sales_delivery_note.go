@@ -30,19 +30,19 @@ type SalesDeliveryNote struct {
 }
 
 func getSalesDeliveryNotes() []SalesDeliveryNote {
-	var products []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
+	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
 	sqlStatement := `SELECT * FROM public.sales_delivery_note ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
-		return products
+		return notes
 	}
 	for rows.Next() {
 		p := SalesDeliveryNote{}
 		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
-		products = append(products, p)
+		notes = append(notes, p)
 	}
 
-	return products
+	return notes
 }
 
 func (n *SalesDeliveryNote) isValid() bool {
@@ -68,9 +68,9 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes() (bool, int32) {
 		return false, 0
 	}
 
-	var invoiceId int32
-	row.Scan(&invoiceId)
-	return invoiceId > 0, invoiceId
+	var noteId int32
+	row.Scan(&noteId)
+	return noteId > 0, noteId
 }
 
 func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {

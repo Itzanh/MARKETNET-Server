@@ -198,6 +198,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPurchaseOrder())
 	case "NEEDS":
 		data, _ = json.Marshal(getNeeds())
+	case "PURCHASE_DELIVERY_NOTES":
+		data, _ = json.Marshal(getPurchaseDeliveryNotes())
 	default:
 		found = false
 	}
@@ -246,6 +248,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getUserGroups(int16(id)))
 	case "PURCHASE_ORDER_DETAIL":
 		data, _ = json.Marshal(getPurchaseOrderDetail(int32(id)))
+	case "PURCHASE_DELIVERY_NOTES_DETAILS":
+		data, _ = json.Marshal(getWarehouseMovementByPurchaseDeliveryNote(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -385,6 +389,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(message, &purchaseOrderDetail)
 		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail()
+	case "PURCHASE_DELIVERY_NOTE":
+		var purchaseDeliveryNote PurchaseDeliveryNote
+		json.Unmarshal(message, &purchaseDeliveryNote)
+		ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -645,6 +653,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseOrderDetail PurchaseOrderDetail
 		purchaseOrderDetail.Id = int32(id)
 		ok = purchaseOrderDetail.deletePurchaseOrderDetail()
+	case "PURCHASE_DELIVERY_NOTE":
+		var purchaseDeliveryNote PurchaseDeliveryNote
+		purchaseDeliveryNote.Id = int32(id)
+		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -898,6 +910,29 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var needs []PurchaseNeed
 		json.Unmarshal([]byte(message), &needs)
 		data, _ = json.Marshal(generatePurchaseOrdersFromNeeds(needs))
+	case "DELIVERY_NOTE_ALL_PURCHASE_ORDER":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		ok, _ := deliveryNoteAllPurchaseOrder(int32(id))
+		data, _ = json.Marshal(ok)
+	case "GET_PURCHASE_ORDER_RELATIONS":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getPurchaseOrderRelations(int32(id)))
+	case "GET_PURCHASE_DELIVERY_NOTE_RELATIONS":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getPurchaseDeliveryNoteRelations(int32(id)))
+	case "DELIVERY_NOTE_PARTIALLY_PURCHASE_ORDER":
+		var noteInfo PurchaseOrderDetailDeliveryNote
+		json.Unmarshal([]byte(message), &noteInfo)
+		data, _ = json.Marshal(noteInfo.deliveryNotePartiallyPurchaseOrder())
 	}
 	ws.WriteMessage(mt, data)
 }

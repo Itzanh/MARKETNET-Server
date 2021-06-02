@@ -207,3 +207,30 @@ type PurchaseOrderDefaults struct {
 func getPurchaseOrderDefaults() PurchaseOrderDefaults {
 	return PurchaseOrderDefaults{Warehouse: "W1", WarehouseName: "Main Warehouse"}
 }
+
+type PurchaseOrderRelations struct {
+	DeliveryNotes []PurchaseDeliveryNote `json:"deliveryNotes"`
+}
+
+func getPurchaseOrderRelations(orderId int32) PurchaseOrderRelations {
+	return PurchaseOrderRelations{
+		DeliveryNotes: getPurchaseOrderDeliveryNotes(orderId),
+	}
+}
+
+func getPurchaseOrderDeliveryNotes(orderId int32) []PurchaseDeliveryNote {
+	// DELIVERY NOTES
+	var products []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
+	sqlStatement := `SELECT DISTINCT purchase_delivery_note.* FROM purchase_order_detail INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON warehouse_movement.purchase_delivery_note=purchase_delivery_note.id WHERE purchase_order_detail."order"=$1`
+	rows, err := db.Query(sqlStatement, orderId)
+	if err != nil {
+		return products
+	}
+	for rows.Next() {
+		p := PurchaseDeliveryNote{}
+		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
+		products = append(products, p)
+	}
+
+	return products
+}
