@@ -254,6 +254,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getWarehouseMovementByPurchaseDeliveryNote(int32(id)))
 	case "PURCHASE_INVOICE_DETAIL":
 		data, _ = json.Marshal(getPurchaseInvoiceDetail(int32(id)))
+	case "PRODUCT_SALES_ORDER_PENDING":
+		data, _ = json.Marshal(getProductSalesOrderDetailsPending(int32(id)))
+	case "PRODUCT_PURCHASE_ORDER_PENDING":
+		data, _ = json.Marshal(getProductPurchaseOrderDetailsPending(int32(id)))
+	case "PRODUCT_SALES_ORDER":
+		data, _ = json.Marshal(getProductSalesOrderDetails(int32(id)))
+	case "PRODUCT_PURCHASE_ORDER":
+		data, _ = json.Marshal(getProductPurchaseOrderDetails(int32(id)))
+	case "PRODUCT_WAREHOUSE_MOVEMENT":
+		data, _ = json.Marshal(getProductWarehouseMovement(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

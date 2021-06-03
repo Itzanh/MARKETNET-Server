@@ -153,3 +153,88 @@ func getOrderDetailDefaults(roductId int32) OrderDetailDefaults {
 	row.Scan(&s.Price, &s.VatPercent)
 	return s
 }
+
+// Get the sales order details with pending status, with the product specified.
+func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
+	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return details
+	}
+	for rows.Next() {
+		d := SalesOrderDetail{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		details = append(details, d)
+	}
+
+	return details
+}
+
+// Get the purchase order details with pending status, with the product specified.
+func getProductPurchaseOrderDetailsPending(productId int32) []PurchaseOrderDetail {
+	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
+	sqlStatement := `SELECT * FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return details
+	}
+	for rows.Next() {
+		d := PurchaseOrderDetail{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale)
+		details = append(details, d)
+	}
+
+	return details
+}
+
+// Get the sales order details with the product specified.
+func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
+	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE "order"=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return details
+	}
+	for rows.Next() {
+		d := SalesOrderDetail{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		details = append(details, d)
+	}
+
+	return details
+}
+
+// Get the purchase order details with the product specified.
+func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
+	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
+	sqlStatement := `SELECT * FROM purchase_order_detail WHERE product=$1`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return details
+	}
+	for rows.Next() {
+		d := PurchaseOrderDetail{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale)
+		details = append(details, d)
+	}
+
+	return details
+}
+
+// Get the warehouse movements with the product specified.
+func getProductWarehouseMovement(productId int32) []WarehouseMovement {
+	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
+	sqlStatement := `SELECT * FROM warehouse_movement WHERE product=$1`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return warehouseMovements
+	}
+	for rows.Next() {
+		m := WarehouseMovement{}
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		warehouseMovements = append(warehouseMovements, m)
+	}
+
+	return warehouseMovements
+}
