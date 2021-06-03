@@ -291,6 +291,21 @@ func addQuantityAssignedSalePurchaseOrder(detailId int32, quantity int32) bool {
 	return true
 }
 
+// Adds an invoiced quantity to the purchase order detail. This function will subsctract from the quantity if the amount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addQuantityInvociedPurchaseOrderDetail(detailId int32, quantity int32) bool {
+	detailBefore := getPurchaseOrderDetailRow(detailId)
+	if detailBefore.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE purchase_order_detail SET quantity_invoiced=quantity_invoiced+$2 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, detailId, quantity)
+	rows, _ := res.RowsAffected()
+
+	return err == nil && rows > 0
+}
+
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func addQuantityDeliveryNotePurchaseOrderDetail(detailId int32, quantity int32) bool {
 

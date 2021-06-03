@@ -225,7 +225,6 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 // Adds an invoiced quantity to the sale order detail. This function will subsctract from the quantity if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
-
 	detailBefore := getSalesOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false

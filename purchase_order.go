@@ -209,13 +209,33 @@ func getPurchaseOrderDefaults() PurchaseOrderDefaults {
 }
 
 type PurchaseOrderRelations struct {
+	Invoices      []PurchaseInvoice      `json:"invoices"`
 	DeliveryNotes []PurchaseDeliveryNote `json:"deliveryNotes"`
 }
 
 func getPurchaseOrderRelations(orderId int32) PurchaseOrderRelations {
 	return PurchaseOrderRelations{
+		Invoices:      getPurchaseOrderInvoices(orderId),
 		DeliveryNotes: getPurchaseOrderDeliveryNotes(orderId),
 	}
+}
+
+func getPurchaseOrderInvoices(orderId int32) []PurchaseInvoice {
+	// INVOICE
+	var invoices []PurchaseInvoice = make([]PurchaseInvoice, 0)
+	sqlStatement := `SELECT DISTINCT purchase_invoice.* FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order.id=purchase_order_detail.order INNER JOIN purchase_invoice_details ON purchase_order_detail.id=purchase_invoice_details.order_detail INNER JOIN purchase_invoice ON purchase_invoice.id=purchase_invoice_details.invoice WHERE purchase_order.id=$1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, orderId)
+	if err != nil {
+		return invoices
+	}
+	for rows.Next() {
+		i := PurchaseInvoice{}
+		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
+			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+		invoices = append(invoices, i)
+	}
+
+	return invoices
 }
 
 func getPurchaseOrderDeliveryNotes(orderId int32) []PurchaseDeliveryNote {

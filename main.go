@@ -200,6 +200,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getNeeds())
 	case "PURCHASE_DELIVERY_NOTES":
 		data, _ = json.Marshal(getPurchaseDeliveryNotes())
+	case "PURCHASE_INVOICES":
+		data, _ = json.Marshal(getPurchaseInvoices())
 	default:
 		found = false
 	}
@@ -250,6 +252,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPurchaseOrderDetail(int32(id)))
 	case "PURCHASE_DELIVERY_NOTES_DETAILS":
 		data, _ = json.Marshal(getWarehouseMovementByPurchaseDeliveryNote(int32(id)))
+	case "PURCHASE_INVOICE_DETAIL":
+		data, _ = json.Marshal(getPurchaseInvoiceDetail(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -393,6 +397,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseDeliveryNote PurchaseDeliveryNote
 		json.Unmarshal(message, &purchaseDeliveryNote)
 		ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
+	case "PURCHASE_INVOICE":
+		var purchaseInvoice PurchaseInvoice
+		json.Unmarshal(message, &purchaseInvoice)
+		ok, _ = purchaseInvoice.insertPurchaseInvoice()
+	case "PURCHASE_INVOICE_DETAIL":
+		var purchaseInvoiceDetail PurchaseInvoiceDetail
+		json.Unmarshal(message, &purchaseInvoiceDetail)
+		ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -657,6 +669,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseDeliveryNote PurchaseDeliveryNote
 		purchaseDeliveryNote.Id = int32(id)
 		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes()
+	case "PURCHASE_INVOICE":
+		var purchaseInvoice PurchaseInvoice
+		purchaseInvoice.Id = int32(id)
+		ok = purchaseInvoice.deletePurchaseInvoice()
+	case "PURCHASE_INVOICE_DETAIL":
+		var purchaseInvoiceDetail PurchaseInvoiceDetail
+		purchaseInvoiceDetail.Id = int32(id)
+		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -923,6 +943,12 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(getPurchaseOrderRelations(int32(id)))
+	case "GET_INVOICE_ORDER_RELATIONS":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getPurchaseInvoiceRelations(int32(id)))
 	case "GET_PURCHASE_DELIVERY_NOTE_RELATIONS":
 		id, err := strconv.Atoi(message)
 		if err != nil {
@@ -933,6 +959,16 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var noteInfo PurchaseOrderDetailDeliveryNote
 		json.Unmarshal([]byte(message), &noteInfo)
 		data, _ = json.Marshal(noteInfo.deliveryNotePartiallyPurchaseOrder())
+	case "INVOICE_ALL_PURCHASE_ORDER":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(invoiceAllPurchaseOrder(int32(id)))
+	case "INVOICE_PARTIAL_PURCHASE_ORDER":
+		var invoiceInfo PurchaseOrderDetailInvoice
+		json.Unmarshal([]byte(message), &invoiceInfo)
+		data, _ = json.Marshal(invoiceInfo.invoicePartiallyPurchaseOrder())
 	}
 	ws.WriteMessage(mt, data)
 }

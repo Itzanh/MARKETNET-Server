@@ -29,20 +29,20 @@ type SalesInvoice struct {
 }
 
 func getSalesInvoices() []SalesInvoice {
-	var invoiced []SalesInvoice = make([]SalesInvoice, 0)
+	var invoices []SalesInvoice = make([]SalesInvoice, 0)
 	sqlStatement := `SELECT * FROM sales_invoice ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
-		return invoiced
+		return invoices
 	}
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
-		invoiced = append(invoiced, i)
+		invoices = append(invoices, i)
 	}
 
-	return invoiced
+	return invoices
 }
 
 func (i *SalesInvoice) isValid() bool {
