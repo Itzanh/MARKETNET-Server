@@ -1,14 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 )
 
 type City struct {
-	Id      int32  `json:"id"`
-	Country int16  `json:"country"`
-	Name    string `json:"name"`
-	ZipCode string `json:"zipCode"`
+	Id        int32  `json:"id"`
+	Country   int16  `json:"country"`
+	Name      string `json:"name"`
+	ZipCode   string `json:"zipCode"`
+	NameAscii string `json:"nameAscii"`
 }
 
 func getCities() []City {
@@ -20,7 +22,7 @@ func getCities() []City {
 	}
 	for rows.Next() {
 		c := City{}
-		rows.Scan(&c.Id, &c.Country, &c.Name, &c.ZipCode)
+		rows.Scan(&c.Id, &c.Country, &c.Name, &c.ZipCode, &c.NameAscii)
 		cities = append(cities, c)
 	}
 
@@ -28,7 +30,7 @@ func getCities() []City {
 }
 
 func (c *City) isValid() bool {
-	return !(c.Country <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.ZipCode) == 0 || len(c.ZipCode) > 15)
+	return !(c.Country <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.ZipCode) > 15 || len(c.NameAscii) == 0 || len(c.NameAscii) > 100)
 }
 
 func (c *City) insertCity() bool {
@@ -36,9 +38,10 @@ func (c *City) insertCity() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.city(country, name, zip_code) VALUES ($1, $2, $3)`
-	res, err := db.Exec(sqlStatement, c.Country, c.Name, c.ZipCode)
+	sqlStatement := `INSERT INTO public.city(country, name, zip_code, name_ascii) VALUES ($1, $2, $3, $4)`
+	res, err := db.Exec(sqlStatement, c.Country, c.Name, c.ZipCode, c.NameAscii)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 
@@ -51,8 +54,8 @@ func (c *City) updateCity() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.city SET country=$2, name=$3, zip_code=$4 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id, c.Country, c.Name, c.ZipCode)
+	sqlStatement := `UPDATE public.city SET country=$2, name=$3, zip_code=$4, name_ascii=$5 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, c.Id, c.Country, c.Name, c.ZipCode, c.NameAscii)
 	if err != nil {
 		return false
 	}

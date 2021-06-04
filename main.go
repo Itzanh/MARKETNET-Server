@@ -36,6 +36,8 @@ func main() {
 	db, _ = sql.Open("postgres", psqlInfo)
 	db.Ping()
 
+	initialData()
+
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
 	wg.Add(1)

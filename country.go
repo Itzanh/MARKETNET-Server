@@ -10,8 +10,8 @@ type Country struct {
 	UNCode      int16  `json:"unCode"`
 	Zone        string `json:"zone"`
 	PhonePrefix int16  `json:"phonePrefix"`
-	Language    int16  `json:"language"`
-	Currency    int16  `json:"currency"`
+	Language    *int16 `json:"language"`
+	Currency    *int16 `json:"currency"`
 }
 
 func getCountries() []Country {
@@ -31,7 +31,7 @@ func getCountries() []Country {
 }
 
 func (c *Country) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 50 || len(c.Iso2) != 2 || len(c.Iso3) != 3 || c.UNCode <= 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix <= 0)
+	return !(len(c.Name) == 0 || len(c.Name) > 75 || len(c.Iso2) != 2 || len(c.Iso3) != 3 || c.UNCode <= 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix <= 0)
 }
 
 func (c *Country) insertCountry() bool {
