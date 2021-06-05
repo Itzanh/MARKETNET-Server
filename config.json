@@ -1,0 +1,14 @@
+{
+    "db": {
+        "host": "localhost",
+        "port": 5432,
+        "user": "marketnet",
+        "password": "** ADD PASSWORD HERE **",
+        "dbname": "marketnet"
+    },
+    "server": {
+        "port": 12279,
+        "hashIterations": 25000,
+        "tokenExpirationHours": 48
+    }
+}

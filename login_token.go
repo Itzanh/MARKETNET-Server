@@ -6,7 +6,6 @@ import (
 )
 
 const LOGIN_TOKEN_LENGTH = 128
-const MAX_HOURS = 48
 
 type LoginToken struct {
 	Id           int32     `json:"id"`
@@ -57,7 +56,7 @@ func (t *LoginToken) checkLoginToken() bool {
 		return false
 	}
 
-	if time.Until(tok.DateLastUsed).Hours() > MAX_HOURS { // the token has expired, delete it and return an error
+	if time.Until(tok.DateLastUsed).Hours() > float64(settings.Server.TokenExpirationHours) { // the token has expired, delete it and return an error
 		sqlStatement := `DELETE FROM login_tokens WHERE name=$1 AND ip_address=$2`
 		db.Exec(sqlStatement, t.Name, t.IpAddress)
 		return false

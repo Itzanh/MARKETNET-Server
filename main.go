@@ -14,25 +14,26 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "marketnet"
-	password = "-.qu@.5vaqBE6GH"
-	dbname   = "marketnet"
-)
+var settings BackendSettings
 
 var upgrader = websocket.Upgrader{}
 
 var db *sql.DB
 
 func main() {
+	var ok bool
+	settings, ok = getBackendSettings()
+	if !ok {
+		fmt.Println("ERROR READING SETTINGS FILE")
+		return
+	}
+
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
-	go http.ListenAndServe(":12279", nil)
+	go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
 
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
 	db, _ = sql.Open("postgres", psqlInfo)
 	db.Ping()
 
@@ -206,6 +207,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPurchaseDeliveryNotes())
 	case "PURCHASE_INVOICES":
 		data, _ = json.Marshal(getPurchaseInvoices())
+	case "SETTINGS":
+		data, _ = json.Marshal(getSettingsRecord())
 	default:
 		found = false
 	}
@@ -523,6 +526,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(message, &purchaseOrderDetail)
 		ok = purchaseOrderDetail.updatePurchaseOrderDetail()
+	case "SETTINGS":
+		var settings Settings
+		json.Unmarshal(message, &settings)
+		ok = settings.updateSettingsRecord()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)

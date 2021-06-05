@@ -75,11 +75,12 @@ func generateSalt() string {
 	return salt
 }
 
-func hashPassword(password []byte, iterations int) []byte {
+func hashPassword(password []byte, iterations int32) []byte {
 	hasher := sha512.New()
 	var pwd []byte = password
 
-	for i := 0; i < iterations; i++ {
+	var i int32
+	for i = 0; i < iterations; i++ {
 		hasher.Write(pwd)
 		pwd = hasher.Sum(nil)
 	}
@@ -92,12 +93,11 @@ func (u *UserInsert) insertUser() bool {
 		return false
 	}
 
-	const ITERATIONS = 25000
 	salt := generateSalt()
-	passwd := hashPassword([]byte(salt+u.Password), ITERATIONS)
+	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
 	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations) VALUES ($1, $2, $3, $4, $5)`
-	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, ITERATIONS)
+	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations)
 	if err != nil {
 		return false
 	}
@@ -151,12 +151,11 @@ func (u *UserPassword) userPassword() bool {
 		return false
 	}
 
-	const ITERATIONS = 25000
 	salt := generateSalt()
-	passwd := hashPassword([]byte(salt+u.Password), ITERATIONS)
+	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
 	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, ITERATIONS, u.PwdNextLogin)
+	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, settings.Server.HashIterations, u.PwdNextLogin)
 	if err != nil {
 		return false
 	}
@@ -200,8 +199,7 @@ func (u *UserLogin) login(ipAddress string) UserLoginResult {
 		return UserLoginResult{Ok: false}
 	}
 
-	const ITERATIONS = 25000
-	passwd := hashPassword([]byte(user.Salt+u.Password), ITERATIONS)
+	passwd := hashPassword([]byte(user.Salt+u.Password), settings.Server.HashIterations)
 
 	if comparePasswords(passwd, user.Pwd) {
 		user.setUserFailedLoginAttemps(false)
