@@ -1,6 +1,9 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -26,9 +29,33 @@ type Shipping struct {
 
 func getShippings() []Shipping {
 	var shippings []Shipping = make([]Shipping, 0)
-	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM public.shipping ORDER BY id ASC`
+	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM public.shipping ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		return shippings
+	}
+	for rows.Next() {
+		s := Shipping{}
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		shippings = append(shippings, s)
+	}
+
+	return shippings
+}
+
+func searchShippings(search string) []Shipping {
+	var shippings []Shipping = make([]Shipping, 0)
+	var rows *sql.Rows
+	orderNumber, err := strconv.Atoi(search)
+	if err == nil {
+		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON sales_order.id=shipping."order" WHERE sales_order.order_number=$1 ORDER BY id DESC`
+		rows, err = db.Query(sqlStatement, orderNumber)
+	} else {
+		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON shipping."order"=sales_order.id INNER JOIN customer ON customer.id=sales_order.customer WHERE customer.name ILIKE $1 ORDER BY id DESC`
+		rows, err = db.Query(sqlStatement, "%"+search+"%")
+	}
+	if err != nil {
+		fmt.Println(err)
 		return shippings
 	}
 	for rows.Next() {
@@ -80,14 +107,50 @@ func (s *Shipping) deleteShipping() bool {
 		return false
 	}
 
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	packaging := getPackagingByShipping(s.Id)
+	for i := 0; i < len(packaging); i++ {
+		detailsPackaged := packaging[i].DetailsPackaged
+		for j := 0; j < len(detailsPackaged); j++ {
+			sqlStatement := `UPDATE sales_order_detail SET status='E' WHERE id=$1`
+			_, err := db.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
+			if err != nil {
+				trans.Rollback()
+				return false
+			}
+
+			saleOrderDetail := getSalesOrderDetailRow(detailsPackaged[j].OrderDetail)
+			ok := setSalesOrderState(saleOrderDetail.Order)
+			if !ok {
+				trans.Rollback()
+				return false
+			}
+		}
+
+		sqlStatement := `UPDATE packaging SET shipping=NULL WHERE id=$1`
+		_, err := db.Exec(sqlStatement, packaging[i].Id)
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+	}
+
 	sqlStatement := `DELETE FROM public.shipping WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id)
+	_, err := db.Exec(sqlStatement, s.Id)
 	if err != nil {
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
 }
 
 func generateShippingFromSaleOrder(orderId int32) bool {
@@ -132,6 +195,24 @@ func generateShippingFromSaleOrder(orderId int32) bool {
 		if !ok {
 			trans.Rollback()
 			return false
+		}
+	}
+	for i := 0; i < len(packaging); i++ {
+		detailsPackaged := packaging[i].DetailsPackaged
+		for j := 0; j < len(detailsPackaged); j++ {
+			sqlStatement := `UPDATE sales_order_detail SET status='F' WHERE id=$1`
+			_, err := db.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
+			if err != nil {
+				trans.Rollback()
+				return false
+			}
+
+			saleOrderDetail := getSalesOrderDetailRow(detailsPackaged[j].OrderDetail)
+			ok := setSalesOrderState(saleOrderDetail.Order)
+			if !ok {
+				trans.Rollback()
+				return false
+			}
 		}
 	}
 

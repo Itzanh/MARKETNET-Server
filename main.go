@@ -135,6 +135,8 @@ func commandProcessor(instruction string, command string, message []byte, mt int
 		instructionLocate(command, string(message), mt, ws)
 	case "ACTION":
 		instructionAction(command, string(message), mt, ws)
+	case "SEARCH":
+		instructionSearch(command, string(message), mt, ws)
 	}
 }
 
@@ -981,6 +983,45 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var invoiceInfo PurchaseOrderDetailInvoice
 		json.Unmarshal([]byte(message), &invoiceInfo)
 		data, _ = json.Marshal(invoiceInfo.invoicePartiallyPurchaseOrder())
+	}
+	ws.WriteMessage(mt, data)
+}
+
+func instructionSearch(command string, message string, mt int, ws *websocket.Conn) {
+	var data []byte
+	switch command {
+	case "CUSTOMER":
+		data, _ = json.Marshal(searchCustomers(message))
+	case "SUPPLER":
+		data, _ = json.Marshal(searchSuppliers(message))
+	case "PRODUCT":
+		data, _ = json.Marshal(searchProduct(message))
+	case "SHIPPING":
+		data, _ = json.Marshal(searchShippings(message))
+	case "SALES_ORDER":
+		var salesOrderSearch SalesOrderSearch
+		json.Unmarshal([]byte(message), &salesOrderSearch)
+		data, _ = json.Marshal(salesOrderSearch.searchSalesOrder())
+	case "SALES_INVOICE":
+		var orderSearch OrderSearch
+		json.Unmarshal([]byte(message), &orderSearch)
+		data, _ = json.Marshal(orderSearch.searchSalesInvoices())
+	case "SALES_DELIVERY_NOTE":
+		var orderSearch OrderSearch
+		json.Unmarshal([]byte(message), &orderSearch)
+		data, _ = json.Marshal(orderSearch.searchSalesDelvieryNotes())
+	case "PURCHASE_ORDER":
+		var orderSearch OrderSearch
+		json.Unmarshal([]byte(message), &orderSearch)
+		data, _ = json.Marshal(orderSearch.searchPurchaseOrder())
+	case "PURCHASE_INVOICE":
+		var orderSearch OrderSearch
+		json.Unmarshal([]byte(message), &orderSearch)
+		data, _ = json.Marshal(orderSearch.searchPurchaseInvoice())
+	case "PURCHASE_DELIVERY_NOTE":
+		var orderSearch OrderSearch
+		json.Unmarshal([]byte(message), &orderSearch)
+		data, _ = json.Marshal(orderSearch.searchPurchaseDeliveryNote())
 	}
 	ws.WriteMessage(mt, data)
 }

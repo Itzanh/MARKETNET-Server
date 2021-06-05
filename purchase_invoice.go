@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"time"
@@ -33,6 +34,42 @@ func getPurchaseInvoices() []PurchaseInvoice {
 	sqlStatement := `SELECT * FROM purchase_invoice ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		return invoices
+	}
+	for rows.Next() {
+		i := PurchaseInvoice{}
+		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
+			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+		invoices = append(invoices, i)
+	}
+
+	return invoices
+}
+
+func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
+	var invoices []PurchaseInvoice = make([]PurchaseInvoice, 0)
+	var rows *sql.Rows
+	orderNumber, err := strconv.Atoi(s.Search)
+	if err == nil {
+		sqlStatement := `SELECT purchase_invoice.* FROM purchase_invoice WHERE invoice_number=$1 ORDER BY date_created DESC`
+		rows, err = db.Query(sqlStatement, orderNumber)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT purchase_invoice.* FROM purchase_invoice INNER JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE suppliers.name ILIKE $1`
+		if s.DateStart != nil {
+			sqlStatement += ` AND purchase_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND purchase_invoice.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		sqlStatement += ` ORDER BY date_created DESC`
+		rows, err = db.Query(sqlStatement, interfaces...)
+	}
+	if err != nil {
+		fmt.Println(err)
 		return invoices
 	}
 	for rows.Next() {

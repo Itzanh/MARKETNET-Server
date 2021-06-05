@@ -26,19 +26,35 @@ type Supplier struct {
 }
 
 func getSuppliers() []Supplier {
-	var customers []Supplier = make([]Supplier, 0)
+	var suppliers []Supplier = make([]Supplier, 0)
 	sqlStatement := `SELECT * FROM public.suppliers ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
-		return customers
+		return suppliers
 	}
 	for rows.Next() {
 		c := Supplier{}
 		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.City, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
-		customers = append(customers, c)
+		suppliers = append(suppliers, c)
 	}
 
-	return customers
+	return suppliers
+}
+
+func searchSuppliers(search string) []Supplier {
+	var suppliers []Supplier = make([]Supplier, 0)
+	sqlStatement := `SELECT * FROM suppliers WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	if err != nil {
+		return suppliers
+	}
+	for rows.Next() {
+		c := Supplier{}
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.City, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
+		suppliers = append(suppliers, c)
+	}
+
+	return suppliers
 }
 
 func getSupplierRow(supplierId int32) Supplier {

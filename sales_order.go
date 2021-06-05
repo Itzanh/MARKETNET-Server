@@ -60,6 +60,53 @@ func getSalesOrder() []SaleOrder {
 	return sales
 }
 
+type SalesOrderSearch struct {
+	Search    string     `json:"search"`
+	DateStart *time.Time `json:"dateStart"`
+	DateEnd   *time.Time `json:"dateEnd"`
+	Status    string     `json:"status"`
+}
+
+func (s *SalesOrderSearch) searchSalesOrder() []SaleOrder {
+	var sales []SaleOrder = make([]SaleOrder, 0)
+	var rows *sql.Rows
+	orderNumber, err := strconv.Atoi(s.Search)
+	if err == nil {
+		sqlStatement := `SELECT sales_order.* FROM sales_order WHERE order_number=$1 ORDER BY date_created DESC`
+		rows, err = db.Query(sqlStatement, orderNumber)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT sales_order.* FROM sales_order INNER JOIN customer ON customer.id=sales_order.customer WHERE (reference ILIKE $1 OR customer.name ILIKE $1)`
+		if s.DateStart != nil {
+			sqlStatement += ` AND sales_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND sales_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		if s.Status != "" {
+			sqlStatement += ` AND status = $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.Status)
+		}
+		sqlStatement += ` ORDER BY date_created DESC`
+		rows, err = db.Query(sqlStatement, interfaces...)
+	}
+	if err != nil {
+		return sales
+	}
+	for rows.Next() {
+		s := SaleOrder{}
+		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier)
+		sales = append(sales, s)
+	}
+
+	return sales
+}
+
 func getSalesOrderPreparation() []SaleOrder {
 	return getSalesOrderStatus("E")
 }

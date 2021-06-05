@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"time"
@@ -31,9 +32,44 @@ type SalesDeliveryNote struct {
 
 func getSalesDeliveryNotes() []SalesDeliveryNote {
 	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
-	sqlStatement := `SELECT * FROM public.sales_delivery_note ORDER BY id ASC`
+	sqlStatement := `SELECT * FROM public.sales_delivery_note ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		return notes
+	}
+	for rows.Next() {
+		p := SalesDeliveryNote{}
+		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
+		notes = append(notes, p)
+	}
+
+	return notes
+}
+
+func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {
+	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
+	var rows *sql.Rows
+	orderNumber, err := strconv.Atoi(s.Search)
+	if err == nil {
+		sqlStatement := `SELECT sales_delivery_note.* FROM sales_delivery_note WHERE delivery_note_number=$1 ORDER BY date_created DESC`
+		rows, err = db.Query(sqlStatement, orderNumber)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT sales_delivery_note.* FROM sales_delivery_note INNER JOIN customer ON customer.id=sales_delivery_note.customer WHERE customer.name ILIKE $1`
+		if s.DateStart != nil {
+			sqlStatement += ` AND sales_delivery_note.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND sales_delivery_note.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		sqlStatement += ` ORDER BY date_created DESC`
+		rows, err = db.Query(sqlStatement, interfaces...)
+	}
+	if err != nil {
+		fmt.Println(err)
 		return notes
 	}
 	for rows.Next() {

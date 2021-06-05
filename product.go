@@ -44,6 +44,22 @@ func getProduct() []Product {
 	return products
 }
 
+func searchProduct(search string) []Product {
+	var products []Product = make([]Product, 0)
+	sqlStatement := `SELECT * FROM product WHERE name ILIKE $1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	if err != nil {
+		return products
+	}
+	for rows.Next() {
+		p := Product{}
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier)
+		products = append(products, p)
+	}
+
+	return products
+}
+
 func getProductRow(productId int32) Product {
 	sqlStatement := `SELECT * FROM public.product WHERE id = $1`
 	row := db.QueryRow(sqlStatement, productId)

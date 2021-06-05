@@ -41,6 +41,22 @@ func getCustomers() []Customer {
 	return customers
 }
 
+func searchCustomers(search string) []Customer {
+	var customers []Customer = make([]Customer, 0)
+	sqlStatement := `SELECT * FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	if err != nil {
+		return customers
+	}
+	for rows.Next() {
+		c := Customer{}
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.City, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
+		customers = append(customers, c)
+	}
+
+	return customers
+}
+
 func (c *Customer) isValid() bool {
 	return !(len(c.Name) == 0 || len(c.Name) > 303 || len(c.Tradename) == 0 || len(c.Tradename) > 150 || len(c.FiscalName) == 0 || len(c.FiscalName) > 150 || len(c.TaxId) > 25 || len(c.VatNumber) > 25 || len(c.Phone) > 25 || len(c.Email) > 100)
 }
