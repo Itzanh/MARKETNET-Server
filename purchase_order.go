@@ -241,7 +241,8 @@ type PurchaseOrderDefaults struct {
 }
 
 func getPurchaseOrderDefaults() PurchaseOrderDefaults {
-	return PurchaseOrderDefaults{Warehouse: "W1", WarehouseName: "Main Warehouse"}
+	s := getSettingsRecord()
+	return PurchaseOrderDefaults{Warehouse: s.DefaultWarehouse, WarehouseName: s.DefaultWarehouseName}
 }
 
 type PurchaseOrderRelations struct {

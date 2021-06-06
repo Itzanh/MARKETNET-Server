@@ -290,7 +290,8 @@ type SaleOrderDefaults struct {
 }
 
 func getSaleOrderDefaults() SaleOrderDefaults {
-	return SaleOrderDefaults{Warehouse: "W1", WarehouseName: "Main Warehouse"}
+	s := getSettingsRecord()
+	return SaleOrderDefaults{Warehouse: s.DefaultWarehouse, WarehouseName: s.DefaultWarehouseName}
 }
 
 type SalesOrderRelations struct {
