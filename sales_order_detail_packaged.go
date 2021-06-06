@@ -1,6 +1,8 @@
 package main
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type SalesOrderDetailPackaged struct {
 	OrderDetail int32  `json:"orderDetail"`
@@ -158,4 +160,40 @@ func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransactio
 		return true
 	}
 
+}
+
+type SalesOrderDetailPackagedEAN13 struct {
+	SalesOrder int32  `json:"salesOrder"`
+	EAN13      string `json:"ean13"`
+	Packaging  int32  `json:"packaging"`
+	Quantity   int32  `json:"quantity"`
+}
+
+func (d *SalesOrderDetailPackagedEAN13) isValid() bool {
+	return !(d.SalesOrder <= 0 || len(d.EAN13) != 13 || d.Packaging <= 0 || d.Quantity <= 0)
+}
+
+func (d *SalesOrderDetailPackagedEAN13) insertSalesOrderDetailPackagedEAN13() bool {
+	if !d.isValid() {
+		return false
+	}
+
+	sqlStatement := `SELECT sales_order_detail.id FROM sales_order_detail INNER JOIN product ON product.id=sales_order_detail.product WHERE sales_order_detail."order"=$1 AND sales_order_detail.quantity_pending_packaging>0 AND product.barcode=$2`
+	row := db.QueryRow(sqlStatement, d.SalesOrder, d.EAN13)
+	if row.Err() != nil {
+		return false
+	}
+
+	var salesOrderDetailId int32
+	row.Scan(&salesOrderDetailId)
+	if salesOrderDetailId <= 0 {
+		return false
+	}
+
+	p := SalesOrderDetailPackaged{}
+	p.OrderDetail = salesOrderDetailId
+	p.Packaging = d.Packaging
+	p.Quantity = d.Quantity
+
+	return p.insertSalesOrderDetailPackaged()
 }

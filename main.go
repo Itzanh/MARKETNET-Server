@@ -378,6 +378,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var salesOrderDetailPackaged SalesOrderDetailPackaged
 		json.Unmarshal(message, &salesOrderDetailPackaged)
 		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackaged()
+	case "SALES_ORDER_DETAIL_PACKAGED_EAN13":
+		var salesOrderDetailPackaged SalesOrderDetailPackagedEAN13
+		json.Unmarshal(message, &salesOrderDetailPackaged)
+		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackagedEAN13()
 	case "WAREHOUSE_MOVEMENTS":
 		var warehouseMovement WarehouseMovement
 		json.Unmarshal(message, &warehouseMovement)
@@ -1031,6 +1035,12 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 	case "GRANT_DOCUMENT_ACCESS_TOKEN":
 		data, _ = json.Marshal(grantDocumentAccessToken())
+	case "GET_PRODUCT_ROW":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(getProductRow(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
