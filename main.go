@@ -31,6 +31,7 @@ func main() {
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
+	http.HandleFunc("/document", handleDocument)
 	go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
@@ -38,6 +39,7 @@ func main() {
 	db.Ping()
 
 	initialData()
+	go cleanDocumentTokens()
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
@@ -209,6 +211,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPurchaseInvoices())
 	case "SETTINGS":
 		data, _ = json.Marshal(getSettingsRecord())
+	case "DOCUMENT_CONTAINER":
+		data, _ = json.Marshal(getDocumentContainer())
+	case "DOCUMENTS":
+		if message == "" {
+			data, _ = json.Marshal(getDocuments())
+		} else {
+			var document Document
+			json.Unmarshal([]byte(message), &document)
+			data, _ = json.Marshal(document.getDocumentsRelations())
+		}
 	default:
 		found = false
 	}
@@ -422,6 +434,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
 		json.Unmarshal(message, &purchaseInvoiceDetail)
 		ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
+	case "DOCUMENT_CONTAINER":
+		var documentContainer DocumentContainer
+		json.Unmarshal(message, &documentContainer)
+		ok = documentContainer.insertDocumentContainer()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -530,6 +546,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var settings Settings
 		json.Unmarshal(message, &settings)
 		ok = settings.updateSettingsRecord()
+	case "DOCUMENT_CONTAINER":
+		var documentContainer DocumentContainer
+		json.Unmarshal(message, &documentContainer)
+		ok = documentContainer.updateDocumentContainer()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -698,6 +718,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
 		purchaseInvoiceDetail.Id = int32(id)
 		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail()
+	case "DOCUMENT_CONTAINER":
+		var documentContainer DocumentContainer
+		documentContainer.Id = int16(id)
+		ok = documentContainer.deleteDocumentContainer()
+	case "DOCUMENT":
+		var document Document
+		document.Id = int32(id)
+		ok = document.deleteDocument()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -839,6 +867,8 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 	switch command {
 	case "SALE_ORDER":
 		data, _ = json.Marshal(locateSaleOrder())
+	case "DOCUMENT_CONTAINER":
+		data, _ = json.Marshal(locateDocumentContainer())
 	default:
 		found = false
 	}
@@ -990,6 +1020,17 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var invoiceInfo PurchaseOrderDetailInvoice
 		json.Unmarshal([]byte(message), &invoiceInfo)
 		data, _ = json.Marshal(invoiceInfo.invoicePartiallyPurchaseOrder())
+	case "INSERT_DOCUMENT":
+		var document Document
+		json.Unmarshal([]byte(message), &document)
+		ok := document.insertDocument()
+		if ok {
+			data, _ = json.Marshal(document)
+		} else {
+			data, _ = json.Marshal(ok)
+		}
+	case "GRANT_DOCUMENT_ACCESS_TOKEN":
+		data, _ = json.Marshal(grantDocumentAccessToken())
 	}
 	ws.WriteMessage(mt, data)
 }

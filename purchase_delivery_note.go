@@ -32,7 +32,7 @@ type PurchaseDeliveryNote struct {
 
 func getPurchaseDeliveryNotes() []PurchaseDeliveryNote {
 	var notes []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
-	sqlStatement := `SELECT * FROM public.purchase_delivery_note ORDER BY id ASC`
+	sqlStatement := `SELECT * FROM public.purchase_delivery_note ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return notes
