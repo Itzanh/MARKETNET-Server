@@ -1047,6 +1047,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(getProductRow(int32(id)))
+	case "PRODUCT_EAN13":
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		p := getProductRow(int32(id))
+		p.generateBarcode()
+		data, _ = json.Marshal(p.updateProduct())
 	}
 	ws.WriteMessage(mt, data)
 }

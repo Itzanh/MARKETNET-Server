@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"time"
 )
@@ -74,7 +75,7 @@ func getProductRow(productId int32) Product {
 }
 
 func (p *Product) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) == 0 || len(p.Reference) > 40 || len(p.BarCode) != 13 || p.VatPercent < 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0)
 }
 
 func (p *Product) insertProduct() bool {
@@ -83,7 +84,7 @@ func (p *Product) insertProduct() bool {
 	}
 
 	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
-	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType)
+	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier)
 	if err != nil {
 		return false
 	}
@@ -253,4 +254,39 @@ func getProductWarehouseMovement(productId int32) []WarehouseMovement {
 	}
 
 	return warehouseMovements
+}
+
+func (p *Product) generateBarcode() bool {
+	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE SUBSTRING(barcode,0,5) = $1 ORDER BY barcode DESC LIMIT 1`
+	row := db.QueryRow(sqlStatement, getSettingsRecord().BarcodePrefix)
+	if row.Err() != nil {
+		return false
+	}
+
+	var barcode string
+	row.Scan(&barcode)
+	if len(barcode) == 0 {
+		return false
+	}
+
+	code, err := strconv.Atoi(barcode)
+	if err != nil {
+		return false
+	}
+	code++
+	barcode = strconv.Itoa(code)
+
+	checkCode := 0
+	for i := 1; i < len(barcode); i += 2 {
+		j, _ := strconv.Atoi(barcode[i : i+1])
+		checkCode += j
+	}
+	checkCode *= 3
+	for i := 0; i < len(barcode); i += 2 {
+		j, _ := strconv.Atoi(barcode[i : i+1])
+		checkCode += j
+	}
+
+	p.BarCode = barcode + strconv.Itoa(10-(checkCode%10))
+	return true
 }
