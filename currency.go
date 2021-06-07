@@ -1,14 +1,22 @@
 package main
 
-import "strings"
+import (
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
 
 type Currency struct {
-	Id      int16   `json:"id"`
-	Name    string  `json:"name"`
-	Sign    string  `json:"sign"`
-	IsoCode string  `json:"isoCode"`
-	IsoNum  int16   `json:"isoNum"`
-	Change  float32 `json:"change"`
+	Id           int16     `json:"id"`
+	Name         string    `json:"name"`
+	Sign         string    `json:"sign"`
+	IsoCode      string    `json:"isoCode"`
+	IsoNum       int16     `json:"isoNum"`
+	Change       float32   `json:"change"`
+	ExchangeDate time.Time `json:"exchangeDate"`
 }
 
 func getCurrencies() []Currency {
@@ -20,7 +28,7 @@ func getCurrencies() []Currency {
 	}
 	for rows.Next() {
 		c := Currency{}
-		rows.Scan(&c.Id, &c.Name, &c.Sign, &c.IsoCode, &c.IsoNum, &c.Change)
+		rows.Scan(&c.Id, &c.Name, &c.Sign, &c.IsoCode, &c.IsoNum, &c.Change, &c.ExchangeDate)
 		currencies = append(currencies, c)
 	}
 
@@ -36,7 +44,7 @@ func (c *Currency) insertCurrency() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.currency(name, sign, iso_code, iso_num, change) VALUES ($1, $2, $3, $4, $5)`
+	sqlStatement := `INSERT INTO public.currency(name, sign, iso_code, iso_num, exchange) VALUES ($1, $2, $3, $4, $5)`
 	res, err := db.Exec(sqlStatement, c.Name, c.Sign, c.IsoCode, c.IsoNum, c.Change)
 	if err != nil {
 		return false
@@ -51,7 +59,7 @@ func (c *Currency) updateCurrency() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.currency SET name=$2, sign=$3, iso_code=$4, iso_num=$5, change=$6 WHERE id=$1`
+	sqlStatement := `UPDATE public.currency SET name=$2, sign=$3, iso_code=$4, iso_num=$5, exchange=$6 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Sign, c.IsoCode, c.IsoNum, c.Change)
 	if err != nil {
 		return false
@@ -77,7 +85,7 @@ func (c *Currency) deleteCurrency() bool {
 }
 
 func getCurrencyExchange(currencyId int16) float32 {
-	sqlStatement := `SELECT change FROM public.currency WHERE id = $1`
+	sqlStatement := `SELECT exchange FROM public.currency WHERE id=$1`
 	row := db.QueryRow(sqlStatement, currencyId)
 	if row.Err() != nil {
 		return 0
@@ -117,4 +125,65 @@ func getNameCurrency(id int16) string {
 	name := ""
 	row.Scan(&name)
 	return name
+}
+
+func updateCurrencyExchange() {
+	if getSettingsRecord().Currency != "E" {
+		return
+	}
+	currencies := getCurrencies()
+
+	for i := 0; i < len(currencies); i++ {
+		if len(currencies[i].IsoCode) == 0 || currencies[i].IsoCode == "EUR" {
+			continue
+		}
+
+		now := time.Now()
+		now = now.AddDate(0, 0, -1)
+		currentDate := now.Format("2006-01-02")
+		resp, err := http.Get(getSettingsRecord().CurrencyECBurl + "D." + currencies[i].IsoCode + ".EUR.SP00.A?startPeriod=" + currentDate + "&endPeriod=" + currentDate)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+
+		if len(body) == 0 { // there is no data for this date
+			continue
+		}
+		xml := string(body)
+
+		// check that there is a field with the date
+		dateIndexOf := strings.Index(xml, "<generic:ObsDimension value=\"")
+		if dateIndexOf <= 0 {
+			continue
+		}
+		dateIndexOf += len("<generic:ObsDimension value=\"")
+
+		// chech that there is a field with the exchange rate
+		valueIndexOf := strings.Index(xml, "<generic:ObsValue value=\"")
+		if valueIndexOf <= 0 {
+			continue
+		}
+		valueIndexOf += len("<generic:ObsValue value=\"")
+
+		// extract the field and parse the data
+		dateString := xml[dateIndexOf : dateIndexOf+10]
+		valueString := xml[valueIndexOf : valueIndexOf+strings.Index(xml[valueIndexOf:], "\"")]
+
+		date, err := time.Parse("2006-01-02", dateString)
+		if err != nil {
+			continue
+		}
+		value, err := strconv.ParseFloat(valueString, 64)
+		if err != nil {
+			continue
+		}
+
+		sqlStatement := `UPDATE currency SET exchange=$2,exchange_date=$3 WHERE id=$1`
+		db.Exec(sqlStatement, currencies[i].Id, value, date)
+	}
 }

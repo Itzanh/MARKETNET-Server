@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
+	"github.com/robfig/cron/v3"
 )
 
 var settings BackendSettings
@@ -40,6 +41,11 @@ func main() {
 
 	initialData()
 	go cleanDocumentTokens()
+
+	c := cron.New()
+	c.AddFunc("30 0 * * *", updateCurrencyExchange)
+	c.Start()
+	c.Run()
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
