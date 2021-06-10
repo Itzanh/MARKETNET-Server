@@ -79,6 +79,10 @@ func (s *Supplier) insertSupplier() bool {
 		return false
 	}
 
+	if s.BillingSeries != nil && *s.BillingSeries == "" {
+		s.BillingSeries = nil
+	}
+
 	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, city, main_shipping_address, main_billing_address, language, payment_method, billing_series) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 	res, err := db.Exec(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.City, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
 	if err != nil {
@@ -92,6 +96,10 @@ func (s *Supplier) insertSupplier() bool {
 func (s *Supplier) updateSupplier() bool {
 	if s.Id <= 0 || !s.isValid() {
 		return false
+	}
+
+	if s.BillingSeries != nil && *s.BillingSeries == "" {
+		s.BillingSeries = nil
 	}
 
 	sqlStatement := `UPDATE public.suppliers SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, city=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16 WHERE id=$1`
@@ -119,20 +127,15 @@ func (s *Supplier) deleteSupplier() bool {
 	return rows > 0
 }
 
-type SupplierName struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findSupplierByName(languageName string) []CustomerName {
-	var customers []CustomerName = make([]CustomerName, 0)
+func findSupplierByName(languageName string) []NameInt32 {
+	var customers []NameInt32 = make([]NameInt32, 0)
 	sqlStatement := `SELECT id,name FROM public.suppliers WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
 		return customers
 	}
 	for rows.Next() {
-		c := CustomerName{}
+		c := NameInt32{}
 		rows.Scan(&c.Id, &c.Name)
 		customers = append(customers, c)
 	}
@@ -152,7 +155,7 @@ func getNameSupplier(id int32) string {
 }
 
 func getSupplierDefaults(customerId int32) ContactDefauls {
-	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = suppliers.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = suppliers.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = suppliers.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = suppliers.billing_series), (SELECT currency FROM country WHERE country.id = suppliers.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = suppliers.country)), (SELECT change FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = suppliers.country)) FROM public.suppliers WHERE id = $1`
+	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = suppliers.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = suppliers.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = suppliers.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = suppliers.billing_series), (SELECT currency FROM country WHERE country.id = suppliers.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = suppliers.country)), (SELECT exchange FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = suppliers.country)) FROM public.suppliers WHERE id = $1`
 	row := db.QueryRow(sqlStatement, customerId)
 	if row.Err() != nil {
 		return ContactDefauls{}

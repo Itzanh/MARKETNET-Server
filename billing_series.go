@@ -148,20 +148,15 @@ func getNextPurchaseDeliveryNoteNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-type BillingSerieName struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
-}
-
-func findBillingSerieByName(billingSerieName string) []BillingSerieName {
-	var billingSeries []BillingSerieName = make([]BillingSerieName, 0)
+func findBillingSerieByName(billingSerieName string) []NameString {
+	var billingSeries []NameString = make([]NameString, 0)
 	sqlStatement := `SELECT id,name FROM public.billing_series WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(billingSerieName))
 	if err != nil {
 		return billingSeries
 	}
 	for rows.Next() {
-		b := BillingSerieName{}
+		b := NameString{}
 		rows.Scan(&b.Id, &b.Name)
 		billingSeries = append(billingSeries, b)
 	}

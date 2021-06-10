@@ -87,6 +87,20 @@ func (s *OrderSearch) searchSalesInvoices() []SalesInvoice {
 	return invoices
 }
 
+func getSalesInvoiceRow(invoiceId int32) SalesInvoice {
+	sqlStatement := `SELECT * FROM sales_invoice WHERE id=$1`
+	row := db.QueryRow(sqlStatement, invoiceId)
+	if row.Err() != nil {
+		return SalesInvoice{}
+	}
+
+	i := SalesInvoice{}
+	row.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
+		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+
+	return i
+}
+
 func (i *SalesInvoice) isValid() bool {
 	return !(i.Customer <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
@@ -208,19 +222,19 @@ func invoiceAllSaleOrder(saleOrderId int32) bool {
 	///
 }
 
-type SalesOrderDetailInvoice struct {
-	SaleOrderId int32                              `json:"saleOrderId"`
-	Selection   []SalesOrderDetailInvoiceSelection `json:"selection"`
+type OrderDetailGenerate struct {
+	OrderId   int32                          `json:"orderId"`
+	Selection []OrderDetailGenerateSelection `json:"selection"`
 }
 
-type SalesOrderDetailInvoiceSelection struct {
+type OrderDetailGenerateSelection struct {
 	Id       int32 `json:"id"`
 	Quantity int32 `json:"quantity"`
 }
 
-func (invoiceInfo *SalesOrderDetailInvoice) invoicePartiallySaleOrder() bool {
+func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder() bool {
 	// get the sale order and it's details
-	saleOrder := getSalesOrderRow(invoiceInfo.SaleOrderId)
+	saleOrder := getSalesOrderRow(invoiceInfo.OrderId)
 	if saleOrder.Id <= 0 || len(invoiceInfo.Selection) == 0 {
 		return false
 	}
@@ -228,7 +242,7 @@ func (invoiceInfo *SalesOrderDetailInvoice) invoicePartiallySaleOrder() bool {
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(invoiceInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(invoiceInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.SaleOrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
+		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
 			return false
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)

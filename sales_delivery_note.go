@@ -177,19 +177,9 @@ func deliveryNoteAllSaleOrder(saleOrderId int32) (bool, int32) {
 	///
 }
 
-type SalesOrderDetailDeliveryNote struct {
-	SaleOrderId int32                                   `json:"saleOrderId"`
-	Selection   []SalesOrderDetailDeliveryNoteSelection `json:"selection"`
-}
-
-type SalesOrderDetailDeliveryNoteSelection struct {
-	Id       int32 `json:"id"`
-	Quantity int32 `json:"quantity"`
-}
-
-func (noteInfo *SalesOrderDetailDeliveryNote) deliveryNotePartiallySaleOrder() bool {
+func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder() bool {
 	// get the sale order and it's details
-	saleOrder := getSalesOrderRow(noteInfo.SaleOrderId)
+	saleOrder := getSalesOrderRow(noteInfo.OrderId)
 	if saleOrder.Id <= 0 || len(noteInfo.Selection) == 0 {
 		return false
 	}
@@ -197,7 +187,7 @@ func (noteInfo *SalesOrderDetailDeliveryNote) deliveryNotePartiallySaleOrder() b
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(noteInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(noteInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.SaleOrderId || noteInfo.Selection[i].Quantity == 0 || noteInfo.Selection[i].Quantity > orderDetail.Quantity {
+		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 || noteInfo.Selection[i].Quantity > orderDetail.Quantity {
 			return false
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)

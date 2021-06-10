@@ -271,19 +271,9 @@ func manufacturingOrderAllSaleOrder(saleOrderId int32) bool {
 	///
 }
 
-type SalesOrderDetailManufacturingOrder struct {
-	SaleOrderId int32                                         `json:"saleOrderId"`
-	Selection   []SalesOrderDetailManufacturingOrderSelection `json:"selection"`
-}
-
-type SalesOrderDetailManufacturingOrderSelection struct {
-	Id       int32 `json:"id"`
-	Quantity int32 `json:"quantity"`
-}
-
-func (orderInfo *SalesOrderDetailManufacturingOrder) manufacturingOrderPartiallySaleOrder() bool {
+func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder() bool {
 	// get the sale order and it's details
-	saleOrder := getSalesOrderRow(orderInfo.SaleOrderId)
+	saleOrder := getSalesOrderRow(orderInfo.OrderId)
 	if saleOrder.Id <= 0 || len(orderInfo.Selection) == 0 {
 		return false
 	}
@@ -291,7 +281,7 @@ func (orderInfo *SalesOrderDetailManufacturingOrder) manufacturingOrderPartially
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(orderInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(orderInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != orderInfo.SaleOrderId || orderInfo.Selection[i].Quantity == 0 || orderInfo.Selection[i].Quantity > orderDetail.Quantity {
+		if orderDetail.Id <= 0 || orderDetail.Order != orderInfo.OrderId || orderInfo.Selection[i].Quantity == 0 || orderInfo.Selection[i].Quantity > orderDetail.Quantity {
 			return false
 		}
 		if orderDetail.Status == "C" {

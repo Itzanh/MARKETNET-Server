@@ -289,6 +289,14 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getProductPurchaseOrderDetails(int32(id)))
 	case "PRODUCT_WAREHOUSE_MOVEMENT":
 		data, _ = json.Marshal(getProductWarehouseMovement(int32(id)))
+	case "SALES_ORDER_ROW":
+		data, _ = json.Marshal(getSalesOrderRow(int32(id)))
+	case "SALES_INVOICE_ROW":
+		data, _ = json.Marshal(getSalesInvoiceRow(int32(id)))
+	case "PURCHASE_ORDER_ROW":
+		data, _ = json.Marshal(getPurchaseOrderRow(int32(id)))
+	case "PURCHASE_INVOICE_ROW":
+		data, _ = json.Marshal(getPurchaseInvoiceRow(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -741,6 +749,21 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 	ws.WriteMessage(mt, data)
 }
 
+type NameInt16 struct {
+	Id   int16  `json:"id"`
+	Name string `json:"name"`
+}
+
+type NameInt32 struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+type NameString struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
 func instructionName(command string, message string, mt int, ws *websocket.Conn) {
 	var data []byte
 	switch command {
@@ -915,7 +938,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(invoiceAllSaleOrder(int32(id)))
 	case "INVOICE_PARTIAL_SALE_ORDER":
-		var invoiceInfo SalesOrderDetailInvoice
+		var invoiceInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &invoiceInfo)
 		data, _ = json.Marshal(invoiceInfo.invoicePartiallySaleOrder())
 	case "GET_SALES_ORDER_RELATIONS":
@@ -943,7 +966,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int32(id)))
 	case "MANUFACTURING_ORDER_PARTIAL_SALE_ORDER":
-		var orderInfo SalesOrderDetailManufacturingOrder
+		var orderInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &orderInfo)
 		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder())
 	case "DELETE_SALES_ORDER_DETAIL_PACKAGED":
@@ -958,7 +981,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		ok, _ := deliveryNoteAllSaleOrder(int32(id))
 		data, _ = json.Marshal(ok)
 	case "DELIVERY_NOTE_PARTIALLY_SALE_ORDER":
-		var noteInfo SalesOrderDetailDeliveryNote
+		var noteInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &noteInfo)
 		data, _ = json.Marshal(noteInfo.deliveryNotePartiallySaleOrder())
 	case "SHIPPING_SALE_ORDER":
@@ -1017,7 +1040,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(getPurchaseDeliveryNoteRelations(int32(id)))
 	case "DELIVERY_NOTE_PARTIALLY_PURCHASE_ORDER":
-		var noteInfo PurchaseOrderDetailDeliveryNote
+		var noteInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &noteInfo)
 		data, _ = json.Marshal(noteInfo.deliveryNotePartiallyPurchaseOrder())
 	case "INVOICE_ALL_PURCHASE_ORDER":
@@ -1027,7 +1050,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(invoiceAllPurchaseOrder(int32(id)))
 	case "INVOICE_PARTIAL_PURCHASE_ORDER":
-		var invoiceInfo PurchaseOrderDetailInvoice
+		var invoiceInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &invoiceInfo)
 		data, _ = json.Marshal(invoiceInfo.invoicePartiallyPurchaseOrder())
 	case "INSERT_DOCUMENT":

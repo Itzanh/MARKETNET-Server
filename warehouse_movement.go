@@ -26,7 +26,7 @@ type WarehouseMovement struct {
 
 func getWarehouseMovement() []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT * FROM public.warehouse_movement ORDER BY id ASC`
+	sqlStatement := `SELECT * FROM public.warehouse_movement ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return warehouseMovements
@@ -46,7 +46,7 @@ func getWarehouseMovementByWarehouse(warehouseId string) []WarehouseMovement {
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT * FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT * FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement, warehouseId)
 	if err != nil {
 		return warehouseMovements

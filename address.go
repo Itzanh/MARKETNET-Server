@@ -30,7 +30,7 @@ func getAddresses() []Address {
 }
 
 func (a *Address) isValid() bool {
-	return !((a.Customer == nil && a.Supplier == nil) || (a.Customer != nil && *a.Customer <= 0) || (a.Supplier != nil && *a.Supplier <= 0) || len(a.Address) == 0 || len(a.Address) > 200 || len(a.Address2) > 200 || a.City <= 0 || a.Country <= 0 || (a.PrivateOrBusiness != "P" && a.PrivateOrBusiness != "B") || len(a.Notes) > 3000)
+	return !((a.Customer == nil && a.Supplier == nil) || (a.Customer != nil && *a.Customer <= 0) || (a.Supplier != nil && *a.Supplier <= 0) || len(a.Address) == 0 || len(a.Address) > 200 || len(a.Address2) > 200 || a.City <= 0 || a.Country <= 0 || len(a.Province) > 100 || (a.PrivateOrBusiness != "P" && a.PrivateOrBusiness != "B") || len(a.Notes) > 1000)
 }
 
 func (a *Address) insertAddress() bool {

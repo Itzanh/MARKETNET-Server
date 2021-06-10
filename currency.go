@@ -95,20 +95,15 @@ func getCurrencyExchange(currencyId int16) float32 {
 	return change
 }
 
-type CurrencyName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findCurrencyByName(currencyName string) []CurrencyName {
-	var currencies []CurrencyName = make([]CurrencyName, 0)
+func findCurrencyByName(currencyName string) []NameInt16 {
+	var currencies []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.currency WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(currencyName))
 	if err != nil {
 		return currencies
 	}
 	for rows.Next() {
-		c := CurrencyName{}
+		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
 		currencies = append(currencies, c)
 	}

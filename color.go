@@ -73,20 +73,15 @@ func (c *Color) deleteColor() bool {
 	return rows > 0
 }
 
-type ColorName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findColorByName(colorName string) []ColorName {
-	var colors []ColorName = make([]ColorName, 0)
+func findColorByName(colorName string) []NameInt16 {
+	var colors []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.color WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(colorName))
 	if err != nil {
 		return colors
 	}
 	for rows.Next() {
-		c := ColorName{}
+		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
 		colors = append(colors, c)
 	}

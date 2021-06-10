@@ -82,6 +82,20 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 	return invoices
 }
 
+func getPurchaseInvoiceRow(invoiceId int32) PurchaseInvoice {
+	sqlStatement := `SELECT * FROM purchase_invoice WHERE id=$1`
+	row := db.QueryRow(sqlStatement, invoiceId)
+	if row.Err() != nil {
+		return PurchaseInvoice{}
+	}
+
+	i := PurchaseInvoice{}
+	row.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
+		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+
+	return i
+}
+
 func (i *PurchaseInvoice) isValid() bool {
 	return !(i.Supplier <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
@@ -202,19 +216,9 @@ func invoiceAllPurchaseOrder(purchaseOrderId int32) bool {
 	///
 }
 
-type PurchaseOrderDetailInvoice struct {
-	PurchaseOrderId int32                              `json:"purchaseOrderId"`
-	Selection       []SalesOrderDetailInvoiceSelection `json:"selection"`
-}
-
-type PurchaseOrderDetailInvoiceSelection struct {
-	Id       int32 `json:"id"`
-	Quantity int32 `json:"quantity"`
-}
-
-func (invoiceInfo *PurchaseOrderDetailInvoice) invoicePartiallyPurchaseOrder() bool {
+func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder() bool {
 	// get the sale order and it's details
-	purchaseOrder := getPurchaseOrderRow(invoiceInfo.PurchaseOrderId)
+	purchaseOrder := getPurchaseOrderRow(invoiceInfo.OrderId)
 	if purchaseOrder.Id <= 0 || len(invoiceInfo.Selection) == 0 {
 		return false
 	}
@@ -222,7 +226,7 @@ func (invoiceInfo *PurchaseOrderDetailInvoice) invoicePartiallyPurchaseOrder() b
 	var purchaseOrderDetails []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
 	for i := 0; i < len(invoiceInfo.Selection); i++ {
 		orderDetail := getPurchaseOrderDetailRow(invoiceInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.PurchaseOrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
+		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
 			return false
 		}
 		purchaseOrderDetails = append(purchaseOrderDetails, orderDetail)

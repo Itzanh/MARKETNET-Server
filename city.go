@@ -84,20 +84,15 @@ type CityNameQuery struct {
 	Name      string `json:"cityName"`
 }
 
-type CityName struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findCityByName(cityName CityNameQuery) []CityName {
-	var cities []CityName = make([]CityName, 0)
+func findCityByName(cityName CityNameQuery) []NameInt32 {
+	var cities []NameInt32 = make([]NameInt32, 0)
 	sqlStatement := `SELECT id,name FROM public.city WHERE country = $1 AND UPPER(name) LIKE $2 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, cityName.CountryId, strings.ToUpper(cityName.Name))
 	if err != nil {
 		return cities
 	}
 	for rows.Next() {
-		c := CityName{}
+		c := NameInt32{}
 		rows.Scan(&c.Id, &c.Name)
 		cities = append(cities, c)
 	}

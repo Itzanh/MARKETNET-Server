@@ -75,7 +75,7 @@ func getProductRow(productId int32) Product {
 }
 
 func (p *Product) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0)
 }
 
 func (p *Product) insertProduct() bool {
@@ -123,20 +123,15 @@ func (p *Product) deleteProduct() bool {
 	return rows > 0
 }
 
-type ProductName struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findProductByName(languageName string) []ProductName {
-	var products []ProductName = make([]ProductName, 0)
+func findProductByName(languageName string) []NameInt32 {
+	var products []NameInt32 = make([]NameInt32, 0)
 	sqlStatement := `SELECT id,name FROM public.product WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
 		return products
 	}
 	for rows.Next() {
-		p := ProductName{}
+		p := NameInt32{}
 		rows.Scan(&p.Id, &p.Name)
 		products = append(products, p)
 	}

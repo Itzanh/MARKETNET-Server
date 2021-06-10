@@ -74,20 +74,15 @@ func (w *Warehouse) deleteWarehouse() bool {
 	return rows > 0
 }
 
-type WarehouseName struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
-}
-
-func findWarehouseByName(languageName string) []WarehouseName {
-	var warehouses []WarehouseName = make([]WarehouseName, 0)
+func findWarehouseByName(languageName string) []NameString {
+	var warehouses []NameString = make([]NameString, 0)
 	sqlStatement := `SELECT id,name FROM public.warehouse WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
 		return warehouses
 	}
 	for rows.Next() {
-		w := WarehouseName{}
+		w := NameString{}
 		rows.Scan(&w.Id, &w.Name)
 		warehouses = append(warehouses, w)
 	}

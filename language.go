@@ -76,20 +76,15 @@ func (l *Language) deleteLanguage() bool {
 	return rows > 0
 }
 
-type LanguageName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findLanguageByName(languageName string) []LanguageName {
-	var languages []LanguageName = make([]LanguageName, 0)
+func findLanguageByName(languageName string) []NameInt16 {
+	var languages []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.language WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
 		return languages
 	}
 	for rows.Next() {
-		l := LanguageName{}
+		l := NameInt16{}
 		rows.Scan(&l.Id, &l.Name)
 		languages = append(languages, l)
 	}

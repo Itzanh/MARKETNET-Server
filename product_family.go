@@ -75,20 +75,15 @@ func (f *ProductFamily) deleteProductFamily() bool {
 	return rows > 0
 }
 
-type ProductFamilyName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findProductFamilyByName(productFamilyName string) []ProductFamilyName {
-	var productFamily []ProductFamilyName = make([]ProductFamilyName, 0)
+func findProductFamilyByName(productFamilyName string) []NameInt16 {
+	var productFamily []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.product_family WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(productFamilyName))
 	if err != nil {
 		return productFamily
 	}
 	for rows.Next() {
-		p := ProductFamilyName{}
+		p := NameInt16{}
 		rows.Scan(&p.Id, &p.Name)
 		productFamily = append(productFamily, p)
 	}

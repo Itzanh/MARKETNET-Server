@@ -205,7 +205,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	ok = setSalesOrderState(s.Order)
+	ok = setSalesOrderState(detailInMemory.Order)
 	if !ok {
 		trans.Rollback()
 		return false

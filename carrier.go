@@ -33,7 +33,7 @@ func getCariers() []Carrier {
 }
 
 func (c *Carrier) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 50 || c.MaxWeight < 0 || c.MaxWidth < 0 || c.MaxHeight < 0 || c.MaxDepth < 0 || c.MaxPackages < 0 || len(c.Phone) > 15 || len(c.Email) > 100 || len(c.Web) > 200)
+	return !(len(c.Name) == 0 || len(c.Name) > 50 || c.MaxWeight < 0 || c.MaxWidth < 0 || c.MaxHeight < 0 || c.MaxDepth < 0 || c.MaxPackages < 0 || len(c.Phone) > 15 || len(c.Email) > 100 || len(c.Web) > 100)
 }
 
 func (c *Carrier) insertCarrier() bool {
@@ -81,20 +81,15 @@ func (c *Carrier) deleteCarrier() bool {
 	return rows > 0
 }
 
-type CarrierName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findCarrierByName(languageName string) []CarrierName {
-	var carriers []CarrierName = make([]CarrierName, 0)
+func findCarrierByName(languageName string) []NameInt16 {
+	var carriers []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.carrier WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
 		return carriers
 	}
 	for rows.Next() {
-		c := CarrierName{}
+		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
 		carriers = append(carriers, c)
 	}

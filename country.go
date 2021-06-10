@@ -31,7 +31,7 @@ func getCountries() []Country {
 }
 
 func (c *Country) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 75 || len(c.Iso2) != 2 || len(c.Iso3) != 3 || c.UNCode <= 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix <= 0)
+	return !(len(c.Name) == 0 || len(c.Name) > 75 || len(c.Iso2) != 2 || len(c.Iso3) != 3 || c.UNCode <= 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix < 0)
 }
 
 func (c *Country) insertCountry() bool {
@@ -79,20 +79,15 @@ func (c *Country) deleteCountry() bool {
 	return rows > 0
 }
 
-type CountryName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findCountryByName(languageName string) []CountryName {
-	var countries []CountryName = make([]CountryName, 0)
+func findCountryByName(languageName string) []NameInt16 {
+	var countries []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.country WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
 		return countries
 	}
 	for rows.Next() {
-		c := CountryName{}
+		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
 		countries = append(countries, c)
 	}

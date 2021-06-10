@@ -73,20 +73,15 @@ func (p *PaymentMethod) deletePaymentMethod() bool {
 	return rows > 0
 }
 
-type PaymentMethodName struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-}
-
-func findPaymentMethodByName(paymentMethodName string) []PaymentMethodName {
-	var paymentMethods []PaymentMethodName = make([]PaymentMethodName, 0)
+func findPaymentMethodByName(paymentMethodName string) []NameInt16 {
+	var paymentMethods []NameInt16 = make([]NameInt16, 0)
 	sqlStatement := `SELECT id,name FROM public.payment_method WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(paymentMethodName))
 	if err != nil {
 		return paymentMethods
 	}
 	for rows.Next() {
-		p := PaymentMethodName{}
+		p := NameInt16{}
 		rows.Scan(&p.Id, &p.Name)
 		paymentMethods = append(paymentMethods, p)
 	}
