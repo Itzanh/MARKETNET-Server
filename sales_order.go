@@ -389,7 +389,7 @@ func setSalesOrderState(orderId int32) bool {
 	var status string
 	row.Scan(&status)
 	if status == "" {
-		return false
+		status = "_"
 	}
 
 	sqlStatement = `UPDATE sales_order SET status = $2 WHERE id = $1`
