@@ -3,17 +3,18 @@ package main
 import "strings"
 
 type Carrier struct {
-	Id          int16   `json:"id"`
-	Name        string  `json:"name"`
-	MaxWeight   float32 `json:"maxWeight"`
-	MaxWidth    float32 `json:"maxWidth"`
-	MaxHeight   float32 `json:"maxHeight"`
-	MaxDepth    float32 `json:"maxDepth"`
-	MaxPackages int16   `json:"maxPackages"`
-	Phone       string  `json:"phone"`
-	Email       string  `json:"email"`
-	Web         string  `json:"web"`
-	Off         bool    `json:"off"`
+	Id           int16   `json:"id"`
+	Name         string  `json:"name"`
+	MaxWeight    float32 `json:"maxWeight"`
+	MaxWidth     float32 `json:"maxWidth"`
+	MaxHeight    float32 `json:"maxHeight"`
+	MaxDepth     float32 `json:"maxDepth"`
+	MaxPackages  int16   `json:"maxPackages"`
+	Phone        string  `json:"phone"`
+	Email        string  `json:"email"`
+	Web          string  `json:"web"`
+	Off          bool    `json:"off"`
+	PrestaShopId int32   `json:"prestaShopId"`
 }
 
 func getCariers() []Carrier {
@@ -25,7 +26,7 @@ func getCariers() []Carrier {
 	}
 	for rows.Next() {
 		c := Carrier{}
-		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off)
+		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId)
 		carriers = append(carriers, c)
 	}
 
@@ -41,8 +42,8 @@ func (c *Carrier) insertCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off)
+	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId)
 	if err != nil {
 		return false
 	}

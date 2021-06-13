@@ -47,6 +47,8 @@ func main() {
 	c.Start()
 	c.Run()
 
+	importFromPrestaShop()
+
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
 	wg.Add(1)
@@ -177,8 +179,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getLanguages())
 	case "COUNTRY":
 		data, _ = json.Marshal(getCountries())
-	case "CITY":
-		data, _ = json.Marshal(getCities())
+	case "STATE":
+		data, _ = json.Marshal(getStates())
 	case "CUSTOMER":
 		data, _ = json.Marshal(getCustomers())
 	case "COLOR":
@@ -227,6 +229,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 			json.Unmarshal([]byte(message), &document)
 			data, _ = json.Marshal(document.getDocumentsRelations())
 		}
+	case "PS_ZONES":
+		data, _ = json.Marshal(getPSZones())
 	default:
 		found = false
 	}
@@ -332,10 +336,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var country Country
 		json.Unmarshal(message, &country)
 		ok = country.insertCountry()
-	case "CITY":
-		var city City
+	case "STATE":
+		var city State
 		json.Unmarshal(message, &city)
-		ok = city.insertCity()
+		ok = city.insertState()
 	case "CUSTOMER":
 		var customer Customer
 		json.Unmarshal(message, &customer)
@@ -492,10 +496,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var country Country
 		json.Unmarshal(message, &country)
 		ok = country.updateCountry()
-	case "CITY":
-		var city City
+	case "STATE":
+		var city State
 		json.Unmarshal(message, &city)
-		ok = city.updateCity()
+		ok = city.updateState()
 	case "CUSTOMER":
 		var customer Customer
 		json.Unmarshal(message, &customer)
@@ -568,6 +572,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var documentContainer DocumentContainer
 		json.Unmarshal(message, &documentContainer)
 		ok = documentContainer.updateDocumentContainer()
+	case "PS_ZONES":
+		var zone PSZoneWeb
+		json.Unmarshal(message, &zone)
+		ok = zone.updatePSZoneWeb()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -628,10 +636,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var country Country
 		country.Id = int16(id)
 		ok = country.deleteCountry()
-	case "CITY":
-		var city City
+	case "STATE":
+		var city State
 		city.Id = int32(id)
-		ok = city.deleteCity()
+		ok = city.deleteState()
 	case "CUSTOMER":
 		var customer Customer
 		customer.Id = int32(id)
@@ -775,10 +783,10 @@ func instructionName(command string, message string, mt int, ws *websocket.Conn)
 		data, _ = json.Marshal(findCustomerByName(message))
 	case "COUNTRY":
 		data, _ = json.Marshal(findCountryByName(message))
-	case "CITY":
-		var cityName CityNameQuery
+	case "STATE":
+		var cityName StateNameQuery
 		json.Unmarshal([]byte(message), &cityName)
-		data, _ = json.Marshal(findCityByName(cityName))
+		data, _ = json.Marshal(findStateByName(cityName))
 	case "PAYMENT_METHOD":
 		data, _ = json.Marshal(findPaymentMethodByName(message))
 	case "BILLING_SERIE":
@@ -833,8 +841,8 @@ func instructionGetName(command string, message string, mt int, ws *websocket.Co
 		name = getNameCustomer(int32(id))
 	case "COUNTRY":
 		name = getNameCountry(int16(id))
-	case "CITY":
-		name = getNameCity(int32(id))
+	case "STATE":
+		name = getNameState(int32(id))
 	case "PAYMENT_METHOD":
 		name = getNamePaymentMethod(int16(id))
 	case "PRODUCT_FAMILY":

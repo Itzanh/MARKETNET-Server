@@ -11,7 +11,7 @@ func initialData() {
 	initialLanguageData()
 	initialCurrenciesData()
 	initialCountriesData()
-	initialCitiesData()
+	//initialCitiesData()
 	initialColorData()
 	initialIncotermData()
 	initialWarehouseData()
@@ -101,7 +101,7 @@ func initialCountriesData() {
 	}
 }
 
-func initialCitiesData() {
+/*func initialCitiesData() {
 	sqlStatement := `SELECT COUNT(*) FROM city`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -113,14 +113,14 @@ func initialCitiesData() {
 			return
 		}
 
-		var cities []City
+		var cities []State
 		json.Unmarshal(content, &cities)
 		for i := 0; i < len(cities); i++ {
 			cities[i].insertCity()
 		}
 		fmt.Println("INITIAL DATA: Generated cities data")
 	}
-}
+}*/
 
 func initialColorData() {
 	sqlStatement := `SELECT COUNT(*) FROM color`

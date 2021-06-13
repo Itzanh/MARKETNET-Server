@@ -14,6 +14,7 @@ type SalesOrderDetail struct {
 	Status                   string `json:"status"`
 	QuantityPendingPackaging int32  `json:"quantityPendingPackaging"`
 	PurchaseOrderDetail      *int32 `json:"purchaseOrderDetail"`
+	PrestaShopId             int32  `json:"prestaShopId"`
 }
 
 func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
@@ -25,7 +26,7 @@ func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
 		details = append(details, d)
 	}
 
@@ -40,7 +41,7 @@ func getSalesOrderDetailRow(detailId int32) SalesOrderDetail {
 	}
 
 	d := SalesOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
 
 	return d
 }
@@ -55,7 +56,7 @@ func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDet
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
 		details = append(details, d)
 	}
 
@@ -72,7 +73,7 @@ func getSalesOrderDetailPurchaseOrderPending(purchaseOrderDetail int32) []SalesO
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
 		details = append(details, d)
 	}
 
@@ -98,8 +99,8 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	res, err := db.Exec(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity)
+	sqlStatement := `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging, ps_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	res, err := db.Exec(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity, s.PrestaShopId)
 	if err != nil {
 		trans.Rollback()
 		return false

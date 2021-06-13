@@ -3,9 +3,10 @@ package main
 import "strings"
 
 type PaymentMethod struct {
-	Id            int16  `json:"id"`
-	Name          string `json:"name"`
-	PaidInAdvance bool   `json:"paidInAdvance"`
+	Id                   int16  `json:"id"`
+	Name                 string `json:"name"`
+	PaidInAdvance        bool   `json:"paidInAdvance"`
+	PrestashopModuleName string `json:"prestashopModuleName"`
 }
 
 func getPaymentMethods() []PaymentMethod {
@@ -17,7 +18,7 @@ func getPaymentMethods() []PaymentMethod {
 	}
 	for rows.Next() {
 		p := PaymentMethod{}
-		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance)
+		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName)
 		paymentMethod = append(paymentMethod, p)
 	}
 
@@ -33,8 +34,8 @@ func (p *PaymentMethod) insertPaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance) VALUES ($1, $2)`
-	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance)
+	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance, prestashop_module_name) VALUES ($1, $2, $3)`
+	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance, &p.PrestashopModuleName)
 	if err != nil {
 		return false
 	}
@@ -48,8 +49,8 @@ func (p *PaymentMethod) updatePaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance)
+	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3, prestashop_module_name=$4 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance, &p.PrestashopModuleName)
 	if err != nil {
 		return false
 	}

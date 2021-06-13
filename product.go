@@ -7,26 +7,28 @@ import (
 )
 
 type Product struct {
-	Id                     int32     `json:"id"`
-	Name                   string    `json:"name"`
-	Reference              string    `json:"reference"`
-	BarCode                string    `json:"barCode"`
-	ControlStock           bool      `json:"controlStock"`
-	Weight                 float32   `json:"weight"`
-	Family                 *int16    `json:"family"`
-	Width                  float32   `json:"width"`
-	Height                 float32   `json:"height"`
-	Depth                  float32   `json:"depth"`
-	Off                    bool      `json:"off"`
-	Stock                  int32     `json:"stock"`
-	VatPercent             float32   `json:"vatPercent"`
-	DateCreated            time.Time `json:"dateCreated"`
-	Description            string    `json:"description"`
-	Color                  *int16    `json:"color"`
-	Price                  float32   `json:"price"`
-	Manufacturing          bool      `json:"manufacturing"`
-	ManufacturingOrderType *int16    `json:"manufacturingOrderType"`
-	Supplier               *int32    `json:"supplier"`
+	Id                      int32     `json:"id"`
+	Name                    string    `json:"name"`
+	Reference               string    `json:"reference"`
+	BarCode                 string    `json:"barCode"`
+	ControlStock            bool      `json:"controlStock"`
+	Weight                  float32   `json:"weight"`
+	Family                  *int16    `json:"family"`
+	Width                   float32   `json:"width"`
+	Height                  float32   `json:"height"`
+	Depth                   float32   `json:"depth"`
+	Off                     bool      `json:"off"`
+	Stock                   int32     `json:"stock"`
+	VatPercent              float32   `json:"vatPercent"`
+	DateCreated             time.Time `json:"dateCreated"`
+	Description             string    `json:"description"`
+	Color                   *int16    `json:"color"`
+	Price                   float32   `json:"price"`
+	Manufacturing           bool      `json:"manufacturing"`
+	ManufacturingOrderType  *int16    `json:"manufacturingOrderType"`
+	Supplier                *int32    `json:"supplier"`
+	PrestaShopId            int32     `json:"prestaShopId"`
+	PrestaShopCombinationId int32     `json:"prestaShopCombinationId"`
 }
 
 func getProduct() []Product {
@@ -38,7 +40,7 @@ func getProduct() []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
 		products = append(products, p)
 	}
 
@@ -54,7 +56,7 @@ func searchProduct(search string) []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
 		products = append(products, p)
 	}
 
@@ -83,8 +85,8 @@ func (p *Product) insertProduct() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
-	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier)
+	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
+	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
 	if err != nil {
 		return false
 	}

@@ -16,7 +16,7 @@ type Supplier struct {
 	Email               string    `json:"email"`
 	MainAddress         *int32    `json:"mainAddress"`
 	Country             *int16    `json:"country"`
-	City                *int32    `json:"city"`
+	State               *int32    `json:"state"`
 	MainShippingAddress *int32    `json:"mainShippingAddress"`
 	MainBillingAddress  *int32    `json:"mainBillingAddress"`
 	Language            *int16    `json:"language"`
@@ -34,7 +34,7 @@ func getSuppliers() []Supplier {
 	}
 	for rows.Next() {
 		c := Supplier{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.City, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
 		suppliers = append(suppliers, c)
 	}
 
@@ -50,7 +50,7 @@ func searchSuppliers(search string) []Supplier {
 	}
 	for rows.Next() {
 		c := Supplier{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.City, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
 		suppliers = append(suppliers, c)
 	}
 
@@ -65,7 +65,7 @@ func getSupplierRow(supplierId int32) Supplier {
 	}
 
 	s := Supplier{}
-	row.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.City, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated)
+	row.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated)
 
 	return s
 }
@@ -83,8 +83,8 @@ func (s *Supplier) insertSupplier() bool {
 		s.BillingSeries = nil
 	}
 
-	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, city, main_shipping_address, main_billing_address, language, payment_method, billing_series) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
-	res, err := db.Exec(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.City, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
+	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+	res, err := db.Exec(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
 	if err != nil {
 		return false
 	}
@@ -102,8 +102,8 @@ func (s *Supplier) updateSupplier() bool {
 		s.BillingSeries = nil
 	}
 
-	sqlStatement := `UPDATE public.suppliers SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, city=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.City, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
+	sqlStatement := `UPDATE public.suppliers SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
 	if err != nil {
 		return false
 	}

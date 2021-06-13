@@ -28,7 +28,7 @@ func getLanguages() []Language {
 }
 
 func (l *Language) isValid() bool {
-	return !(len(l.Name) == 0 || len(l.Name) > 50 || len(l.Iso2) != 2 || len(l.Iso3) != 3)
+	return !(len(l.Name) == 0 || len(l.Name) > 50 || len(l.Iso2) != 2 || (len(l.Iso3) != 0 && len(l.Iso3) != 3))
 }
 
 func (l *Language) insertLanguage() bool {

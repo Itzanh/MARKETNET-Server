@@ -1,6 +1,10 @@
 package main
 
-import "strings"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 type Country struct {
 	Id          int16  `json:"id"`
@@ -31,17 +35,21 @@ func getCountries() []Country {
 }
 
 func (c *Country) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 75 || len(c.Iso2) != 2 || len(c.Iso3) != 3 || c.UNCode <= 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix < 0)
+	return !(len(c.Name) == 0 || len(c.Name) > 75 || len(c.Iso2) != 2 || (len(c.Iso3) != 0 && len(c.Iso3) != 3) || c.UNCode < 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix < 0)
 }
 
 func (c *Country) insertCountry() bool {
 	if !c.isValid() {
+		fmt.Println("INVALID")
+		data, _ := json.Marshal(c)
+		fmt.Println(string(data))
 		return false
 	}
 
 	sqlStatement := `INSERT INTO public.country(name, iso_2, iso_3, un_code, zone, phone_prefix, language, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	res, err := db.Exec(sqlStatement, c.Name, c.Iso2, c.Iso3, c.UNCode, c.Zone, c.PhonePrefix, c.Language, c.Currency)
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 
