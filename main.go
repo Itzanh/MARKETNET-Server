@@ -44,10 +44,9 @@ func main() {
 
 	c := cron.New()
 	c.AddFunc("30 0 * * *", updateCurrencyExchange)
+	c.AddFunc("@every 30m", importFromPrestaShop)
 	c.Start()
 	c.Run()
-
-	importFromPrestaShop()
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}

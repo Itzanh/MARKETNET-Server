@@ -11,7 +11,7 @@ func initialData() {
 	initialLanguageData()
 	initialCurrenciesData()
 	initialCountriesData()
-	//initialCitiesData()
+	initialStatesData()
 	initialColorData()
 	initialIncotermData()
 	initialWarehouseData()
@@ -101,26 +101,26 @@ func initialCountriesData() {
 	}
 }
 
-/*func initialCitiesData() {
-	sqlStatement := `SELECT COUNT(*) FROM city`
+func initialStatesData() {
+	sqlStatement := `SELECT COUNT(*) FROM state`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
 	row.Scan(&rows)
 
 	if rows == 0 {
-		content, err := ioutil.ReadFile("./initial_data/cities.json")
+		content, err := ioutil.ReadFile("./initial_data/states.json")
 		if err != nil {
 			return
 		}
 
-		var cities []State
-		json.Unmarshal(content, &cities)
-		for i := 0; i < len(cities); i++ {
-			cities[i].insertCity()
+		var state []State
+		json.Unmarshal(content, &state)
+		for i := 0; i < len(state); i++ {
+			state[i].insertState()
 		}
-		fmt.Println("INITIAL DATA: Generated cities data")
+		fmt.Println("INITIAL DATA: Generated states data")
 	}
-}*/
+}
 
 func initialColorData() {
 	sqlStatement := `SELECT COUNT(*) FROM color`
