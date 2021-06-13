@@ -109,7 +109,7 @@ func authentication(ws *websocket.Conn, remoteAddr string) bool {
 		result := UserLoginResult{}
 		if len(userLogin.Token) > 0 {
 			t := LoginToken{Name: userLogin.Token, IpAddress: remoteAddr}
-			result.Ok = t.checkLoginToken()
+			result.Ok, result.Permissions = t.checkLoginToken()
 		} else {
 			result = userLogin.login(remoteAddr)
 		}

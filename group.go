@@ -76,3 +76,44 @@ func (g *Group) deleteGroup() bool {
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
+
+type Permissions struct {
+	Sales         bool `json:"sales"`
+	Purchases     bool `json:"purchases"`
+	Masters       bool `json:"masters"`
+	Warehouse     bool `json:"warehouse"`
+	Manufacturing bool `json:"manufacturing"`
+	Preparation   bool `json:"preparation"`
+	Admin         bool `json:"admin"`
+}
+
+func getUserPermissions(userId int16) Permissions {
+	ug := getUserGroups(userId)
+	p := Permissions{}
+
+	for i := 0; i < len(ug.GroupsIn); i++ {
+		if ug.GroupsIn[i].Sales {
+			p.Sales = true
+		}
+		if ug.GroupsIn[i].Purchases {
+			p.Purchases = true
+		}
+		if ug.GroupsIn[i].Masters {
+			p.Masters = true
+		}
+		if ug.GroupsIn[i].Warehouse {
+			p.Warehouse = true
+		}
+		if ug.GroupsIn[i].Manufacturing {
+			p.Manufacturing = true
+		}
+		if ug.GroupsIn[i].Preparation {
+			p.Preparation = true
+		}
+		if ug.GroupsIn[i].Admin {
+			p.Admin = true
+		}
+	}
+
+	return p
+}
