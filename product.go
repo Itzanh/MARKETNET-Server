@@ -287,3 +287,74 @@ func (p *Product) generateBarcode() bool {
 	p.BarCode = barcode + strconv.Itoa(10-(checkCode%10))
 	return true
 }
+
+type ProductImage struct {
+	Id      int32  `json:"id"`
+	Product int32  `json:"product"`
+	URL     string `json:"url"`
+}
+
+func getProductImages(productId int32) []ProductImage {
+	var image []ProductImage = make([]ProductImage, 0)
+	sqlStatement := `SELECT * FROM public.product_image WHERE product=$1`
+	rows, err := db.Query(sqlStatement, productId)
+	if err != nil {
+		return image
+	}
+	for rows.Next() {
+		d := ProductImage{}
+		rows.Scan(&d.Id, &d.Product, &d.URL)
+		image = append(image, d)
+	}
+
+	return image
+}
+
+func (i *ProductImage) isValid() bool {
+	return !(len(i.URL) == 0 || len(i.URL) > 255)
+}
+
+func (i *ProductImage) insertProductImage() bool {
+	if !i.isValid() || i.Product <= 0 {
+		return false
+	}
+
+	sqlStatement := `INSERT INTO public.product_image(product, url) VALUES ($1, $2)`
+	res, err := db.Exec(sqlStatement, i.Product, i.URL)
+	if err != nil {
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}
+
+func (i *ProductImage) updateProductImage() bool {
+	if i.Id <= 0 || !i.isValid() {
+		return false
+	}
+
+	sqlStatement := `UPDATE public.product_image SET url=$2 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, i.Id, i.URL)
+	if err != nil {
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}
+
+func (i *ProductImage) deleteProductImage() bool {
+	if i.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `DELETE FROM public.product_image WHERE id=$1`
+	res, err := db.Exec(sqlStatement, i.Id)
+	if err != nil {
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}

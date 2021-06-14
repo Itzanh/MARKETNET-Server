@@ -300,6 +300,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPurchaseOrderRow(int32(id)))
 	case "PURCHASE_INVOICE_ROW":
 		data, _ = json.Marshal(getPurchaseInvoiceRow(int32(id)))
+	case "PRODUCT_IMAGE":
+		data, _ = json.Marshal(getProductImages(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -459,6 +461,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var documentContainer DocumentContainer
 		json.Unmarshal(message, &documentContainer)
 		ok = documentContainer.insertDocumentContainer()
+	case "PRODUCT_IMAGE":
+		var productImage ProductImage
+		json.Unmarshal(message, &productImage)
+		ok = productImage.insertProductImage()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -575,6 +581,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var zone PSZoneWeb
 		json.Unmarshal(message, &zone)
 		ok = zone.updatePSZoneWeb()
+	case "PRODUCT_IMAGE":
+		var productImage ProductImage
+		json.Unmarshal(message, &productImage)
+		ok = productImage.updateProductImage()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -751,6 +761,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var document Document
 		document.Id = int32(id)
 		ok = document.deleteDocument()
+	case "PRODUCT_IMAGE":
+		var productImage ProductImage
+		productImage.Id = int32(id)
+		ok = productImage.deleteProductImage()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	strip "github.com/grokify/html-strip-tags-go"
 	"github.com/lib/pq"
 )
 
@@ -1193,6 +1194,7 @@ func copyPsProducts() {
 		var dateAdd time.Time
 		var description string
 		rows.Scan(&ps_productId, &name, &ean13, &reference, &price, &dateAdd, &description)
+		description = strip.StripTags(description)
 
 		sqlStatement := `SELECT COUNT(id) FROM ps_product_combination WHERE id_product=$1`
 		row := db.QueryRow(sqlStatement, ps_productId)
