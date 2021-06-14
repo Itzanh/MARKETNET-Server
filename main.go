@@ -47,6 +47,7 @@ func main() {
 	c.AddFunc("@every 30m", importFromPrestaShop)
 	c.Start()
 	c.Run()
+	importFromPrestaShop()
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
@@ -360,7 +361,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	case "SALES_ORDER":
 		var saleOrder SaleOrder
 		json.Unmarshal(message, &saleOrder)
-		ok = saleOrder.insertSalesOrder()
+		ok, _ = saleOrder.insertSalesOrder()
 	case "SALES_ORDER_DETAIL":
 		var saleOrderDetail SalesOrderDetail
 		json.Unmarshal(message, &saleOrderDetail)

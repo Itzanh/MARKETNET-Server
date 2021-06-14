@@ -1461,6 +1461,8 @@ func copyPsOrderDetails() {
 		return
 	}
 
+	orderIds := make([]int32, 0)
+
 	for rows.Next() {
 		var detailId int32
 		var orderId int32
@@ -1516,8 +1518,37 @@ func copyPsOrderDetails() {
 			d.VatPercent = vatPercent
 		}
 
-		d.insertSalesOrderDetail()
+		ok := d.insertSalesOrderDetail()
+
+		if ok {
+			found := false
+			for i := 0; i < len(orderIds); i++ {
+				if orderIds[i] == order {
+					found = true
+					break
+				}
+			}
+			if !found {
+				orderIds = append(orderIds, order)
+			}
+		}
 	}
+
+	// if the payment method is paid in advance, it means that this order is already paid (by VISA o PayPal etc)
+	// automatically generate an invoice for this payment
+
+	for i := 0; i < len(orderIds); i++ {
+		sqlStatement = `SELECT paid_in_advance FROM payment_method WHERE id=(SELECT payment_method FROM sales_order WHERE id=$1)`
+		row := db.QueryRow(sqlStatement, orderIds[i])
+
+		var paidInAdvance bool
+		row.Scan(&paidInAdvance)
+
+		if paidInAdvance {
+			invoiceAllSaleOrder(orderIds[i])
+		}
+	}
+
 }
 
 // =====
