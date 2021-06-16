@@ -36,6 +36,19 @@ func getAddresses() []Address {
 	return addresses
 }
 
+func getAddressRow(addressId int32) Address {
+	sqlStatement := `SELECT * FROM address WHERE id=$1`
+	row := db.QueryRow(sqlStatement, addressId)
+	if row.Err() != nil {
+		return Address{}
+	}
+
+	a := Address{}
+	row.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode)
+
+	return a
+}
+
 func (a *Address) isValid() bool {
 	return !((a.Customer == nil && a.Supplier == nil) || (a.Customer != nil && *a.Customer <= 0) || (a.Supplier != nil && *a.Supplier <= 0) || len(a.Address) == 0 || len(a.Address) > 200 || len(a.Address2) > 200 || len(a.City) == 0 || len(a.City) > 100 || a.Country <= 0 || (a.PrivateOrBusiness != "P" && a.PrivateOrBusiness != "B" && a.PrivateOrBusiness != "_") || len(a.Notes) > 1000 || len(a.ZipCode) > 12)
 }

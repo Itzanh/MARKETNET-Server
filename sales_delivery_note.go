@@ -38,12 +38,25 @@ func getSalesDeliveryNotes() []SalesDeliveryNote {
 		return notes
 	}
 	for rows.Next() {
-		p := SalesDeliveryNote{}
-		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
-		notes = append(notes, p)
+		n := SalesDeliveryNote{}
+		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange)
+		notes = append(notes, n)
 	}
 
 	return notes
+}
+
+func getSalesDeliveryNoteRow(deliveryNoteId int32) SalesDeliveryNote {
+	sqlStatement := `SELECT * FROM public.sales_delivery_note WHERE id=$1`
+	row := db.QueryRow(sqlStatement, deliveryNoteId)
+	if row.Err() != nil {
+		return SalesDeliveryNote{}
+	}
+
+	n := SalesDeliveryNote{}
+	row.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange)
+
+	return n
 }
 
 func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {

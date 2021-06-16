@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+
+    <style>
+        body {
+            max-width: 1000px;
+        }
+        
+        div.enterprise-logo {
+            max-width: 500px;
+        }
+        
+        img.enterprise-logo {
+            max-width: 500px;
+            max-height: 250px;
+        }
+        
+        div.form-group p {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        
+        h1 {
+            background-color: black;
+            color: white;
+            display: inline;
+        }
+    </style>
+
+    <script>
+        $$script$$
+    </script>
+
+</head>
+
+<body>
+    <div class="form-row">
+        <div class="col enterprise-logo">
+            <img src="./report?report=LOGO" class="enterprise-logo" />
+        </div>
+        <div class="col">
+            <h1>Sale invoice</h1>
+            <div class="form-group">
+                <div class="form-row">
+                    <div class="col">
+                        <p>Invoice date</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_date$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Invoice number</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_number$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Payment method</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_payment_method_name$$</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col">
+                    <p>Customer</p>
+                </div>
+                <div class="col">
+                    <p>$$invoice_customer_name$$</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <p>
+                    $$address_address$$
+                    <br/> $$address_address2$$
+                    <br /> $$address_city$$ $$address_postcode$$ ($$address_state$$) - $$address_country$$
+                </p>
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Unit price</th>
+                    <th scope="col">% VAT</th>
+                    <th scope="col">Total amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                &&detail&&
+                <tr>
+                    <td>$$detail_product$$</td>
+                    <td>$$detail_quantity$$</td>
+                    <td>$$detail_unit_price$$</td>
+                    <td>$$detail_vat$$</td>
+                    <td>$$detail_total$$</td>
+                </tr>
+                &&--detail--&&
+            </tbody>
+        </table>
+
+    </div>
+    <div class="form-row">
+        <div class="col">
+        </div>
+        <div class="col">
+            <h4>Totals</h4>
+            <div class="form-group">
+                <div class="form-row">
+                    <div class="col">
+                        <p>Total products</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_total_products$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>VAT amount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_vat_amount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Discount percent</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_discount_percent$$ %</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Fix discount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_fix_discount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Shipping price</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_shipping_price$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Shipping discount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_shipping_discount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Total with discount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_total_with_discount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Total amount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$invoice_total_amount$$ €</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>

@@ -249,6 +249,11 @@ type PSOrderDetail struct {
 
 // main import function
 func importFromPrestaShop() {
+	s := getSettingsRecord()
+	if s.Ecommerce != "P" {
+		return
+	}
+
 	// get all data from PrestaShop, write it in tables like the ones that PrestaShop uses
 	importPsZones()
 	importPsCurrencies()

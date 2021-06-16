@@ -33,6 +33,7 @@ func main() {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
 	http.HandleFunc("/document", handleDocument)
+	http.HandleFunc("/report", generateReport)
 	go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
@@ -47,7 +48,6 @@ func main() {
 	c.AddFunc("@every 30m", importFromPrestaShop)
 	c.Start()
 	c.Run()
-	importFromPrestaShop()
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
