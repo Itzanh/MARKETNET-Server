@@ -43,9 +43,14 @@ func main() {
 	initialData()
 	go cleanDocumentTokens()
 
+	s := getSettingsRecord()
 	c := cron.New()
-	c.AddFunc("30 0 * * *", updateCurrencyExchange)
-	c.AddFunc("@every 30m", importFromPrestaShop)
+	if s.Currency != "_" {
+		c.AddFunc(s.CronCurrency, updateCurrencyExchange)
+	}
+	if s.Ecommerce == "P" {
+		c.AddFunc(s.CronPrestaShop, importFromPrestaShop)
+	}
 	c.Start()
 	c.Run()
 
