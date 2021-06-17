@@ -54,6 +54,19 @@ func getPackagingByShipping(shippingId int32) []Packaging {
 	return packaging
 }
 
+func getPackagingRow(packagingId int32) Packaging {
+	sqlStatement := `SELECT * FROM public.packaging WHERE id=$1`
+	row := db.QueryRow(sqlStatement, packagingId)
+	if row.Err() != nil {
+		return Packaging{}
+	}
+
+	p := Packaging{}
+	row.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping)
+
+	return p
+}
+
 func (p *Packaging) isValid() bool {
 	return !(p.Package <= 0 || p.SalesOrder <= 0)
 }
@@ -63,19 +76,39 @@ func (p *Packaging) insertPackaging() bool {
 		return false
 	}
 
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
 	_package := getPackagesRow(p.Package)
 	if _package.Id <= 0 {
+		trans.Rollback()
 		return false
 	}
 	p.Weight = _package.Weight
 	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight) VALUES ($1, $2, $3)`
 	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight)
 	if err != nil {
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	if rows == 0 {
+		trans.Rollback()
+		return false
+	}
+
+	s := getSalesOrderRow(p.SalesOrder)
+	addQuantityStock(_package.Product, s.Warehouse, -1)
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
 }
 
 func (p *Packaging) deletePackaging() bool {
@@ -89,6 +122,12 @@ func (p *Packaging) deletePackaging() bool {
 		return false
 	}
 	///
+
+	inMemoryPackaging := getPackagingRow(p.Id)
+	if inMemoryPackaging.Id <= 0 {
+		trans.Rollback()
+		return false
+	}
 
 	detailsPackaged := getSalesOrderDetailPackaged(p.Id)
 	for i := 0; i < len(detailsPackaged); i++ {
@@ -104,6 +143,10 @@ func (p *Packaging) deletePackaging() bool {
 	if err != nil {
 		return false
 	}
+
+	_package := getPackagesRow(inMemoryPackaging.Package)
+	s := getSalesOrderRow(inMemoryPackaging.SalesOrder)
+	addQuantityStock(_package.Product, s.Warehouse, 1)
 
 	///
 	transErr = trans.Commit()

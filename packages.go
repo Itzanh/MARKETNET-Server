@@ -1,12 +1,13 @@
 package main
 
 type Packages struct {
-	Id     int16   `json:"id"`
-	Name   string  `json:"name"`
-	Weight float32 `json:"weight"`
-	Width  float32 `json:"width"`
-	Height float32 `json:"height"`
-	Depth  float32 `json:"depth"`
+	Id      int16   `json:"id"`
+	Name    string  `json:"name"`
+	Weight  float32 `json:"weight"`
+	Width   float32 `json:"width"`
+	Height  float32 `json:"height"`
+	Depth   float32 `json:"depth"`
+	Product int32   `json:"product"`
 }
 
 func getPackages() []Packages {
@@ -18,7 +19,7 @@ func getPackages() []Packages {
 	}
 	for rows.Next() {
 		p := Packages{}
-		rows.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth)
+		rows.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Product)
 		products = append(products, p)
 	}
 
@@ -33,13 +34,13 @@ func getPackagesRow(packageId int16) Packages {
 	}
 
 	p := Packages{}
-	row.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth)
+	row.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Product)
 
 	return p
 }
 
 func (p *Packages) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 50 || p.Weight < 0 || p.Width <= 0 || p.Height <= 0 || p.Depth <= 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 50 || p.Weight < 0 || p.Width <= 0 || p.Height <= 0 || p.Depth <= 0 || p.Product <= 0)
 }
 
 func (p *Packages) insertPackage() bool {
@@ -47,8 +48,8 @@ func (p *Packages) insertPackage() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.packages(name, weight, width, height, depth) VALUES ($1, $2, $3, $4, $5)`
-	res, err := db.Exec(sqlStatement, p.Name, p.Weight, p.Width, p.Height, p.Depth)
+	sqlStatement := `INSERT INTO public.packages(name, weight, width, height, depth, product) VALUES ($1, $2, $3, $4, $5, $6)`
+	res, err := db.Exec(sqlStatement, p.Name, p.Weight, p.Width, p.Height, p.Depth, p.Product)
 	if err != nil {
 		return false
 	}
@@ -62,8 +63,8 @@ func (p *Packages) updatePackage() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.packages SET name=$2, weight=$3, width=$4, height=$5, depth=$6 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Weight, p.Width, p.Height, p.Depth)
+	sqlStatement := `UPDATE public.packages SET name=$2, weight=$3, width=$4, height=$5, depth=$6, product=$7 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Weight, p.Width, p.Height, p.Depth, p.Product)
 	if err != nil {
 		return false
 	}
