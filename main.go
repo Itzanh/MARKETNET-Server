@@ -53,6 +53,8 @@ func main() {
 	}
 	c.Start()
 	c.Run()
+	//report := reportPurchaseOrder(2, false)
+	//sendEmail("itzanhuertaf@gmail.com", "Itzan Huerta Fort", "Test", string(report))
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
@@ -308,6 +310,10 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPurchaseInvoiceRow(int32(id)))
 	case "PRODUCT_IMAGE":
 		data, _ = json.Marshal(getProductImages(int32(id)))
+	case "CUSTOMER_ROW":
+		data, _ = json.Marshal(getCustomerRow(int32(id)))
+	case "SUPPLIER_ROW":
+		data, _ = json.Marshal(getSupplierRow(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1105,6 +1111,10 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		p := getProductRow(int32(id))
 		p.generateBarcode()
 		data, _ = json.Marshal(p.updateProduct())
+	case "EMAIL":
+		var emailInfo EmailInfo
+		json.Unmarshal([]byte(message), &emailInfo)
+		data, _ = json.Marshal(emailInfo.sendEmail())
 	}
 	ws.WriteMessage(mt, data)
 }
