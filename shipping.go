@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -25,6 +24,9 @@ type Shipping struct {
 	CustomerName    string     `json:"customerName"`
 	SaleOrderName   string     `json:"saleOrderName"`
 	CarrierName     string     `json:"carrierName"`
+	Incoterm        *int16     `json:"incoterm"`
+	CarrierNotes    string     `json:"carrierNotes"`
+	Description     string     `json:"description"`
 }
 
 func getShippings() []Shipping {
@@ -36,7 +38,7 @@ func getShippings() []Shipping {
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
 		shippings = append(shippings, s)
 	}
 
@@ -55,12 +57,11 @@ func searchShippings(search string) []Shipping {
 		rows, err = db.Query(sqlStatement, "%"+search+"%")
 	}
 	if err != nil {
-		fmt.Println(err)
 		return shippings
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
 		shippings = append(shippings, s)
 	}
 
@@ -76,8 +77,8 @@ func (s *Shipping) insertShipping() (bool, int32) {
 		return false, 0
 	}
 
-	sqlStatement := `INSERT INTO public.shipping("order", delivery_note, delivery_address, "national", carrier) VALUES ($1, $2, $3, $4, $5) RETURNING id`
-	row := db.QueryRow(sqlStatement, s.Order, s.DeliveryNote, s.DeliveryAddress, s.National, s.Carrier)
+	sqlStatement := `INSERT INTO public.shipping("order", delivery_note, delivery_address, "national", carrier, incoterm, carrier_notes, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+	row := db.QueryRow(sqlStatement, s.Order, s.DeliveryNote, s.DeliveryAddress, s.National, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description)
 	if row.Err() != nil {
 		return false, 0
 	}
@@ -92,8 +93,8 @@ func (s *Shipping) updateShipping() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.shipping SET "order"=$2, delivery_note=$3, delivery_address=$4, "national"=$5, carrier=$6 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Order, s.DeliveryNote, s.DeliveryAddress, s.National, s.Carrier)
+	sqlStatement := `UPDATE public.shipping SET "order"=$2, delivery_note=$3, delivery_address=$4, carrier=$5, incoterm=$6, carrier_notes=$7, description=$8 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Order, s.DeliveryNote, s.DeliveryAddress, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description)
 	if err != nil {
 		return false
 	}
