@@ -29,16 +29,17 @@ func main() {
 		return
 	}
 
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
+	db, _ = sql.Open("postgres", psqlInfo)
+	db.Ping()
+
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
 	http.HandleFunc("/document", handleDocument)
 	http.HandleFunc("/report", generateReport)
+	http.HandleFunc("/export", handleExport)
 	go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
-
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
-	db, _ = sql.Open("postgres", psqlInfo)
-	db.Ping()
 
 	initialData()
 	go cleanDocumentTokens()
@@ -53,8 +54,6 @@ func main() {
 	}
 	c.Start()
 	c.Run()
-	//report := reportPurchaseOrder(2, false)
-	//sendEmail("itzanhuertaf@gmail.com", "Itzan Huerta Fort", "Test", string(report))
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
@@ -238,6 +237,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		}
 	case "PS_ZONES":
 		data, _ = json.Marshal(getPSZones())
+	case "TABLES":
+		data, _ = json.Marshal(getTableAndFieldInfo())
 	default:
 		found = false
 	}
@@ -350,9 +351,9 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &country)
 		ok = country.insertCountry()
 	case "STATE":
-		var city State
-		json.Unmarshal(message, &city)
-		ok = city.insertState()
+		var state State
+		json.Unmarshal(message, &state)
+		ok = state.insertState()
 	case "CUSTOMER":
 		var customer Customer
 		json.Unmarshal(message, &customer)
@@ -1115,6 +1116,16 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var emailInfo EmailInfo
 		json.Unmarshal([]byte(message), &emailInfo)
 		data, _ = json.Marshal(emailInfo.sendEmail())
+	case "EXPORT":
+		var exportInfo ExportInfo
+		json.Unmarshal([]byte(message), &exportInfo)
+		data, _ = json.Marshal(exportInfo.export())
+	case "EXPORT_JSON":
+		data, _ = json.Marshal(exportToJSON(message))
+	case "IMPORT_JSON":
+		var importInfo ImportInfo
+		json.Unmarshal([]byte(message), &importInfo)
+		data, _ = json.Marshal(importInfo.importJson())
 	}
 	ws.WriteMessage(mt, data)
 }

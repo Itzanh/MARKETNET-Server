@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -138,7 +138,8 @@ func updateCurrencyExchange() {
 		currentDate := now.Format("2006-01-02")
 		resp, err := http.Get(getSettingsRecord().CurrencyECBurl + "D." + currencies[i].IsoCode + ".EUR.SP00.A?startPeriod=" + currentDate + "&endPeriod=" + currentDate)
 		if err != nil {
-			log.Fatalln(err)
+			fmt.Println(err)
+			return
 		}
 
 		body, err := ioutil.ReadAll(resp.Body)
