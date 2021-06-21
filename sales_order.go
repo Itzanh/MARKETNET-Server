@@ -272,6 +272,14 @@ func addDiscountsSalesOrder(orderId int32, amountTaxExcluded float32) bool {
 	return calcTotalsSaleOrder(orderId)
 }
 
+// If the payment accepted date is null, sets it to the current date and time.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func setDatePaymentAcceptedSalesOrder(orderId int32) bool {
+	sqlStatement := `UPDATE sales_order SET date_payment_accepted=CASE WHEN date_payment_accepted IS NOT NULL THEN date_payment_accepted ELSE CURRENT_TIMESTAMP(3) END WHERE id=$1`
+	_, err := db.Exec(sqlStatement, orderId)
+	return err == nil
+}
+
 // Applies the logic to calculate the totals of the sales order and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func calcTotalsSaleOrder(orderId int32) bool {

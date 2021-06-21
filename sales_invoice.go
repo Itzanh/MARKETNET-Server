@@ -194,6 +194,12 @@ func invoiceAllSaleOrder(saleOrderId int32) bool {
 	}
 	///
 
+	ok := setDatePaymentAcceptedSalesOrder(saleOrder.Id)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
+
 	ok, invoiceId := invoice.insertSalesInvoice()
 	if !ok {
 		trans.Rollback()
@@ -262,6 +268,12 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder() bool {
 		return false
 	}
 	///
+
+	ok := setDatePaymentAcceptedSalesOrder(saleOrder.Id)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
 
 	ok, invoiceId := invoice.insertSalesInvoice()
 	if !ok {

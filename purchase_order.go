@@ -221,6 +221,14 @@ func addTotalProductsPurchaseOrder(orderId int32, totalAmount float32, vatPercen
 	return calcTotalsPurchaseOrder(orderId)
 }
 
+// If the payment accepted date is null, sets it to the current date and time.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func setDatePaymentAcceptedPurchaseOrder(orderId int32) bool {
+	sqlStatement := `UPDATE purchase_order SET date_paid=CASE WHEN date_paid IS NOT NULL THEN date_paid ELSE CURRENT_TIMESTAMP(3) END WHERE id=$1`
+	_, err := db.Exec(sqlStatement, orderId)
+	return err == nil
+}
+
 // Applies the logic to calculate the totals of the purchase order and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func calcTotalsPurchaseOrder(orderId int32) bool {

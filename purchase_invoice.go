@@ -188,6 +188,12 @@ func invoiceAllPurchaseOrder(purchaseOrderId int32) bool {
 	}
 	///
 
+	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
+
 	ok, invoiceId := invoice.insertPurchaseInvoice()
 	if !ok {
 		trans.Rollback()
@@ -246,6 +252,12 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder() bool {
 		return false
 	}
 	///
+
+	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
 
 	ok, invoiceId := invoice.insertPurchaseInvoice()
 	if !ok {
