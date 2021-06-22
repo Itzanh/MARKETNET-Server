@@ -315,6 +315,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getCustomerRow(int32(id)))
 	case "SUPPLIER_ROW":
 		data, _ = json.Marshal(getSupplierRow(int32(id)))
+	case "PALLETS":
+		data, _ = json.Marshal(getSalesOrderPallets(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -478,6 +480,10 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var productImage ProductImage
 		json.Unmarshal(message, &productImage)
 		ok = productImage.insertProductImage()
+	case "PALLET":
+		var pallet Pallet
+		json.Unmarshal(message, &pallet)
+		ok = pallet.insertPallet()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -598,6 +604,10 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var productImage ProductImage
 		json.Unmarshal(message, &productImage)
 		ok = productImage.updateProductImage()
+	case "PALLET":
+		var pallet Pallet
+		json.Unmarshal(message, &pallet)
+		ok = pallet.updatePallet()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -778,6 +788,10 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var productImage ProductImage
 		productImage.Id = int32(id)
 		ok = productImage.deleteProductImage()
+	case "PALLET":
+		var pallet Pallet
+		pallet.Id = int32(id)
+		ok = pallet.deletePallet()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)

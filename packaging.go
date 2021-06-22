@@ -10,6 +10,7 @@ type Packaging struct {
 	Weight          float32                    `json:"weight"`
 	Shipping        *int32                     `json:"shipping"`
 	DetailsPackaged []SalesOrderDetailPackaged `json:"detailsPackaged"`
+	Pallet          *int32                     `json:"pallet"`
 }
 
 func getPackaging(salesOrderId int32) []Packaging {
@@ -21,7 +22,7 @@ func getPackaging(salesOrderId int32) []Packaging {
 	}
 	for rows.Next() {
 		p := Packaging{}
-		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping)
+		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet)
 		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id)
 
 		_package := getPackagesRow(p.Package)
@@ -42,7 +43,7 @@ func getPackagingByShipping(shippingId int32) []Packaging {
 	}
 	for rows.Next() {
 		p := Packaging{}
-		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping)
+		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet)
 		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id)
 
 		_package := getPackagesRow(p.Package)
@@ -62,7 +63,7 @@ func getPackagingRow(packagingId int32) Packaging {
 	}
 
 	p := Packaging{}
-	row.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping)
+	row.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet)
 
 	return p
 }
@@ -89,8 +90,8 @@ func (p *Packaging) insertPackaging() bool {
 		return false
 	}
 	p.Weight = _package.Weight
-	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight) VALUES ($1, $2, $3)`
-	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight)
+	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight, pallet) VALUES ($1, $2, $3, $4)`
+	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight, p.Pallet)
 	if err != nil {
 		trans.Rollback()
 		return false

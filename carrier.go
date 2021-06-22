@@ -15,6 +15,7 @@ type Carrier struct {
 	Web          string  `json:"web"`
 	Off          bool    `json:"off"`
 	PrestaShopId int32   `json:"prestaShopId"`
+	Pallets      bool    `json:"pallets"`
 }
 
 func getCariers() []Carrier {
@@ -26,7 +27,7 @@ func getCariers() []Carrier {
 	}
 	for rows.Next() {
 		c := Carrier{}
-		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId)
+		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets)
 		carriers = append(carriers, c)
 	}
 
@@ -42,8 +43,8 @@ func (c *Carrier) insertCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId)
+	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets)
 	if err != nil {
 		return false
 	}
@@ -57,8 +58,8 @@ func (c *Carrier) updateCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off)
+	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets)
 	if err != nil {
 		return false
 	}
