@@ -5,10 +5,10 @@ import (
 )
 
 type Need struct {
-	Product      int32  `json:"product"`
-	ProductName  string `json:"productName"`
-	SupplierName string `json:"supplierName"`
-	Quantity     int32  `json:"quantity"`
+	Product      int32   `json:"product"`
+	ProductName  string  `json:"productName"`
+	SupplierName *string `json:"supplierName"`
+	Quantity     int32   `json:"quantity"`
 }
 
 func getNeeds() []Need {
@@ -77,6 +77,12 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 			trans.Rollback()
 			return false
 		}
+
+		if product.Supplier == nil || *product.Supplier <= 0 {
+			trans.Rollback()
+			return false
+		}
+
 		supplier := getSupplierRow(*product.Supplier)
 		needs[i].product = product
 		needs[i].supplier = supplier
@@ -84,7 +90,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 
 	sort.Sort(PurchaseNeeds(needs))
 
-	// multiplit the "needs" array into smaller "supplierNeeds" arrays, with the needs of the products of the same supplier
+	// multisplit the "needs" array into smaller "supplierNeeds" arrays, with the needs of the products of the same supplier
 	// create one purchase order for each supplier, with every need as an order detail
 	supplierNeeds := make([]PurchaseNeed, 0)
 	for i := 0; i < len(needs); i++ {
