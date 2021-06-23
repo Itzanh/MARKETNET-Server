@@ -49,6 +49,22 @@ func getAddressRow(addressId int32) Address {
 	return a
 }
 
+func searchAddresses(search string) []Address {
+	var addresses []Address = make([]Address, 0)
+	sqlStatement := `SELECT address.* FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	if err != nil {
+		return addresses
+	}
+	for rows.Next() {
+		a := Address{}
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode)
+		addresses = append(addresses, a)
+	}
+
+	return addresses
+}
+
 func (a *Address) isValid() bool {
 	return !((a.Customer == nil && a.Supplier == nil) || (a.Customer != nil && *a.Customer <= 0) || (a.Supplier != nil && *a.Supplier <= 0) || len(a.Address) == 0 || len(a.Address) > 200 || len(a.Address2) > 200 || len(a.City) == 0 || len(a.City) > 100 || a.Country <= 0 || (a.PrivateOrBusiness != "P" && a.PrivateOrBusiness != "B" && a.PrivateOrBusiness != "_") || len(a.Notes) > 1000 || len(a.ZipCode) > 12)
 }

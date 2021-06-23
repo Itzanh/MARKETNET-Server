@@ -31,6 +31,22 @@ func (l *Language) isValid() bool {
 	return !(len(l.Name) == 0 || len(l.Name) > 50 || len(l.Iso2) != 2 || (len(l.Iso3) != 0 && len(l.Iso3) != 3))
 }
 
+func searchLanguages(search string) []Language {
+	var languages []Language = make([]Language, 0)
+	sqlStatement := `SELECT * FROM language WHERE name ILIKE $1 OR iso_2 = UPPER($2) OR iso_3 = UPPER($2) ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%", search)
+	if err != nil {
+		return languages
+	}
+	for rows.Next() {
+		l := Language{}
+		rows.Scan(&l.Id, &l.Name, &l.Iso2, &l.Iso3)
+		languages = append(languages, l)
+	}
+
+	return languages
+}
+
 func (l *Language) insertLanguage() bool {
 	if !l.isValid() {
 		return false

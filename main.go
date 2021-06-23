@@ -1179,6 +1179,14 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		var orderSearch OrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
 		data, _ = json.Marshal(orderSearch.searchPurchaseDeliveryNote())
+	case "COUNTRY":
+		data, _ = json.Marshal(searchCountries(message))
+	case "STATE":
+		data, _ = json.Marshal(searchStates(message))
+	case "ADDRESS":
+		data, _ = json.Marshal(searchAddresses(message))
+	case "LANGUAGE":
+		data, _ = json.Marshal(searchLanguages(message))
 	}
 	ws.WriteMessage(mt, data)
 }

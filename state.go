@@ -31,6 +31,22 @@ func (c *State) isValid() bool {
 	return !(c.Country <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.IsoCode) > 7)
 }
 
+func searchStates(search string) []State {
+	var states []State = make([]State, 0)
+	sqlStatement := `SELECT state.* FROM state INNER JOIN country ON country.id=state.country WHERE state.name ILIKE $1 OR country.name ILIKE $1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	if err != nil {
+		return states
+	}
+	for rows.Next() {
+		c := State{}
+		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode)
+		states = append(states, c)
+	}
+
+	return states
+}
+
 func (c *State) insertState() bool {
 	if !c.isValid() {
 		return false
