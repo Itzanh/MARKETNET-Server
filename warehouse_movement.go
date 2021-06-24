@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -103,6 +105,41 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 	sqlStatement := `SELECT * FROM public.warehouse_movement WHERE purchase_delivery_note=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
+		return warehouseMovements
+	}
+	for rows.Next() {
+		m := WarehouseMovement{}
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
+		warehouseMovements = append(warehouseMovements, m)
+	}
+
+	return warehouseMovements
+}
+
+type WarehouseMovementSearch struct {
+	Search    string     `json:"search"`
+	DateStart *time.Time `json:"dateStart"`
+	DateEnd   *time.Time `json:"dateEnd"`
+}
+
+func (w *WarehouseMovementSearch) searchWarehouseMovement() []WarehouseMovement {
+	fmt.Println("searchWarehouseMovement")
+	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
+	sqlStatement := `SELECT warehouse_movement.* FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
+	parameters := make([]interface{}, 0)
+	parameters = append(parameters, "%"+w.Search+"%")
+	if w.DateStart != nil {
+		sqlStatement += ` AND warehouse_movement.date_created >= $2`
+		parameters = append(parameters, w.DateStart)
+	}
+	if w.DateEnd != nil {
+		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(parameters)+1)
+		parameters = append(parameters, w.DateEnd)
+	}
+	sqlStatement += ` ORDER BY warehouse_movement.id DESC`
+	rows, err := db.Query(sqlStatement, parameters...)
+	if err != nil {
+		fmt.Println(err)
 		return warehouseMovements
 	}
 	for rows.Next() {

@@ -1189,6 +1189,10 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		data, _ = json.Marshal(searchAddresses(message))
 	case "LANGUAGE":
 		data, _ = json.Marshal(searchLanguages(message))
+	case "WAREHOUSE_MOVEMENT":
+		var warehouseMovement WarehouseMovementSearch
+		json.Unmarshal([]byte(message), &warehouseMovement)
+		data, _ = json.Marshal(warehouseMovement.searchWarehouseMovement())
 	}
 	ws.WriteMessage(mt, data)
 }
