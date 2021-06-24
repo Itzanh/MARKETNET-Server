@@ -190,14 +190,14 @@ type UserLoginResult struct {
 	Permissions Permissions `json:"permissions"`
 }
 
-func (u *UserLogin) login(ipAddress string) UserLoginResult {
+func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
 	if len(u.Username) == 0 || len(u.Username) > 50 || len(u.Password) < 8 {
-		return UserLoginResult{Ok: false}
+		return UserLoginResult{Ok: false}, 0
 	}
 
 	user := getUserByUsername(u.Username)
 	if user.Id <= 0 {
-		return UserLoginResult{Ok: false}
+		return UserLoginResult{Ok: false}, 0
 	}
 
 	passwd := hashPassword([]byte(user.Salt+u.Password), settings.Server.HashIterations)
@@ -206,10 +206,10 @@ func (u *UserLogin) login(ipAddress string) UserLoginResult {
 		user.setUserFailedLoginAttemps(false)
 		t := LoginToken{User: user.Id, IpAddress: ipAddress}
 		t.insertLoginToken()
-		return UserLoginResult{Ok: true, Token: t.Name, Permissions: getUserPermissions(user.Id)}
+		return UserLoginResult{Ok: true, Token: t.Name, Permissions: getUserPermissions(user.Id)}, user.Id
 	} else { // the two arrays are different
 		user.setUserFailedLoginAttemps(true)
-		return UserLoginResult{Ok: false}
+		return UserLoginResult{Ok: false}, 0
 	}
 }
 

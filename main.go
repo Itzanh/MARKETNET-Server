@@ -15,11 +15,17 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+// Basic, static, server settings such as the DB password or the port.
 var settings BackendSettings
 
+// Http object for the websocket clients to conenect to.
 var upgrader = websocket.Upgrader{}
 
+// Database connection to PostgreSQL.
 var db *sql.DB
+
+// List of all the concurrent websocket connections to the server.
+var connections []Connection
 
 func main() {
 	var ok bool
@@ -68,17 +74,26 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer ws.Close()
+	s := getSettingsRecord()
+	if s.MaxConnections > 0 && len(connections) >= int(s.MaxConnections) {
+		ws.Close()
+		return
+	}
 
 	// AUTHENTICATION
-	if !authentication(ws, r.RemoteAddr) {
+	ok, userId := authentication(ws, r.RemoteAddr)
+	if !ok {
 		return
 	}
 	// END AUTHENTICATION
+	c := Connection{Address: r.RemoteAddr, User: userId, ws: ws}
+	c.addConnection()
 
 	for {
 		// Receive message
 		mt, message, err := ws.ReadMessage()
 		if err != nil {
+			c.deleteConnection()
 			return
 		}
 
@@ -98,17 +113,20 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func authentication(ws *websocket.Conn, remoteAddr string) bool {
+func authentication(ws *websocket.Conn, remoteAddr string) (bool, int16) {
+	var userId int16
 	// AUTHENTICATION
 	for i := 0; i < 3; i++ {
 		// Receive message
 		mt, message, err := ws.ReadMessage()
 		if err != nil {
-			return false
+			return false, 0
 		}
 
 		// Remote the port from the address
-		remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
+		if strings.Contains(remoteAddr, ":") {
+			remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
+		}
 
 		// Attempt login in DB
 		var userLogin UserLogin
@@ -116,20 +134,20 @@ func authentication(ws *websocket.Conn, remoteAddr string) bool {
 		result := UserLoginResult{}
 		if len(userLogin.Token) > 0 {
 			t := LoginToken{Name: userLogin.Token, IpAddress: remoteAddr}
-			result.Ok, result.Permissions = t.checkLoginToken()
+			result.Ok, result.Permissions, userId = t.checkLoginToken()
 		} else {
-			result = userLogin.login(remoteAddr)
+			result, userId = userLogin.login(remoteAddr)
 		}
 
 		// Return result to client (Ok + Token)
 		data, _ := json.Marshal(result)
 		ws.WriteMessage(mt, data)
 		if result.Ok {
-			return true
+			return true, userId
 		}
 	}
 	// END AUTHENTICATION
-	return false
+	return false, 0
 }
 
 func commandProcessor(instruction string, command string, message []byte, mt int, ws *websocket.Conn) {
@@ -239,6 +257,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn) 
 		data, _ = json.Marshal(getPSZones())
 	case "TABLES":
 		data, _ = json.Marshal(getTableAndFieldInfo())
+	case "CONNECTIONS":
+		data, _ = json.Marshal(getConnections())
 	default:
 		found = false
 	}
@@ -1142,6 +1162,8 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		data, _ = json.Marshal(importInfo.importJson())
 	case "REGENERATE_DRAGGED_STOCK":
 		data, _ = json.Marshal(regenerateDraggedStock(message))
+	case "DISCONNECT":
+		data, _ = json.Marshal(disconnectConnection(message))
 	}
 	ws.WriteMessage(mt, data)
 }
