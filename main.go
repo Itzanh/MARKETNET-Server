@@ -1140,6 +1140,8 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var importInfo ImportInfo
 		json.Unmarshal([]byte(message), &importInfo)
 		data, _ = json.Marshal(importInfo.importJson())
+	case "REGENERATE_DRAGGED_STOCK":
+		data, _ = json.Marshal(regenerateDraggedStock(message))
 	}
 	ws.WriteMessage(mt, data)
 }

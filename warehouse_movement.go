@@ -10,7 +10,7 @@ type WarehouseMovement struct {
 	Product               int32     `json:"product"`
 	Quantity              int32     `json:"quantity"`
 	DateCreated           time.Time `json:"dateCreated"`
-	Type                  string    `json:"type"` // O = Out, I = In
+	Type                  string    `json:"type"` // O = Out, I = In, R = Inventory regularization
 	SalesOrder            *int32    `json:"salesOrder"`
 	SalesOrderDetail      *int32    `json:"salesOrderDetail"`
 	SalesInvoice          *int32    `json:"salesInvoice"`
@@ -22,6 +22,7 @@ type WarehouseMovement struct {
 	PurchaseInvoice       *int32    `json:"purchaseInvoice"`
 	PurchaseInvoiceDetail *int32    `json:"purchaseInvoiceDetail"`
 	PurchaseDeliveryNote  *int32    `json:"purchaseDeliveryNote"`
+	DraggedStock          int32     `json:"draggedStock"`
 }
 
 func getWarehouseMovement() []WarehouseMovement {
@@ -33,7 +34,7 @@ func getWarehouseMovement() []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -53,7 +54,7 @@ func getWarehouseMovementByWarehouse(warehouseId string) []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -68,7 +69,7 @@ func getWarehouseMovementRow(movementId int64) WarehouseMovement {
 	}
 
 	m := WarehouseMovement{}
-	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
 
 	return m
 }
@@ -86,7 +87,7 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -106,7 +107,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -114,7 +115,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 }
 
 func (m *WarehouseMovement) isValid() bool {
-	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1)
+	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1 || (m.Type != "I" && m.Type != "O" && m.Type != "R"))
 }
 
 func (m *WarehouseMovement) insertWarehouseMovement() bool {
@@ -129,16 +130,30 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
-	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote)
+	// get the dragged stock
+	if m.Type != "R" {
+		var dragged_stock int32
+		sqlStatement := `SELECT dragged_stock FROM warehouse_movement WHERE warehouse=$1 AND product=$2 ORDER BY date_created DESC LIMIT 1`
+		row := db.QueryRow(sqlStatement, m.Warehouse, m.Product)
+		row.Scan(&dragged_stock)
+		m.DraggedStock = dragged_stock + m.Quantity
+	} else { // Inventory regularization
+		m.DraggedStock = m.Quantity
+	}
+
+	// insert the movement
+	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock)
 	if err != nil {
 		return false
 	}
-	ok := addQuantityStock(m.Product, m.Warehouse, m.Quantity)
+	// update the product quantity
+	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
+	// delivery notes generation
 	if m.SalesOrderDetail != nil {
 		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity))
 		if !ok {
@@ -190,17 +205,57 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	///
 
+	// delete the warehouse movement
 	sqlStatement := `DELETE FROM public.warehouse_movement WHERE id=$1`
 	res, err := db.Exec(sqlStatement, m.Id)
 	if err != nil {
 		return false
 	}
 
-	ok := addQuantityStock(inMemoryMovement.Product, inMemoryMovement.Warehouse, -inMemoryMovement.Quantity)
+	// update the dragged stock
+	var draggedStock int32
+	if inMemoryMovement.Type != "R" {
+		draggedStock = inMemoryMovement.DraggedStock - inMemoryMovement.Quantity
+	} else {
+		sqlStatement := `SELECT dragged_stock FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created<=$3 ORDER BY date_created DESC LIMIT 1`
+		row := db.QueryRow(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
+		row.Scan(&draggedStock)
+	}
+
+	sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC`
+	rows, err := db.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
+	if err != nil {
+		trans.Rollback()
+		return false
+	}
+
+	for rows.Next() {
+		var movementId int64
+		var quantity int32
+		var movementType string
+		rows.Scan(&movementId, &quantity, &movementType)
+
+		if movementType == "R" {
+			draggedStock = quantity
+		} else {
+			draggedStock += quantity
+		}
+
+		sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
+		_, err := db.Exec(sqlStatement, movementId, draggedStock)
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	// update the product quantity
+	ok := setQuantityStock(inMemoryMovement.Product, inMemoryMovement.Warehouse, draggedStock)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
+	// delivery note generation
 	if inMemoryMovement.SalesOrderDetail != nil {
 		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity))
 		if !ok {
@@ -223,6 +278,69 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	///
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	rowsCount, _ := res.RowsAffected()
+	return rowsCount > 0
+}
+
+func regenerateDraggedStock(warehouseId string) bool {
+	if len(warehouseId) == 0 || len(warehouseId) > 2 {
+		return false
+	}
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	// select the list with the products with warehouse movements
+	sqlStatement := `SELECT product FROM warehouse_movement WHERE warehouse=$1 GROUP BY product`
+	rowsProducts, err := db.Query(sqlStatement, warehouseId)
+	if err != nil {
+		trans.Rollback()
+		return false
+	}
+
+	// for each product...
+	for rowsProducts.Next() {
+		// add the quantity for each row to drag the amount of stock
+		var draggedStock int32 = 0
+
+		var productId int32
+		rowsProducts.Scan(&productId)
+
+		sqlStatement := `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 ORDER BY date_created ASC`
+		rows, err := db.Query(sqlStatement, warehouseId, productId)
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+
+		// for each warehouse movement...
+		for rows.Next() {
+			var movementId int64
+			var quantity int32
+			var movementType string
+			rows.Scan(&movementId, &quantity, &movementType)
+
+			if movementType == "R" {
+				draggedStock = quantity
+			} else {
+				draggedStock += quantity
+			}
+
+			sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
+			_, err := db.Exec(sqlStatement, movementId, draggedStock)
+			if err != nil {
+				trans.Rollback()
+				return false
+			}
+		}
+	}
+
+	///
+	err = trans.Commit()
+	return err == nil
+	///
 }
