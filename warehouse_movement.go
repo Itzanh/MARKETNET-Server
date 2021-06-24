@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -123,7 +122,6 @@ type WarehouseMovementSearch struct {
 }
 
 func (w *WarehouseMovementSearch) searchWarehouseMovement() []WarehouseMovement {
-	fmt.Println("searchWarehouseMovement")
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
 	sqlStatement := `SELECT warehouse_movement.* FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
 	parameters := make([]interface{}, 0)
@@ -139,7 +137,6 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() []WarehouseMovement 
 	sqlStatement += ` ORDER BY warehouse_movement.id DESC`
 	rows, err := db.Query(sqlStatement, parameters...)
 	if err != nil {
-		fmt.Println(err)
 		return warehouseMovements
 	}
 	for rows.Next() {

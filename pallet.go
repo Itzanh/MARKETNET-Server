@@ -43,6 +43,19 @@ func getSalesOrderPallets(orderId int32) Pallets {
 	return Pallets{HasPallets: true, Pallets: pallets}
 }
 
+func getPalletsRow(palletId int32) Pallet {
+	sqlStatement := `SELECT * FROM public.pallets WHERE id=$1`
+	row := db.QueryRow(sqlStatement, palletId)
+	if row.Err() != nil {
+		return Pallet{}
+	}
+
+	p := Pallet{}
+	row.Scan(&p.Id, &p.SalesOrder, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Name)
+
+	return p
+}
+
 func (p *Pallet) isValid() bool {
 	return !(p.Weight <= 0 || p.Width <= 0 || p.Height <= 0 || p.Depth <= 0 || len(p.Name) == 0 || len(p.Name) > 40)
 }
