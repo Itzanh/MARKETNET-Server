@@ -16,6 +16,7 @@ type Carrier struct {
 	Off          bool    `json:"off"`
 	PrestaShopId int32   `json:"prestaShopId"`
 	Pallets      bool    `json:"pallets"`
+	Webservice   string  `json:"webservice"`
 }
 
 func getCariers() []Carrier {
@@ -27,7 +28,7 @@ func getCariers() []Carrier {
 	}
 	for rows.Next() {
 		c := Carrier{}
-		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets)
+		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice)
 		carriers = append(carriers, c)
 	}
 
@@ -35,7 +36,7 @@ func getCariers() []Carrier {
 }
 
 func (c *Carrier) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 50 || c.MaxWeight < 0 || c.MaxWidth < 0 || c.MaxHeight < 0 || c.MaxDepth < 0 || c.MaxPackages < 0 || len(c.Phone) > 15 || len(c.Email) > 100 || len(c.Web) > 100)
+	return !(len(c.Name) == 0 || len(c.Name) > 50 || c.MaxWeight < 0 || c.MaxWidth < 0 || c.MaxHeight < 0 || c.MaxDepth < 0 || c.MaxPackages < 0 || len(c.Phone) > 15 || len(c.Email) > 100 || len(c.Web) > 100 || len(c.Webservice) != 1 || (c.Webservice != "_"))
 }
 
 func (c *Carrier) insertCarrier() bool {
@@ -43,8 +44,8 @@ func (c *Carrier) insertCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets)
+	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets, webservice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets, c.Webservice)
 	if err != nil {
 		return false
 	}
@@ -58,8 +59,8 @@ func (c *Carrier) updateCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets)
+	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12, webservice=$13 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets, c.Webservice)
 	if err != nil {
 		return false
 	}

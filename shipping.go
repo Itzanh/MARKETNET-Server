@@ -7,38 +7,39 @@ import (
 )
 
 type Shipping struct {
-	Id              int32      `json:"id"`
-	Order           int32      `json:"order"`
-	DeliveryNote    int32      `json:"deliveryNote"`
-	DeliveryAddress int32      `json:"deliveryAddress"`
-	DateCreated     time.Time  `json:"dateCreated"`
-	DateSent        *time.Time `json:"dateSent"`
-	Sent            bool       `json:"sent"`
-	Collected       bool       `json:"collected"`
-	National        bool       `json:"national"`
-	ShippingNumber  string     `json:"shippingNumber"`
-	TrackingNumber  string     `json:"trackingNumber"`
-	Carrier         int16      `json:"carrier"`
-	Weight          float32    `json:"weight"`
-	PackagesNumber  int16      `json:"packagesNumber"`
-	CustomerName    string     `json:"customerName"`
-	SaleOrderName   string     `json:"saleOrderName"`
-	CarrierName     string     `json:"carrierName"`
-	Incoterm        *int16     `json:"incoterm"`
-	CarrierNotes    string     `json:"carrierNotes"`
-	Description     string     `json:"description"`
+	Id                int32      `json:"id"`
+	Order             int32      `json:"order"`
+	DeliveryNote      int32      `json:"deliveryNote"`
+	DeliveryAddress   int32      `json:"deliveryAddress"`
+	DateCreated       time.Time  `json:"dateCreated"`
+	DateSent          *time.Time `json:"dateSent"`
+	Sent              bool       `json:"sent"`
+	Collected         bool       `json:"collected"`
+	National          bool       `json:"national"`
+	ShippingNumber    string     `json:"shippingNumber"`
+	TrackingNumber    string     `json:"trackingNumber"`
+	Carrier           int16      `json:"carrier"`
+	Weight            float32    `json:"weight"`
+	PackagesNumber    int16      `json:"packagesNumber"`
+	CustomerName      string     `json:"customerName"`
+	SaleOrderName     string     `json:"saleOrderName"`
+	CarrierName       string     `json:"carrierName"`
+	Incoterm          *int16     `json:"incoterm"`
+	CarrierNotes      string     `json:"carrierNotes"`
+	Description       string     `json:"description"`
+	CarrierWebService string     `json:"carrierWebService"`
 }
 
 func getShippings() []Shipping {
 	var shippings []Shipping = make([]Shipping, 0)
-	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM public.shipping ORDER BY id DESC`
+	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM public.shipping ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return shippings
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
 		shippings = append(shippings, s)
 	}
 
@@ -50,10 +51,10 @@ func searchShippings(search string) []Shipping {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(search)
 	if err == nil {
-		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON sales_order.id=shipping."order" WHERE sales_order.order_number=$1 ORDER BY id DESC`
+		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON sales_order.id=shipping."order" WHERE sales_order.order_number=$1 ORDER BY id DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
-		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON shipping."order"=sales_order.id INNER JOIN customer ON customer.id=sales_order.customer WHERE customer.name ILIKE $1 ORDER BY id DESC`
+		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON shipping."order"=sales_order.id INNER JOIN customer ON customer.id=sales_order.customer WHERE customer.name ILIKE $1 ORDER BY id DESC`
 		rows, err = db.Query(sqlStatement, "%"+search+"%")
 	}
 	if err != nil {
@@ -61,11 +62,24 @@ func searchShippings(search string) []Shipping {
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
 		shippings = append(shippings, s)
 	}
 
 	return shippings
+}
+
+func getShippingRow(shippingId int32) Shipping {
+	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM public.shipping WHERE id=$1`
+	row := db.QueryRow(sqlStatement, shippingId)
+	if row.Err() != nil {
+		return Shipping{}
+	}
+
+	s := Shipping{}
+	row.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
+
+	return s
 }
 
 func (s *Shipping) isValid() bool {
@@ -93,8 +107,17 @@ func (s *Shipping) updateShipping() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.shipping SET "order"=$2, delivery_note=$3, delivery_address=$4, carrier=$5, incoterm=$6, carrier_notes=$7, description=$8 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Order, s.DeliveryNote, s.DeliveryAddress, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description)
+	inDatabaseShipping := getShippingRow(s.Id)
+	if inDatabaseShipping.Id <= 0 {
+		return false
+	}
+
+	if inDatabaseShipping.CarrierWebService != "_" && (inDatabaseShipping.ShippingNumber != s.ShippingNumber || inDatabaseShipping.TrackingNumber != s.TrackingNumber) {
+		return false
+	}
+
+	sqlStatement := `UPDATE public.shipping SET "order"=$2, delivery_note=$3, delivery_address=$4, carrier=$5, incoterm=$6, carrier_notes=$7, description=$8, shipping_number=$9, tracking_number=$10 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Order, s.DeliveryNote, s.DeliveryAddress, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description, s.ShippingNumber, s.TrackingNumber)
 	if err != nil {
 		return false
 	}
