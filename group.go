@@ -38,8 +38,8 @@ func (g *Group) insertGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop) VALUES ($1, $2, $3, $4, $5, $6, $7, $8 $9)`
-	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop)
+	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop)
 	if err != nil {
 		return false
 	}
