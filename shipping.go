@@ -122,6 +122,10 @@ func (s *Shipping) updateShipping() bool {
 		return false
 	}
 
+	if inDatabaseShipping.ShippingNumber != s.ShippingNumber || inDatabaseShipping.TrackingNumber != s.TrackingNumber {
+		go updateTrackingNumberPrestaShopOrder(inDatabaseShipping.Order, s.TrackingNumber)
+	}
+
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }

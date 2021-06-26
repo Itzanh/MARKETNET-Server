@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -1595,4 +1596,53 @@ func (z *PSZoneWeb) updatePSZoneWeb() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+//
+// SET TRACKING NUMBER
+//
+
+func updateTrackingNumberPrestaShopOrder(salesOrderId int32, trackingNumber string) bool {
+	settings := getSettingsRecord()
+	if settings.Ecommerce != "P" {
+		return false
+	}
+
+	s := getSalesOrderRow(salesOrderId)
+	if s.Id <= 0 || s.PrestaShopId <= 0 {
+		return false
+	}
+
+	url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+
+	xmlPs, err := getPrestaShopJSON(url)
+	if err != nil {
+		return false
+	}
+
+	index := strings.Index(string(xmlPs), "<shipping_number notFilterable=\"true\">")
+	if index <= 0 {
+		return false
+	}
+	index += len("<shipping_number notFilterable=\"true\">")
+	indexEnd := strings.Index(string(xmlPs), "</shipping_number>")
+	if indexEnd <= 0 {
+		return false
+	}
+
+	xml := make([]byte, len(xmlPs))
+
+	for i := 0; i < len(xmlPs); i++ {
+		xml[i] = xmlPs[i]
+	}
+
+	xml = append(xml[:index], "<![CDATA["+trackingNumber+"]]>"...)
+	xml = append(xml, xmlPs[indexEnd:]...)
+
+	client := &http.Client{}
+	req, _ := http.NewRequest(http.MethodPut, url, bytes.NewReader(xml))
+	req.Header.Set("Content-Type", "text/xml; charset=utf-8")
+	_, err = client.Do(req)
+
+	return err == nil
 }

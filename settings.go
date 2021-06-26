@@ -49,15 +49,15 @@ type Settings struct {
 	DateFormat                    string  `json:"dateFormat"`
 	EnterpriseName                string  `json:"enterpriseName"`
 	EnterpriseDescription         string  `json:"enterpriseDescription"`
-	Ecommerce                     string  `json:"ecommerce"`
+	Ecommerce                     string  `json:"ecommerce"` // "_" = None, "P" = PrestaShop, "M" = Magento
 	PrestaShopUrl                 string  `json:"prestaShopUrl"`
 	PrestaShopApiKey              string  `json:"prestaShopApiKey"`
 	PrestaShopLanguageId          int32   `json:"prestaShopLanguageId"`
 	PrestaShopExportSerie         string  `json:"prestaShopExportSerie"`
 	PrestaShopIntracommunitySerie string  `json:"prestaShopIntracommunitySerie"`
 	PrestaShopInteriorSerie       string  `json:"prestaShopInteriorSerie"`
-	Email                         string  `json:"email"`
-	Currency                      string  `json:"currency"`
+	Email                         string  `json:"email"`    // "_" = None, "S" = SendGrid, "T" = SMTP
+	Currency                      string  `json:"currency"` // "_" = None, "E" = European Central Bank
 	CurrencyECBurl                string  `json:"currencyECBurl"`
 	BarcodePrefix                 string  `json:"barcodePrefix"`
 	CronCurrency                  string  `json:"cronCurrency"`
