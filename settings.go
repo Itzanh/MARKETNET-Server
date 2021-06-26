@@ -22,9 +22,17 @@ type DatabaseSettings struct {
 
 // Basic info for the app.
 type ServerSettings struct {
-	Port                 uint16 `json:"port"`
-	HashIterations       int32  `json:"hashIterations"`
-	TokenExpirationHours int16  `json:"tokenExpirationHours"`
+	Port                 uint16            `json:"port"`
+	HashIterations       int32             `json:"hashIterations"`
+	TokenExpirationHours int16             `json:"tokenExpirationHours"`
+	TLS                  ServerSettingsTLS `json:"tls"`
+}
+
+// SSL settings for the web server.
+type ServerSettingsTLS struct {
+	UseTLS  bool   `json:"useTLS"`
+	CrtPath string `json:"crtPath"`
+	KeyPath string `json:"keyPath"`
 }
 
 func getBackendSettings() (BackendSettings, bool) {

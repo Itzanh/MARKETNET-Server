@@ -45,7 +45,11 @@ func main() {
 	http.HandleFunc("/document", handleDocument)
 	http.HandleFunc("/report", generateReport)
 	http.HandleFunc("/export", handleExport)
-	go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
+	if settings.Server.TLS.UseTLS {
+		go http.ListenAndServeTLS(":"+strconv.Itoa(int(settings.Server.Port)), settings.Server.TLS.CrtPath, settings.Server.TLS.KeyPath, nil)
+	} else {
+		go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
+	}
 
 	initialData()
 	go cleanDocumentTokens()

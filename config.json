@@ -9,6 +9,11 @@
     "server": {
         "port": 12279,
         "hashIterations": 25000,
-        "tokenExpirationHours": 48
+        "tokenExpirationHours": 48,
+        "tls": {
+            "useTLS": false,
+            "crtPath": "./certificates/fullchain.pem",
+            "keyPath": "./certificates/privkey.pem"
+        }
     }
 }
