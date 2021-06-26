@@ -10,6 +10,7 @@ type Group struct {
 	Manufacturing bool   `json:"manufacturing"`
 	Preparation   bool   `json:"preparation"`
 	Admin         bool   `json:"admin"`
+	PrestaShop    bool   `json:"prestashop"`
 }
 
 func getGroup() []Group {
@@ -21,7 +22,7 @@ func getGroup() []Group {
 	}
 	for rows.Next() {
 		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin)
+		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop)
 		groups = append(groups, g)
 	}
 
@@ -37,8 +38,8 @@ func (g *Group) insertGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin)
+	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop) VALUES ($1, $2, $3, $4, $5, $6, $7, $8 $9)`
+	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop)
 	if err != nil {
 		return false
 	}
@@ -52,8 +53,8 @@ func (g *Group) updateGroup() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin)
+	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop)
 	if err != nil {
 		return false
 	}
@@ -85,6 +86,7 @@ type Permissions struct {
 	Manufacturing bool `json:"manufacturing"`
 	Preparation   bool `json:"preparation"`
 	Admin         bool `json:"admin"`
+	PrestaShop    bool `json:"prestashop"`
 }
 
 func getUserPermissions(userId int16) Permissions {
@@ -112,6 +114,9 @@ func getUserPermissions(userId int16) Permissions {
 		}
 		if ug.GroupsIn[i].Admin {
 			p.Admin = true
+		}
+		if ug.GroupsIn[i].PrestaShop {
+			p.PrestaShop = true
 		}
 	}
 
