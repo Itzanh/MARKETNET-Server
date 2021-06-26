@@ -191,7 +191,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 	///
 
 	detailInMemory := getSalesOrderDetailRow(s.Id)
-	if detailInMemory.Id <= 0 || detailInMemory.QuantityInvoiced > 0 {
+	if detailInMemory.Id <= 0 || detailInMemory.QuantityInvoiced > 0 || detailInMemory.QuantityDeliveryNote > 0 {
 		trans.Rollback()
 		return false
 	}

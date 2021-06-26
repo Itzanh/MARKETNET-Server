@@ -127,11 +127,35 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {
 		return false
 	}
 
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	d := getWarehouseMovementBySalesDeliveryNote(n.Id)
+	for i := 0; i < len(d); i++ {
+		ok := d[i].deleteWarehouseMovement()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
 	sqlStatement := `DELETE FROM public.sales_delivery_note WHERE id=$1`
 	res, err := db.Exec(sqlStatement, n.Id)
 	if err != nil {
+		trans.Rollback()
 		return false
 	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		return false
+	}
+	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0

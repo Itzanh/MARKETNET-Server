@@ -238,11 +238,42 @@ func (s *SaleOrder) deleteSalesOrder() bool {
 		return false
 	}
 
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	d := getSalesOrderDetail(s.Id)
+	for i := 0; i < len(d); i++ {
+		if d[i].QuantityInvoiced > 0 || d[i].QuantityDeliveryNote > 0 {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	for i := 0; i < len(d); i++ {
+		ok := d[i].deleteSalesOrderDetail()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
 	sqlStatement := `DELETE FROM public.sales_order WHERE id=$1`
 	res, err := db.Exec(sqlStatement, s.Id)
 	if err != nil {
+		trans.Rollback()
 		return false
 	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		return false
+	}
+	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0

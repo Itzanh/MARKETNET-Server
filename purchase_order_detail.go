@@ -224,7 +224,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 	///
 
 	detailInMemory := getPurchaseOrderDetailRow(s.Id)
-	if detailInMemory.Id <= 0 {
+	if detailInMemory.Id <= 0 || detailInMemory.QuantityInvoiced > 0 || detailInMemory.QuantityDeliveryNote > 0 {
 		trans.Rollback()
 		return false
 	}

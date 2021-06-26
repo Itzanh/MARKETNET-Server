@@ -128,11 +128,35 @@ func (i *PurchaseInvoice) deletePurchaseInvoice() bool {
 		return false
 	}
 
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	d := getPurchaseInvoiceDetail(i.Id)
+	for i := 0; i < len(d); i++ {
+		ok := d[i].deletePurchaseInvoiceDetail()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
 	sqlStatement := `DELETE FROM public.purchase_invoice WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id)
 	if err != nil {
+		trans.Rollback()
 		return false
 	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		return false
+	}
+	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
