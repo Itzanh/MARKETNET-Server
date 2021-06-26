@@ -222,6 +222,8 @@ func invoiceAllSaleOrder(saleOrderId int32) bool {
 		}
 	}
 
+	go updateStatusPaymentAcceptedPrestaShop(saleOrderId)
+
 	///
 	transErr = trans.Commit()
 	return transErr == nil

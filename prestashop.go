@@ -1639,10 +1639,79 @@ func updateTrackingNumberPrestaShopOrder(salesOrderId int32, trackingNumber stri
 	xml = append(xml[:index], "<![CDATA["+trackingNumber+"]]>"...)
 	xml = append(xml, xmlPs[indexEnd:]...)
 
+	xmlSend := setStatusXmlOrderPrestaShop(xml, strconv.Itoa(int(settings.PrestashopStatusShipped)))
+	if xmlSend == nil {
+		return false
+	}
+
 	client := &http.Client{}
-	req, _ := http.NewRequest(http.MethodPut, url, bytes.NewReader(xml))
+	req, _ := http.NewRequest(http.MethodPut, url, bytes.NewReader(xmlSend))
 	req.Header.Set("Content-Type", "text/xml; charset=utf-8")
 	_, err = client.Do(req)
 
 	return err == nil
+}
+
+func setStatusXmlOrderPrestaShop(xmlPs []byte, status string) []byte {
+	index := strings.Index(string(xmlPs), "<current_state")
+	if index <= 0 {
+		return nil
+	}
+	index += len("<current_state")
+	indexEnd := strings.Index(string(xmlPs), "</current_state>")
+	if indexEnd <= 0 {
+		return nil
+	}
+
+	xml := make([]byte, len(xmlPs))
+
+	for i := 0; i < len(xmlPs); i++ {
+		xml[i] = xmlPs[i]
+	}
+
+	xml = append(xml[:index], "><![CDATA["+status+"]]>"...)
+	xml = append(xml, xmlPs[indexEnd:]...)
+
+	return xml
+}
+
+func updateStatusPaymentAcceptedPrestaShop(orderId int32) bool {
+	settings := getSettingsRecord()
+	if settings.Ecommerce != "P" {
+		return false
+	}
+
+	s := getSalesOrderRow(orderId)
+	if s.PrestaShopId <= 0 {
+		return true
+	}
+
+	sqlStatement := `SELECT paid_in_advance FROM payment_method WHERE id=(SELECT payment_method FROM sales_order WHERE id=$1)`
+	row := db.QueryRow(sqlStatement, orderId)
+
+	var paidInAdvance bool
+	row.Scan(&paidInAdvance)
+
+	if !paidInAdvance { // this is not an automatically generated invoice, someone accepted the payment, notify PrestaShop
+		url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+
+		xmlPs, err := getPrestaShopJSON(url)
+		if err != nil {
+			return false
+		}
+
+		xml := setStatusXmlOrderPrestaShop(xmlPs, strconv.Itoa(int(settings.PrestashopStatusPaymentAccepted)))
+		if xml == nil {
+			return false
+		}
+
+		client := &http.Client{}
+		req, _ := http.NewRequest(http.MethodPut, url, bytes.NewReader(xml))
+		req.Header.Set("Content-Type", "text/xml; charset=utf-8")
+		_, err = client.Do(req)
+
+		return err == nil
+	}
+
+	return true
 }
