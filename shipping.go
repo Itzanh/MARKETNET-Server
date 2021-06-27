@@ -273,7 +273,14 @@ func associatePackagingToShipping(packagingId int32, shippingId int32) bool {
 }
 
 func toggleShippingSent(shippingId int32) bool {
+	s := getShippingRow(shippingId)
+	// it is not allowed to manually set as "sent" if the carrier has a webservice set.
+	// it is not allowed to modify the "sent" field if the shipping was colletected by the carrier.
+	if s.Id <= 0 || s.CarrierWebService != "_" || s.Collected {
+		return false
+	}
+
 	sqlStatement := `UPDATE shipping SET sent = NOT sent, date_sent = CASE sent WHEN false THEN CURRENT_TIMESTAMP(3) ELSE NULL END WHERE id = $1`
-	_, err := db.Exec(sqlStatement, shippingId)
+	_, err := db.Exec(sqlStatement, s.Id)
 	return err == nil
 }

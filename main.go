@@ -1557,6 +1557,9 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(regenerateDraggedStock(message))
 	case "DISCONNECT":
+		if !permissions.Admin {
+			return
+		}
 		data, _ = json.Marshal(disconnectConnection(message))
 	case "PRESTASHOP":
 		if !permissions.PrestaShop {
