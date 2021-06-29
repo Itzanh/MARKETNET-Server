@@ -256,7 +256,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 		row.Scan(&draggedStock)
 	}
 
-	sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC`
+	sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC, id ASC`
 	rows, err := db.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
 	if err != nil {
 		trans.Rollback()
@@ -344,7 +344,7 @@ func regenerateDraggedStock(warehouseId string) bool {
 		var productId int32
 		rowsProducts.Scan(&productId)
 
-		sqlStatement := `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 ORDER BY date_created ASC`
+		sqlStatement := `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 ORDER BY date_created ASC, id ASC`
 		rows, err := db.Query(sqlStatement, warehouseId, productId)
 		if err != nil {
 			trans.Rollback()

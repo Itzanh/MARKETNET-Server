@@ -36,7 +36,7 @@ func main() {
 	}
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
-	db, _ = sql.Open("postgres", psqlInfo)
+	db, _ = sql.Open("postgres", psqlInfo) // control error
 	db.Ping()
 
 	fmt.Println("Server ready! :D")
