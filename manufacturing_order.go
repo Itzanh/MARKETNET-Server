@@ -7,21 +7,24 @@ import (
 )
 
 type ManufacturingOrder struct {
-	Id               int64     `json:"id"`
-	OrderDetail      *int32    `json:"orderDetail"`
-	Product          int32     `json:"product"`
-	Type             int16     `json:"type"`
-	Uuid             string    `json:"uuid"`
-	DateCreated      time.Time `json:"dateCreated"`
-	DateLastUpdate   time.Time `json:"dateLastUpdate"`
-	Manufactured     bool      `json:"manufactured"`
-	DateManufactured time.Time `json:"dateManufactured"`
-	UserManufactured *int16    `json:"userManufactured"`
-	UserCreated      int16     `json:"userCreated"`
-	TagPrinted       bool      `json:"tagPrinted"`
-	DateTagPrinted   time.Time `json:"dateTagPrinted"`
-	Order            *int32    `json:"order"`
-	UserTagPrinted   *int16    `json:"userTagPrinted"`
+	Id               int64      `json:"id"`
+	OrderDetail      *int32     `json:"orderDetail"`
+	Product          int32      `json:"product"`
+	Type             int16      `json:"type"`
+	Uuid             string     `json:"uuid"`
+	DateCreated      time.Time  `json:"dateCreated"`
+	DateLastUpdate   time.Time  `json:"dateLastUpdate"`
+	Manufactured     bool       `json:"manufactured"`
+	DateManufactured *time.Time `json:"dateManufactured"`
+	UserManufactured *int16     `json:"userManufactured"`
+	UserCreated      int16      `json:"userCreated"`
+	TagPrinted       bool       `json:"tagPrinted"`
+	DateTagPrinted   *time.Time `json:"dateTagPrinted"`
+	Order            *int32     `json:"order"`
+	UserTagPrinted   *int16     `json:"userTagPrinted"`
+	TypeName         string     `json:"typeName"`
+	ProductName      string     `json:"productName"`
+	OrderName        string     `json:"orderName"`
 }
 
 func getManufacturingOrder(orderTypeId int16) []ManufacturingOrder {
@@ -34,14 +37,14 @@ func getManufacturingOrder(orderTypeId int16) []ManufacturingOrder {
 
 func getAllManufacturingOrders() []ManufacturingOrder {
 	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT * FROM public.manufacturing_order ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order) FROM public.manufacturing_order ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return orders
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName)
 		orders = append(orders, o)
 	}
 
@@ -50,14 +53,14 @@ func getAllManufacturingOrders() []ManufacturingOrder {
 
 func getManufacturingOrdersByType(orderTypeId int16) []ManufacturingOrder {
 	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order) FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderTypeId)
 	if err != nil {
 		return orders
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName)
 		orders = append(orders, o)
 	}
 

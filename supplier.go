@@ -23,18 +23,19 @@ type Supplier struct {
 	PaymentMethod       *int16    `json:"paymentMethod"`
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
+	CountryName         *string   `json:"countryName"`
 }
 
 func getSuppliers() []Supplier {
 	var suppliers []Supplier = make([]Supplier, 0)
-	sqlStatement := `SELECT * FROM public.suppliers ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=suppliers.country) FROM public.suppliers ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return suppliers
 	}
 	for rows.Next() {
 		c := Supplier{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.CountryName)
 		suppliers = append(suppliers, c)
 	}
 
@@ -43,14 +44,14 @@ func getSuppliers() []Supplier {
 
 func searchSuppliers(search string) []Supplier {
 	var suppliers []Supplier = make([]Supplier, 0)
-	sqlStatement := `SELECT * FROM suppliers WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=suppliers.country) FROM suppliers WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%")
 	if err != nil {
 		return suppliers
 	}
 	for rows.Next() {
 		c := Supplier{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.CountryName)
 		suppliers = append(suppliers, c)
 	}
 

@@ -5,22 +5,23 @@ import (
 )
 
 type State struct {
-	Id      int32  `json:"id"`
-	Country int16  `json:"country"`
-	Name    string `json:"name"`
-	IsoCode string `json:"isoCode"`
+	Id          int32  `json:"id"`
+	Country     int16  `json:"country"`
+	Name        string `json:"name"`
+	IsoCode     string `json:"isoCode"`
+	CountryName string `json:"countryName"`
 }
 
 func getStates() []State {
 	var cities []State = make([]State, 0)
-	sqlStatement := `SELECT * FROM public.state ORDER BY id ASC `
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=state.country) FROM public.state ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return cities
 	}
 	for rows.Next() {
 		c := State{}
-		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode)
+		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode, &c.CountryName)
 		cities = append(cities, c)
 	}
 
@@ -33,14 +34,14 @@ func (c *State) isValid() bool {
 
 func searchStates(search string) []State {
 	var states []State = make([]State, 0)
-	sqlStatement := `SELECT state.* FROM state INNER JOIN country ON country.id=state.country WHERE state.name ILIKE $1 OR country.name ILIKE $1 ORDER BY id ASC`
+	sqlStatement := `SELECT state.*,(SELECT name FROM country WHERE country.id=state.country) FROM state INNER JOIN country ON country.id=state.country WHERE state.name ILIKE $1 OR country.name ILIKE $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%")
 	if err != nil {
 		return states
 	}
 	for rows.Next() {
 		c := State{}
-		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode)
+		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode, &c.CountryName)
 		states = append(states, c)
 	}
 

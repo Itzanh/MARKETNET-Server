@@ -29,18 +29,19 @@ type Product struct {
 	Supplier                *int32    `json:"supplier"`
 	PrestaShopId            int32     `json:"prestaShopId"`
 	PrestaShopCombinationId int32     `json:"prestaShopCombinationId"`
+	FamilyName              *string   `json:"familyName"`
 }
 
 func getProduct() []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := `SELECT * FROM public.product ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM public.product ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return products
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -49,14 +50,14 @@ func getProduct() []Product {
 
 func searchProduct(search string) []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := `SELECT * FROM product WHERE name ILIKE $1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE name ILIKE $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%")
 	if err != nil {
 		return products
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -171,14 +172,14 @@ func getOrderDetailDefaults(roductId int32) OrderDetailDefaults {
 // Get the sales order details with pending status, with the product specified.
 func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT * FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity ORDER BY sales_order_detail.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -188,14 +189,14 @@ func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
 // Get the purchase order details with pending status, with the product specified.
 func getProductPurchaseOrderDetailsPending(productId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT * FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity ORDER BY purchase_order_detail.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -205,14 +206,14 @@ func getProductPurchaseOrderDetailsPending(productId int32) []PurchaseOrderDetai
 // Get the sales order details with the product specified.
 func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT * FROM sales_order_detail WHERE "order"=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -222,14 +223,14 @@ func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
 // Get the purchase order details with the product specified.
 func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT * FROM purchase_order_detail WHERE product=$1`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 ORDER BY purchase_order_detail.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -239,14 +240,14 @@ func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
 // Get the warehouse movements with the product specified.
 func getProductWarehouseMovement(productId int32) []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT * FROM warehouse_movement WHERE product=$1`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM warehouse_movement WHERE product=$1 ORDER BY warehouse_movement.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.ProductName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 

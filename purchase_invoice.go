@@ -27,11 +27,12 @@ type PurchaseInvoice struct {
 	LinesNumber       int16     `json:"linesNumber"`
 	InvoiceNumber     int32     `json:"invoiceNumber"`
 	InvoiceName       string    `json:"invoiceName"`
+	SupplierName      string    `json:"supplierName"`
 }
 
 func getPurchaseInvoices() []PurchaseInvoice {
 	var invoices []PurchaseInvoice = make([]PurchaseInvoice, 0)
-	sqlStatement := `SELECT * FROM purchase_invoice ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_invoice.supplier) FROM purchase_invoice ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return invoices
@@ -39,7 +40,8 @@ func getPurchaseInvoices() []PurchaseInvoice {
 	for rows.Next() {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+			&i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -51,12 +53,12 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT purchase_invoice.* FROM purchase_invoice WHERE invoice_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT purchase_invoice.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_invoice.supplier) FROM purchase_invoice WHERE invoice_number=$1 ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT purchase_invoice.* FROM purchase_invoice INNER JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE suppliers.name ILIKE $1`
+		sqlStatement := `SELECT purchase_invoice.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_invoice.supplier) FROM purchase_invoice INNER JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE suppliers.name ILIKE $1`
 		if s.DateStart != nil {
 			sqlStatement += ` AND purchase_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -75,7 +77,8 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 	for rows.Next() {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+			&i.SupplierName)
 		invoices = append(invoices, i)
 	}
 

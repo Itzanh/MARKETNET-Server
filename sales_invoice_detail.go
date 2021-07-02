@@ -13,18 +13,19 @@ type SalesInvoiceDetail struct {
 	VatPercent  float32 `json:"vatPercent"`
 	TotalAmount float32 `json:"totalAmount"`
 	OrderDetail *int32  `json:"orderDetail"`
+	ProductName string  `json:"productName"`
 }
 
 func getSalesInvoiceDetail(invoiceId int32) []SalesInvoiceDetail {
 	var details []SalesInvoiceDetail = make([]SalesInvoiceDetail, 0)
-	sqlStatement := `SELECT * FROM sales_invoice_detail WHERE invoice = $1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_invoice_detail.product) FROM sales_invoice_detail WHERE invoice = $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, invoiceId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := SalesInvoiceDetail{}
-		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail)
+		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.ProductName)
 		details = append(details, d)
 	}
 

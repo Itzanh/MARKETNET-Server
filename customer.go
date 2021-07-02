@@ -24,18 +24,19 @@ type Customer struct {
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
 	PrestaShopId        int32     `json:"prestaShopId"`
+	CountryName         *string   `json:"countryName"`
 }
 
 func getCustomers() []Customer {
 	var customers []Customer = make([]Customer, 0)
-	sqlStatement := `SELECT * FROM public.customer ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return customers
 	}
 	for rows.Next() {
 		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.CountryName)
 		customers = append(customers, c)
 	}
 
@@ -44,14 +45,14 @@ func getCustomers() []Customer {
 
 func searchCustomers(search string) []Customer {
 	var customers []Customer = make([]Customer, 0)
-	sqlStatement := `SELECT * FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%")
 	if err != nil {
 		return customers
 	}
 	for rows.Next() {
 		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.CountryName)
 		customers = append(customers, c)
 	}
 

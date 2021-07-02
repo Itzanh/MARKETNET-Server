@@ -28,18 +28,19 @@ type SalesDeliveryNote struct {
 	DeliveryNoteName   string    `json:"deliveryNoteName"`
 	Currency           int16     `json:"currency"`
 	CurrencyChange     float32   `json:"currencyChange"`
+	CustomerName       string    `json:"customerName"`
 }
 
 func getSalesDeliveryNotes() []SalesDeliveryNote {
 	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
-	sqlStatement := `SELECT * FROM public.sales_delivery_note ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM public.sales_delivery_note ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return notes
 	}
 	for rows.Next() {
 		n := SalesDeliveryNote{}
-		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange)
+		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
 		notes = append(notes, n)
 	}
 
@@ -64,12 +65,12 @@ func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT sales_delivery_note.* FROM sales_delivery_note WHERE delivery_note_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT sales_delivery_note.*,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM sales_delivery_note WHERE delivery_note_number=$1 ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT sales_delivery_note.* FROM sales_delivery_note INNER JOIN customer ON customer.id=sales_delivery_note.customer WHERE customer.name ILIKE $1`
+		sqlStatement := `SELECT sales_delivery_note.*,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM sales_delivery_note INNER JOIN customer ON customer.id=sales_delivery_note.customer WHERE customer.name ILIKE $1`
 		if s.DateStart != nil {
 			sqlStatement += ` AND sales_delivery_note.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -86,9 +87,9 @@ func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {
 		return notes
 	}
 	for rows.Next() {
-		p := SalesDeliveryNote{}
-		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
-		notes = append(notes, p)
+		n := SalesDeliveryNote{}
+		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
+		notes = append(notes, n)
 	}
 
 	return notes
@@ -331,7 +332,7 @@ func getSalesDeliveryNoteOrders(noteId int32) []SaleOrder {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId)
 		sales = append(sales, s)
 	}
 

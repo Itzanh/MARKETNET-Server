@@ -28,18 +28,19 @@ type PurchaseDeliveryNote struct {
 	DeliveryNoteName   string    `json:"deliveryNoteName"`
 	Currency           int16     `json:"currency"`
 	CurrencyChange     float32   `json:"currencyChange"`
+	SupplierName       string    `json:"supplierName"`
 }
 
 func getPurchaseDeliveryNotes() []PurchaseDeliveryNote {
 	var notes []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
-	sqlStatement := `SELECT * FROM public.purchase_delivery_note ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_delivery_note.supplier) FROM public.purchase_delivery_note ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return notes
 	}
 	for rows.Next() {
 		p := PurchaseDeliveryNote{}
-		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
+		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.SupplierName)
 		notes = append(notes, p)
 	}
 
@@ -51,12 +52,12 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() []PurchaseDeliveryNote {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT purchase_delivery_note.* FROM purchase_delivery_note WHERE delivery_note_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT purchase_delivery_note.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_delivery_note.supplier) FROM purchase_delivery_note WHERE delivery_note_number=$1 ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT purchase_delivery_note.* FROM purchase_delivery_note INNER JOIN suppliers ON suppliers.id=purchase_delivery_note.supplier WHERE suppliers.name ILIKE $1`
+		sqlStatement := `SELECT purchase_delivery_note.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_delivery_note.supplier) FROM purchase_delivery_note INNER JOIN suppliers ON suppliers.id=purchase_delivery_note.supplier WHERE suppliers.name ILIKE $1`
 		if s.DateStart != nil {
 			sqlStatement += ` AND purchase_delivery_note.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -74,7 +75,7 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() []PurchaseDeliveryNote {
 	}
 	for rows.Next() {
 		p := PurchaseDeliveryNote{}
-		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
+		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.SupplierName)
 		notes = append(notes, p)
 	}
 

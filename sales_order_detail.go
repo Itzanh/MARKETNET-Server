@@ -15,18 +15,19 @@ type SalesOrderDetail struct {
 	QuantityPendingPackaging int32  `json:"quantityPendingPackaging"`
 	PurchaseOrderDetail      *int32 `json:"purchaseOrderDetail"`
 	PrestaShopId             int32  `json:"prestaShopId"`
+	ProductName              string `json:"productName"`
 }
 
 func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT * FROM sales_order_detail WHERE "order"=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE "order"=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.ProductName)
 		details = append(details, d)
 	}
 

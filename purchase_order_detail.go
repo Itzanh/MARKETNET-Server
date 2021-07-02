@@ -12,18 +12,19 @@ type PurchaseOrderDetail struct {
 	QuantityDeliveryNote     int32   `json:"quantityDeliveryNote"`
 	QuantityPendingPackaging int32   `json:"quantityPendingPackaging"`
 	QuantityAssignedSale     int32   `json:"quantityAssignedSale"`
+	ProductName              string  `json:"productName"`
 }
 
 func getPurchaseOrderDetail(orderId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT * FROM purchase_order_detail WHERE "order"=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE "order"=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
 		return details
 	}
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.ProductName)
 		details = append(details, d)
 	}
 

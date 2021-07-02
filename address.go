@@ -6,30 +6,33 @@ import (
 )
 
 type Address struct {
-	Id                int32  `json:"id"`
-	Customer          *int32 `json:"customer"`
-	Supplier          *int32 `json:"supplier"`
-	Address           string `json:"address"`
-	Address2          string `json:"address2"`
-	City              string `json:"city"`
-	State             *int32 `json:"state"`
-	Country           int16  `json:"country"`
-	PrivateOrBusiness string `json:"privateOrBusiness"`
-	Notes             string `json:"notes"`
-	PrestaShopId      int32  `json:"prestaShopId"`
-	ZipCode           string `json:"zipCode"`
+	Id                int32   `json:"id"`
+	Customer          *int32  `json:"customer"`
+	Supplier          *int32  `json:"supplier"`
+	Address           string  `json:"address"`
+	Address2          string  `json:"address2"`
+	City              string  `json:"city"`
+	State             *int32  `json:"state"`
+	Country           int16   `json:"country"`
+	PrivateOrBusiness string  `json:"privateOrBusiness"`
+	Notes             string  `json:"notes"`
+	PrestaShopId      int32   `json:"prestaShopId"`
+	ZipCode           string  `json:"zipCode"`
+	ContactName       string  `json:"contactName"`
+	CountryName       string  `json:"countryName"`
+	StateName         *string `json:"stateName"`
 }
 
 func getAddresses() []Address {
 	var addresses []Address = make([]Address, 0)
-	sqlStatement := `SELECT * FROM address ORDER BY id ASC`
+	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return addresses
 	}
 	for rows.Next() {
 		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode)
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ContactName, &a.CountryName, &a.StateName)
 		addresses = append(addresses, a)
 	}
 
@@ -51,14 +54,14 @@ func getAddressRow(addressId int32) Address {
 
 func searchAddresses(search string) []Address {
 	var addresses []Address = make([]Address, 0)
-	sqlStatement := `SELECT address.* FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) ORDER BY id ASC`
+	sqlStatement := `SELECT address.*,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%")
 	if err != nil {
 		return addresses
 	}
 	for rows.Next() {
 		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode)
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ContactName, &a.CountryName, &a.StateName)
 		addresses = append(addresses, a)
 	}
 

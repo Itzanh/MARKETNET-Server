@@ -27,11 +27,12 @@ type SalesInvoice struct {
 	LinesNumber       int16     `json:"linesNumber"`
 	InvoiceNumber     int32     `json:"invoiceNumber"`
 	InvoiceName       string    `json:"invoiceName"`
+	CustomerName      string    `json:"customerName"`
 }
 
 func getSalesInvoices() []SalesInvoice {
 	var invoices []SalesInvoice = make([]SalesInvoice, 0)
-	sqlStatement := `SELECT * FROM sales_invoice ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return invoices
@@ -39,7 +40,8 @@ func getSalesInvoices() []SalesInvoice {
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+			&i.CustomerName)
 		invoices = append(invoices, i)
 	}
 
@@ -57,12 +59,12 @@ func (s *OrderSearch) searchSalesInvoices() []SalesInvoice {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT sales_invoice.* FROM sales_invoice WHERE invoice_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT sales_invoice.*,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE invoice_number=$1 ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT sales_invoice.* FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
+		sqlStatement := `SELECT sales_invoice.*,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
 		if s.DateStart != nil {
 			sqlStatement += ` AND sales_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -80,7 +82,8 @@ func (s *OrderSearch) searchSalesInvoices() []SalesInvoice {
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+			&i.CustomerName)
 		invoices = append(invoices, i)
 	}
 
@@ -333,27 +336,47 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder() bool {
 }
 
 type SalesInvoiceRelations struct {
-	Orders []SaleOrder `json:"orders"`
+	Orders        []SaleOrder         `json:"orders"`
+	DeliveryNotes []SalesDeliveryNote `json:"notes"`
 }
 
 func getSalesInvoiceRelations(invoiceId int32) SalesInvoiceRelations {
-	return SalesInvoiceRelations{Orders: getSalesInvoiceOrders(invoiceId)}
+	return SalesInvoiceRelations{
+		Orders:        getSalesInvoiceOrders(invoiceId),
+		DeliveryNotes: getSalesInvoiceDeliveryNotes(invoiceId),
+	}
 }
 
-func getSalesInvoiceOrders(orderId int32) []SaleOrder {
-	var sales []SaleOrder = make([]SaleOrder, 0)
+func getSalesInvoiceOrders(invoiceId int32) []SaleOrder {
+	var orders []SaleOrder = make([]SaleOrder, 0)
 	sqlStatement := `SELECT DISTINCT sales_order.* FROM sales_invoice INNER JOIN sales_invoice_detail ON sales_invoice.id = sales_invoice_detail.invoice INNER JOIN sales_order_detail ON sales_invoice_detail.order_detail = sales_order_detail.id INNER JOIN sales_order ON sales_order_detail.order = sales_order.id WHERE sales_invoice.id = $1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, orderId)
+	rows, err := db.Query(sqlStatement, invoiceId)
 	if err != nil {
-		return sales
+		return orders
 	}
 	for rows.Next() {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
-		sales = append(sales, s)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId)
+		orders = append(orders, s)
 	}
 
-	return sales
+	return orders
+}
+
+func getSalesInvoiceDeliveryNotes(invoiceId int32) []SalesDeliveryNote {
+	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
+	sqlStatement := `SELECT DISTINCT sales_delivery_note.* FROM sales_invoice INNER JOIN sales_invoice_detail ON sales_invoice.id = sales_invoice_detail.invoice INNER JOIN sales_order_detail ON sales_invoice_detail.order_detail = sales_order_detail.id INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail=sales_order_detail.id INNER JOIN sales_delivery_note ON sales_delivery_note.id=warehouse_movement.sales_delivery_note WHERE sales_invoice.id=$1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, invoiceId)
+	if err != nil {
+		return notes
+	}
+	for rows.Next() {
+		n := SalesDeliveryNote{}
+		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange)
+		notes = append(notes, n)
+	}
+
+	return notes
 }

@@ -38,11 +38,12 @@ type PurchaseOrder struct {
 	OrderNumber       int32      `json:"orderNumber"`
 	BillingStatus     string     `json:"billingStatus"`
 	OrderName         string     `json:"orderName"`
+	SupplierName      string     `json:"supplierName"`
 }
 
 func getPurchaseOrder() []PurchaseOrder {
 	var purchases []PurchaseOrder = make([]PurchaseOrder, 0)
-	sqlStatement := `SELECT * FROM purchase_order ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return purchases
@@ -51,7 +52,7 @@ func getPurchaseOrder() []PurchaseOrder {
 		s := PurchaseOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.SupplierName)
 		purchases = append(purchases, s)
 	}
 
@@ -63,12 +64,12 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT purchase_order.* FROM purchase_order WHERE order_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT purchase_order.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order WHERE order_number=$1 ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT purchase_order.* FROM purchase_order INNER JOIN suppliers ON suppliers.id=purchase_order.supplier WHERE (suppliers.name ILIKE $1 OR purchase_order.supplier_reference ILIKE $1)`
+		sqlStatement := `SELECT purchase_order.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order INNER JOIN suppliers ON suppliers.id=purchase_order.supplier WHERE (suppliers.name ILIKE $1 OR purchase_order.supplier_reference ILIKE $1)`
 		if s.DateStart != nil {
 			sqlStatement += ` AND purchase_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -87,7 +88,7 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 		s := PurchaseOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.SupplierName)
 		purchases = append(purchases, s)
 	}
 
