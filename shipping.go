@@ -82,6 +82,22 @@ func getShippingRow(shippingId int32) Shipping {
 	return s
 }
 
+func getShippingsPendingCollected() []Shipping {
+	var shippings []Shipping = make([]Shipping, 0)
+	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM public.shipping WHERE sent=true AND collected=false ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return shippings
+	}
+	for rows.Next() {
+		s := Shipping{}
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
+		shippings = append(shippings, s)
+	}
+
+	return shippings
+}
+
 func (s *Shipping) isValid() bool {
 	return !(s.Order <= 0 || s.DeliveryAddress <= 0 || s.Carrier <= 0)
 }
@@ -283,4 +299,55 @@ func toggleShippingSent(shippingId int32) bool {
 	sqlStatement := `UPDATE shipping SET sent = NOT sent, date_sent = CASE sent WHEN false THEN CURRENT_TIMESTAMP(3) ELSE NULL END WHERE id = $1`
 	_, err := db.Exec(sqlStatement, s.Id)
 	return err == nil
+}
+
+func setShippingCollected(shippings []int32) bool {
+	if len(shippings) == 0 {
+		return false
+	}
+	for i := 0; i < len(shippings); i++ {
+		if shippings[i] <= 0 {
+			return false
+		}
+	}
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
+	sqlStatement := `UPDATE shipping SET collected=true WHERE id=$1`
+	for i := 0; i < len(shippings); i++ {
+		s := getShippingRow(shippings[i])
+		if s.Id <= 0 || !s.Sent {
+			trans.Rollback()
+			return false
+		}
+
+		_, err := db.Exec(sqlStatement, shippings[i])
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+
+		p := getPackagingByShipping(shippings[i])
+		for j := 0; j < len(p); j++ {
+			for k := 0; k < len(p[j].DetailsPackaged); k++ {
+				sqlStatement := `UPDATE sales_order_detail SET status='G' WHERE id=$1`
+				_, err := db.Exec(sqlStatement, p[j].DetailsPackaged[k].OrderDetail)
+				if err != nil {
+					trans.Rollback()
+					return false
+				}
+			}
+		}
+
+	}
+
+	///
+	transErr = trans.Commit()
+	return transErr == nil
+	///
 }

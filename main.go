@@ -288,6 +288,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getShippings())
+	case "SHIPPING_NOT_COLLECTED":
+		data, _ = json.Marshal(getShippingsPendingCollected())
 	case "USERS":
 		if !permissions.Admin {
 			return
@@ -1419,6 +1421,10 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(toggleShippingSent(int32(id)))
+	case "SET_SHIPPING_COLLECTED":
+		var shippings []int32
+		json.Unmarshal([]byte(message), &shippings)
+		data, _ = json.Marshal(setShippingCollected(shippings))
 	case "GET_SALES_DELIVERY_NOTE_RELATIONS":
 		if !permissions.Sales {
 			return
