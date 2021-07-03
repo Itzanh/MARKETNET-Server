@@ -15,6 +15,7 @@ func initialData() {
 	initialColorData()
 	initialIncotermData()
 	initialWarehouseData()
+	initiaBillingSeriesData()
 	initialConfig()
 	initialUser()
 	initialGroup()
@@ -189,6 +190,27 @@ func initialWarehouseData() {
 	}
 }
 
+func initiaBillingSeriesData() {
+	sqlStatement := `SELECT COUNT(*) FROM billing_series`
+	row := db.QueryRow(sqlStatement)
+	var rows int32
+	row.Scan(&rows)
+
+	if rows == 0 {
+		content, err := ioutil.ReadFile("./initial_data/billing_series.json")
+		if err != nil {
+			return
+		}
+
+		var billingSerie []BillingSerie
+		json.Unmarshal(content, &billingSerie)
+		for i := 0; i < len(billingSerie); i++ {
+			billingSerie[i].insertBillingSerie()
+		}
+		fmt.Println("INITIAL DATA: Generated billing series data")
+	}
+}
+
 func initialConfig() {
 	sqlStatement := `SELECT COUNT(*) FROM config WHERE id=1`
 	row := db.QueryRow(sqlStatement)
@@ -205,7 +227,10 @@ func initialConfig() {
 		json.Unmarshal(content, &config)
 
 		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`
-		db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections)
+		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections)
+		if err != nil {
+			fmt.Println(err)
+		}
 
 		fmt.Println("INITIAL DATA: Generated config data")
 	}
