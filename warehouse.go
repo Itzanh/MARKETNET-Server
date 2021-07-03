@@ -100,3 +100,11 @@ func getNameWarehouse(id string) string {
 	row.Scan(&name)
 	return name
 }
+
+// Regenerates the stock of the product for all the products in the database.
+// This "stock" field is the sum of the stock in all the warehouses.
+func regenerateProductStock() bool {
+	sqlStatement := `UPDATE product SET stock = CASE WHEN (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) IS NULL THEN 0 ELSE (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) END`
+	_, err := db.Exec(sqlStatement)
+	return err == nil
+}

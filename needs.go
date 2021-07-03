@@ -129,7 +129,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 				d.Price = supplierNeeds[j].product.Price
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
-				ok, detailId := d.insertPurchaseOrderDetail()
+				ok, detailId := d.insertPurchaseOrderDetail(false)
 				if !ok {
 					trans.Rollback()
 					return false

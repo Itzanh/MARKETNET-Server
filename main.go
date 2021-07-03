@@ -673,7 +673,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		}
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(message, &purchaseOrderDetail)
-		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail()
+		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
 	case "PURCHASE_DELIVERY_NOTE":
 		if !permissions.Purchases {
 			return
@@ -1562,6 +1562,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(regenerateDraggedStock(message))
+	case "REGENERATE_PRODUCT_STOCK":
+		if !permissions.Warehouse {
+			return
+		}
+		data, _ = json.Marshal(regenerateProductStock())
 	case "DISCONNECT":
 		if !permissions.Admin {
 			return
@@ -1572,6 +1577,10 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		importFromPrestaShop()
+	case "CALCULATE_MINIMUM_STOCK":
+		data, _ = json.Marshal(calculateMinimumStock())
+	case "GENERATE_MANUFACTURIG_OR_PURCHASE_ORDERS_MINIMUM_STOCK":
+		data, _ = json.Marshal(generateManufacturingOrPurchaseOrdersMinimumStock())
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1580,12 +1589,26 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 	var data []byte
 	switch command {
 	case "CUSTOMER":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(searchCustomers(message))
 	case "SUPPLER":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(searchSuppliers(message))
 	case "PRODUCT":
-		data, _ = json.Marshal(searchProduct(message))
+		if !permissions.Masters {
+			return
+		}
+		var productSearch ProductSearch
+		json.Unmarshal([]byte(message), &productSearch)
+		data, _ = json.Marshal(productSearch.searchProduct())
 	case "SHIPPING":
+		if !permissions.Preparation {
+			return
+		}
 		data, _ = json.Marshal(searchShippings(message))
 	case "SALES_ORDER":
 		if !permissions.Sales {

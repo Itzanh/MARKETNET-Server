@@ -89,6 +89,13 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 		return false
 	}
 
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
 	o.Uuid = uuid.New().String()
 	o.UserCreated = 1
 	if o.Type <= 0 {
@@ -115,6 +122,19 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 			return false
 		}
 	}
+
+	s := getSettingsRecord()
+	ok := addQuantityPendingManufacture(o.Product, s.DefaultWarehouse, 1)
+	if !ok {
+		return false
+	}
+
+	///
+	transErr = trans.Commit()
+	if transErr != nil {
+		return false
+	}
+	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
@@ -160,6 +180,12 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 		if !ok {
 			return false
 		}
+	}
+
+	s := getSettingsRecord()
+	ok := addQuantityPendingManufacture(inMemoryManufacturingOrder.Product, s.DefaultWarehouse, -1)
+	if !ok {
+		return false
 	}
 
 	///

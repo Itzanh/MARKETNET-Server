@@ -162,7 +162,7 @@ type ContactDefauls struct {
 	MainShippingAddressName *string  `json:"mainShippingAddressName"`
 	MainBillingAddress      *int32   `json:"mainBillingAddress"`
 	MainBillingAddressName  *string  `json:"mainBillingAddressName"`
-	PaymentMethod           *int32   `json:"paymentMethod"`
+	PaymentMethod           *int16   `json:"paymentMethod"`
 	PaymentMethodName       *string  `json:"paymentMethodName"`
 	BillingSeries           *string  `json:"billingSeries"`
 	BillingSeriesName       *string  `json:"billingSeriesName"`

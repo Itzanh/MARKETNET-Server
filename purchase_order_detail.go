@@ -1,5 +1,7 @@
 package main
 
+import "database/sql"
+
 type PurchaseOrderDetail struct {
 	Id                       int32   `json:"id"`
 	Order                    int32   `json:"order"`
@@ -48,7 +50,7 @@ func (d *PurchaseOrderDetail) isValid() bool {
 	return !(d.Order <= 0 || d.Product <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
-func (s *PurchaseOrderDetail) insertPurchaseOrderDetail() (bool, int32) {
+func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, int32) {
 	if !s.isValid() {
 		return false, 0
 	}
@@ -56,16 +58,22 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail() (bool, int32) {
 	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
-		return false, 0
+	var trans *sql.Tx
+	if beginTrans {
+		var err error
+		trans, err = db.Begin()
+		if err != nil {
+			return false, 0
+		}
 	}
 	///
 
 	sqlStatement := `INSERT INTO public.purchase_order_detail("order", product, price, quantity, vat_percent, total_amount, quantity_pending_packaging) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 	row := db.QueryRow(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Quantity)
 	if row.Err() != nil {
-		trans.Rollback()
+		if beginTrans {
+			trans.Rollback()
+		}
 		return false, 0
 	}
 	var detailId int32
@@ -73,15 +81,19 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail() (bool, int32) {
 
 	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float32(s.Quantity), s.VatPercent)
 	if !ok {
-		trans.Rollback()
+		if beginTrans {
+			trans.Rollback()
+		}
 		return false, 0
 	}
 
 	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(detailId, s.Product, s.Quantity)
 	sqlStatement = `UPDATE purchase_order_detail SET quantity_assigned_sale=$2 WHERE id=$1`
-	_, err = db.Exec(sqlStatement, detailId, quantityAssignedSale)
+	_, err := db.Exec(sqlStatement, detailId, quantityAssignedSale)
 	if err != nil {
-		trans.Rollback()
+		if beginTrans {
+			trans.Rollback()
+		}
 		return false, 0
 	}
 
@@ -89,21 +101,29 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail() (bool, int32) {
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
 	row = db.QueryRow(sqlStatement, s.Order)
 	if row.Err() != nil {
-		trans.Rollback()
+		if beginTrans {
+			trans.Rollback()
+		}
 		return false, 0
 	}
 	var warehouse string
 	row.Scan(&warehouse)
 	ok = addQuantityPendingReveiving(s.Product, warehouse, s.Quantity)
 	if !ok {
-		trans.Rollback()
+		if beginTrans {
+			trans.Rollback()
+		}
 		return false, 0
 	}
 
-	///
-	err = trans.Commit()
-	return err == nil, detailId
-	///
+	if beginTrans {
+		///
+		err = trans.Commit()
+		return err == nil, detailId
+		///
+	} else {
+		return true, detailId
+	}
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION

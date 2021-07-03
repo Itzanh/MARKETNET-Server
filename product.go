@@ -30,6 +30,8 @@ type Product struct {
 	PrestaShopId            int32     `json:"prestaShopId"`
 	PrestaShopCombinationId int32     `json:"prestaShopCombinationId"`
 	FamilyName              *string   `json:"familyName"`
+	MinimumStock            int32     `json:"minimumStock"`
+	TrackMinimumStock       bool      `json:"trackMinimumStock"`
 }
 
 func getProduct() []Product {
@@ -41,23 +43,33 @@ func getProduct() []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.FamilyName)
 		products = append(products, p)
 	}
 
 	return products
 }
 
-func searchProduct(search string) []Product {
+type ProductSearch struct {
+	Search            string `json:"search"`
+	TrackMinimumStock bool   `json:"trackMinimumStock"`
+}
+
+func (search *ProductSearch) searchProduct() []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE name ILIKE $1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	sqlStatement := ""
+	if search.TrackMinimumStock {
+		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE name ILIKE $1 AND track_minimum_stock=true ORDER BY id ASC`
+	} else {
+		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE name ILIKE $1 ORDER BY id ASC`
+	}
+	rows, err := db.Query(sqlStatement, "%"+search.Search+"%")
 	if err != nil {
 		return products
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -65,14 +77,14 @@ func searchProduct(search string) []Product {
 }
 
 func getProductRow(productId int32) Product {
-	sqlStatement := `SELECT * FROM public.product WHERE id = $1`
+	sqlStatement := `SELECT * FROM public.product WHERE id=$1`
 	row := db.QueryRow(sqlStatement, productId)
 	if row.Err() != nil {
 		return Product{}
 	}
 
 	p := Product{}
-	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
+	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock)
 
 	return p
 }
@@ -86,8 +98,8 @@ func (p *Product) insertProduct() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
-	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId)
+	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
+	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.PrestaShopId, p.PrestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock)
 	if err != nil {
 		return false
 	}
@@ -101,8 +113,8 @@ func (p *Product) updateProduct() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier)
+	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock)
 	if err != nil {
 		return false
 	}
@@ -358,4 +370,143 @@ func (i *ProductImage) deleteProductImage() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+func calculateMinimumStock() bool {
+	s := getSettingsRecord()
+	t := time.Now()
+	if s.MinimumStockSalesPeriods <= 0 || s.MinimumStockSalesDays <= 0 {
+		return false
+	}
+	t = t.AddDate(0, 0, -int(s.MinimumStockSalesDays))
+
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return false
+	}
+	///
+
+	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		trans.Rollback()
+		return false
+	}
+
+	for rows.Next() {
+		var productId int32
+		rows.Scan(&productId)
+
+		sqlStatement := `SELECT SUM(sales_order_detail.quantity) FROM sales_order_detail INNER JOIN sales_order ON sales_order.id=sales_order_detail.order WHERE sales_order_detail.product=$1 AND sales_order.date_created >= $2`
+		row := db.QueryRow(sqlStatement, productId, t)
+		if row.Err() != nil {
+			trans.Rollback()
+			return false
+		}
+
+		var quantitySold int32
+		row.Scan(&quantitySold)
+
+		sqlStatement = `UPDATE product SET minimum_stock=$2 WHERE id=$1`
+		_, err := db.Exec(sqlStatement, productId, quantitySold/int32(s.MinimumStockSalesPeriods))
+		if err != nil {
+			trans.Rollback()
+			return false
+		}
+	}
+
+	///
+	err = trans.Commit()
+	return err == nil
+	///
+}
+
+func generateManufacturingOrPurchaseOrdersMinimumStock() bool {
+	var generadedPurchaseOrders map[int32]PurchaseOrder = make(map[int32]PurchaseOrder) // Key: supplier ID, Value: generated purchase order
+
+	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2)`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return false
+	}
+
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return false
+	}
+	///
+
+	// iterate over the list of product that don't have covered the minimum stock
+	for rows.Next() {
+		var productId int32
+		var quantityAvailable int32
+		var minimumStock int32
+		var manufacturing bool
+		var manufacturingOrderType *int16
+		var supplier *int32
+		rows.Scan(&productId, &quantityAvailable, &minimumStock, &manufacturing, &manufacturingOrderType, &supplier)
+
+		if manufacturing { // if the product is from manufacture, generate the manufacturing orders
+			// generate manufacturing order or purchase orders until the available quantity is equal to the minimum stock * 2
+			for i := quantityAvailable; i < (minimumStock * 2); i++ {
+
+				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
+				ok := o.insertManufacturingOrder()
+				if !ok {
+					trans.Rollback()
+					return false
+				}
+			}
+		} else { // if the product is not from manufacture, generate the purchase order to the supplier
+			o, ok := generadedPurchaseOrders[*supplier]
+			if !ok { // there is no purchase order generated for this supplier, create it and add to the map
+				d := getSupplierDefaults(*supplier)
+				s := getSettingsRecord()
+				if d.BillingSeries == nil || d.Currency == nil || d.MainBillingAddress == nil || d.MainShippingAddress == nil || d.PaymentMethod == nil {
+					continue
+				}
+				p := PurchaseOrder{}
+				p.Warehouse = s.DefaultWarehouse
+				p.Supplier = *supplier
+				p.BillingSeries = *d.BillingSeries
+				p.Currency = *d.Currency
+				p.BillingAddress = *d.MainBillingAddress
+				p.ShippingAddress = *d.MainShippingAddress
+				p.PaymentMethod = *d.PaymentMethod
+
+				ok, purchaseOrderId := p.insertPurchaseOrder()
+				if !ok {
+					trans.Rollback()
+					return false
+				}
+				p.Id = purchaseOrderId
+				generadedPurchaseOrders[*supplier] = p
+
+				// generate the needs as a detail
+				product := getProductRow(productId)
+				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent}
+				ok, _ = det.insertPurchaseOrderDetail(false)
+				if !ok {
+					trans.Rollback()
+					return false
+				}
+			} else { // it already exists a purchase order for this supplier, add the needs as details
+				// generate the needs as a detail
+				product := getProductRow(productId)
+				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent}
+				ok, _ = det.insertPurchaseOrderDetail(false)
+				if !ok {
+					trans.Rollback()
+					return false
+				}
+			}
+		}
+	}
+
+	///
+	err = trans.Commit()
+	return err == nil
+	///
 }
