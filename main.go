@@ -37,7 +37,11 @@ func main() {
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
 	db, _ = sql.Open("postgres", psqlInfo) // control error
-	db.Ping()
+	err := db.Ping()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
