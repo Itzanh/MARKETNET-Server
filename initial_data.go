@@ -243,7 +243,7 @@ func initialUser() {
 	row.Scan(&rows)
 
 	if rows == 0 {
-		u := UserInsert{Username: "marketnet", FullName: "MARKETNET ADMINISTRATOR", Password: "admin1234"} // INITIAL PASSWORD, USER MUST CHANGE THIS!!!
+		u := UserInsert{Username: "marketnet", FullName: "MARKETNET ADMINISTRATOR", Password: "admin1234", Language: "en"} // INITIAL PASSWORD, USER MUST CHANGE THIS!!!
 		u.insertUser()
 
 		fmt.Println("INITIAL DATA: Generated admin user")

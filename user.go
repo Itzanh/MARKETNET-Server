@@ -21,6 +21,7 @@ type User struct {
 	Description        string    `json:"description"`
 	DateLastLogin      time.Time `json:"dateLastLogin"`
 	FailedLoginAttemps int16
+	Language           string `json:"language"`
 }
 
 func getUser() []User {
@@ -32,7 +33,7 @@ func getUser() []User {
 	}
 	for rows.Next() {
 		u := User{}
-		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps)
+		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language)
 		users = append(users, u)
 	}
 
@@ -47,7 +48,20 @@ func getUserByUsername(username string) User {
 	}
 
 	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps)
+	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language)
+
+	return u
+}
+
+func getUserRow(userId int16) User {
+	sqlStatement := `SELECT * FROM "user" WHERE id=$1`
+	row := db.QueryRow(sqlStatement, userId)
+	if row.Err() != nil {
+		return User{}
+	}
+
+	u := User{}
+	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language)
 
 	return u
 }
@@ -56,10 +70,11 @@ type UserInsert struct {
 	Username string `json:"username"`
 	FullName string `json:"fullName"`
 	Password string `json:"password"`
+	Language string `json:"language"`
 }
 
 func (u *UserInsert) isValid() bool {
-	return !(len(u.Username) == 0 || len(u.Username) > 40 || len(u.Password) < 8)
+	return !(len(u.Username) == 0 || len(u.Username) > 40 || len(u.Password) < 8 || len(u.Language) != 2)
 }
 
 func generateSalt() string {
@@ -96,8 +111,8 @@ func (u *UserInsert) insertUser() bool {
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
-	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations) VALUES ($1, $2, $3, $4, $5)`
-	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations)
+	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations, lang) VALUES ($1, $2, $3, $4, $5, $6)`
+	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations, u.Language)
 	if err != nil {
 		return false
 	}
@@ -107,7 +122,7 @@ func (u *UserInsert) insertUser() bool {
 }
 
 func (u *User) isValid() bool {
-	return !(len(u.Username) == 0 || len(u.Username) > 40 || len(u.FullName) > 150 || len(u.Email) > 100)
+	return !(len(u.Username) == 0 || len(u.Username) > 40 || len(u.FullName) > 150 || len(u.Email) > 100 || len(u.Language) != 2)
 }
 
 func (u *User) updateUser() bool {
@@ -115,8 +130,8 @@ func (u *User) updateUser() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."user" SET username=$2, full_name=$3, email=$4, dsc=$5 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, u.Id, u.Username, u.FullName, u.Email, u.Description)
+	sqlStatement := `UPDATE public."user" SET username=$2, full_name=$3, email=$4, dsc=$5, lang=$6 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, u.Id, u.Username, u.FullName, u.Email, u.Description, u.Language)
 	if err != nil {
 		return false
 	}
@@ -188,6 +203,7 @@ type UserLoginResult struct {
 	Ok          bool        `json:"ok"`
 	Token       string      `json:"token"`
 	Permissions Permissions `json:"permissions"`
+	Language    string      `json:"language"`
 }
 
 func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
@@ -206,7 +222,7 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
 		user.setUserFailedLoginAttemps(false)
 		t := LoginToken{User: user.Id, IpAddress: ipAddress}
 		t.insertLoginToken()
-		return UserLoginResult{Ok: true, Token: t.Name, Permissions: getUserPermissions(user.Id)}, user.Id
+		return UserLoginResult{Ok: true, Token: t.Name, Permissions: getUserPermissions(user.Id), Language: user.Language}, user.Id
 	} else { // the two arrays are different
 		user.setUserFailedLoginAttemps(true)
 		return UserLoginResult{Ok: false}, 0
