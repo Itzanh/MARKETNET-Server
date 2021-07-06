@@ -445,6 +445,7 @@ func setSalesOrderState(orderId int32) bool {
 
 type SaleOrderLocate struct {
 	Id           int32     `json:"id"`
+	Customer     int32     `json:"customer"`
 	CustomerName string    `json:"customerName"`
 	OrderName    string    `json:"orderName"`
 	DateCreated  time.Time `json:"dateCreated"`
@@ -452,14 +453,14 @@ type SaleOrderLocate struct {
 
 func locateSaleOrder() []SaleOrderLocate {
 	var sales []SaleOrderLocate = make([]SaleOrderLocate, 0)
-	sqlStatement := `SELECT id,(SELECT name FROM customer WHERE id=sales_order.id),order_name,date_created FROM sales_order ORDER BY date_created DESC`
+	sqlStatement := `SELECT id,customer,(SELECT name FROM customer WHERE id=sales_order.customer),order_name,date_created FROM sales_order ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return sales
 	}
 	for rows.Next() {
 		s := SaleOrderLocate{}
-		rows.Scan(&s.Id, &s.CustomerName, &s.OrderName, &s.DateCreated)
+		rows.Scan(&s.Id, &s.Customer, &s.CustomerName, &s.OrderName, &s.DateCreated)
 		sales = append(sales, s)
 	}
 
