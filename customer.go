@@ -181,3 +181,38 @@ func getCustomerDefaults(customerId int32) ContactDefauls {
 	row.Scan(&c.MainShippingAddress, &c.MainShippingAddressName, &c.MainBillingAddress, &c.MainBillingAddressName, &c.PaymentMethod, &c.PaymentMethodName, &c.BillingSeries, &c.BillingSeriesName, &c.Currency, &c.CurrencyName, &c.CurrencyChange)
 	return c
 }
+
+func getCustomerAddresses(customerId int32) []Address {
+	var addresses []Address = make([]Address, 0)
+	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address WHERE customer=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, customerId)
+	if err != nil {
+		return addresses
+	}
+	for rows.Next() {
+		a := Address{}
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ContactName, &a.CountryName, &a.StateName)
+		addresses = append(addresses, a)
+	}
+
+	return addresses
+}
+
+func getCustomerSaleOrders(customerId int32) []SaleOrder {
+	var sales []SaleOrder = make([]SaleOrder, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE customer=$1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, customerId)
+	if err != nil {
+		return sales
+	}
+	for rows.Next() {
+		s := SaleOrder{}
+		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId,
+			&s.CustomerName)
+		sales = append(sales, s)
+	}
+
+	return sales
+}
