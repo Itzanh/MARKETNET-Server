@@ -480,6 +480,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getCustomerSaleOrders(int32(id)))
+	case "SALES_DELIVERY_NOTE_ROW":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getSalesDeliveryNoteRow(int32(id)))
+	case "PURCHASE_DELIVERY_NOTE_ROW":
+		if !permissions.Purchases {
+			return
+		}
+		data, _ = json.Marshal(getPurchaseDeliveryNoteRow(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

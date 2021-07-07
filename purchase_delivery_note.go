@@ -82,6 +82,19 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() []PurchaseDeliveryNote {
 	return notes
 }
 
+func getPurchaseDeliveryNoteRow(deliveryNoteId int32) PurchaseDeliveryNote {
+	sqlStatement := `SELECT * FROM public.purchase_delivery_note WHERE id=$1`
+	row := db.QueryRow(sqlStatement, deliveryNoteId)
+	if row.Err() != nil {
+		return PurchaseDeliveryNote{}
+	}
+
+	p := PurchaseDeliveryNote{}
+	row.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange)
+
+	return p
+}
+
 func (n *PurchaseDeliveryNote) isValid() bool {
 	return !(len(n.Warehouse) == 0 || len(n.Warehouse) > 2 || n.Supplier <= 0 || n.PaymentMethod <= 0 || len(n.BillingSeries) == 0 || len(n.BillingSeries) > 3 || n.ShippingAddress <= 0)
 }
@@ -189,6 +202,8 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int32) (bool, int32) {
 		movement.PurchaseDeliveryNote = &deliveryNoteId
 		movement.PurchaseOrderDetail = &orderDetail.Id
 		movement.PurchaseOrder = &purchaseOrder.Id
+		movement.Price = orderDetail.Price
+		movement.VatPercent = orderDetail.VatPercent
 		ok = movement.insertWarehouseMovement()
 		if !ok {
 			trans.Rollback()
@@ -249,6 +264,8 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder() bool {
 		movement.PurchaseDeliveryNote = &deliveryNoteId
 		movement.PurchaseOrderDetail = &orderDetail.Id
 		movement.PurchaseOrder = &purchaseOrder.Id
+		movement.Price = orderDetail.Price
+		movement.VatPercent = orderDetail.VatPercent
 		ok = movement.insertWarehouseMovement()
 		if !ok {
 			trans.Rollback()
@@ -288,4 +305,31 @@ func getPurchaseDeliveryNoteOrders(noteId int32) []PurchaseOrder {
 	}
 
 	return orders
+}
+
+// Adds a total amount to the delivery note total. This function will subsctract from the total if the totalAmount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addTotalProductsPurchaseDeliveryNote(noteId int32, totalAmount float32, vatPercent float32) bool {
+	sqlStatement := `UPDATE purchase_delivery_note SET total_products=total_products+$2,total_vat=total_vat+$3 WHERE id=$1`
+	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	return calcTotalsPurchaseDeliveryNote(noteId)
+}
+
+// Applies the logic to calculate the totals of the delivery note.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func calcTotalsPurchaseDeliveryNote(noteId int32) bool {
+	sqlStatement := `UPDATE purchase_delivery_note SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+total_vat WHERE id=$1`
+	_, err := db.Exec(sqlStatement, noteId)
+	if err != nil {
+		return false
+	}
+
+	sqlStatement = `UPDATE purchase_delivery_note SET total_amount=total_with_discount+total_vat WHERE id=$1`
+	_, err = db.Exec(sqlStatement, noteId)
+	return err == nil
 }

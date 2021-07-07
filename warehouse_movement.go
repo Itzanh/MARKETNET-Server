@@ -25,6 +25,9 @@ type WarehouseMovement struct {
 	PurchaseDeliveryNote  *int32    `json:"purchaseDeliveryNote"`
 	DraggedStock          int32     `json:"draggedStock"`
 	ProductName           string    `json:"productName"`
+	Price                 float32   `json:"price"`
+	VatPercent            float32   `json:"vatPercent"`
+	TotalAmount           float32   `json:"totalAmount"`
 }
 
 func getWarehouseMovement() []WarehouseMovement {
@@ -36,7 +39,7 @@ func getWarehouseMovement() []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -56,7 +59,7 @@ func getWarehouseMovementByWarehouse(warehouseId string) []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -71,7 +74,7 @@ func getWarehouseMovementRow(movementId int64) WarehouseMovement {
 	}
 
 	m := WarehouseMovement{}
-	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
+	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount)
 
 	return m
 }
@@ -89,7 +92,7 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -109,7 +112,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -158,6 +161,8 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 		return false
 	}
 
+	m.TotalAmount = absf((m.Price * float32(m.Quantity)) * (1 + (m.VatPercent / 100)))
+
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
@@ -177,8 +182,8 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 
 	// insert the movement
-	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
-	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock)
+	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
+	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount)
 	if err != nil {
 		return false
 	}
@@ -203,6 +208,22 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 			return false
 		}
 	}
+	// sales delivery note price
+	if m.SalesDeliveryNote != nil {
+		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float32(m.Quantity)), m.VatPercent)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+	// purchase delivery note price
+	if m.PurchaseDeliveryNote != nil {
+		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float32(m.Quantity)), m.VatPercent)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
 
 	///
 	err = trans.Commit()
@@ -217,6 +238,14 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 
 // Abs returns the absolute value of x.
 func abs(x int32) int32 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+// Abs returns the absolute value of x.
+func absf(x float32) float32 {
 	if x < 0 {
 		return -x
 	}
@@ -300,6 +329,22 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	if inMemoryMovement.PurchaseOrderDetail != nil {
 		ok = addQuantityDeliveryNotePurchaseOrderDetail(*inMemoryMovement.PurchaseOrderDetail, -abs(inMemoryMovement.Quantity))
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+	// sales delivery note price
+	if inMemoryMovement.SalesDeliveryNote != nil {
+		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float32(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+	// purchase delivery note price
+	if inMemoryMovement.PurchaseDeliveryNote != nil {
+		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float32(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
 		if !ok {
 			trans.Rollback()
 			return false

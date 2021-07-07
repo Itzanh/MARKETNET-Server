@@ -21,7 +21,7 @@ type SalesDeliveryNote struct {
 	ShippingPrice      float32   `json:"shippingPrice"`
 	ShippingDiscount   float32   `json:"shippingDiscount"`
 	TotalWithDiscount  float32   `json:"totalWithDiscount"`
-	TotalVat           float32   `json:"totalVat"`
+	VatAmount          float32   `json:"vatAmount"`
 	TotalAmount        float32   `json:"totalAmount"`
 	LinesNumber        int16     `json:"linesNumber"`
 	DeliveryNoteNumber int32     `json:"deliveryNoteNumber"`
@@ -40,7 +40,7 @@ func getSalesDeliveryNotes() []SalesDeliveryNote {
 	}
 	for rows.Next() {
 		n := SalesDeliveryNote{}
-		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
+		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
 		notes = append(notes, n)
 	}
 
@@ -55,7 +55,7 @@ func getSalesDeliveryNoteRow(deliveryNoteId int32) SalesDeliveryNote {
 	}
 
 	n := SalesDeliveryNote{}
-	row.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange)
+	row.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange)
 
 	return n
 }
@@ -88,7 +88,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {
 	}
 	for rows.Next() {
 		n := SalesDeliveryNote{}
-		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.TotalVat, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
+		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
 		notes = append(notes, n)
 	}
 
@@ -202,6 +202,8 @@ func deliveryNoteAllSaleOrder(saleOrderId int32) (bool, int32) {
 		movement.SalesDeliveryNote = &deliveryNoteId
 		movement.SalesOrderDetail = &orderDetail.Id
 		movement.SalesOrder = &saleOrder.Id
+		movement.Price = orderDetail.Price
+		movement.VatPercent = orderDetail.VatPercent
 		ok = movement.insertWarehouseMovement()
 		if !ok {
 			trans.Rollback()
@@ -262,6 +264,8 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder() bool {
 		movement.SalesDeliveryNote = &deliveryNoteId
 		movement.SalesOrderDetail = &orderDetail.Id
 		movement.SalesOrder = &saleOrder.Id
+		movement.Price = orderDetail.Price
+		movement.VatPercent = orderDetail.VatPercent
 		ok = movement.insertWarehouseMovement()
 		if !ok {
 			trans.Rollback()
@@ -353,4 +357,30 @@ func getSalesDeliveryNoteShippings(noteId int32) []Shipping {
 	}
 
 	return shippings
+}
+
+// Adds a total amount to the delivery note total. This function will subsctract from the total if the totalAmount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addTotalProductsSalesDeliveryNote(noteId int32, totalAmount float32, vatPercent float32) bool {
+	sqlStatement := `UPDATE sales_delivery_note SET total_products=total_products+$2, vat_amount=vat_amount+$3 WHERE id=$1`
+	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
+	if err != nil {
+		return false
+	}
+
+	return calcTotalsSaleDeliveryNote(noteId)
+}
+
+// Applies the logic to calculate the totals of the sales delivery note.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func calcTotalsSaleDeliveryNote(noteId int32) bool {
+	sqlStatement := `UPDATE sales_delivery_note SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
+	_, err := db.Exec(sqlStatement, noteId)
+	if err != nil {
+		return false
+	}
+
+	sqlStatement = `UPDATE sales_delivery_note SET total_amount=total_with_discount+vat_amount WHERE id = $1`
+	_, err = db.Exec(sqlStatement, noteId)
+	return err == nil
 }

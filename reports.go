@@ -238,7 +238,7 @@ func reportSalesDeliveryNote(id int, forcePrint bool) []byte {
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
 	html = strings.Replace(html, "$$address_country$$", countryName, 1)
 	html = strings.Replace(html, "$$note_total_products$$", fmt.Sprintf("%.2f", n.TotalProducts), 1)
-	html = strings.Replace(html, "$$note_vat_amount$$", fmt.Sprintf("%.2f", n.TotalVat), 1)
+	html = strings.Replace(html, "$$note_vat_amount$$", fmt.Sprintf("%.2f", n.VatAmount), 1)
 	html = strings.Replace(html, "$$note_discount_percent$$", fmt.Sprintf("%.2f", n.DiscountPercent), 1)
 	html = strings.Replace(html, "$$note_fix_discount$$", fmt.Sprintf("%.2f", n.FixDiscount), 1)
 	html = strings.Replace(html, "$$note_shipping_price$$", fmt.Sprintf("%.2f", n.ShippingPrice), 1)
