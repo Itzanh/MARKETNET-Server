@@ -7,6 +7,8 @@ type PaymentMethod struct {
 	Name                 string `json:"name"`
 	PaidInAdvance        bool   `json:"paidInAdvance"`
 	PrestashopModuleName string `json:"prestashopModuleName"`
+	DaysExpiration       int16  `json:"daysExpiration"`
+	Bank                 *int32 `json:"bank"`
 }
 
 func getPaymentMethods() []PaymentMethod {
@@ -18,15 +20,28 @@ func getPaymentMethods() []PaymentMethod {
 	}
 	for rows.Next() {
 		p := PaymentMethod{}
-		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName)
+		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank)
 		paymentMethod = append(paymentMethod, p)
 	}
 
 	return paymentMethod
 }
 
+func getPaymentMethodRow(paymentMethodId int16) PaymentMethod {
+	sqlStatement := `SELECT * FROM public.payment_method WHERE id=$1`
+	row := db.QueryRow(sqlStatement, paymentMethodId)
+	if row.Err() != nil {
+		return PaymentMethod{}
+	}
+
+	p := PaymentMethod{}
+	row.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank)
+
+	return p
+}
+
 func (p *PaymentMethod) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 100)
+	return !(len(p.Name) == 0 || len(p.Name) > 100 || p.DaysExpiration < 0)
 }
 
 func (p *PaymentMethod) insertPaymentMethod() bool {
@@ -34,8 +49,8 @@ func (p *PaymentMethod) insertPaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance, prestashop_module_name) VALUES ($1, $2, $3)`
-	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance, &p.PrestashopModuleName)
+	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance, prestashop_module_name, days_expiration, bank) VALUES ($1, $2, $3, $4, $5)`
+	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank)
 	if err != nil {
 		return false
 	}
@@ -49,8 +64,8 @@ func (p *PaymentMethod) updatePaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3, prestashop_module_name=$4 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance, &p.PrestashopModuleName)
+	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3, prestashop_module_name=$4, days_expiration=$5, bank=$6 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank)
 	if err != nil {
 		return false
 	}

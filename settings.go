@@ -82,6 +82,12 @@ type Settings struct {
 	PrestashopStatusShipped         int32   `json:"prestashopStatusShipped"`
 	MinimumStockSalesPeriods        int16   `json:"minimumStockSalesPeriods"`
 	MinimumStockSalesDays           int16   `json:"minimumStockSalesDays"`
+	CustomerJournal                 *int16  `json:"customerJournal"`
+	SalesJournal                    *int16  `json:"salesJournal"`
+	SalesAccount                    *int32  `json:"salesAccount"`
+	SupplierJournal                 *int16  `json:"supplierJournal"`
+	PurchaseJournal                 *int16  `json:"purchaseJournal"`
+	PurchaseAccount                 *int32  `json:"purchaseAccount"`
 }
 
 func getSettingsRecord() Settings {
@@ -93,7 +99,7 @@ func getSettingsRecord() Settings {
 
 	var s Settings
 	var id int32
-	row.Scan(&id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.DefaultWarehouseName)
+	row.Scan(&id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.DefaultWarehouseName)
 	return s
 }
 
@@ -106,8 +112,23 @@ func (s *Settings) updateSettingsRecord() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30 WHERE id=1`
-	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays)
+	var salesAccount *int32
+	if s.SalesJournal != nil && *s.SalesJournal > 0 {
+		acc := getAccountIdByAccountNumber(*s.SalesJournal, 1)
+		if acc > 0 {
+			salesAccount = &acc
+		}
+	}
+	var purchaseAccount *int32
+	if s.PurchaseJournal != nil && *s.PurchaseJournal > 0 {
+		acc := getAccountIdByAccountNumber(*s.PurchaseJournal, 1)
+		if acc > 0 {
+			purchaseAccount = &acc
+		}
+	}
+
+	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36 WHERE id=1`
+	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays, s.CustomerJournal, s.SalesJournal, salesAccount, s.SupplierJournal, s.PurchaseJournal, purchaseAccount)
 	if err != nil {
 		return false
 	}

@@ -8,26 +8,27 @@ import (
 )
 
 type PurchaseInvoice struct {
-	Id                int32     `json:"id"`
-	Supplier          int32     `json:"supplier"`
-	DateCreated       time.Time `json:"dateCreated"`
-	PaymentMethod     int16     `json:"paymentMethod"`
-	BillingSeries     string    `json:"billingSeries"`
-	Currency          int16     `json:"currency"`
-	CurrencyChange    float32   `json:"currencyChange"`
-	BillingAddress    int32     `json:"billingAddress"`
-	TotalProducts     float32   `json:"totalProducts"`
-	DiscountPercent   float32   `json:"discountPercent"`
-	FixDiscount       float32   `json:"fixDiscount"`
-	ShippingPrice     float32   `json:"shippingPrice"`
-	ShippingDiscount  float32   `json:"shippingDiscount"`
-	TotalWithDiscount float32   `json:"totalWithDiscount"`
-	VatAmount         float32   `json:"vatAmount"`
-	TotalAmount       float32   `json:"totalAmount"`
-	LinesNumber       int16     `json:"linesNumber"`
-	InvoiceNumber     int32     `json:"invoiceNumber"`
-	InvoiceName       string    `json:"invoiceName"`
-	SupplierName      string    `json:"supplierName"`
+	Id                 int32     `json:"id"`
+	Supplier           int32     `json:"supplier"`
+	DateCreated        time.Time `json:"dateCreated"`
+	PaymentMethod      int16     `json:"paymentMethod"`
+	BillingSeries      string    `json:"billingSeries"`
+	Currency           int16     `json:"currency"`
+	CurrencyChange     float32   `json:"currencyChange"`
+	BillingAddress     int32     `json:"billingAddress"`
+	TotalProducts      float32   `json:"totalProducts"`
+	DiscountPercent    float32   `json:"discountPercent"`
+	FixDiscount        float32   `json:"fixDiscount"`
+	ShippingPrice      float32   `json:"shippingPrice"`
+	ShippingDiscount   float32   `json:"shippingDiscount"`
+	TotalWithDiscount  float32   `json:"totalWithDiscount"`
+	VatAmount          float32   `json:"vatAmount"`
+	TotalAmount        float32   `json:"totalAmount"`
+	LinesNumber        int16     `json:"linesNumber"`
+	InvoiceNumber      int32     `json:"invoiceNumber"`
+	InvoiceName        string    `json:"invoiceName"`
+	AccountingMovement *int64    `json:"accountingMovement"`
+	SupplierName       string    `json:"supplierName"`
 }
 
 func getPurchaseInvoices() []PurchaseInvoice {
@@ -41,7 +42,7 @@ func getPurchaseInvoices() []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.SupplierName)
+			&i.AccountingMovement, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -67,6 +68,9 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 			sqlStatement += ` AND purchase_invoice.date_created <= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateEnd)
 		}
+		if s.NotPosted {
+			sqlStatement += ` AND accounting_movement IS NULL`
+		}
 		sqlStatement += ` ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
@@ -78,7 +82,7 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.SupplierName)
+			&i.AccountingMovement, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -94,7 +98,8 @@ func getPurchaseInvoiceRow(invoiceId int32) PurchaseInvoice {
 
 	i := PurchaseInvoice{}
 	row.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName)
+		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+		&i.AccountingMovement)
 
 	return i
 }

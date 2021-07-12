@@ -24,6 +24,7 @@ type Customer struct {
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
 	PrestaShopId        int32     `json:"prestaShopId"`
+	Account             *int32    `json:"account"`
 	CountryName         *string   `json:"countryName"`
 }
 
@@ -36,7 +37,7 @@ func getCustomers() []Customer {
 	}
 	for rows.Next() {
 		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.CountryName)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.CountryName)
 		customers = append(customers, c)
 	}
 
@@ -52,7 +53,7 @@ func searchCustomers(search string) []Customer {
 	}
 	for rows.Next() {
 		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.CountryName)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.CountryName)
 		customers = append(customers, c)
 	}
 
@@ -67,7 +68,7 @@ func getCustomerRow(customerId int32) Customer {
 	}
 
 	c := Customer{}
-	row.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId)
+	row.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account)
 
 	return c
 }
@@ -81,12 +82,18 @@ func (c *Customer) insertCustomer() bool {
 		return false
 	}
 
+	// prevent error in the biling serie
 	if c.BillingSeries != nil && *c.BillingSeries == "" {
 		c.BillingSeries = nil
 	}
 
-	sqlStatement := `INSERT INTO public.customer(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, ps_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
-	res, err := db.Exec(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.PrestaShopId)
+	// set the accounting account
+	if c.Country != nil && c.Account == nil {
+		c.setCustomerAccount()
+	}
+
+	sqlStatement := `INSERT INTO public.customer(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, ps_id, account) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
+	res, err := db.Exec(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.PrestaShopId, c.Account)
 	if err != nil {
 		return false
 	}
@@ -100,12 +107,18 @@ func (c *Customer) updateCustomer() bool {
 		return false
 	}
 
+	// prevent error in the biling serie
 	if c.BillingSeries != nil && *c.BillingSeries == "" {
 		c.BillingSeries = nil
 	}
 
-	sqlStatement := `UPDATE public.customer SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries)
+	// set the accounting account
+	if c.Country != nil && c.Account == nil {
+		c.setCustomerAccount()
+	}
+
+	sqlStatement := `UPDATE public.customer SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16, account=$17 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.Account)
 	if err != nil {
 		return false
 	}
@@ -215,4 +228,28 @@ func getCustomerSaleOrders(customerId int32) []SaleOrder {
 	}
 
 	return sales
+}
+
+func (c *Customer) setCustomerAccount() {
+	sqlStatement := `SELECT un_code FROM country WHERE id=$1`
+	row := db.QueryRow(sqlStatement, c.Country)
+	if row.Err() != nil {
+		return
+	}
+
+	var unCode int16
+	row.Scan(&unCode)
+	if unCode <= 0 {
+		return
+	}
+
+	s := getSettingsRecord()
+	if s.CustomerJournal == nil {
+		return
+	}
+
+	aId := getAccountIdByAccountNumber(*s.CustomerJournal, int32(unCode)) // 430 -> standard for "Customers"
+	if aId > 0 {
+		c.Account = &aId
+	}
 }

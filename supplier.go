@@ -23,6 +23,7 @@ type Supplier struct {
 	PaymentMethod       *int16    `json:"paymentMethod"`
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
+	Account             *int32    `json:"account"`
 	CountryName         *string   `json:"countryName"`
 }
 
@@ -34,9 +35,9 @@ func getSuppliers() []Supplier {
 		return suppliers
 	}
 	for rows.Next() {
-		c := Supplier{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.CountryName)
-		suppliers = append(suppliers, c)
+		s := Supplier{}
+		rows.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated, &s.Account, &s.CountryName)
+		suppliers = append(suppliers, s)
 	}
 
 	return suppliers
@@ -50,9 +51,9 @@ func searchSuppliers(search string) []Supplier {
 		return suppliers
 	}
 	for rows.Next() {
-		c := Supplier{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.CountryName)
-		suppliers = append(suppliers, c)
+		s := Supplier{}
+		rows.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated, &s.Account, &s.CountryName)
+		suppliers = append(suppliers, s)
 	}
 
 	return suppliers
@@ -66,7 +67,7 @@ func getSupplierRow(supplierId int32) Supplier {
 	}
 
 	s := Supplier{}
-	row.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated)
+	row.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated, &s.Account)
 
 	return s
 }
@@ -80,12 +81,18 @@ func (s *Supplier) insertSupplier() bool {
 		return false
 	}
 
+	// prevent error in the biling serie
 	if s.BillingSeries != nil && *s.BillingSeries == "" {
 		s.BillingSeries = nil
 	}
 
-	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
-	res, err := db.Exec(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
+	// set the accounting account
+	if s.Country != nil && s.Account == nil {
+		s.setSupplierAccount()
+	}
+
+	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, account) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+	res, err := db.Exec(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries, s.Account)
 	if err != nil {
 		return false
 	}
@@ -99,12 +106,18 @@ func (s *Supplier) updateSupplier() bool {
 		return false
 	}
 
+	// prevent error in the biling serie
 	if s.BillingSeries != nil && *s.BillingSeries == "" {
 		s.BillingSeries = nil
 	}
 
-	sqlStatement := `UPDATE public.suppliers SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries)
+	// set the accounting account
+	if s.Country != nil && s.Account == nil {
+		s.setSupplierAccount()
+	}
+
+	sqlStatement := `UPDATE public.suppliers SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16, account=$17 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries, s.Account)
 	if err != nil {
 		return false
 	}
@@ -164,4 +177,31 @@ func getSupplierDefaults(customerId int32) ContactDefauls {
 	s := ContactDefauls{}
 	row.Scan(&s.MainShippingAddress, &s.MainShippingAddressName, &s.MainBillingAddress, &s.MainBillingAddressName, &s.PaymentMethod, &s.PaymentMethodName, &s.BillingSeries, &s.BillingSeriesName, &s.Currency, &s.CurrencyName, &s.CurrencyChange)
 	return s
+}
+
+func (c *Supplier) setSupplierAccount() {
+	sqlStatement := `SELECT un_code FROM country WHERE id=$1`
+	row := db.QueryRow(sqlStatement, c.Country)
+	if row.Err() != nil {
+		return
+	}
+
+	var unCode int16
+	row.Scan(&unCode)
+	if unCode <= 0 {
+		return
+	}
+
+	s := getSettingsRecord()
+	if s.SupplierJournal == nil {
+		return
+	}
+
+	a := Account{}
+	a.Journal = *s.SupplierJournal
+	a.Name = c.FiscalName
+	ok := a.insertAccount()
+	if ok {
+		c.Account = &a.Id
+	}
 }
