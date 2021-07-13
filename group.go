@@ -3,6 +3,7 @@ package main
 // When adding fields to this table/struct, add them also to:
 // The Permissions struct, and the getUserPermissions function at the bottom of this file.
 // The getUserGroupsIn function at the beginning of the user_group.go file.
+// The initialGroup function in the initial_data.go file, the admin always has all the permissions set.
 type Group struct {
 	Id            int16  `json:"id"`
 	Name          string `json:"name"`

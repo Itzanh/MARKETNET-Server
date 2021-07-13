@@ -16,6 +16,8 @@ func initialData() {
 	initialIncotermData()
 	initialWarehouseData()
 	initiaBillingSeriesData()
+	initialJournals()
+	initialAccount()
 	initialConfig()
 	initialUser()
 	initialGroup()
@@ -211,6 +213,50 @@ func initiaBillingSeriesData() {
 	}
 }
 
+func initialJournals() {
+	sqlStatement := `SELECT COUNT(*) FROM journal`
+	row := db.QueryRow(sqlStatement)
+	var rows int32
+	row.Scan(&rows)
+
+	if rows == 0 {
+		content, err := ioutil.ReadFile("./initial_data/journal.json")
+		if err != nil {
+			return
+		}
+
+		var journal []Journal
+		json.Unmarshal(content, &journal)
+		for i := 0; i < len(journal); i++ {
+			journal[i].insertJournal()
+		}
+
+		fmt.Println("INITIAL DATA: Generated journal data")
+	}
+}
+
+func initialAccount() {
+	sqlStatement := `SELECT COUNT(*) FROM account`
+	row := db.QueryRow(sqlStatement)
+	var rows int32
+	row.Scan(&rows)
+
+	if rows == 0 {
+		content, err := ioutil.ReadFile("./initial_data/accounts.json")
+		if err != nil {
+			return
+		}
+
+		var account []Account
+		json.Unmarshal(content, &account)
+		for i := 0; i < len(account); i++ {
+			account[i].insertAccount()
+		}
+
+		fmt.Println("INITIAL DATA: Generated accounts data")
+	}
+}
+
 func initialConfig() {
 	sqlStatement := `SELECT COUNT(*) FROM config WHERE id=1`
 	row := db.QueryRow(sqlStatement)
@@ -226,8 +272,23 @@ func initialConfig() {
 		var config Settings
 		json.Unmarshal(content, &config)
 
-		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`
-		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections)
+		var salesAccount *int32
+		if config.SalesJournal != nil && *config.SalesJournal > 0 {
+			acc := getAccountIdByAccountNumber(*config.SalesJournal, 1)
+			if acc > 0 {
+				salesAccount = &acc
+			}
+		}
+		var purchaseAccount *int32
+		if config.PurchaseJournal != nil && *config.PurchaseJournal > 0 {
+			acc := getAccountIdByAccountNumber(*config.PurchaseJournal, 1)
+			if acc > 0 {
+				purchaseAccount = &acc
+			}
+		}
+
+		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)`
+		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, config.CustomerJournal, config.SalesJournal, salesAccount, config.SupplierJournal, config.PurchaseJournal, purchaseAccount)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -257,7 +318,7 @@ func initialGroup() {
 	row.Scan(&rows)
 
 	if rows == 0 {
-		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true}
+		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true, Accounting: true}
 		g.insertGroup()
 
 		fmt.Println("INITIAL DATA: Generated admin group")

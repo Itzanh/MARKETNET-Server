@@ -1,0 +1,1 @@
+[{ "id": 400, "name": "Proveedores", "type": "G" }, { "id": 430, "name": "Clientes", "type": "S" }, { "id": 472, "name": "Hacienda pública, IVA soportado", "type": "G" }, { "id": 477, "name": "Hacienda pública, IVA repercutido", "type": "G" }, { "id": 570, "name": "Caja", "type": "B" }, { "id": 600, "name": "Compras", "type": "G" }, { "id": 700, "name": "Ventas", "type": "S" }]
