@@ -345,16 +345,34 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		data, _ = json.Marshal(getConnections())
 	case "JOURNALS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getJournals())
 	case "ACCOUNTS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getAccounts())
 	case "ACCOUNTING_MOVEMENTS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getAccountingMovement())
 	case "CONFIG_ACCOUNTS_VAT":
+		if !permissions.Admin {
+			return
+		}
 		data, _ = json.Marshal(getConfigAccountsVat())
 	case "PENDING_COLLECTION_OPERATIONS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getPendingColletionOperations())
 	case "PENDING_PAYMENT_TRANSACTIONS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getPendingPaymentTransaction())
 	default:
 		found = false
@@ -503,18 +521,39 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		data, _ = json.Marshal(getPurchaseDeliveryNoteRow(int32(id)))
 	case "ACCOUNTING_MOVEMENT_DETAILS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getAccountingMovementDetail(int64(id)))
 	case "ACCOUNTING_MOVEMENT_SALE_INVOICES":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getAccountingMovementSaleInvoices(int64(id)))
 	case "ACCOUNTING_MOVEMENT_COLLECTION_OPERATION":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getColletionOperations(int64(id)))
 	case "COLLECTION_OPERATION_CHARGES":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getCharges(int32(id)))
 	case "ACCOUNTING_MOVEMENT_PAYMENT_TRANSACTIONS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getPaymentTransactions(int64(id)))
 	case "PAYMENT_TRANSACTION_PAYMENTS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getPayments(int32(id)))
 	case "ACCOUNTING_MOVEMENT_PURCHASE_INVOICES":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(getAccountingMovementPurchaseInvoices(int64(id)))
 	case "SUPPLIER_ADDRESSES":
 		if !permissions.Masters {
@@ -766,30 +805,51 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &pallet)
 		ok = pallet.insertPallet()
 	case "JOURNAL":
+		if !permissions.Accounting {
+			return
+		}
 		var journal Journal
 		json.Unmarshal(message, &journal)
 		ok = journal.insertJournal()
 	case "ACCOUNT":
+		if !permissions.Accounting {
+			return
+		}
 		var account Account
 		json.Unmarshal(message, &account)
 		ok = account.insertAccount()
 	case "ACCOUNTING_MOVEMENT":
+		if !permissions.Accounting {
+			return
+		}
 		var accountingMovement AccountingMovement
 		json.Unmarshal(message, &accountingMovement)
 		ok = accountingMovement.insertAccountingMovement()
 	case "ACCOUNTING_MOVEMENT_DETAIL":
+		if !permissions.Accounting {
+			return
+		}
 		var accountingMovementDetail AccountingMovementDetail
 		json.Unmarshal(message, &accountingMovementDetail)
 		ok = accountingMovementDetail.insertAccountingMovementDetail()
 	case "CONFIG_ACCOUNTS_VAT":
+		if !permissions.Admin {
+			return
+		}
 		var configAccountsVat ConfigAccountsVat
 		json.Unmarshal(message, &configAccountsVat)
 		ok = configAccountsVat.insertConfigAccountsVat()
 	case "CHARGES":
+		if !permissions.Accounting {
+			return
+		}
 		var charges Charges
 		json.Unmarshal(message, &charges)
 		ok = charges.insertCharges()
 	case "PAYMENT":
+		if !permissions.Accounting {
+			return
+		}
 		var payment Payment
 		json.Unmarshal(message, &payment)
 		ok = payment.insertPayment()
@@ -957,10 +1017,16 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &pallet)
 		ok = pallet.updatePallet()
 	case "JOURNAL":
+		if !permissions.Accounting {
+			return
+		}
 		var journal Journal
 		json.Unmarshal(message, &journal)
 		ok = journal.updateJournal()
 	case "ACCOUNT":
+		if !permissions.Accounting {
+			return
+		}
 		var account Account
 		json.Unmarshal(message, &account)
 		ok = account.updateAccount()
@@ -995,6 +1061,9 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &userGroup)
 		ok = userGroup.deleteUserGroup()
 	case "CONFIG_ACCOUNTS_VAT":
+		if !permissions.Admin {
+			return
+		}
 		id, err := strconv.ParseFloat(message, 32)
 		if err != nil || id < 0 {
 			return
@@ -1226,26 +1295,44 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		pallet.Id = int32(id)
 		ok = pallet.deletePallet()
 	case "JOURNAL":
+		if !permissions.Accounting {
+			return
+		}
 		var journal Journal
 		journal.Id = int16(id)
 		ok = journal.deleteJournal()
 	case "ACCOUNT":
+		if !permissions.Accounting {
+			return
+		}
 		var account Account
 		account.Id = int32(id)
 		ok = account.deleteAccount()
 	case "ACCOUNTING_MOVEMENT":
+		if !permissions.Accounting {
+			return
+		}
 		var accountingMovement AccountingMovement
 		accountingMovement.Id = int64(id)
 		ok = accountingMovement.deleteAccountingMovement()
 	case "ACCOUNTING_MOVEMENT_DETAIL":
+		if !permissions.Accounting {
+			return
+		}
 		var accountingMovementDetail AccountingMovementDetail
 		accountingMovementDetail.Id = int64(id)
 		ok = accountingMovementDetail.deleteAccountingMovementDetail()
 	case "CHARGES":
+		if !permissions.Accounting {
+			return
+		}
 		var charges Charges
 		charges.Id = int32(id)
 		ok = charges.deleteCharges()
 	case "PAYMENT":
+		if !permissions.Accounting {
+			return
+		}
 		var payment Payment
 		payment.Id = int32(id)
 		ok = payment.deletePayment()
@@ -1423,10 +1510,19 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 	case "DOCUMENT_CONTAINER":
 		data, _ = json.Marshal(locateDocumentContainer())
 	case "LOCATE_ACCOUNT_CUSTOMER":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(locateAccountForCustomer())
 	case "LOCATE_ACCOUNT_SUPPLIER":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(locateAccountForSupplier())
 	case "LOCATE_ACCOUNT_BANKS":
+		if !permissions.Accounting {
+			return
+		}
 		data, _ = json.Marshal(locateAccountForBanks())
 	default:
 		found = false
@@ -1715,14 +1811,26 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		importFromPrestaShop()
 	case "CALCULATE_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(calculateMinimumStock())
 	case "GENERATE_MANUFACTURIG_OR_PURCHASE_ORDERS_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(generateManufacturingOrPurchaseOrdersMinimumStock())
 	case "SALES_POST_INVOICES":
+		if !permissions.Accounting {
+			return
+		}
 		var invoiceIds []int32
 		json.Unmarshal([]byte(message), &invoiceIds)
 		data, _ = json.Marshal(salesPostInvoices(invoiceIds))
 	case "PURCHASE_POST_INVOICES":
+		if !permissions.Accounting {
+			return
+		}
 		var invoiceIds []int32
 		json.Unmarshal([]byte(message), &invoiceIds)
 		data, _ = json.Marshal(purchasePostInvoices(invoiceIds))

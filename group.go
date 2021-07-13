@@ -1,5 +1,8 @@
 package main
 
+// When adding fields to this table/struct, add them also to:
+// The Permissions struct, and the getUserPermissions function at the bottom of this file.
+// The getUserGroupsIn function at the beginning of the user_group.go file.
 type Group struct {
 	Id            int16  `json:"id"`
 	Name          string `json:"name"`
@@ -11,6 +14,7 @@ type Group struct {
 	Preparation   bool   `json:"preparation"`
 	Admin         bool   `json:"admin"`
 	PrestaShop    bool   `json:"prestashop"`
+	Accounting    bool   `json:"accounting"`
 }
 
 func getGroup() []Group {
@@ -22,7 +26,7 @@ func getGroup() []Group {
 	}
 	for rows.Next() {
 		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop)
+		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting)
 		groups = append(groups, g)
 	}
 
@@ -38,8 +42,8 @@ func (g *Group) insertGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop)
+	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, &g.Accounting)
 	if err != nil {
 		return false
 	}
@@ -53,8 +57,8 @@ func (g *Group) updateGroup() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop)
+	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10, accounting=$11 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop, &g.Accounting)
 	if err != nil {
 		return false
 	}
@@ -87,6 +91,7 @@ type Permissions struct {
 	Preparation   bool `json:"preparation"`
 	Admin         bool `json:"admin"`
 	PrestaShop    bool `json:"prestashop"`
+	Accounting    bool `json:"accounting"`
 }
 
 func getUserPermissions(userId int16) Permissions {
@@ -117,6 +122,9 @@ func getUserPermissions(userId int16) Permissions {
 		}
 		if ug.GroupsIn[i].PrestaShop {
 			p.PrestaShop = true
+		}
+		if ug.GroupsIn[i].Accounting {
+			p.Accounting = true
 		}
 	}
 

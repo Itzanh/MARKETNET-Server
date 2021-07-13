@@ -1,0 +1,1 @@
+ALTER TABLE public."group" ADD COLUMN accounting boolean NOT NULL DEFAULT false;
