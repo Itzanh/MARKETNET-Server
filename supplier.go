@@ -179,6 +179,40 @@ func getSupplierDefaults(customerId int32) ContactDefauls {
 	return s
 }
 
+func getSupplierAddresses(supplierId int32) []Address {
+	var addresses []Address = make([]Address, 0)
+	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address WHERE supplier=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, supplierId)
+	if err != nil {
+		return addresses
+	}
+	for rows.Next() {
+		a := Address{}
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ContactName, &a.CountryName, &a.StateName)
+		addresses = append(addresses, a)
+	}
+
+	return addresses
+}
+
+func getSupplierPurchaseOrders(supplierId int32) []PurchaseOrder {
+	var purchases []PurchaseOrder = make([]PurchaseOrder, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order WHERE supplier=$1 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, supplierId)
+	if err != nil {
+		return purchases
+	}
+	for rows.Next() {
+		s := PurchaseOrder{}
+		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.SupplierName)
+		purchases = append(purchases, s)
+	}
+
+	return purchases
+}
+
 func (c *Supplier) setSupplierAccount() {
 	sqlStatement := `SELECT un_code FROM country WHERE id=$1`
 	row := db.QueryRow(sqlStatement, c.Country)

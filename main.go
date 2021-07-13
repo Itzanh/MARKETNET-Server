@@ -516,6 +516,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		data, _ = json.Marshal(getPayments(int32(id)))
 	case "ACCOUNTING_MOVEMENT_PURCHASE_INVOICES":
 		data, _ = json.Marshal(getAccountingMovementPurchaseInvoices(int64(id)))
+	case "SUPPLIER_ADDRESSES":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(getSupplierAddresses(int32(id)))
+	case "SUPPLIER_PURCHASE_ORDERS":
+		if !permissions.Purchases {
+			return
+		}
+		data, _ = json.Marshal(getSupplierPurchaseOrders(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
