@@ -1906,12 +1906,24 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &orderSearch)
 		data, _ = json.Marshal(orderSearch.searchPurchaseDeliveryNote())
 	case "COUNTRY":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(searchCountries(message))
 	case "STATE":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(searchStates(message))
 	case "ADDRESS":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(searchAddresses(message))
 	case "LANGUAGE":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(searchLanguages(message))
 	case "WAREHOUSE_MOVEMENT":
 		if !permissions.Warehouse {
@@ -1920,6 +1932,18 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		var warehouseMovement WarehouseMovementSearch
 		json.Unmarshal([]byte(message), &warehouseMovement)
 		data, _ = json.Marshal(warehouseMovement.searchWarehouseMovement())
+	case "ACCOUNT":
+		if !permissions.Accounting {
+			return
+		}
+		var accountSearch AccountSearch
+		json.Unmarshal([]byte(message), &accountSearch)
+		data, _ = json.Marshal(accountSearch.searchAccounts())
+	case "ACCOUNTING_MOVEMENTS":
+		if !permissions.Accounting {
+			return
+		}
+		data, _ = json.Marshal(searchAccountingMovements(message))
 	}
 	ws.WriteMessage(mt, data)
 }

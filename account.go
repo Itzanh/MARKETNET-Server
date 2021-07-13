@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+)
 
 type Account struct {
 	Id            int32   `json:"id"`
@@ -16,6 +19,35 @@ func getAccounts() []Account {
 	accounts := make([]Account, 0)
 	sqlStatement := `SELECT * FROM public.account ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return accounts
+	}
+
+	for rows.Next() {
+		a := Account{}
+		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber)
+		accounts = append(accounts, a)
+	}
+
+	return accounts
+}
+
+type AccountSearch struct {
+	Journal int32  `json:"journal"`
+	Search  string `json:"search"`
+}
+
+func (s *AccountSearch) searchAccounts() []Account {
+	accounts := make([]Account, 0)
+	var rows *sql.Rows
+	var err error
+	if s.Journal <= 0 {
+		sqlStatement := `SELECT * FROM public.account WHERE name ILIKE $1 ORDER BY id ASC`
+		rows, err = db.Query(sqlStatement, "%"+s.Search+"%")
+	} else {
+		sqlStatement := `SELECT * FROM public.account WHERE name ILIKE $1 AND journal=$2 ORDER BY id ASC`
+		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", s.Journal)
+	}
 	if err != nil {
 		return accounts
 	}

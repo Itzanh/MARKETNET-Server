@@ -33,6 +33,23 @@ func getAccountingMovement() []AccountingMovement {
 	return accountingMovements
 }
 
+func searchAccountingMovements(search string) []AccountingMovement {
+	accountingMovements := make([]AccountingMovement, 0)
+	sqlStatement := `SELECT DISTINCT accounting_movement.*,(SELECT name FROM billing_series WHERE billing_series.id=accounting_movement.billing_serie) FROM accounting_movement INNER JOIN accounting_movement_detail ON accounting_movement_detail.movement=accounting_movement.id LEFT JOIN sales_invoice ON sales_invoice.accounting_movement=accounting_movement.id LEFT JOIN customer ON customer.id=sales_invoice.customer LEFT JOIN purchase_invoice ON purchase_invoice.accounting_movement=accounting_movement.id LEFT JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE accounting_movement_detail.document_name ILIKE $1 OR customer.name ILIKE $1 OR suppliers.name ILIKE $1 ORDER BY accounting_movement.date_created DESC`
+	rows, err := db.Query(sqlStatement, "%"+search+"%")
+	if err != nil {
+		return accountingMovements
+	}
+
+	for rows.Next() {
+		a := AccountingMovement{}
+		rows.Scan(&a.Id, &a.DateCreated, &a.AmountDebit, &a.AmountCredit, &a.FiscalYear, &a.Type, &a.BillingSerie, &a.BillingSerieName)
+		accountingMovements = append(accountingMovements, a)
+	}
+
+	return accountingMovements
+}
+
 func getAccountingMovementRow(accountingMovementId int64) AccountingMovement {
 	sqlStatement := `SELECT * FROM public.accounting_movement WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, accountingMovementId)
