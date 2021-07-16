@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,7 @@ var db *sql.DB
 var connections []Connection
 
 func main() {
+	// read settings
 	var ok bool
 	settings, ok = getBackendSettings()
 	if !ok {
@@ -35,6 +37,7 @@ func main() {
 		return
 	}
 
+	// connect to PostgreSQL
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", settings.Db.Host, settings.Db.Port, settings.Db.User, settings.Db.Password, settings.Db.Dbname)
 	db, _ = sql.Open("postgres", psqlInfo) // control error
 	err := db.Ping()
@@ -43,6 +46,18 @@ func main() {
 		return
 	}
 
+	// installation
+	if !installDB() {
+		os.Exit(1)
+	}
+
+	// initial data
+	initialData()
+	if len(os.Args) == 2 && os.Args[1] == "--install-only" {
+		return
+	}
+
+	// listen to requests
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
@@ -55,9 +70,8 @@ func main() {
 		go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
 	}
 
-	initialData()
+	// crons
 	go cleanDocumentTokens()
-
 	s := getSettingsRecord()
 	c := cron.New()
 	if s.Currency != "_" {
