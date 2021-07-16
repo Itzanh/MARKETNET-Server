@@ -28,18 +28,19 @@ type WarehouseMovement struct {
 	Price                 float32   `json:"price"`
 	VatPercent            float32   `json:"vatPercent"`
 	TotalAmount           float32   `json:"totalAmount"`
+	WarehouseName         string    `json:"warehouseName"`
 }
 
 func getWarehouseMovement() []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM public.warehouse_movement ORDER BY id DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -52,14 +53,14 @@ func getWarehouseMovementByWarehouse(warehouseId string) []WarehouseMovement {
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement, warehouseId)
 	if err != nil {
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 

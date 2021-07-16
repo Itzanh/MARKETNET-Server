@@ -121,7 +121,7 @@ func getSalesOrderAwaitingShipping() []SaleOrder {
 
 func getSalesOrderStatus(status string) []SaleOrder {
 	var sales []SaleOrder = make([]SaleOrder, 0)
-	sqlStatement := `SELECT * FROM sales_order WHERE status = $1 ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE status = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, status)
 	if err != nil {
 		return sales
@@ -130,7 +130,8 @@ func getSalesOrderStatus(status string) []SaleOrder {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId,
+			&s.CustomerName)
 		sales = append(sales, s)
 	}
 

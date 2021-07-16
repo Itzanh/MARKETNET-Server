@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"time"
 )
@@ -252,4 +253,45 @@ func (c *Customer) setCustomerAccount() {
 	if aId > 0 {
 		c.Account = &aId
 	}
+}
+
+type CustomerLocate struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+type CustomerLocateQuery struct {
+	Mode  int32  `json:"mode"` // 0 = ID, 1 = Name
+	Value string `json:"value"`
+}
+
+func (q *CustomerLocateQuery) locateCustomers() []CustomerLocate {
+	var customers []CustomerLocate = make([]CustomerLocate, 0)
+	sqlStatement := ``
+	parameters := make([]interface{}, 0)
+	if q.Value == "" {
+		sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC`
+	} else if q.Mode == 0 {
+		id, err := strconv.Atoi(q.Value)
+		if err != nil {
+			sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC`
+		} else {
+			sqlStatement = `SELECT id,name FROM public.customer WHERE id=$1`
+			parameters = append(parameters, id)
+		}
+	} else if q.Mode == 1 {
+		sqlStatement = `SELECT id,name FROM public.customer WHERE name ILIKE $1 ORDER BY id ASC`
+		parameters = append(parameters, "%"+q.Value+"%")
+	}
+	rows, err := db.Query(sqlStatement, parameters...)
+	if err != nil {
+		return customers
+	}
+	for rows.Next() {
+		c := CustomerLocate{}
+		rows.Scan(&c.Id, &c.Name)
+		customers = append(customers, c)
+	}
+
+	return customers
 }

@@ -510,3 +510,48 @@ func generateManufacturingOrPurchaseOrdersMinimumStock() bool {
 	return err == nil
 	///
 }
+
+type ProductLocate struct {
+	Id        int32  `json:"id"`
+	Name      string `json:"name"`
+	Reference string `json:"reference"`
+}
+
+type ProductLocateQuery struct {
+	Mode  int32  `json:"mode"` // 0 = ID, 1 = Name, 2 = Reference
+	Value string `json:"value"`
+}
+
+func (q *ProductLocateQuery) locateProduct() []ProductLocate {
+	var products []ProductLocate = make([]ProductLocate, 0)
+	sqlStatement := ``
+	parameters := make([]interface{}, 0)
+	if q.Value == "" {
+		sqlStatement = `SELECT id,name,reference FROM product ORDER BY id ASC`
+	} else if q.Mode == 0 {
+		id, err := strconv.Atoi(q.Value)
+		if err != nil {
+			sqlStatement = `SELECT id,name,reference FROM product ORDER BY id ASC`
+		} else {
+			sqlStatement = `SELECT id,name,reference FROM product WHERE id=$1`
+			parameters = append(parameters, id)
+		}
+	} else if q.Mode == 1 {
+		sqlStatement = `SELECT id,name,reference FROM product WHERE name ILIKE $1 ORDER BY id ASC`
+		parameters = append(parameters, "%"+q.Value+"%")
+	} else if q.Mode == 2 {
+		sqlStatement = `SELECT id,name,reference FROM product WHERE reference ILIKE $1 ORDER BY id ASC`
+		parameters = append(parameters, "%"+q.Value+"%")
+	}
+	rows, err := db.Query(sqlStatement, parameters...)
+	if err != nil {
+		return products
+	}
+	for rows.Next() {
+		p := ProductLocate{}
+		rows.Scan(&p.Id, &p.Name, &p.Reference)
+		products = append(products, p)
+	}
+
+	return products
+}

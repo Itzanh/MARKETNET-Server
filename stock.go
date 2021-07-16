@@ -8,18 +8,19 @@ type Stock struct {
 	QuantityPendingServed      int32  `json:"quantityPendingServed"`
 	QuantityAvaialbe           int32  `json:"quantityAvaialbe"`
 	QuantityPendingManufacture int32  `json:"quantityPendingManufacture"`
+	WarehouseName              string `json:"warehouseName"`
 }
 
 func getStock(productId int32) []Stock {
 	var stock []Stock = make([]Stock, 0)
-	sqlStatement := `SELECT * FROM stock WHERE product = $1 ORDER BY warehouse ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=stock.warehouse) FROM stock WHERE product=$1 ORDER BY warehouse ASC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return stock
 	}
 	for rows.Next() {
 		s := Stock{}
-		rows.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaialbe, &s.QuantityPendingManufacture)
+		rows.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaialbe, &s.QuantityPendingManufacture, &s.WarehouseName)
 		stock = append(stock, s)
 	}
 

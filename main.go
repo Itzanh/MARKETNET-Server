@@ -1524,6 +1524,27 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(locateAccountForBanks())
+	case "LOCATE_PRODUCT":
+		if !permissions.Masters {
+			return
+		}
+		var productLocateQuery ProductLocateQuery
+		json.Unmarshal([]byte(message), &productLocateQuery)
+		data, _ = json.Marshal(productLocateQuery.locateProduct())
+	case "LOCATE_CUSTOMER":
+		if !permissions.Masters {
+			return
+		}
+		var customerLocateQuery CustomerLocateQuery
+		json.Unmarshal([]byte(message), &customerLocateQuery)
+		data, _ = json.Marshal(customerLocateQuery.locateCustomers())
+	case "LOCATE_SUPPLIER":
+		if !permissions.Masters {
+			return
+		}
+		var supplierLocateQuery SupplierLocateQuery
+		json.Unmarshal([]byte(message), &supplierLocateQuery)
+		data, _ = json.Marshal(supplierLocateQuery.locateSuppliers())
 	default:
 		found = false
 	}

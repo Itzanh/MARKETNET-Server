@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"time"
 )
@@ -238,4 +239,45 @@ func (c *Supplier) setSupplierAccount() {
 	if ok {
 		c.Account = &a.Id
 	}
+}
+
+type SupplierLocate struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+type SupplierLocateQuery struct {
+	Mode  int32  `json:"mode"` // 0 = ID, 1 = Name
+	Value string `json:"value"`
+}
+
+func (q *SupplierLocateQuery) locateSuppliers() []SupplierLocate {
+	var suppliers []SupplierLocate = make([]SupplierLocate, 0)
+	sqlStatement := ``
+	parameters := make([]interface{}, 0)
+	if q.Value == "" {
+		sqlStatement = `SELECT id,name FROM public.suppliers ORDER BY id ASC`
+	} else if q.Mode == 0 {
+		id, err := strconv.Atoi(q.Value)
+		if err != nil {
+			sqlStatement = `SELECT id,name FROM public.suppliers ORDER BY id ASC`
+		} else {
+			sqlStatement = `SELECT id,name FROM public.suppliers WHERE id=$1`
+			parameters = append(parameters, id)
+		}
+	} else if q.Mode == 1 {
+		sqlStatement = `SELECT id,name FROM public.suppliers WHERE name ILIKE $1 ORDER BY id ASC`
+		parameters = append(parameters, "%"+q.Value+"%")
+	}
+	rows, err := db.Query(sqlStatement, parameters...)
+	if err != nil {
+		return suppliers
+	}
+	for rows.Next() {
+		s := SupplierLocate{}
+		rows.Scan(&s.Id, &s.Name)
+		suppliers = append(suppliers, s)
+	}
+
+	return suppliers
 }
