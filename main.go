@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// installation
-	if len(os.Args) != 2 || (len(os.Args) == 2 && os.Args[1] != "--dev-no-upgrade-database") {
+	if !isParameterPresent("--dev-no-upgrade-database") {
 		if !installDB() {
 			os.Exit(1)
 		}
@@ -55,10 +55,10 @@ func main() {
 
 	// initial data
 	initialData()
-	if len(os.Args) == 2 && os.Args[1] == "--install-only" {
+	if isParameterPresent("--install-only") {
 		return
 	}
-	if len(os.Args) == 2 && os.Args[1] == "--generate-demo-data" {
+	if isParameterPresent("--generate-demo-data") {
 		generateDemoData()
 	}
 
@@ -2019,4 +2019,13 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		data, _ = json.Marshal(searchAccountingMovements(message))
 	}
 	ws.WriteMessage(mt, data)
+}
+
+func isParameterPresent(parameter string) bool {
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i] == parameter {
+			return true
+		}
+	}
+	return false
 }
