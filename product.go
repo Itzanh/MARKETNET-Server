@@ -252,14 +252,14 @@ func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
 // Get the warehouse movements with the product specified.
 func getProductWarehouseMovement(productId int32) []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM warehouse_movement WHERE product=$1 ORDER BY warehouse_movement.id DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM warehouse_movement WHERE product=$1 ORDER BY warehouse_movement.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 

@@ -31,40 +31,67 @@ type WarehouseMovement struct {
 	WarehouseName         string    `json:"warehouseName"`
 }
 
-func getWarehouseMovement() []WarehouseMovement {
-	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement)
-	if err != nil {
-		return warehouseMovements
-	}
-	for rows.Next() {
-		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
-		warehouseMovements = append(warehouseMovements, m)
-	}
-
-	return warehouseMovements
+type WarehouseMovements struct {
+	Rows      int32               `json:"rows"`
+	Movements []WarehouseMovement `json:"movements"`
 }
 
-func getWarehouseMovementByWarehouse(warehouseId string) []WarehouseMovement {
-	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	if len(warehouseId) == 0 || len(warehouseId) > 2 {
-		return warehouseMovements
+func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
+	wm := WarehouseMovements{}
+	if !q.isValid() {
+		return wm
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, warehouseId)
+	wm.Movements = make([]WarehouseMovement, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement ORDER BY id DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
-		return warehouseMovements
+		return wm
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
-		warehouseMovements = append(warehouseMovements, m)
+		wm.Movements = append(wm.Movements, m)
 	}
 
-	return warehouseMovements
+	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement`
+	row := db.QueryRow(sqlStatement)
+	row.Scan(&wm.Rows)
+
+	return wm
+}
+
+type WarehouseMovementByWarehouse struct {
+	PaginationQuery
+	WarehouseId string `json:"warehouseId"`
+}
+
+func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() WarehouseMovements {
+	wm := WarehouseMovements{}
+	wm.Movements = make([]WarehouseMovement, 0)
+	if len(w.WarehouseId) == 0 || len(w.WarehouseId) > 2 {
+		return wm
+	}
+
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC OFFSET $2 LIMIT $3`
+	rows, err := db.Query(sqlStatement, w.WarehouseId, w.Offset, w.Limit)
+	if err != nil {
+		return wm
+	}
+	for rows.Next() {
+		m := WarehouseMovement{}
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		wm.Movements = append(wm.Movements, m)
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement WHERE warehouse=$1`
+	row := db.QueryRow(sqlStatement, w.WarehouseId)
+	if row.Err() != nil {
+		return wm
+	}
+	row.Scan(&wm.Rows)
+
+	return wm
 }
 
 func getWarehouseMovementRow(movementId int64) WarehouseMovement {
@@ -121,14 +148,19 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 }
 
 type WarehouseMovementSearch struct {
-	Search    string     `json:"search"`
+	PaginatedSearch
 	DateStart *time.Time `json:"dateStart"`
 	DateEnd   *time.Time `json:"dateEnd"`
 }
 
-func (w *WarehouseMovementSearch) searchWarehouseMovement() []WarehouseMovement {
-	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT warehouse_movement.* FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
+func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
+	wm := WarehouseMovements{}
+	if !w.isValid() {
+		return wm
+	}
+
+	wm.Movements = make([]WarehouseMovement, 0)
+	sqlStatement := `SELECT warehouse_movement.*,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
 	parameters := make([]interface{}, 0)
 	parameters = append(parameters, "%"+w.Search+"%")
 	if w.DateStart != nil {
@@ -139,18 +171,37 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() []WarehouseMovement 
 		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(parameters)+1)
 		parameters = append(parameters, w.DateEnd)
 	}
-	sqlStatement += ` ORDER BY warehouse_movement.id DESC`
+	sqlStatement += ` ORDER BY warehouse_movement.id DESC OFFSET $` + strconv.Itoa(len(parameters)+1) + ` LIMIT $` + strconv.Itoa(len(parameters)+2)
+	parameters = append(parameters, w.Offset)
+	parameters = append(parameters, w.Limit)
 	rows, err := db.Query(sqlStatement, parameters...)
 	if err != nil {
-		return warehouseMovements
+		return wm
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock)
-		warehouseMovements = append(warehouseMovements, m)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		wm.Movements = append(wm.Movements, m)
 	}
 
-	return warehouseMovements
+	sqlStatement = `SELECT COUNT(warehouse_movement.*) FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
+	parameters = make([]interface{}, 0)
+	parameters = append(parameters, "%"+w.Search+"%")
+	if w.DateStart != nil {
+		sqlStatement += ` AND warehouse_movement.date_created >= $2`
+		parameters = append(parameters, w.DateStart)
+	}
+	if w.DateEnd != nil {
+		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(parameters)+1)
+		parameters = append(parameters, w.DateEnd)
+	}
+	row := db.QueryRow(sqlStatement, parameters...)
+	if row.Err() != nil {
+		return wm
+	}
+	row.Scan(&wm.Rows)
+
+	return wm
 }
 
 func (m *WarehouseMovement) isValid() bool {

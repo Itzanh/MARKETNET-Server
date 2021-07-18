@@ -283,8 +283,6 @@ func exportToJSON(tableName string) string {
 
 	var data []byte
 	switch tableName {
-	case "address":
-		data, _ = json.Marshal(getAddresses())
 	case "billing_series":
 		data, _ = json.Marshal(getBillingSeries())
 	case "carrier":
@@ -297,8 +295,6 @@ func exportToJSON(tableName string) string {
 		data, _ = json.Marshal(getCountries())
 	case "currency":
 		data, _ = json.Marshal(getCurrencies())
-	case "customer":
-		data, _ = json.Marshal(getCustomers())
 	case "document":
 		data, _ = json.Marshal(getDocuments())
 	case "document_container":
@@ -327,12 +323,6 @@ func exportToJSON(tableName string) string {
 		data, _ = json.Marshal(getPurchaseInvoices())
 	case "purchase_order":
 		data, _ = json.Marshal(getPurchaseOrder())
-	case "sales_delivery_note":
-		data, _ = json.Marshal(getSalesDeliveryNotes())
-	case "sales_invoice":
-		data, _ = json.Marshal(getSalesInvoices())
-	case "sales_order":
-		data, _ = json.Marshal(getSalesOrder())
 	case "shipping":
 		data, _ = json.Marshal(getShippings())
 	case "state":
@@ -343,8 +333,6 @@ func exportToJSON(tableName string) string {
 		data, _ = json.Marshal(getUser())
 	case "warehouse":
 		data, _ = json.Marshal(getWarehouses())
-	case "warehouse_movement":
-		data, _ = json.Marshal(getWarehouseMovement())
 	default:
 		return ""
 	}

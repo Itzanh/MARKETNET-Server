@@ -47,14 +47,17 @@ func main() {
 	}
 
 	// installation
-	if !installDB() {
+	/*if !installDB() {
 		os.Exit(1)
-	}
+	}*/
 
 	// initial data
 	initialData()
 	if len(os.Args) == 2 && os.Args[1] == "--install-only" {
 		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "--generate-demo-data" {
+		generateDemoData()
 	}
 
 	// listen to requests
@@ -200,6 +203,15 @@ func commandProcessor(instruction string, command string, message []byte, mt int
 	}
 }
 
+type PaginationQuery struct {
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
+}
+
+func (q *PaginationQuery) isValid() bool {
+	return !(q.Offset < 0 || q.Limit < 0)
+}
+
 func instructionGet(command string, message string, mt int, ws *websocket.Conn, permissions Permissions) {
 	var found bool = true
 	var data []byte
@@ -207,7 +219,9 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 	if permissions.Masters {
 		switch command {
 		case "ADDRESS":
-			data, _ = json.Marshal(getAddresses())
+			var paginationQuery PaginationQuery
+			json.Unmarshal([]byte(message), &paginationQuery)
+			data, _ = json.Marshal(paginationQuery.getAddresses())
 		case "PRODUCT":
 			data, _ = json.Marshal(getProduct())
 		case "PRODUCT_FAMILY":
@@ -225,7 +239,9 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		case "STATE":
 			data, _ = json.Marshal(getStates())
 		case "CUSTOMER":
-			data, _ = json.Marshal(getCustomers())
+			var paginationQuery PaginationQuery
+			json.Unmarshal([]byte(message), &paginationQuery)
+			data, _ = json.Marshal(paginationQuery.getCustomers())
 		case "COLOR":
 			data, _ = json.Marshal(getColor())
 		case "PACKAGES":
@@ -263,7 +279,9 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Sales {
 			return
 		}
-		data, _ = json.Marshal(getSalesOrder())
+		var paginationQuery PaginationQuery
+		json.Unmarshal([]byte(message), &paginationQuery)
+		data, _ = json.Marshal(paginationQuery.getSalesOrder())
 	case "SALES_ORDER_PREPARATION":
 		if !permissions.Preparation {
 			return
@@ -283,7 +301,9 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Sales {
 			return
 		}
-		data, _ = json.Marshal(getSalesInvoices())
+		var paginationQuery PaginationQuery
+		json.Unmarshal([]byte(message), &paginationQuery)
+		data, _ = json.Marshal(paginationQuery.getSalesInvoices())
 	case "MANUFACTURING_ORDER_TYPE":
 		if (!permissions.Manufacturing) && (!permissions.Masters) {
 			return
@@ -293,17 +313,23 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Warehouse {
 			return
 		}
-		data, _ = json.Marshal(getWarehouseMovement())
+		var paginationQuery PaginationQuery
+		json.Unmarshal([]byte(message), &paginationQuery)
+		data, _ = json.Marshal(paginationQuery.getWarehouseMovement())
 	case "WAREHOUSE_WAREHOUSE_MOVEMENTS":
 		if !permissions.Warehouse {
 			return
 		}
-		data, _ = json.Marshal(getWarehouseMovementByWarehouse(message))
+		var warehouseMovementByWarehouse WarehouseMovementByWarehouse
+		json.Unmarshal([]byte(message), &warehouseMovementByWarehouse)
+		data, _ = json.Marshal(warehouseMovementByWarehouse.getWarehouseMovementByWarehouse())
 	case "SALES_DELIVERY_NOTES":
 		if !permissions.Sales {
 			return
 		}
-		data, _ = json.Marshal(getSalesDeliveryNotes())
+		var paginationQuery PaginationQuery
+		json.Unmarshal([]byte(message), &paginationQuery)
+		data, _ = json.Marshal(paginationQuery.getSalesDeliveryNotes())
 	case "SHIPPINGS":
 		if !permissions.Preparation {
 			return
@@ -1873,6 +1899,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 	ws.WriteMessage(mt, data)
 }
 
+type PaginatedSearch struct {
+	PaginationQuery
+	Search string `json:"search"`
+}
+
 func instructionSearch(command string, message string, mt int, ws *websocket.Conn, permissions Permissions) {
 	var data []byte
 	switch command {
@@ -1880,7 +1911,9 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Masters {
 			return
 		}
-		data, _ = json.Marshal(searchCustomers(message))
+		var paginatedSearch PaginatedSearch
+		json.Unmarshal([]byte(message), &paginatedSearch)
+		data, _ = json.Marshal(paginatedSearch.searchCustomers())
 	case "SUPPLER":
 		if !permissions.Masters {
 			return
@@ -1954,7 +1987,9 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Masters {
 			return
 		}
-		data, _ = json.Marshal(searchAddresses(message))
+		var paginatedSearch PaginatedSearch
+		json.Unmarshal([]byte(message), &paginatedSearch)
+		data, _ = json.Marshal(paginatedSearch.searchAddresses())
 	case "LANGUAGE":
 		if !permissions.Masters {
 			return

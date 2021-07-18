@@ -28,6 +28,22 @@ func getStates() []State {
 	return cities
 }
 
+func getStatesByCountry(countryId int16) []State {
+	var cities []State = make([]State, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=state.country) FROM public.state WHERE country=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, countryId)
+	if err != nil {
+		return cities
+	}
+	for rows.Next() {
+		c := State{}
+		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode, &c.CountryName)
+		cities = append(cities, c)
+	}
+
+	return cities
+}
+
 func (c *State) isValid() bool {
 	return !(c.Country <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.IsoCode) > 7)
 }

@@ -10,7 +10,7 @@ type Country struct {
 	Iso2        string `json:"iso2"`
 	Iso3        string `json:"iso3"`
 	UNCode      int16  `json:"unCode"`
-	Zone        string `json:"zone"`
+	Zone        string `json:"zone"` // N = National, U = European Union, E = Export
 	PhonePrefix int16  `json:"phonePrefix"`
 	Language    *int16 `json:"language"`
 	Currency    *int16 `json:"currency"`

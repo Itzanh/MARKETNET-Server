@@ -31,20 +31,34 @@ type SalesDeliveryNote struct {
 	CustomerName       string    `json:"customerName"`
 }
 
-func getSalesDeliveryNotes() []SalesDeliveryNote {
-	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM public.sales_delivery_note ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement)
+type SalesDeliveryNotes struct {
+	Rows  int32               `json:"rows"`
+	Notes []SalesDeliveryNote `json:"notes"`
+}
+
+func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
+	sd := SalesDeliveryNotes{}
+	if !q.isValid() {
+		return sd
+	}
+
+	sd.Notes = make([]SalesDeliveryNote, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM public.sales_delivery_note ORDER BY date_created DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
-		return notes
+		return sd
 	}
 	for rows.Next() {
 		n := SalesDeliveryNote{}
 		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
-		notes = append(notes, n)
+		sd.Notes = append(sd.Notes, n)
 	}
 
-	return notes
+	sqlStatement = `SELECT COUNT(*) FROM public.sales_delivery_note`
+	row := db.QueryRow(sqlStatement)
+	row.Scan(&sd.Rows)
+
+	return sd
 }
 
 func getSalesDeliveryNoteRow(deliveryNoteId int32) SalesDeliveryNote {
@@ -60,8 +74,13 @@ func getSalesDeliveryNoteRow(deliveryNoteId int32) SalesDeliveryNote {
 	return n
 }
 
-func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {
-	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
+func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
+	sd := SalesDeliveryNotes{}
+	if !s.isValid() {
+		return sd
+	}
+
+	sd.Notes = make([]SalesDeliveryNote, 0)
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
@@ -79,20 +98,45 @@ func (s *OrderSearch) searchSalesDelvieryNotes() []SalesDeliveryNote {
 			sqlStatement += ` AND sales_delivery_note.date_created <= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateEnd)
 		}
-		sqlStatement += ` ORDER BY date_created DESC`
+		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
+		interfaces = append(interfaces, s.Offset)
+		interfaces = append(interfaces, s.Limit)
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {
-		fmt.Println(err)
-		return notes
+		return sd
 	}
 	for rows.Next() {
 		n := SalesDeliveryNote{}
 		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.CustomerName)
-		notes = append(notes, n)
+		sd.Notes = append(sd.Notes, n)
 	}
 
-	return notes
+	var row *sql.Row
+	orderNumber, err = strconv.Atoi(s.Search)
+	if err == nil {
+		sqlStatement := `SELECT COUNT(*) FROM sales_delivery_note WHERE delivery_note_number=$1`
+		row = db.QueryRow(sqlStatement, orderNumber)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT COUNT(*) FROM sales_delivery_note INNER JOIN customer ON customer.id=sales_delivery_note.customer WHERE customer.name ILIKE $1`
+		if s.DateStart != nil {
+			sqlStatement += ` AND sales_delivery_note.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND sales_delivery_note.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		row = db.QueryRow(sqlStatement, interfaces...)
+	}
+	if row.Err() != nil {
+		return sd
+	}
+	row.Scan(&sd.Rows)
+
+	return sd
 }
 
 func (n *SalesDeliveryNote) isValid() bool {

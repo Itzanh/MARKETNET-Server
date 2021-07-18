@@ -44,12 +44,22 @@ type SaleOrder struct {
 	CustomerName       string     `json:"customerName"`
 }
 
-func getSalesOrder() []SaleOrder {
-	var sales []SaleOrder = make([]SaleOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement)
+type SaleOrders struct {
+	Rows   int32       `json:"rows"`
+	Orders []SaleOrder `json:"orders"`
+}
+
+func (q *PaginationQuery) getSalesOrder() SaleOrders {
+	so := SaleOrders{}
+	if !q.isValid() {
+		return so
+	}
+
+	so.Orders = make([]SaleOrder, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order ORDER BY date_created DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
-		return sales
+		return so
 	}
 	for rows.Next() {
 		s := SaleOrder{}
@@ -57,21 +67,30 @@ func getSalesOrder() []SaleOrder {
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
 			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId,
 			&s.CustomerName)
-		sales = append(sales, s)
+		so.Orders = append(so.Orders, s)
 	}
 
-	return sales
+	sqlStatement = `SELECT COUNT(*) FROM public.sales_order`
+	row := db.QueryRow(sqlStatement)
+	row.Scan(&so.Rows)
+
+	return so
 }
 
 type SalesOrderSearch struct {
-	Search    string     `json:"search"`
+	PaginatedSearch
 	DateStart *time.Time `json:"dateStart"`
 	DateEnd   *time.Time `json:"dateEnd"`
 	Status    string     `json:"status"`
 }
 
-func (s *SalesOrderSearch) searchSalesOrder() []SaleOrder {
-	var sales []SaleOrder = make([]SaleOrder, 0)
+func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
+	so := SaleOrders{}
+	if !s.isValid() {
+		return so
+	}
+
+	so.Orders = make([]SaleOrder, 0)
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
@@ -93,11 +112,13 @@ func (s *SalesOrderSearch) searchSalesOrder() []SaleOrder {
 			sqlStatement += ` AND status = $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.Status)
 		}
-		sqlStatement += ` ORDER BY date_created DESC`
+		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
+		interfaces = append(interfaces, s.Offset)
+		interfaces = append(interfaces, s.Limit)
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {
-		return sales
+		return so
 	}
 	for rows.Next() {
 		s := SaleOrder{}
@@ -105,10 +126,38 @@ func (s *SalesOrderSearch) searchSalesOrder() []SaleOrder {
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
 			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId,
 			&s.CustomerName)
-		sales = append(sales, s)
+		so.Orders = append(so.Orders, s)
 	}
 
-	return sales
+	var row *sql.Row
+	orderNumber, err = strconv.Atoi(s.Search)
+	if err == nil {
+		sqlStatement := `SELECT COUNT(*) FROM sales_order WHERE order_number=$1 ORDER BY date_created DESC`
+		row = db.QueryRow(sqlStatement, orderNumber)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT COUNT(*) FROM sales_order INNER JOIN customer ON customer.id=sales_order.customer WHERE (reference ILIKE $1 OR customer.name ILIKE $1)`
+		if s.DateStart != nil {
+			sqlStatement += ` AND sales_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND sales_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		if s.Status != "" {
+			sqlStatement += ` AND status = $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.Status)
+		}
+		row = db.QueryRow(sqlStatement, interfaces...)
+	}
+	if row.Err() != nil {
+		return so
+	}
+	row.Scan(&so.Rows)
+
+	return so
 }
 
 func getSalesOrderPreparation() []SaleOrder {

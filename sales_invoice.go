@@ -31,33 +31,52 @@ type SalesInvoice struct {
 	CustomerName       string    `json:"customerName"`
 }
 
-func getSalesInvoices() []SalesInvoice {
-	var invoices []SalesInvoice = make([]SalesInvoice, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement)
+type SaleInvoices struct {
+	Rows     int32          `json:"rows"`
+	Invoices []SalesInvoice `json:"invoices"`
+}
+
+func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
+	si := SaleInvoices{}
+	if !q.isValid() {
+		return si
+	}
+
+	si.Invoices = make([]SalesInvoice, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice ORDER BY date_created DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
-		return invoices
+		return si
 	}
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
 			&i.AccountingMovement, &i.CustomerName)
-		invoices = append(invoices, i)
+		si.Invoices = append(si.Invoices, i)
 	}
 
-	return invoices
+	sqlStatement = `SELECT COUNT(*) FROM public.sales_invoice`
+	row := db.QueryRow(sqlStatement)
+	row.Scan(&si.Rows)
+
+	return si
 }
 
 type OrderSearch struct {
-	Search    string     `json:"search"`
+	PaginatedSearch
 	DateStart *time.Time `json:"dateStart"`
 	DateEnd   *time.Time `json:"dateEnd"`
 	NotPosted bool       `json:"notPosted"`
 }
 
-func (s *OrderSearch) searchSalesInvoices() []SalesInvoice {
-	var invoices []SalesInvoice = make([]SalesInvoice, 0)
+func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
+	si := SaleInvoices{}
+	if !s.isValid() {
+		return si
+	}
+
+	si.Invoices = make([]SalesInvoice, 0)
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
@@ -78,21 +97,50 @@ func (s *OrderSearch) searchSalesInvoices() []SalesInvoice {
 		if s.NotPosted {
 			sqlStatement += ` AND accounting_movement IS NULL`
 		}
-		sqlStatement += ` ORDER BY date_created DESC`
+		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
+		interfaces = append(interfaces, s.Offset)
+		interfaces = append(interfaces, s.Limit)
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {
-		return invoices
+		return si
 	}
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
 			&i.AccountingMovement, &i.CustomerName)
-		invoices = append(invoices, i)
+		si.Invoices = append(si.Invoices, i)
 	}
 
-	return invoices
+	var row *sql.Row
+	orderNumber, err = strconv.Atoi(s.Search)
+	if err == nil {
+		sqlStatement := `SELECT COUNT(*) FROM sales_invoice WHERE invoice_number=$1 ORDER BY date_created DESC`
+		row = db.QueryRow(sqlStatement, orderNumber)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT COUNT(*) FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
+		if s.DateStart != nil {
+			sqlStatement += ` AND sales_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND sales_invoice.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		if s.NotPosted {
+			sqlStatement += ` AND accounting_movement IS NULL`
+		}
+		row = db.QueryRow(sqlStatement, interfaces...)
+	}
+	if row.Err() != nil {
+		return si
+	}
+	row.Scan(&si.Rows)
+
+	return si
 }
 
 func getSalesInvoiceRow(invoiceId int32) SalesInvoice {

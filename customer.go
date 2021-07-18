@@ -29,36 +29,65 @@ type Customer struct {
 	CountryName         *string   `json:"countryName"`
 }
 
-func getCustomers() []Customer {
-	var customers []Customer = make([]Customer, 0)
+type Customers struct {
+	Rows      int32      `json:"rows"`
+	Customers []Customer `json:"customers"`
+}
+
+func (q *PaginationQuery) getCustomers() Customers {
+	ct := Customers{}
+	if !q.isValid() {
+		return ct
+	}
+
+	ct.Customers = make([]Customer, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
-		return customers
+		return ct
 	}
 	for rows.Next() {
 		c := Customer{}
 		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.CountryName)
-		customers = append(customers, c)
+		ct.Customers = append(ct.Customers, c)
 	}
 
-	return customers
+	sqlStatement = `SELECT COUNT(*) FROM customer`
+	row := db.QueryRow(sqlStatement)
+	if row.Err() != nil {
+		return ct
+	}
+	row.Scan(&ct.Rows)
+
+	return ct
 }
 
-func searchCustomers(search string) []Customer {
-	var customers []Customer = make([]Customer, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, "%"+search+"%")
+func (s *PaginatedSearch) searchCustomers() Customers {
+	ct := Customers{}
+	if !s.isValid() {
+		return ct
+	}
+
+	ct.Customers = make([]Customer, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC LIMIT $2 OFFSET $3`
+	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Limit, s.Offset)
 	if err != nil {
-		return customers
+		return ct
 	}
 	for rows.Next() {
 		c := Customer{}
 		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.CountryName)
-		customers = append(customers, c)
+		ct.Customers = append(ct.Customers, c)
 	}
 
-	return customers
+	sqlStatement = `SELECT COUNT(*) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1`
+	row := db.QueryRow(sqlStatement, "%"+s.Search+"%")
+	if row.Err() != nil {
+		return ct
+	}
+	row.Scan(&ct.Rows)
+
+	return ct
 }
 
 func getCustomerRow(customerId int32) Customer {

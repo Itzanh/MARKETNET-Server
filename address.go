@@ -1,10 +1,5 @@
 package main
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 type Address struct {
 	Id                int32   `json:"id"`
 	Customer          *int32  `json:"customer"`
@@ -23,20 +18,34 @@ type Address struct {
 	StateName         *string `json:"stateName"`
 }
 
-func getAddresses() []Address {
-	var addresses []Address = make([]Address, 0)
-	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+type Addresses struct {
+	Rows      int32     `json:"rows"`
+	Addresses []Address `json:"addresses"`
+}
+
+func (q *PaginationQuery) getAddresses() Addresses {
+	ad := Addresses{}
+	if !q.isValid() {
+		return ad
+	}
+
+	ad.Addresses = make([]Address, 0)
+	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address ORDER BY id ASC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
-		return addresses
+		return ad
 	}
 	for rows.Next() {
 		a := Address{}
 		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ContactName, &a.CountryName, &a.StateName)
-		addresses = append(addresses, a)
+		ad.Addresses = append(ad.Addresses, a)
 	}
 
-	return addresses
+	sqlStatement = `SELECT COUNT(*) FROM public.address`
+	row := db.QueryRow(sqlStatement)
+	row.Scan(&ad.Rows)
+
+	return ad
 }
 
 func getAddressRow(addressId int32) Address {
@@ -52,20 +61,32 @@ func getAddressRow(addressId int32) Address {
 	return a
 }
 
-func searchAddresses(search string) []Address {
-	var addresses []Address = make([]Address, 0)
-	sqlStatement := `SELECT address.*,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, "%"+search+"%")
+func (s *PaginatedSearch) searchAddresses() Addresses {
+	ad := Addresses{}
+	if !s.isValid() {
+		return ad
+	}
+
+	ad.Addresses = make([]Address, 0)
+	sqlStatement := `SELECT address.*,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) ORDER BY id ASC OFFSET $2 LIMIT $3`
+	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Offset, s.Limit)
 	if err != nil {
-		return addresses
+		return ad
 	}
 	for rows.Next() {
 		a := Address{}
 		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ContactName, &a.CountryName, &a.StateName)
-		addresses = append(addresses, a)
+		ad.Addresses = append(ad.Addresses, a)
 	}
 
-	return addresses
+	sqlStatement = `SELECT COUNT(*) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0)`
+	row := db.QueryRow(sqlStatement, "%"+s.Search+"%")
+	if row.Err() != nil {
+		return ad
+	}
+	row.Scan(&ad.Rows)
+
+	return ad
 }
 
 func (a *Address) isValid() bool {
@@ -74,21 +95,42 @@ func (a *Address) isValid() bool {
 
 func (a *Address) insertAddress() bool {
 	if !a.isValid() {
-		fmt.Println("INVALID")
-		data, _ := json.Marshal(a)
-		fmt.Println(string(data))
 		return false
 	}
 
-	sqlStatement := `INSERT INTO address(customer, address, address_2, city, state, country, private_business, notes, supplier, ps_id, zip_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-	res, err := db.Exec(sqlStatement, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.PrestaShopId, a.ZipCode)
-	if err != nil {
-		fmt.Println(err)
+	sqlStatement := `INSERT INTO address(customer, address, address_2, city, state, country, private_business, notes, supplier, ps_id, zip_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+	row := db.QueryRow(sqlStatement, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.PrestaShopId, a.ZipCode)
+	if row.Err() != nil {
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	var addressId int32
+	row.Scan(&addressId)
+
+	if a.Customer != nil {
+		c := getCustomerRow(*a.Customer)
+		var ok bool = false
+		if c.MainAddress == nil {
+			c.MainAddress = &addressId
+			ok = true
+		}
+		if ok {
+			c.updateCustomer()
+		}
+	}
+	if a.Supplier != nil {
+		s := getSupplierRow(*a.Supplier)
+		var ok bool = false
+		if s.MainAddress == nil {
+			s.MainAddress = &addressId
+			ok = true
+		}
+		if ok {
+			s.updateSupplier()
+		}
+	}
+
+	return true
 }
 
 func (a *Address) updateAddress() bool {
