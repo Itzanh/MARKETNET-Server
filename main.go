@@ -47,9 +47,9 @@ func main() {
 	}
 
 	// installation
-	/*if !installDB() {
+	if !installDB() {
 		os.Exit(1)
-	}*/
+	}
 
 	// initial data
 	initialData()
