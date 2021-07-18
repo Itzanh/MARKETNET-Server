@@ -85,6 +85,7 @@ func main() {
 	if s.Ecommerce == "P" {
 		c.AddFunc(s.CronPrestaShop, importFromPrestaShop)
 	}
+	c.AddFunc(s.CronClearLogs, clearLogs)
 	c.Start()
 	c.Run()
 
