@@ -29,6 +29,7 @@ func getUser() []User {
 	sqlStatement := `SELECT * FROM "user" ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return users
 	}
 	for rows.Next() {
@@ -44,6 +45,7 @@ func getUserByUsername(username string) User {
 	sqlStatement := `SELECT * FROM "user" WHERE username=$1`
 	row := db.QueryRow(sqlStatement, username)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return User{}
 	}
 
@@ -57,6 +59,7 @@ func getUserRow(userId int16) User {
 	sqlStatement := `SELECT * FROM "user" WHERE id=$1`
 	row := db.QueryRow(sqlStatement, userId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return User{}
 	}
 
@@ -114,6 +117,7 @@ func (u *UserInsert) insertUser() bool {
 	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations, lang) VALUES ($1, $2, $3, $4, $5, $6)`
 	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations, u.Language)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -133,6 +137,7 @@ func (u *User) updateUser() bool {
 	sqlStatement := `UPDATE public."user" SET username=$2, full_name=$3, email=$4, dsc=$5, lang=$6 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, u.Id, u.Username, u.FullName, u.Email, u.Description, u.Language)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -148,6 +153,7 @@ func (u *User) deleteUser() bool {
 	sqlStatement := `DELETE FROM public."user" WHERE id=$1`
 	res, err := db.Exec(sqlStatement, u.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -172,6 +178,7 @@ func (u *UserPassword) userPassword() bool {
 	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, settings.Server.HashIterations, u.PwdNextLogin)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -186,6 +193,7 @@ func (u *User) offUser() bool {
 	sqlStatement := `UPDATE public."user" SET off = NOT off WHERE id=$1`
 	res, err := db.Exec(sqlStatement, u.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -256,6 +264,7 @@ func (u *User) setUserFailedLoginAttemps(addOrReset bool) bool {
 
 	res, err := db.Exec(sqlStatement, u.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

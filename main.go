@@ -47,8 +47,10 @@ func main() {
 	}
 
 	// installation
-	if !installDB() {
-		os.Exit(1)
+	if len(os.Args) != 2 || (len(os.Args) == 2 && os.Args[1] != "--dev-no-upgrade-database") {
+		if !installDB() {
+			os.Exit(1)
+		}
 	}
 
 	// initial data

@@ -23,6 +23,7 @@ func getGroup() []Group {
 	sqlStatement := `SELECT * FROM "group" ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return groups
 	}
 	for rows.Next() {
@@ -46,6 +47,7 @@ func (g *Group) insertGroup() bool {
 	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, &g.Accounting)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -61,6 +63,7 @@ func (g *Group) updateGroup() bool {
 	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10, accounting=$11 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop, &g.Accounting)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -76,6 +79,7 @@ func (g *Group) deleteGroup() bool {
 	sqlStatement := `DELETE FROM public."group" WHERE id=$1`
 	res, err := db.Exec(sqlStatement, g.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

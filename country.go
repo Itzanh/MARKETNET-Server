@@ -21,6 +21,7 @@ func getCountries() []Country {
 	sqlStatement := `SELECT * FROM public.country ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return countries
 	}
 	for rows.Next() {
@@ -41,6 +42,7 @@ func searchCountries(search string) []Country {
 	sqlStatement := `SELECT * FROM public.country WHERE name ILIKE $1 OR iso_2 = UPPER($2) OR iso_3 = UPPER($2) ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%", search)
 	if err != nil {
+		log("DB", err.Error())
 		return countries
 	}
 	for rows.Next() {
@@ -60,6 +62,7 @@ func (c *Country) insertCountry() bool {
 	sqlStatement := `INSERT INTO public.country(name, iso_2, iso_3, un_code, zone, phone_prefix, language, currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	res, err := db.Exec(sqlStatement, c.Name, c.Iso2, c.Iso3, c.UNCode, c.Zone, c.PhonePrefix, c.Language, c.Currency)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -75,6 +78,7 @@ func (c *Country) updateCountry() bool {
 	sqlStatement := `UPDATE public.country SET name=$2, iso_2=$3, iso_3=$4, un_code=$5, zone=$6, phone_prefix=$7, language=$8, currency=$9 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Iso2, c.Iso3, c.UNCode, c.Zone, c.PhonePrefix, c.Language, c.Currency)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -90,6 +94,7 @@ func (c *Country) deleteCountry() bool {
 	sqlStatement := `DELETE FROM public.country WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -102,6 +107,7 @@ func findCountryByName(languageName string) []NameInt16 {
 	sqlStatement := `SELECT id,name FROM public.country WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
+		log("DB", err.Error())
 		return countries
 	}
 	for rows.Next() {
@@ -117,6 +123,7 @@ func getNameCountry(id int16) string {
 	sqlStatement := `SELECT name FROM public.country WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""

@@ -3,3 +3,4 @@ icon.png
 config.json
 certificates
 customer_names.txt
+*.zip

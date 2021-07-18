@@ -13,6 +13,7 @@ func getSalesOrderDiscounts(orderId int32) []SalesOrderDiscount {
 	sqlStatement := `SELECT * FROM public.sales_order_discount WHERE "order" = $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return discounts
 	}
 	for rows.Next() {
@@ -28,6 +29,7 @@ func getSalesOrderDiscountsRow(discountId int32) SalesOrderDiscount {
 	sqlStatement := `SELECT * FROM public.sales_order_discount WHERE id = $1`
 	row := db.QueryRow(sqlStatement, discountId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return SalesOrderDiscount{}
 	}
 
@@ -56,6 +58,7 @@ func (d *SalesOrderDiscount) insertSalesOrderDiscount() bool {
 	sqlStatement := `INSERT INTO public.sales_order_discount("order", name, value_tax_included, value_tax_excluded) VALUES ($1, $2, $3, $4)`
 	res, err := db.Exec(sqlStatement, d.Order, d.Name, d.ValueTaxIncluded, d.ValueTaxExcluded)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -98,6 +101,7 @@ func (d *SalesOrderDiscount) deleteSalesOrderDiscount() bool {
 	sqlStatement := `DELETE FROM public.sales_order_discount WHERE id = $1`
 	res, err := db.Exec(sqlStatement, d.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}

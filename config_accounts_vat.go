@@ -15,6 +15,7 @@ func getConfigAccountsVat() []ConfigAccountsVat {
 	sqlStatement := `SELECT *,(SELECT journal FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT journal FROM account WHERE account.id=config_accounts_vat.account_purchase),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_purchase) FROM public.config_accounts_vat ORDER BY vat_percent ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return configAccountsVat
 	}
 
@@ -31,6 +32,7 @@ func getConfigAccountsVatSaleRow(vatPercent float32) (int16, int32) {
 	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_sale) FROM config_accounts_vat WHERE vat_percent=$1`
 	row := db.QueryRow(sqlStatement, vatPercent)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return 0, 0
 	}
 
@@ -44,6 +46,7 @@ func getConfigAccountsVatPurchaseRow(vatPercent float32) (int16, int32) {
 	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_purchase),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_purchase) FROM config_accounts_vat WHERE vat_percent=$1`
 	row := db.QueryRow(sqlStatement, vatPercent)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return 0, 0
 	}
 
@@ -70,11 +73,21 @@ func (c *ConfigAccountsVat) insertConfigAccountsVat() bool {
 
 	sqlStatement := `INSERT INTO public.config_accounts_vat(vat_percent, account_sale, account_purchase) VALUES ($1, $2, $3)`
 	_, err := db.Exec(sqlStatement, c.VatPercent, c.AccountSale, c.AccountPurchase)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
 func (c *ConfigAccountsVat) deleteConfigAccountsVat() bool {
 	sqlStatement := `DELETE FROM public.config_accounts_vat WHERE vat_percent=$1`
 	_, err := db.Exec(sqlStatement, c.VatPercent)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }

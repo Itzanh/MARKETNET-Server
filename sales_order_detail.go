@@ -23,6 +23,7 @@ func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE "order"=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -38,6 +39,7 @@ func getSalesOrderDetailRow(detailId int32) SalesOrderDetail {
 	sqlStatement := `SELECT * FROM sales_order_detail WHERE id=$1`
 	row := db.QueryRow(sqlStatement, detailId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return SalesOrderDetail{}
 	}
 
@@ -53,6 +55,7 @@ func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDet
 	sqlStatement := `SELECT * FROM sales_order_detail WHERE product=$1 AND status='A'`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -70,6 +73,7 @@ func getSalesOrderDetailPurchaseOrderPending(purchaseOrderDetail int32) []SalesO
 	sqlStatement := `SELECT * FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
 	rows, err := db.Query(sqlStatement, purchaseOrderDetail)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -103,6 +107,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 	sqlStatement := `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging, ps_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	res, err := db.Exec(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity, s.PrestaShopId)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -151,6 +156,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
 	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -199,6 +205,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 	sqlStatement := `DELETE FROM public.sales_order_detail WHERE id=$1`
 	res, err := db.Exec(sqlStatement, s.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -237,6 +244,7 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 	if err != nil && rows == 0 {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -292,6 +300,7 @@ func (s *SalesOrderDetail) computeStatus() (string, *int32) {
 			sqlStatement := `SELECT id FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note = 0 AND quantity - quantity_assigned_sale >= $2 ORDER BY (SELECT date_created FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order") ASC LIMIT 1`
 			row := db.QueryRow(sqlStatement, s.Product, s.Quantity)
 			if row.Err() != nil {
+				log("DB", row.Err().Error())
 				return "A", nil
 			}
 			var purchaseDetailId int32
@@ -318,6 +327,10 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int32, quantity int32) 
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	ok := rows > 0 && err == nil
 	if !ok {
 		return false
@@ -333,6 +346,11 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int32, quantity int32) 
 	sqlStatement = `UPDATE sales_order_detail SET status=$2 WHERE id=$1`
 	res, err = db.Exec(sqlStatement, detailId, status)
 	rows, _ = res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	ok = rows > 0 && err == nil
 	if !ok {
 		return false
@@ -352,6 +370,11 @@ func addQuantityDeliveryNoteSalesOrderDetail(detailId int32, quantity int32) boo
 	sqlStatement := `UPDATE sales_order_detail SET quantity_delivery_note = quantity_delivery_note + $2 WHERE id = $1`
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	if err != nil && rows == 0 {
 		return false
 	}

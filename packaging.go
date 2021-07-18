@@ -18,6 +18,7 @@ func getPackaging(salesOrderId int32) []Packaging {
 	sqlStatement := `SELECT * FROM public.packaging WHERE sales_order=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, salesOrderId)
 	if err != nil {
+		log("DB", err.Error())
 		return packaging
 	}
 	for rows.Next() {
@@ -39,6 +40,7 @@ func getPackagingByShipping(shippingId int32) []Packaging {
 	sqlStatement := `SELECT * FROM public.packaging WHERE shipping=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, shippingId)
 	if err != nil {
+		log("DB", err.Error())
 		return packaging
 	}
 	for rows.Next() {
@@ -59,6 +61,7 @@ func getPackagingRow(packagingId int32) Packaging {
 	sqlStatement := `SELECT * FROM public.packaging WHERE id=$1`
 	row := db.QueryRow(sqlStatement, packagingId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Packaging{}
 	}
 
@@ -93,6 +96,7 @@ func (p *Packaging) insertPackaging() bool {
 	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight, pallet) VALUES ($1, $2, $3, $4)`
 	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight, p.Pallet)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -142,6 +146,7 @@ func (p *Packaging) deletePackaging() bool {
 	sqlStatement := `DELETE FROM packaging WHERE id=$1`
 	_, err := db.Exec(sqlStatement, p.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -160,6 +165,10 @@ func addWeightPackaging(packagingId int32, weight float32) bool {
 	sqlStatement := `UPDATE packaging SET weight = weight + $2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, packagingId, weight)
 	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
 
 	return rows > 0 && err == nil
 }

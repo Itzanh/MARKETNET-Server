@@ -35,6 +35,7 @@ func getShippings() []Shipping {
 	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM public.shipping ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return shippings
 	}
 	for rows.Next() {
@@ -58,6 +59,7 @@ func searchShippings(search string) []Shipping {
 		rows, err = db.Query(sqlStatement, "%"+search+"%")
 	}
 	if err != nil {
+		log("DB", err.Error())
 		return shippings
 	}
 	for rows.Next() {
@@ -73,6 +75,7 @@ func getShippingRow(shippingId int32) Shipping {
 	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM public.shipping WHERE id=$1`
 	row := db.QueryRow(sqlStatement, shippingId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Shipping{}
 	}
 
@@ -87,6 +90,7 @@ func getShippingsPendingCollected() []Shipping {
 	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM public.shipping WHERE sent=true AND collected=false ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return shippings
 	}
 	for rows.Next() {
@@ -110,6 +114,7 @@ func (s *Shipping) insertShipping() (bool, int32) {
 	sqlStatement := `INSERT INTO public.shipping("order", delivery_note, delivery_address, "national", carrier, incoterm, carrier_notes, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
 	row := db.QueryRow(sqlStatement, s.Order, s.DeliveryNote, s.DeliveryAddress, s.National, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false, 0
 	}
 
@@ -135,6 +140,7 @@ func (s *Shipping) updateShipping() bool {
 	sqlStatement := `UPDATE public.shipping SET "order"=$2, delivery_note=$3, delivery_address=$4, carrier=$5, incoterm=$6, carrier_notes=$7, description=$8, shipping_number=$9, tracking_number=$10 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, s.Id, s.Order, s.DeliveryNote, s.DeliveryAddress, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description, s.ShippingNumber, s.TrackingNumber)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -165,6 +171,7 @@ func (s *Shipping) deleteShipping() bool {
 			sqlStatement := `UPDATE sales_order_detail SET status='E' WHERE id=$1`
 			_, err := db.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
 			if err != nil {
+				log("DB", err.Error())
 				trans.Rollback()
 				return false
 			}
@@ -180,6 +187,7 @@ func (s *Shipping) deleteShipping() bool {
 		sqlStatement := `UPDATE packaging SET shipping=NULL WHERE id=$1`
 		_, err := db.Exec(sqlStatement, packaging[i].Id)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -188,6 +196,7 @@ func (s *Shipping) deleteShipping() bool {
 	sqlStatement := `DELETE FROM public.shipping WHERE id=$1`
 	_, err := db.Exec(sqlStatement, s.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -247,6 +256,7 @@ func generateShippingFromSaleOrder(orderId int32) bool {
 			sqlStatement := `UPDATE sales_order_detail SET status='F' WHERE id=$1`
 			_, err := db.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
 			if err != nil {
+				log("DB", err.Error())
 				trans.Rollback()
 				return false
 			}
@@ -271,12 +281,14 @@ func associatePackagingToShipping(packagingId int32, shippingId int32) bool {
 	sqlStatement := `UPDATE public.packaging SET shipping=$2 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, packagingId, shippingId)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
 	sqlStatement = `SELECT weight FROM public.packaging WHERE id=$1`
 	row := db.QueryRow(sqlStatement, packagingId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -285,6 +297,11 @@ func associatePackagingToShipping(packagingId int32, shippingId int32) bool {
 
 	sqlStatement = `UPDATE public.shipping SET weight=$2, packages_number=packages_number+1 WHERE id=$1`
 	_, err = db.Exec(sqlStatement, shippingId, weight)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -298,6 +315,11 @@ func toggleShippingSent(shippingId int32) bool {
 
 	sqlStatement := `UPDATE shipping SET sent = NOT sent, date_sent = CASE sent WHEN false THEN CURRENT_TIMESTAMP(3) ELSE NULL END WHERE id = $1`
 	_, err := db.Exec(sqlStatement, s.Id)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -328,6 +350,7 @@ func setShippingCollected(shippings []int32) bool {
 
 		_, err := db.Exec(sqlStatement, shippings[i])
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -338,6 +361,7 @@ func setShippingCollected(shippings []int32) bool {
 				sqlStatement := `UPDATE sales_order_detail SET status='G' WHERE id=$1`
 				_, err := db.Exec(sqlStatement, p[j].DetailsPackaged[k].OrderDetail)
 				if err != nil {
+					log("DB", err.Error())
 					trans.Rollback()
 					return false
 				}

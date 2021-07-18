@@ -40,6 +40,7 @@ func getAllManufacturingOrders() []ManufacturingOrder {
 	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order) FROM public.manufacturing_order ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return orders
 	}
 	for rows.Next() {
@@ -56,6 +57,7 @@ func getManufacturingOrdersByType(orderTypeId int16) []ManufacturingOrder {
 	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order) FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderTypeId)
 	if err != nil {
+		log("DB", err.Error())
 		return orders
 	}
 	for rows.Next() {
@@ -71,6 +73,7 @@ func getManufacturingOrderRow(manufacturingOrderId int64) ManufacturingOrder {
 	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE id = $1`
 	row := db.QueryRow(sqlStatement, manufacturingOrderId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ManufacturingOrder{}
 	}
 
@@ -108,6 +111,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order") VALUES ($1, $2, $3, $4, $5, $6)`
 	res, err := db.Exec(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -115,6 +119,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 		sqlStatement = `UPDATE sales_order_detail SET status = 'D' WHERE id = $1`
 		res, err = db.Exec(sqlStatement, o.OrderDetail)
 		if err != nil {
+			log("DB", err.Error())
 			return false
 		}
 		ok := setSalesOrderState(*o.Order)
@@ -160,6 +165,7 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 	sqlStatement := `DELETE FROM public.manufacturing_order WHERE id=$1`
 	res, err := db.Exec(sqlStatement, o.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -173,6 +179,7 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 		sqlStatement = `UPDATE sales_order_detail SET status = 'C' WHERE id = $1`
 		_, err = db.Exec(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -209,6 +216,7 @@ func toggleManufactuedManufacturingOrder(orderid int64) bool {
 	sqlStatement := `UPDATE public.manufacturing_order SET manufactured = NOT manufactured WHERE id=$1`
 	res, err := db.Exec(sqlStatement, orderid)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -232,6 +240,7 @@ func toggleManufactuedManufacturingOrder(orderid int64) bool {
 		sqlStatement = `UPDATE sales_order_detail SET status = $2 WHERE id = $1`
 		_, err = db.Exec(sqlStatement, inMemoryManufacturingOrder.OrderDetail, status)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -239,6 +248,7 @@ func toggleManufactuedManufacturingOrder(orderid int64) bool {
 		sqlStatement = `SELECT "order" FROM sales_order_detail WHERE id = $1`
 		row := db.QueryRow(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
 		if row.Err() != nil {
+			log("DB", row.Err().Error())
 			trans.Rollback()
 			return false
 		}

@@ -21,6 +21,7 @@ func getCharges(collectionOperation int32) []Charges {
 	sqlStatement := `SELECT * FROM public.charges WHERE collection_operation=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, collectionOperation)
 	if err != nil {
+		log("DB", err.Error())
 		return charges
 	}
 
@@ -36,6 +37,7 @@ func getChargesRow(chargesId int32) Charges {
 	sqlStatement := `SELECT * FROM public.charges WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, chargesId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Charges{}
 	}
 
@@ -137,6 +139,7 @@ func (c *Charges) insertCharges() bool {
 	sqlStatement := `INSERT INTO public.charges(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, collection_operation) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err = db.Exec(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.CollectionOperation)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -174,6 +177,7 @@ func (c *Charges) deleteCharges() bool {
 	sqlStatement := `DELETE FROM public.charges WHERE id=$1`
 	_, err = db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}

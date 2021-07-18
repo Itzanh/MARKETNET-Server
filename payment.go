@@ -21,6 +21,7 @@ func getPayments(paymentTransaction int32) []Payment {
 	sqlStatement := `SELECT * FROM public.payments WHERE payment_transaction=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, paymentTransaction)
 	if err != nil {
+		log("DB", err.Error())
 		return payments
 	}
 
@@ -36,6 +37,7 @@ func getPaymentsRow(chargesId int32) Payment {
 	sqlStatement := `SELECT * FROM public.payments WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, chargesId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Payment{}
 	}
 
@@ -137,6 +139,7 @@ func (c *Payment) insertPayment() bool {
 	sqlStatement := `INSERT INTO public.payments(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, payment_transaction) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err = db.Exec(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.PaymentTransaction)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -174,6 +177,7 @@ func (c *Payment) deletePayment() bool {
 	sqlStatement := `DELETE FROM public.payments WHERE id=$1`
 	_, err = db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}

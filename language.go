@@ -16,6 +16,7 @@ func getLanguages() []Language {
 	sqlStatement := `SELECT * FROM public.language ORDER BY id ASC `
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return languages
 	}
 	for rows.Next() {
@@ -36,6 +37,7 @@ func searchLanguages(search string) []Language {
 	sqlStatement := `SELECT * FROM language WHERE name ILIKE $1 OR iso_2 = UPPER($2) OR iso_3 = UPPER($2) ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%", search)
 	if err != nil {
+		log("DB", err.Error())
 		return languages
 	}
 	for rows.Next() {
@@ -55,6 +57,7 @@ func (l *Language) insertLanguage() bool {
 	sqlStatement := `INSERT INTO public.language(name, iso_2, iso_3) VALUES ($1, $2, $3)`
 	res, err := db.Exec(sqlStatement, l.Name, l.Iso2, l.Iso3)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -70,6 +73,7 @@ func (l *Language) updateLanguage() bool {
 	sqlStatement := `UPDATE public.language SET name=$2, iso_2=$3, iso_3=$4 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, l.Id, l.Name, l.Iso2, l.Iso3)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -85,6 +89,7 @@ func (l *Language) deleteLanguage() bool {
 	sqlStatement := `DELETE FROM language WHERE id = $1`
 	res, err := db.Exec(sqlStatement, l.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -97,6 +102,7 @@ func findLanguageByName(languageName string) []NameInt16 {
 	sqlStatement := `SELECT id,name FROM public.language WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
+		log("DB", err.Error())
 		return languages
 	}
 	for rows.Next() {
@@ -112,6 +118,7 @@ func getNameLanguage(id int16) string {
 	sqlStatement := `SELECT name FROM public.language WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""

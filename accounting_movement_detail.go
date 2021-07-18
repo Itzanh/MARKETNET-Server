@@ -26,6 +26,7 @@ func getAccountingMovementDetail(movementId int64) []AccountingMovementDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=accounting_movement_detail.account),(SELECT account_number FROM account WHERE account.id=accounting_movement_detail.account),(SELECT name FROM payment_method WHERE payment_method.id=accounting_movement_detail.payment_method) FROM public.accounting_movement_detail WHERE movement=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, movementId)
 	if err != nil {
+		log("DB", err.Error())
 		return accountingMovementDetail
 	}
 
@@ -42,6 +43,7 @@ func getAccountingMovementDetailRow(detailtId int64) AccountingMovementDetail {
 	sqlStatement := `SELECT *,(SELECT account_number FROM account WHERE account.id=accounting_movement_detail.account) FROM public.accounting_movement_detail WHERE id=$1`
 	row := db.QueryRow(sqlStatement, detailtId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return AccountingMovementDetail{}
 	}
 
@@ -76,6 +78,7 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 	sqlStatement := `INSERT INTO public.accounting_movement_detail(movement, journal, account, credit, debit, type, note, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.Movement, a.Journal, a.Account, a.Credit, a.Debit, a.Type, a.Note, a.DocumentName, a.PaymentMethod)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		trans.Rollback()
 		return false
 	}
@@ -129,6 +132,7 @@ func (a *AccountingMovementDetail) deleteAccountingMovementDetail() bool {
 	sqlStatement := `DELETE FROM public.accounting_movement_detail WHERE id=$1`
 	_, err = db.Exec(sqlStatement, a.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}

@@ -28,6 +28,7 @@ func getPendingPaymentTransaction() []PaymentTransaction {
 	sqlStatement := `SELECT payment_transaction.*,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE status='P' ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return paymentTransaction
 	}
 	for rows.Next() {
@@ -44,6 +45,7 @@ func getPaymentTransactions(accountingMovement int64) []PaymentTransaction {
 	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE accounting_movement=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, accountingMovement)
 	if err != nil {
+		log("DB", err.Error())
 		return paymentTransaction
 	}
 	for rows.Next() {
@@ -59,6 +61,7 @@ func getPaymentTransactionRow(paymentTransactionId int32) PaymentTransaction {
 	sqlStatement := `SELECT * FROM public.payment_transaction WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, paymentTransactionId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return PaymentTransaction{}
 	}
 
@@ -82,6 +85,7 @@ func (c *PaymentTransaction) insertPaymentTransaction() bool {
 	sqlStatement := `INSERT INTO public.payment_transaction(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -98,6 +102,11 @@ func (c *PaymentTransaction) addQuantityCharges(charges float32) bool {
 	sqlStatement := `UPDATE public.payment_transaction SET paid=paid+$2, pending=pending-$2, status=(CASE WHEN pending-$2=0 THEN 'C' ELSE 'P' END) WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, charges)
 	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil && rows > 0
 }
 
@@ -108,5 +117,10 @@ func (c *PaymentTransaction) deletePaymentTransaction() bool {
 
 	sqlStatement := `DELETE FROM public.payment_transaction WHERE id=$1`
 	_, err := db.Exec(sqlStatement, c.Id)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }

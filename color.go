@@ -13,6 +13,7 @@ func getColor() []Color {
 	sqlStatement := `SELECT * FROM public.color ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return color
 	}
 	for rows.Next() {
@@ -36,6 +37,7 @@ func (c *Color) insertColor() bool {
 	sqlStatement := `INSERT INTO public.color(name, hex_color) VALUES ($1, $2)`
 	res, err := db.Exec(sqlStatement, c.Name, c.HexColor)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -51,6 +53,7 @@ func (c *Color) updateColor() bool {
 	sqlStatement := `UPDATE public.color SET name=$2, hex_color=$3 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.HexColor)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -66,6 +69,7 @@ func (c *Color) deleteColor() bool {
 	sqlStatement := `DELETE FROM public.color WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -78,6 +82,7 @@ func findColorByName(colorName string) []NameInt16 {
 	sqlStatement := `SELECT id,name FROM public.color WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(colorName))
 	if err != nil {
+		log("DB", err.Error())
 		return colors
 	}
 	for rows.Next() {
@@ -93,6 +98,7 @@ func getNameColor(id int16) string {
 	sqlStatement := `SELECT name FROM public.color WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""

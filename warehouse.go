@@ -14,6 +14,7 @@ func getWarehouses() []Warehouse {
 	sqlStatement := `SELECT * FROM public.warehouse ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return warehouses
 	}
 	for rows.Next() {
@@ -37,6 +38,7 @@ func (w *Warehouse) insertWarehouse() bool {
 	sqlStatement := `INSERT INTO public.warehouse(id, name) VALUES ($1, $2)`
 	res, err := db.Exec(sqlStatement, w.Id, w.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -52,6 +54,7 @@ func (w *Warehouse) updateWarehouse() bool {
 	sqlStatement := `UPDATE public.warehouse SET name=$2 WHERE id = $1`
 	res, err := db.Exec(sqlStatement, w.Id, w.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -67,6 +70,7 @@ func (w *Warehouse) deleteWarehouse() bool {
 	sqlStatement := `DELETE FROM warehouse WHERE id = $1`
 	res, err := db.Exec(sqlStatement, w.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -79,6 +83,7 @@ func findWarehouseByName(languageName string) []NameString {
 	sqlStatement := `SELECT id,name FROM public.warehouse WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
+		log("DB", err.Error())
 		return warehouses
 	}
 	for rows.Next() {
@@ -94,6 +99,7 @@ func getNameWarehouse(id string) string {
 	sqlStatement := `SELECT name FROM public.warehouse WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""
@@ -106,5 +112,10 @@ func getNameWarehouse(id string) string {
 func regenerateProductStock() bool {
 	sqlStatement := `UPDATE product SET stock = CASE WHEN (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) IS NULL THEN 0 ELSE (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) END`
 	_, err := db.Exec(sqlStatement)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }

@@ -21,6 +21,7 @@ func getPurchaseInvoiceDetail(invoiceId int32) []PurchaseInvoiceDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_invoice_details.product) FROM purchase_invoice_details WHERE invoice=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, invoiceId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -36,6 +37,7 @@ func getPurchaseInvoiceDetailRow(detailId int32) PurchaseInvoiceDetail {
 	sqlStatement := `SELECT * FROM purchase_invoice_details WHERE id = $1 ORDER BY id ASC`
 	row := db.QueryRow(sqlStatement, detailId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return PurchaseInvoiceDetail{}
 	}
 	d := PurchaseInvoiceDetail{}
@@ -69,6 +71,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 	sqlStatement := `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 	ok := addTotalProductsPurchaseInvoice(s.Invoice, s.Price*float32(s.Quantity), s.VatPercent)
@@ -121,6 +124,7 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 	sqlStatement := `DELETE FROM public.purchase_invoice_details WHERE id=$1`
 	res, err := db.Exec(sqlStatement, d.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 	ok := addTotalProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)

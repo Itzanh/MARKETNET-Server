@@ -16,6 +16,7 @@ func getSalesOrderDetailPackaged(packagingId int32) []SalesOrderDetailPackaged {
 	sqlStatement := `SELECT * FROM public.sales_order_detail_packaged WHERE packaging=$1 ORDER BY order_detail ASC`
 	rows, err := db.Query(sqlStatement, packagingId)
 	if err != nil {
+		log("DB", err.Error())
 		return packaged
 	}
 	for rows.Next() {
@@ -33,6 +34,7 @@ func getSalesOrderDetailPackagedRow(orderDetailId int32, packagingId int32) Sale
 	sqlStatement := `SELECT * FROM public.sales_order_detail_packaged WHERE packaging=$1 AND order_detail=$2`
 	row := db.QueryRow(sqlStatement, packagingId, orderDetailId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return SalesOrderDetailPackaged{}
 	}
 
@@ -66,6 +68,7 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged() bool {
 	sqlStatement := `INSERT INTO public.sales_order_detail_packaged(order_detail, packaging, quantity) VALUES ($1, $2, $3)`
 	res, err := db.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -119,6 +122,7 @@ func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransactio
 	sqlStatement := `DELETE FROM sales_order_detail_packaged WHERE order_detail=$1 AND packaging=$2`
 	res, err := db.Exec(sqlStatement, p.OrderDetail, p.Packaging)
 	if err != nil {
+		log("DB", err.Error())
 		if openTransaction {
 			trans.Rollback()
 		}
@@ -181,6 +185,7 @@ func (d *SalesOrderDetailPackagedEAN13) insertSalesOrderDetailPackagedEAN13() bo
 	sqlStatement := `SELECT sales_order_detail.id FROM sales_order_detail INNER JOIN product ON product.id=sales_order_detail.product WHERE sales_order_detail."order"=$1 AND sales_order_detail.quantity_pending_packaging>0 AND product.barcode=$2`
 	row := db.QueryRow(sqlStatement, d.SalesOrder, d.EAN13)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 

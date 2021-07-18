@@ -21,6 +21,7 @@ func getAccountingMovement() []AccountingMovement {
 	sqlStatement := `SELECT *,(SELECT name FROM billing_series WHERE billing_series.id=accounting_movement.billing_serie) FROM public.accounting_movement ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return accountingMovements
 	}
 
@@ -38,6 +39,7 @@ func searchAccountingMovements(search string) []AccountingMovement {
 	sqlStatement := `SELECT DISTINCT accounting_movement.*,(SELECT name FROM billing_series WHERE billing_series.id=accounting_movement.billing_serie) FROM accounting_movement INNER JOIN accounting_movement_detail ON accounting_movement_detail.movement=accounting_movement.id LEFT JOIN sales_invoice ON sales_invoice.accounting_movement=accounting_movement.id LEFT JOIN customer ON customer.id=sales_invoice.customer LEFT JOIN purchase_invoice ON purchase_invoice.accounting_movement=accounting_movement.id LEFT JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE accounting_movement_detail.document_name ILIKE $1 OR customer.name ILIKE $1 OR suppliers.name ILIKE $1 ORDER BY accounting_movement.date_created DESC`
 	rows, err := db.Query(sqlStatement, "%"+search+"%")
 	if err != nil {
+		log("DB", err.Error())
 		return accountingMovements
 	}
 
@@ -54,6 +56,7 @@ func getAccountingMovementRow(accountingMovementId int64) AccountingMovement {
 	sqlStatement := `SELECT * FROM public.accounting_movement WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, accountingMovementId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return AccountingMovement{}
 	}
 
@@ -77,6 +80,7 @@ func (a *AccountingMovement) insertAccountingMovement() bool {
 	sqlStatement := `INSERT INTO public.accounting_movement(fiscal_year, type, billing_serie) VALUES ($1, $2, $3) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.FiscalYear, a.Type, a.BillingSerie)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -131,6 +135,7 @@ func (a *AccountingMovement) deleteAccountingMovement() bool {
 	sqlStatement := `UPDATE sales_invoice SET accounting_movement=NULL WHERE accounting_movement=$1`
 	_, err = db.Exec(sqlStatement, a.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -138,6 +143,7 @@ func (a *AccountingMovement) deleteAccountingMovement() bool {
 	sqlStatement = `UPDATE purchase_invoice SET accounting_movement=NULL WHERE accounting_movement=$1`
 	_, err = db.Exec(sqlStatement, a.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -146,6 +152,7 @@ func (a *AccountingMovement) deleteAccountingMovement() bool {
 	sqlStatement = `DELETE FROM public.accounting_movement WHERE id=$1`
 	_, err = db.Exec(sqlStatement, a.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -165,6 +172,10 @@ func (a *AccountingMovement) addCreditAndDebit(credit float32, debit float32) bo
 
 	sqlStatement := `UPDATE public.accounting_movement SET amount_debit=amount_debit+$2, amount_credit=amount_credit+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, a.Id, debit, credit)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
 
 	return err == nil
 }
@@ -357,6 +368,7 @@ func salesPostInvoices(invoiceIds []int32) []PostInvoiceResult {
 		sqlStatement := `UPDATE sales_invoice SET accounting_movement=$2 WHERE id=$1`
 		_, err := db.Exec(sqlStatement, invoiceIds[i], m.Id)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return result
 		}
@@ -557,6 +569,7 @@ func purchasePostInvoices(invoiceIds []int32) []PostInvoiceResult {
 		sqlStatement := `UPDATE purchase_invoice SET accounting_movement=$2 WHERE id=$1`
 		_, err := db.Exec(sqlStatement, invoiceIds[i], m.Id)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return result
 		}
@@ -580,6 +593,7 @@ func getAccountingMovementSaleInvoices(movementId int64) []SalesInvoice {
 	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE accounting_movement=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, movementId)
 	if err != nil {
+		log("DB", err.Error())
 		return invoices
 	}
 	for rows.Next() {
@@ -598,6 +612,7 @@ func getAccountingMovementPurchaseInvoices(movementId int64) []PurchaseInvoice {
 	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_invoice.supplier) FROM purchase_invoice WHERE accounting_movement=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, movementId)
 	if err != nil {
+		log("DB", err.Error())
 		return invoices
 	}
 	for rows.Next() {

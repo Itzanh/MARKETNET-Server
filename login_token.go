@@ -21,6 +21,7 @@ func (t *LoginToken) insertLoginToken() bool {
 	sqlStatement := `INSERT INTO public.login_tokens(name, "user", ip_address) VALUES ($1, $2, $3)`
 	res, err := db.Exec(sqlStatement, t.Name, t.User, t.IpAddress)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -47,6 +48,7 @@ func (t *LoginToken) checkLoginToken() (bool, Permissions, int16) {
 	sqlStatement := `SELECT * FROM login_tokens WHERE name=$1 AND ip_address=$2`
 	row := db.QueryRow(sqlStatement, t.Name, t.IpAddress)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false, Permissions{}, 0
 	}
 

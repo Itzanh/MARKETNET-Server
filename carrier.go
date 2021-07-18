@@ -24,6 +24,7 @@ func getCariers() []Carrier {
 	sqlStatement := `SELECT * FROM public.carrier ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return carriers
 	}
 	for rows.Next() {
@@ -47,6 +48,7 @@ func (c *Carrier) insertCarrier() bool {
 	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets, webservice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets, c.Webservice)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -62,6 +64,7 @@ func (c *Carrier) updateCarrier() bool {
 	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12, webservice=$13 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets, c.Webservice)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -77,6 +80,7 @@ func (c *Carrier) deleteCarrier() bool {
 	sqlStatement := `DELETE FROM public.carrier WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -89,6 +93,7 @@ func findCarrierByName(languageName string) []NameInt16 {
 	sqlStatement := `SELECT id,name FROM public.carrier WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
+		log("DB", err.Error())
 		return carriers
 	}
 	for rows.Next() {
@@ -104,6 +109,7 @@ func getNameCarrier(id int16) string {
 	sqlStatement := `SELECT name FROM public.carrier WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""

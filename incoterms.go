@@ -11,6 +11,7 @@ func getIncoterm() []Incoterm {
 	sqlStatement := `SELECT * FROM public.incoterm ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return incoterms
 	}
 	for rows.Next() {
@@ -34,6 +35,7 @@ func (i *Incoterm) insertIncoterm() bool {
 	sqlStatement := `INSERT INTO public.incoterm(key, name) VALUES ($1, $2)`
 	res, err := db.Exec(sqlStatement, i.Key, i.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -49,6 +51,7 @@ func (i *Incoterm) updateIncoterm() bool {
 	sqlStatement := `UPDATE public.incoterm SET key=$2, name=$3 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id, i.Key, i.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -64,6 +67,7 @@ func (i *Incoterm) deleteIncoterm() bool {
 	sqlStatement := `DELETE FROM public.incoterm WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

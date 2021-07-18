@@ -11,6 +11,7 @@ func getJournals() []Journal {
 	sqlStatement := `SELECT * FROM public.journal ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return journals
 	}
 
@@ -35,6 +36,10 @@ func (j *Journal) insertJournal() bool {
 	sqlStatement := `INSERT INTO public.journal(id, name, type) VALUES ($1, $2, $3)`
 	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type)
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -46,6 +51,10 @@ func (j *Journal) updateJournal() bool {
 	sqlStatement := `UPDATE public.journal SET name=$2, type=$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type)
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -56,6 +65,10 @@ func (j *Journal) deleteJournal() bool {
 
 	sqlStatement := `DELETE FROM public.journal WHERE id=$1`
 	_, err := db.Exec(sqlStatement, j.Id)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
 
 	return err == nil
 }

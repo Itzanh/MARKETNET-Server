@@ -20,6 +20,7 @@ func getAccounts() []Account {
 	sqlStatement := `SELECT * FROM public.account ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return accounts
 	}
 
@@ -49,6 +50,7 @@ func (s *AccountSearch) searchAccounts() []Account {
 		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", s.Journal)
 	}
 	if err != nil {
+		log("DB", err.Error())
 		return accounts
 	}
 
@@ -65,6 +67,7 @@ func getAccountRow(accountId int32) Account {
 	sqlStatement := `SELECT * FROM public.account WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, accountId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Account{}
 	}
 
@@ -90,6 +93,7 @@ func (a *Account) insertAccount() bool {
 	sqlStatement := `INSERT INTO public.account(journal, name, account_number) VALUES ($1, $2, $3) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.Journal, a.Name, a.AccountNumber)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -104,6 +108,7 @@ func (a *Account) getNextAccountNumber() int32 {
 	sqlStatement := `SELECT CASE WHEN MAX(account_number) IS NULL THEN 1 ELSE MAX(account_number) + 1 END FROM account WHERE journal=$1`
 	row := db.QueryRow(sqlStatement, a.Journal)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return 0
 	}
 
@@ -131,6 +136,10 @@ func (a *Account) deleteAccount() bool {
 	sqlStatement := `DELETE FROM public.account WHERE id=$1`
 	_, err := db.Exec(sqlStatement, a.Id)
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -142,6 +151,7 @@ func getAccountIdByAccountNumber(journal int16, accountNumber int32) int32 {
 	sqlStatement := `SELECT id FROM account WHERE account_number=$2 AND journal=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, journal, accountNumber)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return 0
 	}
 
@@ -161,6 +171,7 @@ func locateAccountForCustomer() []AccountLocate {
 	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 ORDER BY account_number ASC`
 	rows, err := db.Query(sqlStatement, s.CustomerJournal)
 	if err != nil {
+		log("DB", err.Error())
 		return accounts
 	}
 
@@ -184,6 +195,7 @@ func locateAccountForSupplier() []AccountLocate {
 	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 ORDER BY account_number ASC`
 	rows, err := db.Query(sqlStatement, s.SupplierJournal)
 	if err != nil {
+		log("DB", err.Error())
 		return accounts
 	}
 
@@ -206,6 +218,7 @@ func locateAccountForBanks() []AccountLocate {
 	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' ORDER BY account_number ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return accounts
 	}
 
@@ -232,6 +245,10 @@ func (a *Account) addCreditAndDebit(credit float32, debit float32) bool {
 
 	sqlStatement := `UPDATE public.account SET debit=debit+$2,credit=credit+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, a.Id, debit, credit)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
 
 	return err == nil
 }

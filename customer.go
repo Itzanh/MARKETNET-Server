@@ -44,6 +44,7 @@ func (q *PaginationQuery) getCustomers() Customers {
 	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return ct
 	}
 	for rows.Next() {
@@ -55,6 +56,7 @@ func (q *PaginationQuery) getCustomers() Customers {
 	sqlStatement = `SELECT COUNT(*) FROM customer`
 	row := db.QueryRow(sqlStatement)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ct
 	}
 	row.Scan(&ct.Rows)
@@ -72,6 +74,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC LIMIT $2 OFFSET $3`
 	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Limit, s.Offset)
 	if err != nil {
+		log("DB", err.Error())
 		return ct
 	}
 	for rows.Next() {
@@ -83,6 +86,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	sqlStatement = `SELECT COUNT(*) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1`
 	row := db.QueryRow(sqlStatement, "%"+s.Search+"%")
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ct
 	}
 	row.Scan(&ct.Rows)
@@ -94,6 +98,7 @@ func getCustomerRow(customerId int32) Customer {
 	sqlStatement := `SELECT * FROM public.customer WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, customerId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Customer{}
 	}
 
@@ -125,6 +130,7 @@ func (c *Customer) insertCustomer() bool {
 	sqlStatement := `INSERT INTO public.customer(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, ps_id, account) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 	res, err := db.Exec(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.PrestaShopId, c.Account)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -150,6 +156,7 @@ func (c *Customer) updateCustomer() bool {
 	sqlStatement := `UPDATE public.customer SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16, account=$17 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.Account)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -165,6 +172,7 @@ func (c *Customer) deleteCustomer() bool {
 	sqlStatement := `DELETE FROM public.customer WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -177,6 +185,7 @@ func findCustomerByName(languageName string) []NameInt32 {
 	sqlStatement := `SELECT id,name FROM public.customer WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
+		log("DB", err.Error())
 		return customers
 	}
 	for rows.Next() {
@@ -192,6 +201,7 @@ func getNameCustomer(id int32) string {
 	sqlStatement := `SELECT name FROM public.customer WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""
@@ -218,6 +228,7 @@ func getCustomerDefaults(customerId int32) ContactDefauls {
 	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = customer.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = customer.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = customer.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = customer.billing_series), (SELECT currency FROM country WHERE country.id = customer.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)), (SELECT exchange FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)) FROM public.customer WHERE id = $1`
 	row := db.QueryRow(sqlStatement, customerId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ContactDefauls{}
 	}
 	c := ContactDefauls{}
@@ -230,6 +241,7 @@ func getCustomerAddresses(customerId int32) []Address {
 	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address WHERE customer=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, customerId)
 	if err != nil {
+		log("DB", err.Error())
 		return addresses
 	}
 	for rows.Next() {
@@ -246,6 +258,7 @@ func getCustomerSaleOrders(customerId int32) []SaleOrder {
 	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE customer=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, customerId)
 	if err != nil {
+		log("DB", err.Error())
 		return sales
 	}
 	for rows.Next() {
@@ -264,6 +277,7 @@ func (c *Customer) setCustomerAccount() {
 	sqlStatement := `SELECT un_code FROM country WHERE id=$1`
 	row := db.QueryRow(sqlStatement, c.Country)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return
 	}
 
@@ -314,6 +328,7 @@ func (q *CustomerLocateQuery) locateCustomers() []CustomerLocate {
 	}
 	rows, err := db.Query(sqlStatement, parameters...)
 	if err != nil {
+		log("DB", err.Error())
 		return customers
 	}
 	for rows.Next() {

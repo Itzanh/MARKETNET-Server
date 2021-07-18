@@ -26,6 +26,7 @@ func getPendingColletionOperations() []CollectionOperation {
 	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE status='P' ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return collectionOperation
 	}
 	for rows.Next() {
@@ -42,6 +43,7 @@ func getColletionOperations(accountingMovement int64) []CollectionOperation {
 	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE accounting_movement=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, accountingMovement)
 	if err != nil {
+		log("DB", err.Error())
 		return collectionOperation
 	}
 	for rows.Next() {
@@ -57,6 +59,7 @@ func getColletionOperationRow(collectionOperationId int32) CollectionOperation {
 	sqlStatement := `SELECT * FROM public.collection_operation WHERE id=$1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, collectionOperationId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return CollectionOperation{}
 	}
 
@@ -80,6 +83,7 @@ func (c *CollectionOperation) insertCollectionOperation() bool {
 	sqlStatement := `INSERT INTO public.collection_operation(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -96,6 +100,11 @@ func (c *CollectionOperation) addQuantityCharges(charges float32) bool {
 	sqlStatement := `UPDATE public.collection_operation SET paid=paid+$2, pending=pending-$2, status=(CASE WHEN pending-$2=0 THEN 'C' ELSE 'P' END) WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, charges)
 	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil && rows > 0
 }
 
@@ -106,5 +115,6 @@ func (c *CollectionOperation) deleteCollectionOperation() bool {
 
 	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1`
 	_, err := db.Exec(sqlStatement, c.Id)
+	log("DB", err.Error())
 	return err == nil
 }

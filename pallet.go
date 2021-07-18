@@ -19,6 +19,7 @@ func getSalesOrderPallets(orderId int32) Pallets {
 	sqlStatement := `SELECT pallets FROM sales_order INNER JOIN carrier ON carrier.id=sales_order.carrier WHERE sales_order.id=$1`
 	row := db.QueryRow(sqlStatement, orderId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Pallets{}
 	}
 
@@ -32,6 +33,7 @@ func getSalesOrderPallets(orderId int32) Pallets {
 	sqlStatement = `SELECT * FROM public.pallets WHERE sales_order = $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return Pallets{}
 	}
 	for rows.Next() {
@@ -47,6 +49,7 @@ func getPalletsRow(palletId int32) Pallet {
 	sqlStatement := `SELECT * FROM public.pallets WHERE id=$1`
 	row := db.QueryRow(sqlStatement, palletId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Pallet{}
 	}
 
@@ -74,6 +77,7 @@ func (p *Pallet) insertPallet() bool {
 	sqlStatement := `INSERT INTO public.pallets(sales_order, weight, width, height, depth, name) VALUES ($1, $2, $3, $4, $5, $6)`
 	res, err := db.Exec(sqlStatement, p.SalesOrder, p.Weight, p.Width, p.Height, p.Depth, p.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -89,6 +93,7 @@ func (p *Pallet) updatePallet() bool {
 	sqlStatement := `UPDATE public.pallets SET weight=$2, width=$3, height=$4, depth=$5, name=$6 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id, p.Weight, p.Width, p.Height, p.Depth, p.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -104,6 +109,7 @@ func (p *Pallet) deletePallet() bool {
 	sqlStatement := `DELETE FROM public.pallets WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

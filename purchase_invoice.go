@@ -36,6 +36,7 @@ func getPurchaseInvoices() []PurchaseInvoice {
 	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_invoice.supplier) FROM purchase_invoice ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return invoices
 	}
 	for rows.Next() {
@@ -75,7 +76,7 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {
-		fmt.Println(err)
+		log("DB", err.Error())
 		return invoices
 	}
 	for rows.Next() {
@@ -93,6 +94,7 @@ func getPurchaseInvoiceRow(invoiceId int32) PurchaseInvoice {
 	sqlStatement := `SELECT * FROM purchase_invoice WHERE id=$1`
 	row := db.QueryRow(sqlStatement, invoiceId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return PurchaseInvoice{}
 	}
 
@@ -123,6 +125,7 @@ func (i *PurchaseInvoice) insertPurchaseInvoice() (bool, int32) {
 	sqlStatement := `INSERT INTO public.purchase_invoice(supplier, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`
 	row := db.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false, 0
 	}
 
@@ -155,6 +158,7 @@ func (i *PurchaseInvoice) deletePurchaseInvoice() bool {
 	sqlStatement := `DELETE FROM public.purchase_invoice WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -176,6 +180,7 @@ func addTotalProductsPurchaseInvoice(invoiceId int32, totalAmount float32, vatPe
 	sqlStatement := `UPDATE purchase_invoice SET total_products=total_products+$2,vat_amount=vat_amount+$3 WHERE id = $1`
 	_, err := db.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -188,11 +193,17 @@ func calcTotalsPurchaseInvoice(invoiceId int32) bool {
 	sqlStatement := `UPDATE purchase_invoice SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err := db.Exec(sqlStatement, invoiceId)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
 	sqlStatement = `UPDATE purchase_invoice SET total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err = db.Exec(sqlStatement, invoiceId)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -332,6 +343,7 @@ func getPurchaseInvoiceOrders(orderId int32) []PurchaseOrder {
 	sqlStatement := `SELECT DISTINCT purchase_order.* FROM purchase_invoice INNER JOIN purchase_invoice_details ON purchase_invoice.id=purchase_invoice_details.invoice INNER JOIN purchase_order_detail ON purchase_invoice_details.order_detail=purchase_order_detail.id INNER JOIN purchase_order ON purchase_order_detail."order"=purchase_order.id WHERE purchase_invoice.id=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return orders
 	}
 	for rows.Next() {

@@ -33,6 +33,7 @@ func (q *PaginationQuery) getAddresses() Addresses {
 	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address ORDER BY id ASC OFFSET $1 LIMIT $2`
 	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
+		log("DB", err.Error())
 		return ad
 	}
 	for rows.Next() {
@@ -52,6 +53,7 @@ func getAddressRow(addressId int32) Address {
 	sqlStatement := `SELECT * FROM address WHERE id=$1`
 	row := db.QueryRow(sqlStatement, addressId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Address{}
 	}
 
@@ -71,6 +73,7 @@ func (s *PaginatedSearch) searchAddresses() Addresses {
 	sqlStatement := `SELECT address.*,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) ORDER BY id ASC OFFSET $2 LIMIT $3`
 	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Offset, s.Limit)
 	if err != nil {
+		log("DB", err.Error())
 		return ad
 	}
 	for rows.Next() {
@@ -82,6 +85,7 @@ func (s *PaginatedSearch) searchAddresses() Addresses {
 	sqlStatement = `SELECT COUNT(*) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0)`
 	row := db.QueryRow(sqlStatement, "%"+s.Search+"%")
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ad
 	}
 	row.Scan(&ad.Rows)
@@ -101,6 +105,7 @@ func (a *Address) insertAddress() bool {
 	sqlStatement := `INSERT INTO address(customer, address, address_2, city, state, country, private_business, notes, supplier, ps_id, zip_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.PrestaShopId, a.ZipCode)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -141,6 +146,7 @@ func (a *Address) updateAddress() bool {
 	sqlStatement := `UPDATE address SET customer=$2, address=$3, address_2=$4, city=$5, state=$6, country=$7, private_business=$8, notes=$9, supplier=$10, zip_code=$11 WHERE id = $1`
 	res, err := db.Exec(sqlStatement, a.Id, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.ZipCode)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -156,6 +162,7 @@ func (a *Address) deleteAddress() bool {
 	sqlStatement := `DELETE FROM address WHERE id = $1`
 	res, err := db.Exec(sqlStatement, a.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -173,6 +180,7 @@ func locateAddressByCustomer(customerId int32) []AddressLocate {
 	sqlStatement := `SELECT id, address FROM address WHERE customer = $1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, customerId)
 	if err != nil {
+		log("DB", err.Error())
 		return addresses
 	}
 	for rows.Next() {
@@ -189,6 +197,7 @@ func locateAddressBySupplier(supplierId int32) []AddressLocate {
 	sqlStatement := `SELECT id, address FROM address WHERE supplier=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, supplierId)
 	if err != nil {
+		log("DB", err.Error())
 		return addresses
 	}
 	for rows.Next() {
@@ -204,6 +213,7 @@ func getAddressName(addressId int32) string {
 	sqlStatement := `SELECT address FROM address WHERE id = $1`
 	row := db.QueryRow(sqlStatement, addressId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 

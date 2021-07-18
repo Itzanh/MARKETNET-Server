@@ -46,6 +46,7 @@ func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement ORDER BY id DESC OFFSET $1 LIMIT $2`
 	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
+		log("DB", err.Error())
 		return wm
 	}
 	for rows.Next() {
@@ -76,6 +77,7 @@ func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() Warehou
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC OFFSET $2 LIMIT $3`
 	rows, err := db.Query(sqlStatement, w.WarehouseId, w.Offset, w.Limit)
 	if err != nil {
+		log("DB", err.Error())
 		return wm
 	}
 	for rows.Next() {
@@ -98,6 +100,7 @@ func getWarehouseMovementRow(movementId int64) WarehouseMovement {
 	sqlStatement := `SELECT * FROM public.warehouse_movement WHERE id=$1`
 	row := db.QueryRow(sqlStatement, movementId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return WarehouseMovement{}
 	}
 
@@ -116,6 +119,7 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM public.warehouse_movement WHERE sales_delivery_note=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
+		log("DB", err.Error())
 		return warehouseMovements
 	}
 	for rows.Next() {
@@ -136,6 +140,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM public.warehouse_movement WHERE purchase_delivery_note=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
+		log("DB", err.Error())
 		return warehouseMovements
 	}
 	for rows.Next() {
@@ -176,6 +181,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 	parameters = append(parameters, w.Limit)
 	rows, err := db.Query(sqlStatement, parameters...)
 	if err != nil {
+		log("DB", err.Error())
 		return wm
 	}
 	for rows.Next() {
@@ -197,6 +203,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 	}
 	row := db.QueryRow(sqlStatement, parameters...)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return wm
 	}
 	row.Scan(&wm.Rows)
@@ -237,6 +244,7 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
 	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 	// update the product quantity
@@ -325,6 +333,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	sqlStatement := `DELETE FROM public.warehouse_movement WHERE id=$1`
 	res, err := db.Exec(sqlStatement, m.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -341,6 +350,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC, id ASC`
 	rows, err := db.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -360,6 +370,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 		sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
 		_, err := db.Exec(sqlStatement, movementId, draggedStock)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -430,6 +441,7 @@ func regenerateDraggedStock(warehouseId string) bool {
 	sqlStatement := `SELECT product FROM warehouse_movement WHERE warehouse=$1 GROUP BY product`
 	rowsProducts, err := db.Query(sqlStatement, warehouseId)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -445,6 +457,7 @@ func regenerateDraggedStock(warehouseId string) bool {
 		sqlStatement := `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 ORDER BY date_created ASC, id ASC`
 		rows, err := db.Query(sqlStatement, warehouseId, productId)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -465,6 +478,7 @@ func regenerateDraggedStock(warehouseId string) bool {
 			sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
 			_, err := db.Exec(sqlStatement, movementId, draggedStock)
 			if err != nil {
+				log("DB", err.Error())
 				trans.Rollback()
 				return false
 			}

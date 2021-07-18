@@ -23,6 +23,7 @@ func getUserGroupsIn(userId int16) []Group {
 	sqlStatement := `SELECT "group".* FROM "user" INNER JOIN user_group ON "user".id=user_group.user INNER JOIN "group" ON "group".id=user_group.group WHERE "user".id=$1 ORDER BY "group".id ASC`
 	rows, err := db.Query(sqlStatement, userId)
 	if err != nil {
+		log("DB", err.Error())
 		return groups
 	}
 	for rows.Next() {
@@ -61,6 +62,7 @@ func (u *UserGroup) insertUserGroup() bool {
 	sqlStatement := `INSERT INTO public.user_group("user", "group") VALUES ($1, $2)`
 	res, err := db.Exec(sqlStatement, u.User, u.Group)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -76,6 +78,7 @@ func (u *UserGroup) deleteUserGroup() bool {
 	sqlStatement := `DELETE FROM public.user_group WHERE "user"=$1 AND "group"=$2`
 	res, err := db.Exec(sqlStatement, u.User, u.Group)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

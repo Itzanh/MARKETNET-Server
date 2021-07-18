@@ -43,6 +43,7 @@ func getDocuments() []Document {
 	sqlStatement := `SELECT * FROM document ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return document
 	}
 	for rows.Next() {
@@ -83,6 +84,7 @@ func (d *Document) getDocumentsRelations() []Document {
 		return document
 	}
 	if err != nil {
+		log("DB", err.Error())
 		return document
 	}
 	for rows.Next() {
@@ -98,6 +100,7 @@ func getDocumentRow(uuid string) Document {
 	sqlStatement := `SELECT * FROM document WHERE uuid=$1`
 	row := db.QueryRow(sqlStatement, uuid)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Document{}
 	}
 
@@ -111,6 +114,7 @@ func getDocumentRowById(id int32) Document {
 	sqlStatement := `SELECT * FROM document WHERE id=$1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Document{}
 	}
 
@@ -133,6 +137,7 @@ func (d *Document) insertDocument() bool {
 	sqlStatement := `INSERT INTO public.document(name, uuid, container, dsc, sales_order, sales_invoice, sales_delivery_note, shipping, purchase_order, purchase_invoice, purchase_delivery_note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 	res, err := db.Exec(sqlStatement, d.Name, d.Uuid, d.Container, d.Description, d.SalesOrder, d.SalesInvoice, d.SalesDeliveryNote, d.Shipping, d.PurchaseOrder, d.PurchaseInvoice, d.PurchaseDeliveryNote)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -158,6 +163,7 @@ func (d *Document) deleteDocument() bool {
 	sqlStatement := `DELETE FROM public.document WHERE id=$1`
 	res, err := db.Exec(sqlStatement, d.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -214,6 +220,7 @@ func downloadDocument(token string, uuid string) ([]byte, int) {
 	}
 	content, err := ioutil.ReadFile(path.Join(container.Path, doc.Uuid))
 	if err != nil {
+		log("DB", err.Error())
 		return nil, http.StatusInternalServerError
 	}
 	return content, http.StatusOK
@@ -234,6 +241,7 @@ func uploadDocument(token string, uuid string, document []byte) int {
 	}
 	err := ioutil.WriteFile(path.Join(container.Path, doc.Uuid), document, 0700)
 	if err != nil {
+		log("DB", err.Error())
 		return http.StatusInternalServerError
 	}
 

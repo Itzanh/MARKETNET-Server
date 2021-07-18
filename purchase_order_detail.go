@@ -22,6 +22,7 @@ func getPurchaseOrderDetail(orderId int32) []PurchaseOrderDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE "order"=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -37,6 +38,7 @@ func getPurchaseOrderDetailRow(detailId int32) PurchaseOrderDetail {
 	sqlStatement := `SELECT * FROM purchase_order_detail WHERE id=$1`
 	row := db.QueryRow(sqlStatement, detailId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return PurchaseOrderDetail{}
 	}
 
@@ -71,6 +73,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 	sqlStatement := `INSERT INTO public.purchase_order_detail("order", product, price, quantity, vat_percent, total_amount, quantity_pending_packaging) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 	row := db.QueryRow(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Quantity)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		if beginTrans {
 			trans.Rollback()
 		}
@@ -91,6 +94,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 	sqlStatement = `UPDATE purchase_order_detail SET quantity_assigned_sale=$2 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, detailId, quantityAssignedSale)
 	if err != nil {
+		log("DB", err.Error())
 		if beginTrans {
 			trans.Rollback()
 		}
@@ -101,6 +105,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
 	row = db.QueryRow(sqlStatement, s.Order)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		if beginTrans {
 			trans.Rollback()
 		}
@@ -132,6 +137,7 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int32, produc
 	sqlStatement := `SELECT id,quantity,"order" FROM sales_order_detail WHERE product=$1 AND status='A' ORDER BY (SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail."order") ASC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return 0
 	}
 
@@ -150,6 +156,7 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int32, produc
 			sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=$2 WHERE id=$1`
 			_, err := db.Exec(sqlStatement, salesDetailId, purchaseDetailId)
 			if err == nil {
+				log("DB", err.Error())
 				quantityAssignedSale += salesQuantity
 				setSalesOrderState(orderId)
 			}
@@ -184,6 +191,7 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail() bool {
 	sqlStatement := `UPDATE purchase_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -204,6 +212,7 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail() bool {
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
 	row := db.QueryRow(sqlStatement, s.Order)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		trans.Rollback()
 		return false
 	}
@@ -256,6 +265,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 		sqlStatement := `UPDATE sales_order_detail SET status='A',purchase_order_detail=NULL WHERE id=$1`
 		_, err = db.Exec(sqlStatement, details[i].Id)
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -282,6 +292,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
 	row := db.QueryRow(sqlStatement, detailInMemory.Order)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		trans.Rollback()
 		return false
 	}
@@ -307,6 +318,7 @@ func addQuantityAssignedSalePurchaseOrder(detailId int32, quantity int32) bool {
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 	if err != nil || rows == 0 {
+		log("DB", err.Error())
 		return false
 	}
 	return true
@@ -324,6 +336,10 @@ func addQuantityInvociedPurchaseOrderDetail(detailId int32, quantity int32) bool
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil && rows > 0
 }
 
@@ -339,6 +355,7 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int32, quantity int32) 
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 	if err != nil && rows == 0 {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -356,6 +373,7 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int32) bool {
 	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
 	rows, err := db.Query(sqlStatement, detailId)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -379,6 +397,7 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int32) bool {
 	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
 	rows, err := db.Query(sqlStatement, detailId)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

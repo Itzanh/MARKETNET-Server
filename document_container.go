@@ -17,6 +17,7 @@ func getDocumentContainer() []DocumentContainer {
 	sqlStatement := `SELECT * FROM document_container ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return containters
 	}
 	for rows.Next() {
@@ -32,6 +33,7 @@ func getDocumentContainerRow(containerId int16) DocumentContainer {
 	sqlStatement := `SELECT * FROM document_container WHERE id=$1`
 	row := db.QueryRow(sqlStatement, containerId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return DocumentContainer{}
 	}
 
@@ -53,6 +55,7 @@ func (d *DocumentContainer) insertDocumentContainer() bool {
 	sqlStatement := `INSERT INTO public.document_container(name, path, max_file_size, disallowed_mime_types, allowed_mime_types) VALUES ($1, $2, $3, $4, $5)`
 	res, err := db.Exec(sqlStatement, d.Name, d.Path, d.MaxFileSize, d.DisallowedMimeTypes, d.AllowedMimeTypes)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -68,6 +71,7 @@ func (d *DocumentContainer) updateDocumentContainer() bool {
 	sqlStatement := `UPDATE public.document_container SET name=$2, path=$3, max_file_size=$4, disallowed_mime_types=$5, allowed_mime_types=$6 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, d.Id, d.Name, d.Path, d.MaxFileSize, d.DisallowedMimeTypes, d.AllowedMimeTypes)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -83,6 +87,7 @@ func (d *DocumentContainer) deleteDocumentContainer() bool {
 	sqlStatement := `DELETE FROM public.document_container WHERE id=$1`
 	res, err := db.Exec(sqlStatement, d.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -100,6 +105,7 @@ func locateDocumentContainer() []DocumentContainerLocate {
 	sqlStatement := `SELECT id,name FROM document_container ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return containters
 	}
 	for rows.Next() {

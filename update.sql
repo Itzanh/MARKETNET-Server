@@ -1,11 +1,29 @@
-ALTER INDEX public.customer_name RENAME TO customer_name_trgm;
-CREATE UNIQUE INDEX customer_name
-    ON public.customer USING btree
-    (name ASC NULLS LAST)
-;
-ALTER INDEX public.supplier_name RENAME TO supplier_name_trgm;
-CREATE UNIQUE INDEX supplier_name
-    ON public.suppliers USING btree
-    (name COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
+ALTER TABLE public.config
+    ADD COLUMN cron_clear_logs character varying(25) NOT NULL DEFAULT '@monthly';
     
+CREATE TABLE public.logs
+(
+    id bigint NOT NULL,
+    date_created timestamp(3) without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    title character varying(255) NOT NULL,
+    info text NOT NULL,
+    PRIMARY KEY (id)
+);
+
+ALTER TABLE public.logs
+    OWNER to postgres;
+
+CREATE OR REPLACE FUNCTION set_logs_id()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.id = (SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(logs.id) END AS id FROM logs) + 1;
+    RETURN NEW;
+END;
+$$
+LANGUAGE 'plpgsql';
+
+create trigger set_logs_id
+before insert on logs
+for each row execute procedure set_logs_id();
+
+GRANT ALL ON TABLE public.logs TO marketnet;

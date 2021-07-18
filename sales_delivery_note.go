@@ -46,6 +46,7 @@ func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
 	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM public.sales_delivery_note ORDER BY date_created DESC OFFSET $1 LIMIT $2`
 	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
+		log("DB", err.Error())
 		return sd
 	}
 	for rows.Next() {
@@ -65,6 +66,7 @@ func getSalesDeliveryNoteRow(deliveryNoteId int32) SalesDeliveryNote {
 	sqlStatement := `SELECT * FROM public.sales_delivery_note WHERE id=$1`
 	row := db.QueryRow(sqlStatement, deliveryNoteId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return SalesDeliveryNote{}
 	}
 
@@ -104,6 +106,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {
+		log("DB", err.Error())
 		return sd
 	}
 	for rows.Next() {
@@ -132,6 +135,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 		row = db.QueryRow(sqlStatement, interfaces...)
 	}
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return sd
 	}
 	row.Scan(&sd.Rows)
@@ -159,6 +163,7 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes() (bool, int32) {
 	sqlStatement := `INSERT INTO public.sales_delivery_note(warehouse, customer, payment_method, billing_series, shipping_address, delivery_note_number, delivery_note_name, currency, currency_change) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 	row := db.QueryRow(sqlStatement, n.Warehouse, n.Customer, n.PaymentMethod, n.BillingSeries, n.ShippingAddress, n.DeliveryNoteNumber, n.DeliveryNoteName, n.Currency, n.CurrencyChange)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false, 0
 	}
 
@@ -191,6 +196,7 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {
 	sqlStatement := `DELETE FROM public.sales_delivery_note WHERE id=$1`
 	res, err := db.Exec(sqlStatement, n.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -335,6 +341,7 @@ func locateSalesDeliveryNotesBySalesOrder(orderId int32) []SalesDeliveryNoteLoca
 	sqlStatement := `SELECT DISTINCT sales_delivery_note.id,(SELECT name FROM customer WHERE id=sales_delivery_note.customer),sales_delivery_note.date_created,sales_delivery_note.delivery_note_name FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = $1`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
@@ -350,6 +357,7 @@ func getNameSalesDeliveryNote(id int32) string {
 	sqlStatement := `SELECT delivery_note_name FROM public.sales_delivery_note WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""
@@ -374,6 +382,7 @@ func getSalesDeliveryNoteOrders(noteId int32) []SaleOrder {
 	sqlStatement := `SELECT DISTINCT sales_order.* FROM sales_delivery_note INNER JOIN warehouse_movement ON sales_delivery_note.id=warehouse_movement.sales_delivery_note INNER JOIN sales_order ON sales_order.id=warehouse_movement.sales_order WHERE sales_delivery_note.id=$1 ORDER BY sales_order.date_created DESC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
+		log("DB", err.Error())
 		return sales
 	}
 	for rows.Next() {
@@ -392,6 +401,7 @@ func getSalesDeliveryNoteShippings(noteId int32) []Shipping {
 	sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier) FROM public.shipping WHERE shipping.delivery_note=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
+		log("DB", err.Error())
 		return shippings
 	}
 	for rows.Next() {
@@ -409,6 +419,7 @@ func addTotalProductsSalesDeliveryNote(noteId int32, totalAmount float32, vatPer
 	sqlStatement := `UPDATE sales_delivery_note SET total_products=total_products+$2, vat_amount=vat_amount+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -421,6 +432,7 @@ func calcTotalsSaleDeliveryNote(noteId int32) bool {
 	sqlStatement := `UPDATE sales_delivery_note SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err := db.Exec(sqlStatement, noteId)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

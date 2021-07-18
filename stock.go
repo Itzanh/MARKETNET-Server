@@ -16,6 +16,7 @@ func getStock(productId int32) []Stock {
 	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=stock.warehouse) FROM stock WHERE product=$1 ORDER BY warehouse ASC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return stock
 	}
 	for rows.Next() {
@@ -31,6 +32,7 @@ func getStockRow(productId int32, warehouseId string) Stock {
 	sqlStatement := `SELECT * FROM stock WHERE product = $1 AND warehouse = $2`
 	row := db.QueryRow(sqlStatement, productId, warehouseId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Stock{}
 	}
 
@@ -45,6 +47,11 @@ func createStockRow(productId int32, warehouseId string) bool {
 	sqlStatement := `INSERT INTO stock (product,warehouse) VALUES ($1,$2)`
 	res, err := db.Exec(sqlStatement, productId, warehouseId)
 	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return rows > 0 && err == nil
 }
 
@@ -55,6 +62,10 @@ func createStockRow(productId int32, warehouseId string) bool {
 func addQuantityPendingServing(productId int32, warehouseId string, quantity int32) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_pending_served=quantity_pending_served+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
@@ -81,6 +92,10 @@ func addQuantityPendingReveiving(productId int32, warehouseId string, quantity i
 	sqlStatement := `UPDATE public.stock SET quantity_pending_received=quantity_pending_received+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity)
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
 		if createStockRow(productId, warehouseId) { // we create the row, and retry the operation
@@ -105,6 +120,10 @@ func addQuantityPendingReveiving(productId int32, warehouseId string, quantity i
 func addQuantityPendingManufacture(productId int32, warehouseId string, quantity int32) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_pending_manufacture=quantity_pending_manufacture+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
@@ -131,6 +150,10 @@ func addQuantityStock(productId int32, warehouseId string, quantity int32) bool 
 	sqlStatement := `UPDATE public.stock SET quantity=quantity+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity)
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
 		if createStockRow(productId, warehouseId) { // we create the row, and retry the operation
@@ -154,6 +177,10 @@ func setQuantityStock(productId int32, warehouseId string, quantity int32) bool 
 	sqlStatement := `UPDATE public.stock SET quantity=$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity)
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
 		if createStockRow(productId, warehouseId) { // we create the row, and retry the operation
@@ -175,6 +202,11 @@ func setQuantityStock(productId int32, warehouseId string, quantity int32) bool 
 func setQuantityAvailable(productId int32, warehouseId string) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2`
 	res, err := db.Exec(sqlStatement, productId, warehouseId)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	rows, _ := res.RowsAffected()
 	return rows > 0 && err == nil
 }
@@ -184,5 +216,10 @@ func setQuantityAvailable(productId int32, warehouseId string) bool {
 func setProductStockAllWarehouses(productId int32) bool {
 	sqlStatement := `UPDATE product SET stock = (SELECT SUM(quantity) FROM stock WHERE product=$1) WHERE id=$1`
 	_, err := db.Exec(sqlStatement, productId)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }

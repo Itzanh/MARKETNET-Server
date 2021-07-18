@@ -39,6 +39,7 @@ func getProduct() []Product {
 	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM public.product ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
@@ -65,6 +66,7 @@ func (search *ProductSearch) searchProduct() []Product {
 	}
 	rows, err := db.Query(sqlStatement, "%"+search.Search+"%")
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
@@ -80,6 +82,7 @@ func getProductRow(productId int32) Product {
 	sqlStatement := `SELECT * FROM public.product WHERE id=$1`
 	row := db.QueryRow(sqlStatement, productId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Product{}
 	}
 
@@ -101,6 +104,7 @@ func (p *Product) insertProduct() bool {
 	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
 	res, err := db.Exec(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.PrestaShopId, p.PrestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -116,6 +120,7 @@ func (p *Product) updateProduct() bool {
 	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -131,6 +136,7 @@ func (p *Product) deleteProduct() bool {
 	sqlStatement := `DELETE FROM public.product WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -143,6 +149,7 @@ func findProductByName(languageName string) []NameInt32 {
 	sqlStatement := `SELECT id,name FROM public.product WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
@@ -158,6 +165,7 @@ func getNameProduct(id int32) string {
 	sqlStatement := `SELECT name FROM public.product WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""
@@ -174,6 +182,7 @@ func getOrderDetailDefaults(roductId int32) OrderDetailDefaults {
 	sqlStatement := `SELECT price, vat_percent FROM product WHERE id = $1`
 	row := db.QueryRow(sqlStatement, roductId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return OrderDetailDefaults{}
 	}
 	s := OrderDetailDefaults{}
@@ -187,6 +196,7 @@ func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity ORDER BY sales_order_detail.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -204,6 +214,7 @@ func getProductPurchaseOrderDetailsPending(productId int32) []PurchaseOrderDetai
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity ORDER BY purchase_order_detail.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -221,6 +232,7 @@ func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -238,6 +250,7 @@ func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 ORDER BY purchase_order_detail.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
@@ -255,6 +268,7 @@ func getProductWarehouseMovement(productId int32) []WarehouseMovement {
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM warehouse_movement WHERE product=$1 ORDER BY warehouse_movement.id DESC`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return warehouseMovements
 	}
 	for rows.Next() {
@@ -270,6 +284,7 @@ func (p *Product) generateBarcode() bool {
 	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE SUBSTRING(barcode,0,5) = $1 ORDER BY barcode DESC LIMIT 1`
 	row := db.QueryRow(sqlStatement, getSettingsRecord().BarcodePrefix)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
@@ -312,6 +327,7 @@ func getProductImages(productId int32) []ProductImage {
 	sqlStatement := `SELECT * FROM public.product_image WHERE product=$1`
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
+		log("DB", err.Error())
 		return image
 	}
 	for rows.Next() {
@@ -335,6 +351,7 @@ func (i *ProductImage) insertProductImage() bool {
 	sqlStatement := `INSERT INTO public.product_image(product, url) VALUES ($1, $2)`
 	res, err := db.Exec(sqlStatement, i.Product, i.URL)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -350,6 +367,7 @@ func (i *ProductImage) updateProductImage() bool {
 	sqlStatement := `UPDATE public.product_image SET url=$2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id, i.URL)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -365,6 +383,7 @@ func (i *ProductImage) deleteProductImage() bool {
 	sqlStatement := `DELETE FROM public.product_image WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -390,6 +409,7 @@ func calculateMinimumStock() bool {
 	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -401,6 +421,7 @@ func calculateMinimumStock() bool {
 		sqlStatement := `SELECT SUM(sales_order_detail.quantity) FROM sales_order_detail INNER JOIN sales_order ON sales_order.id=sales_order_detail.order WHERE sales_order_detail.product=$1 AND sales_order.date_created >= $2`
 		row := db.QueryRow(sqlStatement, productId, t)
 		if row.Err() != nil {
+			log("DB", row.Err().Error())
 			trans.Rollback()
 			return false
 		}
@@ -411,6 +432,7 @@ func calculateMinimumStock() bool {
 		sqlStatement = `UPDATE product SET minimum_stock=$2 WHERE id=$1`
 		_, err := db.Exec(sqlStatement, productId, quantitySold/int32(s.MinimumStockSalesPeriods))
 		if err != nil {
+			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
@@ -428,6 +450,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock() bool {
 	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2)`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -545,6 +568,7 @@ func (q *ProductLocateQuery) locateProduct() []ProductLocate {
 	}
 	rows, err := db.Query(sqlStatement, parameters...)
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {

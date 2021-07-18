@@ -15,6 +15,7 @@ func getProductFamilies() []ProductFamily {
 	sqlStatement := `SELECT * FROM public.product_family ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return families
 	}
 	for rows.Next() {
@@ -38,6 +39,7 @@ func (f *ProductFamily) insertProductFamily() bool {
 	sqlStatement := `INSERT INTO public.product_family(name, reference) VALUES ($1, $2)`
 	res, err := db.Exec(sqlStatement, f.Name, f.Reference)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -53,6 +55,7 @@ func (f *ProductFamily) updateProductFamily() bool {
 	sqlStatement := `UPDATE public.product_family SET name=$2, reference=$3 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, f.Id, f.Name, f.Reference)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -68,6 +71,7 @@ func (f *ProductFamily) deleteProductFamily() bool {
 	sqlStatement := `DELETE FROM public.product_family WHERE id=$1`
 	res, err := db.Exec(sqlStatement, f.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -80,6 +84,7 @@ func findProductFamilyByName(productFamilyName string) []NameInt16 {
 	sqlStatement := `SELECT id,name FROM public.product_family WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(productFamilyName))
 	if err != nil {
+		log("DB", err.Error())
 		return productFamily
 	}
 	for rows.Next() {
@@ -95,6 +100,7 @@ func getNameProductFamily(id int16) string {
 	sqlStatement := `SELECT name FROM public.product_family WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""

@@ -10,6 +10,7 @@ func getManufacturingOrderType() []ManufacturingOrderType {
 	sqlStatement := `SELECT * FROM public.manufacturing_order_type ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return types
 	}
 	for rows.Next() {
@@ -33,6 +34,7 @@ func (t *ManufacturingOrderType) insertManufacturingOrderType() bool {
 	sqlStatement := `INSERT INTO public.manufacturing_order_type(name) VALUES ($1)`
 	res, err := db.Exec(sqlStatement, t.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -48,6 +50,7 @@ func (t *ManufacturingOrderType) updateManufacturingOrderType() bool {
 	sqlStatement := `UPDATE public.manufacturing_order_type SET name=$2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, t.Id, t.Name)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -63,6 +66,7 @@ func (t *ManufacturingOrderType) deleteManufacturingOrderType() bool {
 	sqlStatement := `DELETE FROM public.manufacturing_order_type WHERE id=$1`
 	res, err := db.Exec(sqlStatement, t.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

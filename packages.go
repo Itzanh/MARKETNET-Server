@@ -15,6 +15,7 @@ func getPackages() []Packages {
 	sqlStatement := `SELECT * FROM public.packages ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
@@ -30,6 +31,7 @@ func getPackagesRow(packageId int16) Packages {
 	sqlStatement := `SELECT * FROM public.packages WHERE id=$1`
 	row := db.QueryRow(sqlStatement, packageId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return Packages{}
 	}
 
@@ -51,6 +53,7 @@ func (p *Packages) insertPackage() bool {
 	sqlStatement := `INSERT INTO public.packages(name, weight, width, height, depth, product) VALUES ($1, $2, $3, $4, $5, $6)`
 	res, err := db.Exec(sqlStatement, p.Name, p.Weight, p.Width, p.Height, p.Depth, p.Product)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -66,6 +69,7 @@ func (p *Packages) updatePackage() bool {
 	sqlStatement := `UPDATE public.packages SET name=$2, weight=$3, width=$4, height=$5, depth=$6, product=$7 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Weight, p.Width, p.Height, p.Depth, p.Product)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -81,6 +85,7 @@ func (p *Packages) deletePackage() bool {
 	sqlStatement := `DELETE FROM public.packages WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 

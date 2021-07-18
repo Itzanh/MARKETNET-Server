@@ -24,6 +24,7 @@ func getCurrencies() []Currency {
 	sqlStatement := `SELECT * FROM public.currency ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return currencies
 	}
 	for rows.Next() {
@@ -47,6 +48,7 @@ func (c *Currency) insertCurrency() bool {
 	sqlStatement := `INSERT INTO public.currency(name, sign, iso_code, iso_num, exchange) VALUES ($1, $2, $3, $4, $5)`
 	res, err := db.Exec(sqlStatement, c.Name, c.Sign, c.IsoCode, c.IsoNum, c.Change)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -62,6 +64,7 @@ func (c *Currency) updateCurrency() bool {
 	sqlStatement := `UPDATE public.currency SET name=$2, sign=$3, iso_code=$4, iso_num=$5, exchange=$6 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Sign, c.IsoCode, c.IsoNum, c.Change)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -77,6 +80,7 @@ func (c *Currency) deleteCurrency() bool {
 	sqlStatement := `DELETE FROM public.currency WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -88,6 +92,7 @@ func getCurrencyExchange(currencyId int16) float32 {
 	sqlStatement := `SELECT exchange FROM public.currency WHERE id=$1`
 	row := db.QueryRow(sqlStatement, currencyId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return 0
 	}
 	var change float32
@@ -100,6 +105,7 @@ func findCurrencyByName(currencyName string) []NameInt16 {
 	sqlStatement := `SELECT id,name FROM public.currency WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
 	rows, err := db.Query(sqlStatement, strings.ToUpper(currencyName))
 	if err != nil {
+		log("DB", err.Error())
 		return currencies
 	}
 	for rows.Next() {
@@ -115,6 +121,7 @@ func getNameCurrency(id int16) string {
 	sqlStatement := `SELECT name FROM public.currency WHERE id = $1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return ""
 	}
 	name := ""

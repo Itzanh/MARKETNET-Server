@@ -46,6 +46,7 @@ func getPurchaseOrder() []PurchaseOrder {
 	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return purchases
 	}
 	for rows.Next() {
@@ -82,6 +83,7 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {
+		log("DB", err.Error())
 		return purchases
 	}
 	for rows.Next() {
@@ -99,6 +101,7 @@ func getPurchaseOrderRow(orderId int32) PurchaseOrder {
 	sqlStatement := `SELECT * FROM purchase_order WHERE id=$1`
 	row := db.QueryRow(sqlStatement, orderId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return PurchaseOrder{}
 	}
 
@@ -130,6 +133,7 @@ func (p *PurchaseOrder) insertPurchaseOrder() (bool, int32) {
 	sqlStatement := `INSERT INTO public.purchase_order(warehouse, supplier_reference, supplier, payment_method, billing_series, currency, currency_change, billing_address, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, dsc, notes, order_number, order_name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`
 	row := db.QueryRow(sqlStatement, p.Warehouse, p.SupplierReference, p.Supplier, p.PaymentMethod, p.BillingSeries, p.Currency, p.CurrencyChange, p.BillingAddress, p.ShippingAddress, p.DiscountPercent, p.FixDiscount, p.ShippingPrice, p.ShippingDiscount, p.Description, p.Notes, p.OrderNumber, p.OrderName)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false, 0
 	}
 
@@ -179,6 +183,7 @@ func (p *PurchaseOrder) updatePurchaseOrder() bool {
 	}
 
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -226,6 +231,7 @@ func (p *PurchaseOrder) deletePurchaseOrder() bool {
 	sqlStatement := `DELETE FROM public.purchase_order WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id)
 	if err != nil {
+		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
@@ -247,7 +253,7 @@ func addTotalProductsPurchaseOrder(orderId int32, totalAmount float32, vatPercen
 	sqlStatement := `UPDATE purchase_order SET total_products=total_products+$2,total_vat=total_vat+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, orderId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
-		fmt.Println(err)
+		log("DB", err.Error())
 		return false
 	}
 
@@ -259,6 +265,11 @@ func addTotalProductsPurchaseOrder(orderId int32, totalAmount float32, vatPercen
 func setDatePaymentAcceptedPurchaseOrder(orderId int32) bool {
 	sqlStatement := `UPDATE purchase_order SET date_paid=CASE WHEN date_paid IS NOT NULL THEN date_paid ELSE CURRENT_TIMESTAMP(3) END WHERE id=$1`
 	_, err := db.Exec(sqlStatement, orderId)
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }
 
@@ -268,6 +279,7 @@ func calcTotalsPurchaseOrder(orderId int32) bool {
 	sqlStatement := `UPDATE purchase_order SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+total_vat WHERE id=$1`
 	_, err := db.Exec(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return false
 	}
 
@@ -304,6 +316,7 @@ func getPurchaseOrderInvoices(orderId int32) []PurchaseInvoice {
 	sqlStatement := `SELECT DISTINCT purchase_invoice.* FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order.id=purchase_order_detail.order INNER JOIN purchase_invoice_details ON purchase_order_detail.id=purchase_invoice_details.order_detail INNER JOIN purchase_invoice ON purchase_invoice.id=purchase_invoice_details.invoice WHERE purchase_order.id=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return invoices
 	}
 	for rows.Next() {
@@ -322,6 +335,7 @@ func getPurchaseOrderDeliveryNotes(orderId int32) []PurchaseDeliveryNote {
 	sqlStatement := `SELECT DISTINCT purchase_delivery_note.* FROM purchase_order_detail INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON warehouse_movement.purchase_delivery_note=purchase_delivery_note.id WHERE purchase_order_detail."order"=$1`
 	rows, err := db.Query(sqlStatement, orderId)
 	if err != nil {
+		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {

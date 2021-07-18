@@ -16,6 +16,7 @@ func getNeeds() []Need {
 	sqlStatement := `SELECT product,(SELECT name FROM product WHERE product.id=sales_order_detail.product),(SELECT name FROM suppliers WHERE suppliers.id=(SELECT supplier FROM product WHERE product.id=sales_order_detail.product)),SUM(quantity) FROM sales_order_detail WHERE status='A' GROUP BY product`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
+		log("DB", err.Error())
 		return needs
 	}
 	for rows.Next() {
@@ -31,6 +32,7 @@ func getNeedRow(productId int32) int32 {
 	sqlStatement := `SELECT SUM(quantity) FROM sales_order_detail WHERE status='A' AND product=$1 GROUP BY product`
 	row := db.QueryRow(sqlStatement, productId)
 	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return 0
 	}
 
@@ -141,6 +143,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 					sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=$2 WHERE id=$1`
 					_, err := db.Exec(sqlStatement, details[k].Id, detailId)
 					if err != nil {
+						log("DB", err.Error())
 						trans.Rollback()
 						return false
 					}
