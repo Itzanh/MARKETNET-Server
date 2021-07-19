@@ -531,3 +531,87 @@ func locateSaleOrder() []SaleOrderLocate {
 
 	return sales
 }
+
+// Add an amount to the lines_number field in the sale order. This number represents the total of lines.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addSalesOrderLinesNumber(orderId int32) bool {
+	sqlStatement := `UPDATE public.sales_order SET lines_number=lines_number+1 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderId)
+	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	return err == nil && rows > 0
+}
+
+// Takes out an amount to the lines_number field in the sale order. This number represents the total of lines.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func removeSalesOrderLinesNumber(orderId int32) bool {
+	sqlStatement := `UPDATE public.sales_order SET lines_number=lines_number-1 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderId)
+	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	return err == nil && rows > 0
+}
+
+// Add an amount to the invoiced_lines field in the sale order. This number represents the total of invoiced lines.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addSalesOrderInvoicedLines(orderId int32) bool {
+	sqlStatement := `UPDATE public.sales_order SET invoiced_lines=invoiced_lines+1 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderId)
+	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	return err == nil && rows > 0
+}
+
+// Takes out an amount to the invoiced_lines field in the sale order. This number represents the total of invoiced lines.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func removeSalesOrderInvoicedLines(orderId int32) bool {
+	sqlStatement := `UPDATE public.sales_order SET invoiced_lines=invoiced_lines-1 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderId)
+	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	return err == nil && rows > 0
+}
+
+// Add an amount to the delivery_note_lines field in the sale order. This number represents the total of delivery note lines.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addSalesOrderDeliveryNoteLines(orderId int32) bool {
+	sqlStatement := `UPDATE public.sales_order SET delivery_note_lines=delivery_note_lines+1 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderId)
+	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	return err == nil && rows > 0
+}
+
+// Takes out an amount to the delivery_note_lines field in the sale order. This number represents the total of delivery note lines.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func removeSalesOrderDeliveryNoteLines(orderId int32) bool {
+	sqlStatement := `UPDATE public.sales_order SET delivery_note_lines=delivery_note_lines-1 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, orderId)
+	rows, _ := res.RowsAffected()
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	return err == nil && rows > 0
+}

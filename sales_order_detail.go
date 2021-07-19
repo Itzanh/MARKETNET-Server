@@ -121,6 +121,11 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
+	ok = addSalesOrderLinesNumber(s.Order)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
 
 	///
 	err = trans.Commit()
@@ -219,6 +224,11 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
+	ok = removeSalesOrderLinesNumber(detailInMemory.Order)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
 
 	///
 	err = trans.Commit()
@@ -254,7 +264,7 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 	}
 
 	var ok bool
-	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity {
+	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity { // set as invoced
 		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, detailBefore.Quantity)
 		// set the order detail state applying the workflow logic
 		if ok {
@@ -262,12 +272,20 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 			sqlStatement = `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
 			db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
 		}
-	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity {
+		ok = addSalesOrderInvoicedLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
+	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity { // undo invoiced
 		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, -detailBefore.Quantity)
 		// reset order detail state to "Waiting for Payment"
 		if ok {
 			sqlStatement = `UPDATE sales_order_detail SET status='_',purchase_order_detail=NULL WHERE id=$1`
 			db.Exec(sqlStatement, detailId)
+		}
+		ok = removeSalesOrderInvoicedLines(detailBefore.Order)
+		if !ok {
+			return false
 		}
 	}
 
@@ -373,6 +391,24 @@ func addQuantityDeliveryNoteSalesOrderDetail(detailId int32, quantity int32) boo
 
 	if err != nil {
 		log("DB", err.Error())
+	}
+
+	detailAfter := getSalesOrderDetailRow(detailId)
+	if detailAfter.Id <= 0 {
+		return false
+	}
+
+	var ok bool
+	if detailBefore.QuantityDeliveryNote != detailBefore.Quantity && detailAfter.QuantityDeliveryNote == detailAfter.Quantity { // set as delivery note generated
+		ok = addSalesOrderDeliveryNoteLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
+	} else if detailBefore.QuantityDeliveryNote == detailBefore.Quantity && detailAfter.QuantityDeliveryNote != detailAfter.Quantity { // undo delivery note generated
+		ok = removeSalesOrderDeliveryNoteLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
 	}
 
 	if err != nil && rows == 0 {
