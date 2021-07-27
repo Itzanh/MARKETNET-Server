@@ -417,6 +417,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getPendingPaymentTransaction())
+	case "COUNTRIES_SALES_ORDERS_AMOUNT":
+		var countriesSaleOrdersQuery CountriesSaleOrdersQuery
+		json.Unmarshal([]byte(message), &countriesSaleOrdersQuery)
+		data, _ = json.Marshal(countriesSaleOrdersQuery.countriesSaleOrdersAmount())
+	case "MANUFACTURING_ORDER_CREATED_MANUFACTURES_DAILY":
+		data, _ = json.Marshal(manufacturingOrderCreatedManufacturedDaily())
+	case "DAILY_SHIPPING_QUANTITY":
+		data, _ = json.Marshal(dailyShippingQuantity())
+	case "SHIPPING_BY_CARRIERS":
+		data, _ = json.Marshal(shippingByCarriers())
 	default:
 		found = false
 	}
@@ -431,13 +441,59 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 	if err != nil {
 		return
 	}
+	found = true
 	switch command {
 	case "MANUFACTURING_ORDER": // accepts the "0" value
 		if !permissions.Manufacturing {
 			return
 		}
 		data, _ = json.Marshal(getManufacturingOrder(int16(id)))
-		found = true
+	case "MONTHLY_SALES_AMOUNT":
+		var year *int16
+		if id > 0 {
+			aux := int16(id)
+			year = &aux
+		}
+		data, _ = json.Marshal(monthlySalesAmount(year))
+	case "MONTHLY_SALES_QUANTITY":
+		var year *int16
+		if id > 0 {
+			aux := int16(id)
+			year = &aux
+		}
+		data, _ = json.Marshal(monthlySalesQuantity(year))
+	case "SALES_OF_A_PRODUCT_QUANTITY":
+		data, _ = json.Marshal(salesOfAProductQuantity(int32(id)))
+	case "SALES_OF_A_PRODUCT_AMOUNT":
+		data, _ = json.Marshal(salesOfAProductAmount(int32(id)))
+	case "DAYS_OF_SERVICE_SALE_ORDERS":
+		var year *int16
+		if id > 0 {
+			aux := int16(id)
+			year = &aux
+		}
+		data, _ = json.Marshal(daysOfServiceSaleOrders(year))
+	case "DAYS_OF_SERVICE_PURCHASE_ORDERS":
+		var year *int16
+		if id > 0 {
+			aux := int16(id)
+			year = &aux
+		}
+		data, _ = json.Marshal(daysOfServicePurchaseOrders(year))
+	case "PURCHASE_ORDERS_BY_MONTH_AMOUNT":
+		var year *int16
+		if id > 0 {
+			aux := int16(id)
+			year = &aux
+		}
+		data, _ = json.Marshal(purchaseOrdersByMonthAmount(year))
+	case "PAYMENT_METHODS_SALE_ORDERS_AMOUNT":
+		var year *int16
+		if id > 0 {
+			aux := int16(id)
+			year = &aux
+		}
+		data, _ = json.Marshal(paymentMethodsSaleOrdersAmount(year))
 	default:
 		found = false
 	}

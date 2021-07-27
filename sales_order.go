@@ -95,7 +95,7 @@ func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT sales_order.*,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE order_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT sales_order.*,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE order_number=$1 OR id=$1 ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
@@ -134,7 +134,7 @@ func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
 	var row *sql.Row
 	orderNumber, err = strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT COUNT(*) FROM sales_order WHERE order_number=$1 ORDER BY date_created DESC`
+		sqlStatement := `SELECT COUNT(*) FROM sales_order WHERE order_number=$1 OR id=$1`
 		row = db.QueryRow(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
@@ -155,7 +155,7 @@ func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
 		row = db.QueryRow(sqlStatement, interfaces...)
 	}
 	if row.Err() != nil {
-		log("DB", err.Error())
+		log("DB", row.Err().Error())
 		return so
 	}
 	row.Scan(&so.Rows)
