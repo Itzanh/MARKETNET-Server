@@ -110,7 +110,7 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 
 	// AUTHENTICATION
 	ok, userId, permissions := authentication(ws, r.RemoteAddr)
-	if !ok {
+	if !ok || permissions == nil {
 		return
 	}
 	// END AUTHENTICATION
@@ -137,18 +137,19 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		commandProcessor(command[0:commandSeparatorIndex], command[commandSeparatorIndex+1:], message[separatorIndex+1:], mt, ws, permissions, userId)
+		commandProcessor(command[0:commandSeparatorIndex], command[commandSeparatorIndex+1:], message[separatorIndex+1:], mt, ws, *permissions, userId)
 	}
 }
 
-func authentication(ws *websocket.Conn, remoteAddr string) (bool, int16, Permissions) {
+func authentication(ws *websocket.Conn, remoteAddr string) (bool, int16, *Permissions) {
 	var userId int16
 	// AUTHENTICATION
-	for i := 0; i < 3; i++ {
+	var i int16 = 0
+	for ; i < settings.Server.MaxLoginAttemps; i++ {
 		// Receive message
 		mt, message, err := ws.ReadMessage()
 		if err != nil {
-			return false, 0, Permissions{}
+			return false, 0, nil
 		}
 
 		// Remote the port from the address
@@ -178,7 +179,7 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int16, Permiss
 		}
 	}
 	// END AUTHENTICATION
-	return false, 0, Permissions{}
+	return false, 0, nil
 }
 
 func commandProcessor(instruction string, command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, userId int16) {

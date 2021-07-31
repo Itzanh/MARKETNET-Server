@@ -25,6 +25,7 @@ type ServerSettings struct {
 	Port                 uint16            `json:"port"`
 	HashIterations       int32             `json:"hashIterations"`
 	TokenExpirationHours int16             `json:"tokenExpirationHours"`
+	MaxLoginAttemps      int16             `json:"maxLoginAttemps"`
 	TLS                  ServerSettingsTLS `json:"tls"`
 }
 

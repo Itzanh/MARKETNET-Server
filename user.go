@@ -208,10 +208,10 @@ type UserLogin struct {
 }
 
 type UserLoginResult struct {
-	Ok          bool        `json:"ok"`
-	Token       string      `json:"token"`
-	Permissions Permissions `json:"permissions"`
-	Language    string      `json:"language"`
+	Ok          bool         `json:"ok"`
+	Token       string       `json:"token"`
+	Permissions *Permissions `json:"permissions"`
+	Language    string       `json:"language"`
 }
 
 func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
@@ -230,7 +230,8 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
 		user.setUserFailedLoginAttemps(false)
 		t := LoginToken{User: user.Id, IpAddress: ipAddress}
 		t.insertLoginToken()
-		return UserLoginResult{Ok: true, Token: t.Name, Permissions: getUserPermissions(user.Id), Language: user.Language}, user.Id
+		perm := getUserPermissions(user.Id)
+		return UserLoginResult{Ok: true, Token: t.Name, Permissions: &perm, Language: user.Language}, user.Id
 	} else { // the two arrays are different
 		user.setUserFailedLoginAttemps(true)
 		return UserLoginResult{Ok: false}, 0
