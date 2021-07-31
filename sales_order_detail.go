@@ -367,6 +367,7 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int32, quantity int32) 
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
 
 	ok = rows > 0 && err == nil
@@ -391,6 +392,7 @@ func addQuantityDeliveryNoteSalesOrderDetail(detailId int32, quantity int32) boo
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
 
 	detailAfter := getSalesOrderDetailRow(detailId)

@@ -89,6 +89,11 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		}
 		return false, 0
 	}
+	ok = addPurchaseOrderLinesNumber(s.Order)
+	if !ok {
+		trans.Rollback()
+		return false, 0
+	}
 
 	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(detailId, s.Product, s.Quantity)
 	sqlStatement = `UPDATE purchase_order_detail SET quantity_assigned_sale=$2 WHERE id=$1`
@@ -287,6 +292,11 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
+	ok = removePurchaseOrderLinesNumber(detailInMemory.Order)
+	if !ok {
+		trans.Rollback()
+		return false
+	}
 
 	// substract quantity pending receiving
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
@@ -326,7 +336,7 @@ func addQuantityAssignedSalePurchaseOrder(detailId int32, quantity int32) bool {
 
 // Adds an invoiced quantity to the purchase order detail. This function will subsctract from the quantity if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityInvociedPurchaseOrderDetail(detailId int32, quantity int32) bool {
+func addQuantityInvoicedPurchaseOrderDetail(detailId int32, quantity int32) bool {
 	detailBefore := getPurchaseOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false
@@ -338,6 +348,24 @@ func addQuantityInvociedPurchaseOrderDetail(detailId int32, quantity int32) bool
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
+	}
+
+	detailAfter := getPurchaseOrderDetailRow(detailId)
+	if detailAfter.Id <= 0 {
+		return false
+	}
+
+	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity { // set as invoced
+		ok := addPurchaseOrderInvoicedLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
+	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity { // undo invoiced
+		ok := removePurchaseOrderInvoicedLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
 	}
 
 	return err == nil && rows > 0
@@ -345,7 +373,6 @@ func addQuantityInvociedPurchaseOrderDetail(detailId int32, quantity int32) bool
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func addQuantityDeliveryNotePurchaseOrderDetail(detailId int32, quantity int32) bool {
-
 	detailBefore := getPurchaseOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false
@@ -357,6 +384,23 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int32, quantity int32) 
 	if err != nil && rows == 0 {
 		log("DB", err.Error())
 		return false
+	}
+
+	detailAfter := getPurchaseOrderDetailRow(detailId)
+	if detailAfter.Id <= 0 {
+		return false
+	}
+
+	if detailBefore.QuantityDeliveryNote != detailBefore.Quantity && detailAfter.QuantityDeliveryNote == detailAfter.Quantity { // set as delivery note generated
+		ok := addPurchaseOrderDeliveryNoteLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
+	} else if detailBefore.QuantityDeliveryNote == detailBefore.Quantity && detailAfter.QuantityDeliveryNote != detailAfter.Quantity { // undo delivery note generated
+		ok := removePurchaseOrderDeliveryNoteLines(detailBefore.Order)
+		if !ok {
+			return false
+		}
 	}
 
 	if quantity > 0 { // the purchase order has been added to a delivery note, advance the status from the pending sales order details

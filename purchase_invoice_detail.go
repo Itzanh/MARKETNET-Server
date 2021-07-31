@@ -82,7 +82,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		return false
 	}
 	if s.OrderDetail != nil && *s.OrderDetail != 0 {
-		ok := addQuantityInvociedPurchaseOrderDetail(*s.OrderDetail, s.Quantity)
+		ok := addQuantityInvoicedPurchaseOrderDetail(*s.OrderDetail, s.Quantity)
 		if !ok {
 			if beginTransaction {
 				trans.Rollback()
@@ -133,7 +133,7 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 		return false
 	}
 	if detailInMemory.OrderDetail != nil && *detailInMemory.OrderDetail != 0 {
-		ok := addQuantityInvociedPurchaseOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity)
+		ok := addQuantityInvoicedPurchaseOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity)
 		if !ok {
 			trans.Rollback()
 			return false
