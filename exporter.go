@@ -527,6 +527,7 @@ func (f *ImportInfo) importJson() bool {
 		var manufacturingOrder []ManufacturingOrder
 		json.Unmarshal(jsonData, &manufacturingOrder)
 		for i := 0; i < len(manufacturingOrder); i++ {
+			manufacturingOrder[i].UserCreated = 1
 			ok = manufacturingOrder[i].insertManufacturingOrder()
 			if !ok {
 				trans.Rollback()

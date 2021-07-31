@@ -444,7 +444,7 @@ func calculateMinimumStock() bool {
 	///
 }
 
-func generateManufacturingOrPurchaseOrdersMinimumStock() bool {
+func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 	var generadedPurchaseOrders map[int32]PurchaseOrder = make(map[int32]PurchaseOrder) // Key: supplier ID, Value: generated purchase order
 
 	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2)`
@@ -476,6 +476,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock() bool {
 			for i := quantityAvailable; i < (minimumStock * 2); i++ {
 
 				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
+				o.UserCreated = userId
 				ok := o.insertManufacturingOrder()
 				if !ok {
 					trans.Rollback()

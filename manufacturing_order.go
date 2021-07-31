@@ -1,30 +1,34 @@
 package main
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type ManufacturingOrder struct {
-	Id               int64      `json:"id"`
-	OrderDetail      *int32     `json:"orderDetail"`
-	Product          int32      `json:"product"`
-	Type             int16      `json:"type"`
-	Uuid             string     `json:"uuid"`
-	DateCreated      time.Time  `json:"dateCreated"`
-	DateLastUpdate   time.Time  `json:"dateLastUpdate"`
-	Manufactured     bool       `json:"manufactured"`
-	DateManufactured *time.Time `json:"dateManufactured"`
-	UserManufactured *int16     `json:"userManufactured"`
-	UserCreated      int16      `json:"userCreated"`
-	TagPrinted       bool       `json:"tagPrinted"`
-	DateTagPrinted   *time.Time `json:"dateTagPrinted"`
-	Order            *int32     `json:"order"`
-	UserTagPrinted   *int16     `json:"userTagPrinted"`
-	TypeName         string     `json:"typeName"`
-	ProductName      string     `json:"productName"`
-	OrderName        string     `json:"orderName"`
+	Id                   int64      `json:"id"`
+	OrderDetail          *int32     `json:"orderDetail"`
+	Product              int32      `json:"product"`
+	Type                 int16      `json:"type"`
+	Uuid                 string     `json:"uuid"`
+	DateCreated          time.Time  `json:"dateCreated"`
+	DateLastUpdate       time.Time  `json:"dateLastUpdate"`
+	Manufactured         bool       `json:"manufactured"`
+	DateManufactured     *time.Time `json:"dateManufactured"`
+	UserManufactured     *int16     `json:"userManufactured"`
+	UserCreated          int16      `json:"userCreated"`
+	TagPrinted           bool       `json:"tagPrinted"`
+	DateTagPrinted       *time.Time `json:"dateTagPrinted"`
+	Order                *int32     `json:"order"`
+	UserTagPrinted       *int16     `json:"userTagPrinted"`
+	TypeName             string     `json:"typeName"`
+	ProductName          string     `json:"productName"`
+	OrderName            string     `json:"orderName"`
+	UserCreatedName      string     `json:"userCreatedName"`
+	UserManufacturedName *string    `json:"userManufacturedName"`
+	UserTagPrintedName   *string    `json:"userTagPrintedName"`
 }
 
 func getManufacturingOrder(orderTypeId int16) []ManufacturingOrder {
@@ -37,7 +41,7 @@ func getManufacturingOrder(orderTypeId int16) []ManufacturingOrder {
 
 func getAllManufacturingOrders() []ManufacturingOrder {
 	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order) FROM public.manufacturing_order ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		log("DB", err.Error())
@@ -45,7 +49,7 @@ func getAllManufacturingOrders() []ManufacturingOrder {
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		orders = append(orders, o)
 	}
 
@@ -54,7 +58,7 @@ func getAllManufacturingOrders() []ManufacturingOrder {
 
 func getManufacturingOrdersByType(orderTypeId int16) []ManufacturingOrder {
 	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order) FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderTypeId)
 	if err != nil {
 		log("DB", err.Error())
@@ -62,7 +66,7 @@ func getManufacturingOrdersByType(orderTypeId int16) []ManufacturingOrder {
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		orders = append(orders, o)
 	}
 
@@ -100,7 +104,6 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 	///
 
 	o.Uuid = uuid.New().String()
-	o.UserCreated = 1
 	if o.Type <= 0 {
 		product := getProductRow(o.Product)
 		if product.Id <= 0 {
@@ -201,7 +204,7 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 	///
 }
 
-func toggleManufactuedManufacturingOrder(orderid int64) bool {
+func toggleManufactuedManufacturingOrder(orderid int64, userId int16) bool {
 	if orderid <= 0 {
 		return false
 	}
@@ -213,7 +216,7 @@ func toggleManufactuedManufacturingOrder(orderid int64) bool {
 	}
 	///
 
-	sqlStatement := `UPDATE public.manufacturing_order SET manufactured = NOT manufactured WHERE id=$1`
+	sqlStatement := `UPDATE public.manufacturing_order SET manufactured = NOT manufactured, date_manufactured = CASE WHEN NOT manufactured THEN current_timestamp(3) ELSE NULL END, user_manufactured = CASE WHEN NOT manufactured THEN ` + strconv.Itoa(int(userId)) + ` ELSE NULL END WHERE id=$1`
 	res, err := db.Exec(sqlStatement, orderid)
 	if err != nil {
 		log("DB", err.Error())
@@ -352,4 +355,14 @@ func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder() boo
 	transErr = trans.Commit()
 	return transErr == nil
 	///
+}
+
+func manufacturingOrderTagPrinted(orderId int64, userId int16) bool {
+	if orderId <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE public.manufacturing_order SET tag_printed = true, date_tag_printed = current_timestamp(3), user_tag_printed = $2 WHERE id=$1`
+	_, err := db.Exec(sqlStatement, orderId, userId)
+	return err == nil
 }

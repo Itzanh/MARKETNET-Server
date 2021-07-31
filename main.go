@@ -137,7 +137,7 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		commandProcessor(command[0:commandSeparatorIndex], command[commandSeparatorIndex+1:], message[separatorIndex+1:], mt, ws, permissions)
+		commandProcessor(command[0:commandSeparatorIndex], command[commandSeparatorIndex+1:], message[separatorIndex+1:], mt, ws, permissions, userId)
 	}
 }
 
@@ -181,12 +181,12 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int16, Permiss
 	return false, 0, Permissions{}
 }
 
-func commandProcessor(instruction string, command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions) {
+func commandProcessor(instruction string, command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, userId int16) {
 	switch instruction {
 	case "GET":
 		instructionGet(command, string(message), mt, ws, permissions)
 	case "INSERT":
-		instructionInsert(command, message, mt, ws, permissions)
+		instructionInsert(command, message, mt, ws, permissions, userId)
 	case "UPDATE":
 		instructionUpdate(command, message, mt, ws, permissions)
 	case "DELETE":
@@ -200,7 +200,7 @@ func commandProcessor(instruction string, command string, message []byte, mt int
 	case "LOCATE":
 		instructionLocate(command, string(message), mt, ws, permissions)
 	case "ACTION":
-		instructionAction(command, string(message), mt, ws, permissions)
+		instructionAction(command, string(message), mt, ws, permissions, userId)
 	case "SEARCH":
 		instructionSearch(command, string(message), mt, ws, permissions)
 	}
@@ -668,7 +668,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 	ws.WriteMessage(mt, data)
 }
 
-func instructionInsert(command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions) {
+func instructionInsert(command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, userId int16) {
 	var ok bool
 
 	if permissions.Masters {
@@ -804,6 +804,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		}
 		var manufacturingOrder ManufacturingOrder
 		json.Unmarshal(message, &manufacturingOrder)
+		manufacturingOrder.UserCreated = userId
 		ok = manufacturingOrder.insertManufacturingOrder()
 	case "SALES_ORDER_PACKAGING":
 		if !permissions.Preparation {
@@ -1672,7 +1673,7 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 	ws.WriteMessage(mt, data)
 }
 
-func instructionAction(command string, message string, mt int, ws *websocket.Conn, permissions Permissions) {
+func instructionAction(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, userId int16) {
 	var data []byte
 
 	switch command {
@@ -1718,7 +1719,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(toggleManufactuedManufacturingOrder(int64(id)))
+		data, _ = json.Marshal(toggleManufactuedManufacturingOrder(int64(id), userId))
 	case "MANUFACTURING_ORDER_ALL_SALE_ORDER":
 		if !permissions.Sales {
 			return
@@ -1939,7 +1940,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Masters {
 			return
 		}
-		data, _ = json.Marshal(generateManufacturingOrPurchaseOrdersMinimumStock())
+		data, _ = json.Marshal(generateManufacturingOrPurchaseOrdersMinimumStock(userId))
 	case "SALES_POST_INVOICES":
 		if !permissions.Accounting {
 			return
@@ -1954,6 +1955,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var invoiceIds []int32
 		json.Unmarshal([]byte(message), &invoiceIds)
 		data, _ = json.Marshal(purchasePostInvoices(invoiceIds))
+	case "MANUFACTURING_ORDER_TAG_PRINTED":
+		if !permissions.Manufacturing {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(manufacturingOrderTagPrinted(int64(id), userId))
 	}
 	ws.WriteMessage(mt, data)
 }
