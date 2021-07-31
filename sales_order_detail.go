@@ -16,6 +16,7 @@ type SalesOrderDetail struct {
 	PurchaseOrderDetail      *int32 `json:"purchaseOrderDetail"`
 	PrestaShopId             int32  `json:"prestaShopId"`
 	ProductName              string `json:"productName"`
+	Cancelled                bool   `json:"cancelled"`
 }
 
 func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
@@ -28,7 +29,7 @@ func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -44,7 +45,7 @@ func getSalesOrderDetailRow(detailId int32) SalesOrderDetail {
 	}
 
 	d := SalesOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled)
 
 	return d
 }
@@ -270,7 +271,10 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 		if ok {
 			status, purchaseOrderDetail := detailBefore.computeStatus()
 			sqlStatement = `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
-			db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
+			_, err := db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
+			if err != nil {
+				log("DB", err.Error())
+			}
 		}
 		ok = addSalesOrderInvoicedLines(detailBefore.Order)
 		if !ok {
@@ -281,7 +285,10 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 		// reset order detail state to "Waiting for Payment"
 		if ok {
 			sqlStatement = `UPDATE sales_order_detail SET status='_',purchase_order_detail=NULL WHERE id=$1`
-			db.Exec(sqlStatement, detailId)
+			_, err := db.Exec(sqlStatement, detailId)
+			if err != nil {
+				log("DB", err.Error())
+			}
 		}
 		ok = removeSalesOrderInvoicedLines(detailBefore.Order)
 		if !ok {
@@ -417,4 +424,57 @@ func addQuantityDeliveryNoteSalesOrderDetail(detailId int32, quantity int32) boo
 		return false
 	}
 	return true
+}
+
+func cancelSalesOrderDetail(detailId int32) bool {
+	detail := getSalesOrderDetailRow(detailId)
+	if detail.Id <= 0 {
+		return false
+	}
+
+	if !detail.Cancelled {
+		if detail.Quantity <= 0 || detail.QuantityInvoiced < 0 || detail.QuantityDeliveryNote > 0 {
+			return false
+		}
+
+		sqlStatement := `UPDATE public.sales_order_detail SET quantity_invoiced=quantity, quantity_delivery_note=quantity, status='Z', cancelled=true WHERE id=$1`
+		_, err := db.Exec(sqlStatement, detailId)
+
+		if err != nil {
+			log("DB", err.Error())
+			return false
+		}
+
+		ok := setSalesOrderState(detail.Order)
+		if !ok {
+			return false
+		}
+
+		return err == nil
+	} else {
+		if detail.Quantity <= 0 || detail.QuantityInvoiced == 0 || detail.QuantityDeliveryNote == 0 {
+			return false
+		}
+
+		sqlStatement := `UPDATE public.sales_order_detail SET quantity_invoiced=0, quantity_delivery_note=0, cancelled=false WHERE id=$1`
+		_, err := db.Exec(sqlStatement, detailId)
+
+		if err != nil {
+			log("DB", err.Error())
+		}
+
+		status, purchaseOrderDetail := detail.computeStatus()
+		sqlStatement = `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
+		_, err = db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
+		if err != nil {
+			log("DB", err.Error())
+		}
+
+		ok := setSalesOrderState(detail.Order)
+		if !ok {
+			return false
+		}
+
+		return err == nil
+	}
 }

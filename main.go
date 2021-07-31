@@ -1965,6 +1965,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(manufacturingOrderTagPrinted(int64(id), userId))
+	case "CANCEL_SALES_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(cancelSalesOrderDetail(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
