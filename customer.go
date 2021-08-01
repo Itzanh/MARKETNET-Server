@@ -41,8 +41,8 @@ func (q *PaginationQuery) getCustomers() Customers {
 	}
 
 	ct.Customers = make([]Customer, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id ASC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
 		log("DB", err.Error())
 		return ct

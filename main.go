@@ -69,6 +69,10 @@ func main() {
 	http.HandleFunc("/document", handleDocument)
 	http.HandleFunc("/report", generateReport)
 	http.HandleFunc("/export", handleExport)
+
+	if getSettingsRecord().EnableApiKey {
+		addHttpHandlerFuncions()
+	}
 	if settings.Server.TLS.UseTLS {
 		go http.ListenAndServeTLS(":"+strconv.Itoa(int(settings.Server.Port)), settings.Server.TLS.CrtPath, settings.Server.TLS.KeyPath, nil)
 	} else {
@@ -213,7 +217,7 @@ type PaginationQuery struct {
 }
 
 func (q *PaginationQuery) isValid() bool {
-	return !(q.Offset < 0 || q.Limit < 0)
+	return !(q.Offset < 0 || q.Limit <= 0)
 }
 
 func instructionGet(command string, message string, mt int, ws *websocket.Conn, permissions Permissions) {
@@ -428,6 +432,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		data, _ = json.Marshal(dailyShippingQuantity())
 	case "SHIPPING_BY_CARRIERS":
 		data, _ = json.Marshal(shippingByCarriers())
+	case "API_KEYS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getApiKeys())
 	default:
 		found = false
 	}
@@ -954,6 +963,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var payment Payment
 		json.Unmarshal(message, &payment)
 		ok = payment.insertPayment()
+	case "API_KEYS":
+		if !permissions.Admin {
+			return
+		}
+		var apiKey ApiKey
+		json.Unmarshal(message, &apiKey)
+		apiKey.UserCreated = userId
+		ok = apiKey.insertApiKey()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1437,6 +1454,13 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var payment Payment
 		payment.Id = int32(id)
 		ok = payment.deletePayment()
+	case "API_KEYS":
+		if !permissions.Admin {
+			return
+		}
+		var apiKey ApiKey
+		apiKey.Id = int16(id)
+		ok = apiKey.deleteApiKey()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1974,6 +1998,17 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(cancelSalesOrderDetail(int32(id)))
+	case "API_KEYS":
+		if !permissions.Admin {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		a := ApiKey{}
+		a.Id = int16(id)
+		data, _ = json.Marshal(a.offApiKey())
 	}
 	ws.WriteMessage(mt, data)
 }

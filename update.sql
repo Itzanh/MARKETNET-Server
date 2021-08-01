@@ -1,2 +1,4 @@
-ALTER TABLE public.sales_order_detail
-    ADD COLUMN cancelled boolean NOT NULL DEFAULT false;
+ALTER TABLE public.api_key
+    ADD COLUMN token uuid NOT NULL;
+ALTER TABLE public.config
+    ADD COLUMN enable_api_key boolean NOT NULL DEFAULT false;
