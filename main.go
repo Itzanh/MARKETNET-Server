@@ -1109,13 +1109,6 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var PurchaseOrdep PurchaseOrder
 		json.Unmarshal(message, &PurchaseOrdep)
 		ok = PurchaseOrdep.updatePurchaseOrder()
-	case "PURCHASE_ORDER_DETAIL":
-		if !permissions.Purchases {
-			return
-		}
-		var purchaseOrderDetail PurchaseOrderDetail
-		json.Unmarshal(message, &purchaseOrderDetail)
-		ok = purchaseOrderDetail.updatePurchaseOrderDetail()
 	case "SETTINGS":
 		var settings Settings
 		json.Unmarshal(message, &settings)

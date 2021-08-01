@@ -410,10 +410,6 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(body, &purchaseOrderDetail)
 		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
-	case "PUT":
-		var purchaseOrderDetail PurchaseOrderDetail
-		json.Unmarshal(body, &purchaseOrderDetail)
-		ok = purchaseOrderDetail.updatePurchaseOrderDetail()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
