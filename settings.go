@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"strconv"
 )
 
 // Basic, static, server settings such as the DB password or the port.
@@ -127,6 +128,16 @@ func (s *Settings) updateSettingsRecord() bool {
 		acc := getAccountIdByAccountNumber(*s.PurchaseJournal, 1)
 		if acc > 0 {
 			purchaseAccount = &acc
+		}
+	}
+
+	// demo/cloud mode
+	// don't allow more connections than the limit specified on the parameters
+	if getParameterValue("--max-connections") != "" {
+		maxConnecions := getParameterValue("--max-connections")
+		maxConn, err := strconv.Atoi(maxConnecions)
+		if err == nil {
+			s.MaxConnections = int32(maxConn)
 		}
 	}
 

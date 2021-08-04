@@ -79,6 +79,18 @@ func main() {
 		go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
 	}
 
+	// demo/cloud mode
+	// don't allow more connections than the limit specified on the parameters
+	if getParameterValue("--max-connections") != "" {
+		maxConnecions := getParameterValue("--max-connections")
+		maxConn, err := strconv.Atoi(maxConnecions)
+		if err == nil {
+			s := getSettingsRecord()
+			s.MaxConnections = int32(maxConn)
+			s.updateSettingsRecord()
+		}
+	}
+
 	// crons
 	go cleanDocumentTokens()
 	s := getSettingsRecord()
@@ -2132,4 +2144,13 @@ func isParameterPresent(parameter string) bool {
 		}
 	}
 	return false
+}
+
+func getParameterValue(parameter string) string {
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i][:len(parameter)] == parameter {
+			return strings.Split(os.Args[i], "=")[1]
+		}
+	}
+	return ""
 }
