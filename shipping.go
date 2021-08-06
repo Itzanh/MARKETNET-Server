@@ -305,12 +305,24 @@ func associatePackagingToShipping(packagingId int32, shippingId int32) bool {
 	return err == nil
 }
 
-func toggleShippingSent(shippingId int32) bool {
+type ToggleShippingSent struct {
+	Ok           bool    `json:"ok"`
+	ErrorMessage *string `json:"errorMessage"`
+}
+
+func toggleShippingSent(shippingId int32) ToggleShippingSent {
 	s := getShippingRow(shippingId)
 	// it is not allowed to manually set as "sent" if the carrier has a webservice set.
 	// it is not allowed to modify the "sent" field if the shipping was colletected by the carrier.
-	if s.Id <= 0 || s.CarrierWebService != "_" || s.Collected {
-		return false
+	if s.Id <= 0 || s.Collected {
+		return ToggleShippingSent{Ok: false}
+	}
+	if s.CarrierWebService != "_" {
+		ok, errorMessage := s.sendShipping()
+		if ok {
+			go updateTrackingNumberPrestaShopOrder(s.Order, s.TrackingNumber)
+		}
+		return ToggleShippingSent{Ok: ok, ErrorMessage: errorMessage}
 	}
 
 	sqlStatement := `UPDATE shipping SET sent = NOT sent, date_sent = CASE sent WHEN false THEN CURRENT_TIMESTAMP(3) ELSE NULL END WHERE id = $1`
@@ -320,7 +332,24 @@ func toggleShippingSent(shippingId int32) bool {
 		log("DB", err.Error())
 	}
 
-	return err == nil
+	return ToggleShippingSent{Ok: err == nil}
+}
+
+func (s *Shipping) sendShipping() (bool, *string) {
+	switch s.CarrierWebService {
+	case "S":
+		return s.sendShippingSendCloud()
+	default:
+		return false, nil
+	}
+}
+
+func (s *Shipping) sendShippingSendCloud() (bool, *string) {
+	ok, parcel := s.generateSendCloudParcel()
+	if !ok {
+		return false, nil
+	}
+	return parcel.send(s)
 }
 
 func setShippingCollected(shippings []int32) bool {

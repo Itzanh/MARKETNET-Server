@@ -46,6 +46,20 @@ func getStatesByCountry(countryId int16) []State {
 	return cities
 }
 
+func getStateRow(id int32) State {
+	sqlStatement := `SELECT * FROM public.state WHERE id=$1`
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return State{}
+	}
+
+	c := State{}
+	row.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode, &c.CountryName)
+
+	return c
+}
+
 func (c *State) isValid() bool {
 	return !(c.Country <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.IsoCode) > 7)
 }

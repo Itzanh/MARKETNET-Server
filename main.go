@@ -102,6 +102,7 @@ func main() {
 		c.AddFunc(s.CronPrestaShop, importFromPrestaShop)
 	}
 	c.AddFunc(s.CronClearLogs, clearLogs)
+	c.AddFunc(s.CronClearLabels, deleteAllShippingTags)
 	c.Start()
 	c.Run()
 
@@ -686,6 +687,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getSupplierPurchaseOrders(int32(id)))
+	case "SHIPPING_TAGS":
+		if !permissions.Preparation {
+			return
+		}
+		data, _ = json.Marshal(getShippingTags(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

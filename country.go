@@ -33,6 +33,20 @@ func getCountries() []Country {
 	return countries
 }
 
+func getCountryRow(id int16) Country {
+	sqlStatement := `SELECT * FROM public.country WHERE id=$1`
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return Country{}
+	}
+
+	c := Country{}
+	row.Scan(&c.Id, &c.Name, &c.Iso2, &c.Iso3, &c.UNCode, &c.Zone, &c.PhonePrefix, &c.Language, &c.Currency)
+
+	return c
+}
+
 func (c *Country) isValid() bool {
 	return !(len(c.Name) == 0 || len(c.Name) > 75 || len(c.Iso2) != 2 || (len(c.Iso3) != 0 && len(c.Iso3) != 3) || c.UNCode < 0 || (c.Zone != "N" && c.Zone != "U" && c.Zone != "E") || c.PhonePrefix < 0)
 }
