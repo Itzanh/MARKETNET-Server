@@ -116,7 +116,7 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM public.warehouse_movement WHERE sales_delivery_note=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE sales_delivery_note=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
 		log("DB", err.Error())
@@ -124,7 +124,7 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -137,7 +137,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product) FROM public.warehouse_movement WHERE purchase_delivery_note=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE purchase_delivery_note=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, noteId)
 	if err != nil {
 		log("DB", err.Error())
@@ -145,7 +145,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovemen
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 

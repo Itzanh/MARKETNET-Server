@@ -504,6 +504,10 @@ func setSalesOrderState(orderId int32) bool {
 	res, err := db.Exec(sqlStatement, orderId, status)
 	rows, _ := res.RowsAffected()
 
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return rows > 0 && err == nil
 }
 

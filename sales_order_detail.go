@@ -61,7 +61,7 @@ func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDet
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled)
 		details = append(details, d)
 	}
 
@@ -79,7 +79,7 @@ func getSalesOrderDetailPurchaseOrderPending(purchaseOrderDetail int32) []SalesO
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled)
 		details = append(details, d)
 	}
 

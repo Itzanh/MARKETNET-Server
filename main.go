@@ -293,7 +293,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		} else {
 			found = true
 		}
-	}
+	} // Masters
 
 	switch command {
 	case "SALES_ORDER":
@@ -389,7 +389,12 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		data, _ = json.Marshal(getPurchaseInvoices())
 	case "SETTINGS":
+		if !permissions.Admin {
+			return
+		}
 		data, _ = json.Marshal(getSettingsRecord())
+	case "CLIENT_SETTINGS":
+		data, _ = json.Marshal(getSettingsRecord().censorSettings())
 	case "PS_ZONES":
 		if !permissions.PrestaShop {
 			return
@@ -692,6 +697,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getShippingTags(int32(id)))
+	case "SALES_ORDER_DETAILS_FROM_PURCHASE_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getSalesOrderDetailsFromPurchaseOrderDetail(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -774,6 +784,95 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			json.Unmarshal(message, &productImage)
 			ok = productImage.insertProductImage()
 		}
+	} // Masters
+
+	var returnData []byte
+	var found bool = true
+	switch command {
+	case "SALES_ORDER":
+		if !permissions.Sales {
+			return
+		}
+		var saleOrder SaleOrder
+		json.Unmarshal([]byte(message), &saleOrder)
+		ok, orderId := saleOrder.insertSalesOrder()
+		if !ok {
+			returnData, _ = json.Marshal(nil)
+		} else {
+			order := getSalesOrderRow(orderId)
+			returnData, _ = json.Marshal(order)
+		}
+	case "SALES_INVOICE":
+		if !permissions.Sales {
+			return
+		}
+		var saleInvoice SalesInvoice
+		json.Unmarshal(message, &saleInvoice)
+		ok, invoiceId := saleInvoice.insertSalesInvoice()
+		if !ok {
+			returnData, _ = json.Marshal(nil)
+		} else {
+			invoice := getSalesInvoiceRow(invoiceId)
+			returnData, _ = json.Marshal(invoice)
+		}
+	case "SALES_DELIVERY_NOTES":
+		if !permissions.Sales {
+			return
+		}
+		var salesDeliveryNote SalesDeliveryNote
+		json.Unmarshal(message, &salesDeliveryNote)
+		ok, nodeId := salesDeliveryNote.insertSalesDeliveryNotes()
+		if !ok {
+			returnData, _ = json.Marshal(nil)
+		} else {
+			note := getSalesDeliveryNoteRow(nodeId)
+			returnData, _ = json.Marshal(note)
+		}
+	case "PURCHASE_ORDER":
+		if !permissions.Purchases {
+			return
+		}
+		var purchaseOrder PurchaseOrder
+		json.Unmarshal(message, &purchaseOrder)
+		ok, orderId := purchaseOrder.insertPurchaseOrder()
+		if !ok {
+			returnData, _ = json.Marshal(nil)
+		} else {
+			order := getPurchaseOrderRow(orderId)
+			returnData, _ = json.Marshal(order)
+		}
+	case "PURCHASE_INVOICE":
+		if !permissions.Purchases {
+			return
+		}
+		var purchaseInvoice PurchaseInvoice
+		json.Unmarshal(message, &purchaseInvoice)
+		ok, invoiceId := purchaseInvoice.insertPurchaseInvoice()
+		if !ok {
+			returnData, _ = json.Marshal(nil)
+		} else {
+			invoice := getPurchaseInvoiceRow(invoiceId)
+			returnData, _ = json.Marshal(invoice)
+		}
+	case "PURCHASE_DELIVERY_NOTE":
+		if !permissions.Purchases {
+			return
+		}
+		var purchaseDeliveryNote PurchaseDeliveryNote
+		json.Unmarshal(message, &purchaseDeliveryNote)
+		ok, noteId := purchaseDeliveryNote.insertPurchaseDeliveryNotes()
+		if !ok {
+			returnData, _ = json.Marshal(nil)
+		} else {
+			note := getPurchaseDeliveryNoteRow(noteId)
+			returnData, _ = json.Marshal(note)
+		}
+	default:
+		found = false
+	}
+	if found {
+		ws.WriteMessage(mt, returnData)
+		return
 	}
 
 	switch command {
@@ -784,13 +883,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var warehouse Warehouse
 		json.Unmarshal(message, &warehouse)
 		ok = warehouse.insertWarehouse()
-	case "SALES_ORDER":
-		if !permissions.Sales {
-			return
-		}
-		var saleOrder SaleOrder
-		json.Unmarshal(message, &saleOrder)
-		ok, _ = saleOrder.insertSalesOrder()
 	case "SALES_ORDER_DETAIL":
 		if !permissions.Sales {
 			return
@@ -805,13 +897,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrderDiscount SalesOrderDiscount
 		json.Unmarshal(message, &saleOrderDiscount)
 		ok = saleOrderDiscount.insertSalesOrderDiscount()
-	case "SALES_INVOICE":
-		if !permissions.Sales {
-			return
-		}
-		var saleInvoice SalesInvoice
-		json.Unmarshal(message, &saleInvoice)
-		ok, _ = saleInvoice.insertSalesInvoice()
 	case "SALES_INVOICE_DETAIL":
 		if !permissions.Sales {
 			return
@@ -862,13 +947,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var warehouseMovement WarehouseMovement
 		json.Unmarshal(message, &warehouseMovement)
 		ok = warehouseMovement.insertWarehouseMovement()
-	case "SALES_DELIVERY_NOTES":
-		if !permissions.Sales {
-			return
-		}
-		var salesDeliveryNote SalesDeliveryNote
-		json.Unmarshal(message, &salesDeliveryNote)
-		ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
 	case "USER":
 		if !permissions.Admin {
 			return
@@ -890,13 +968,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var userGroup UserGroup
 		json.Unmarshal(message, &userGroup)
 		ok = userGroup.insertUserGroup()
-	case "PURCHASE_ORDER":
-		if !permissions.Purchases {
-			return
-		}
-		var purchaseOrder PurchaseOrder
-		json.Unmarshal(message, &purchaseOrder)
-		ok, _ = purchaseOrder.insertPurchaseOrder()
 	case "PURCHASE_ORDER_DETAIL":
 		if !permissions.Purchases {
 			return
@@ -904,20 +975,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(message, &purchaseOrderDetail)
 		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
-	case "PURCHASE_DELIVERY_NOTE":
-		if !permissions.Purchases {
-			return
-		}
-		var purchaseDeliveryNote PurchaseDeliveryNote
-		json.Unmarshal(message, &purchaseDeliveryNote)
-		ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
-	case "PURCHASE_INVOICE":
-		if !permissions.Purchases {
-			return
-		}
-		var purchaseInvoice PurchaseInvoice
-		json.Unmarshal(message, &purchaseInvoice)
-		ok, _ = purchaseInvoice.insertPurchaseInvoice()
 	case "PURCHASE_INVOICE_DETAIL":
 		if !permissions.Purchases {
 			return

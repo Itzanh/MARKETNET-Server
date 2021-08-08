@@ -1,6 +1,9 @@
 package main
 
-import "database/sql"
+import (
+	"database/sql"
+	"time"
+)
 
 type PurchaseOrderDetail struct {
 	Id                       int32   `json:"id"`
@@ -161,9 +164,10 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int32, produc
 			sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=$2 WHERE id=$1`
 			_, err := db.Exec(sqlStatement, salesDetailId, purchaseDetailId)
 			if err == nil {
-				log("DB", err.Error())
 				quantityAssignedSale += salesQuantity
 				setSalesOrderState(orderId)
+			} else {
+				log("DB", err.Error())
 			}
 		} else { // no more rows to proecss
 			return quantityAssignedSale
@@ -382,4 +386,32 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int32) bool {
 	}
 
 	return err == nil
+}
+
+type PurchaseSalesOrderDetail struct {
+	Id           int32     `json:"id"`
+	Order        int32     `json:"order"`
+	OrderName    string    `json:"orderName"`
+	DateCreated  time.Time `json:"dateCreated"`
+	CustomerName string    `json:"customerName"`
+	Quantity     int32     `json:"quantity"`
+	TotalAmount  float32   `json:"totalAmount"`
+}
+
+func getSalesOrderDetailsFromPurchaseOrderDetail(detailId int32) []PurchaseSalesOrderDetail {
+	purchaseSalesOrderDetail := make([]PurchaseSalesOrderDetail, 0)
+	sqlStatement := `SELECT sales_order_detail.id,"order",(SELECT order_name FROM sales_order WHERE sales_order.id=sales_order_detail."order"),(SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail."order"),(SELECT name FROM customer WHERE customer.id=(SELECT customer FROM sales_order WHERE sales_order.id=sales_order_detail."order")),quantity,total_amount FROM sales_order_detail WHERE purchase_order_detail=$1`
+	rows, err := db.Query(sqlStatement, detailId)
+	if err != nil {
+		log("DB", err.Error())
+		return purchaseSalesOrderDetail
+	}
+
+	for rows.Next() {
+		p := PurchaseSalesOrderDetail{}
+		rows.Scan(&p.Id, &p.Order, &p.OrderName, &p.DateCreated, &p.CustomerName, &p.Quantity, &p.TotalAmount)
+		purchaseSalesOrderDetail = append(purchaseSalesOrderDetail, p)
+	}
+
+	return purchaseSalesOrderDetail
 }

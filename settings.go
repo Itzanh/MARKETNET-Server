@@ -152,3 +152,23 @@ func (s *Settings) updateSettingsRecord() bool {
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
+
+// Don't allow every client to get the secret data, like API keys.
+// This object holds the config that every client has to know, and the "Settings" object contains admin information.
+type ClientSettings struct {
+	DefaultVatPercent    float32 `json:"defaultVatPercent"`
+	DefaultWarehouse     string  `json:"defaultWarehouse"`
+	DefaultWarehouseName string  `json:"defaultWarehouseName"`
+	DateFormat           string  `json:"dateFormat"`
+	Ecommerce            string  `json:"ecommerce"` // "_" = None, "P" = PrestaShop, "M" = Magento
+}
+
+func (s Settings) censorSettings() ClientSettings {
+	c := ClientSettings{}
+	c.DefaultVatPercent = s.DefaultVatPercent
+	c.DefaultWarehouse = s.DefaultWarehouse
+	c.DefaultWarehouseName = s.DefaultWarehouseName
+	c.DateFormat = s.DateFormat
+	c.Ecommerce = s.Ecommerce
+	return c
+}

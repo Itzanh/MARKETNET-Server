@@ -313,17 +313,17 @@ func (q *CustomerLocateQuery) locateCustomers() []CustomerLocate {
 	sqlStatement := ``
 	parameters := make([]interface{}, 0)
 	if q.Value == "" {
-		sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC`
+		sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC LIMIT 100`
 	} else if q.Mode == 0 {
 		id, err := strconv.Atoi(q.Value)
 		if err != nil {
-			sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC`
+			sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC LIMIT 100`
 		} else {
 			sqlStatement = `SELECT id,name FROM public.customer WHERE id=$1`
 			parameters = append(parameters, id)
 		}
 	} else if q.Mode == 1 {
-		sqlStatement = `SELECT id,name FROM public.customer WHERE name ILIKE $1 ORDER BY id ASC`
+		sqlStatement = `SELECT id,name FROM public.customer WHERE name ILIKE $1 ORDER BY id ASC LIMIT 100`
 		parameters = append(parameters, "%"+q.Value+"%")
 	}
 	rows, err := db.Query(sqlStatement, parameters...)
