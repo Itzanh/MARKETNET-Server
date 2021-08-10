@@ -264,7 +264,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder() bool {
 		movement.Type = "I"
 		movement.Warehouse = purchaseOrder.Warehouse
 		movement.Product = orderDetail.Product
-		movement.Quantity = orderDetail.Quantity
+		movement.Quantity = noteInfo.Selection[i].Quantity
 		movement.PurchaseDeliveryNote = &deliveryNoteId
 		movement.PurchaseOrderDetail = &orderDetail.Id
 		movement.PurchaseOrder = &purchaseOrder.Id

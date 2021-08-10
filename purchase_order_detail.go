@@ -99,6 +99,12 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 	}
 
 	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(detailId, s.Product, s.Quantity)
+	if quantityAssignedSale < 0 {
+		if beginTrans {
+			trans.Rollback()
+		}
+		return false, 0
+	}
 	sqlStatement = `UPDATE purchase_order_detail SET quantity_assigned_sale=$2 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, detailId, quantityAssignedSale)
 	if err != nil {
@@ -146,7 +152,7 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int32, produc
 	rows, err := db.Query(sqlStatement, productId)
 	if err != nil {
 		log("DB", err.Error())
-		return 0
+		return -1
 	}
 
 	var quantityAssignedSale int32

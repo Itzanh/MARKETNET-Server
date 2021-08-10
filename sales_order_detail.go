@@ -159,8 +159,9 @@ func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent)
+	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
+	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5,total_amount=$6 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -274,7 +275,11 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 			_, err := db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
 			if err != nil {
 				log("DB", err.Error())
+				return false
 			}
+		}
+		if !ok {
+			return false
 		}
 		ok = addSalesOrderInvoicedLines(detailBefore.Order)
 		if !ok {
@@ -288,16 +293,16 @@ func addQuantityInvociedSalesOrderDetail(detailId int32, quantity int32) bool {
 			_, err := db.Exec(sqlStatement, detailId)
 			if err != nil {
 				log("DB", err.Error())
+				return false
 			}
+		}
+		if !ok {
+			return false
 		}
 		ok = removeSalesOrderInvoicedLines(detailBefore.Order)
 		if !ok {
 			return false
 		}
-	}
-
-	if !ok {
-		return false
 	}
 
 	ok = setSalesOrderState(salesOrder.Id)

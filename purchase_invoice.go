@@ -109,6 +109,7 @@ func getPurchaseInvoiceRow(invoiceId int32) PurchaseInvoice {
 func (i *PurchaseInvoice) isValid() bool {
 	return !(i.Supplier <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
+
 func (i *PurchaseInvoice) insertPurchaseInvoice() (bool, int32) {
 	if !i.isValid() {
 		return false, 0
