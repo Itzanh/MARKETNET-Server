@@ -1821,14 +1821,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int32(id)))
+		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int32(id), userId))
 	case "MANUFACTURING_ORDER_PARTIAL_SALE_ORDER":
 		if !permissions.Sales {
 			return
 		}
 		var orderInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &orderInfo)
-		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder())
+		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder(userId))
 	case "DELETE_SALES_ORDER_DETAIL_PACKAGED":
 		if !permissions.Preparation {
 			return

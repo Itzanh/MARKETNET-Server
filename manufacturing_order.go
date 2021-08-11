@@ -106,7 +106,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 	o.Uuid = uuid.New().String()
 	if o.Type <= 0 {
 		product := getProductRow(o.Product)
-		if product.Id <= 0 {
+		if product.Id <= 0 || !product.Manufacturing || product.ManufacturingOrderType == nil {
 			return false
 		}
 		o.Type = *product.ManufacturingOrderType
@@ -276,7 +276,7 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int16) bool {
 	///
 }
 
-func manufacturingOrderAllSaleOrder(saleOrderId int32) bool {
+func manufacturingOrderAllSaleOrder(saleOrderId int32, userId int16) bool {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	orderDetails := getSalesOrderDetail(saleOrderId)
@@ -299,6 +299,7 @@ func manufacturingOrderAllSaleOrder(saleOrderId int32) bool {
 			o.Product = orderDetail.Product
 			o.OrderDetail = &orderDetail.Id
 			o.Order = &saleOrder.Id
+			o.UserCreated = userId
 			ok := o.insertManufacturingOrder()
 			if !ok {
 				trans.Rollback()
@@ -313,7 +314,7 @@ func manufacturingOrderAllSaleOrder(saleOrderId int32) bool {
 	///
 }
 
-func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder() bool {
+func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder(userId int16) bool {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(orderInfo.OrderId)
 	if saleOrder.Id <= 0 || len(orderInfo.Selection) == 0 {
@@ -344,6 +345,7 @@ func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder() boo
 		o.Product = orderDetail.Product
 		o.OrderDetail = &orderDetail.Id
 		o.Order = &saleOrder.Id
+		o.UserCreated = userId
 		ok := o.insertManufacturingOrder()
 		if !ok {
 			trans.Rollback()
