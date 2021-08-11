@@ -17,7 +17,7 @@ func TestGetPurchaseOrder(t *testing.T) {
 	o := getPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase orders with ID 0.")
 			return
 		}
@@ -34,7 +34,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	o := q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase orders with ID 0.")
 			return
 		}
@@ -45,7 +45,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	o = q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase orders with ID 0.")
 			return
 		}
@@ -56,7 +56,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	o = q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase orders with ID 0.")
 			return
 		}
@@ -69,7 +69,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	o = q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase orders with ID 0.")
 			return
 		}
@@ -82,7 +82,7 @@ func TestGetPurchaseOrderRowr(t *testing.T) {
 	}
 
 	o := getPurchaseOrderRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, purchase order row with ID 0.")
 		return
 	}
@@ -185,7 +185,7 @@ func TestGetPurchaseOrderDetail(t *testing.T) {
 	o := getPurchaseOrderDetail(1)
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase order detail with ID 0.")
 			return
 		}
@@ -198,7 +198,7 @@ func TestGetPurchaseOrderDetailRow(t *testing.T) {
 	}
 
 	o := getPurchaseOrderDetailRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, purchase order detail row with ID 0.")
 		return
 	}
@@ -303,7 +303,7 @@ func TestGetPurchaseInvoices(t *testing.T) {
 	o := getPurchaseInvoices()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase invoices with ID 0.")
 			return
 		}
@@ -320,7 +320,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	o := q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase invoices with ID 0.")
 			return
 		}
@@ -331,7 +331,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	o = q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase invoices with ID 0.")
 			return
 		}
@@ -342,7 +342,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	o = q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase invoices with ID 0.")
 			return
 		}
@@ -355,7 +355,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	o = q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase invoices with ID 0.")
 			return
 		}
@@ -368,7 +368,7 @@ func TestGetPurchaseInvoiceRow(t *testing.T) {
 	}
 
 	o := getPurchaseInvoiceRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, purchase invoice row with ID 0.")
 		return
 	}
@@ -606,7 +606,7 @@ func TestGetPurchaseInvoiceDetail(t *testing.T) {
 	o := getPurchaseInvoiceDetail(1)
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase invoice details with ID 0.")
 			return
 		}
@@ -619,7 +619,7 @@ func TestGetPurchaseInvoiceDetailRow(t *testing.T) {
 	}
 
 	o := getPurchaseInvoiceDetailRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, purchase invoice detail row with ID 0.")
 		return
 	}
@@ -687,7 +687,7 @@ func TestGetPurchaseDeliveryNote(t *testing.T) {
 	o := getPurchaseDeliveryNotes()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase delivery note with ID 0.")
 			return
 		}
@@ -704,7 +704,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	o := q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase delivery note with ID 0.")
 			return
 		}
@@ -715,7 +715,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	o = q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase delivery note with ID 0.")
 			return
 		}
@@ -726,7 +726,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	o = q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase delivery note with ID 0.")
 			return
 		}
@@ -739,7 +739,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	o = q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, purchase delivery note with ID 0.")
 			return
 		}
@@ -752,7 +752,7 @@ func TestGetPurchaseDeliveryNoteRow(t *testing.T) {
 	}
 
 	o := getPurchaseDeliveryNoteRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, purchase delivery note row with ID 0.")
 		return
 	}
@@ -775,13 +775,13 @@ func TestPurchaseDeliveryNoteInsertUpdateDelete(t *testing.T) {
 		ShippingAddress: 3,
 	}
 
-	ok, invoiceId := i.insertPurchaseDeliveryNotes()
-	if !ok || invoiceId <= 0 {
+	ok, noteId := i.insertPurchaseDeliveryNotes()
+	if !ok || noteId <= 0 {
 		t.Error("Insert error, can't insert purchase delivery note")
 		return
 	}
 
-	i.Id = invoiceId
+	i.Id = noteId
 	ok = i.deletePurchaseDeliveryNotes()
 	if !ok {
 		t.Error("Delete error, can't delete purchase delivery note")

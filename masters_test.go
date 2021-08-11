@@ -18,7 +18,7 @@ func TestGetCustomers(t *testing.T) {
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
-		if c.Customers[i].Id < 0 {
+		if c.Customers[i].Id <= 0 {
 			t.Error("Scan error, customers with ID 0.")
 			return
 		}
@@ -35,7 +35,7 @@ func TestSearchCustomers(t *testing.T) {
 	c := q.searchCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
-		if c.Customers[i].Id < 0 {
+		if c.Customers[i].Id <= 0 {
 			t.Error("Scan error, customers with ID 0.")
 			return
 		}
@@ -48,7 +48,7 @@ func TestGetCustomerRow(t *testing.T) {
 	}
 
 	o := getCustomerRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, customer row with ID 0.")
 		return
 	}
@@ -301,7 +301,7 @@ func TestGetSuppliers(t *testing.T) {
 	s := getSuppliers()
 
 	for i := 0; i < len(s); i++ {
-		if s[i].Id < 0 {
+		if s[i].Id <= 0 {
 			t.Error("Scan error, suppliers with ID 0.")
 			return
 		}
@@ -317,7 +317,7 @@ func TestSearchSuppliers(t *testing.T) {
 	s := searchSuppliers("")
 
 	for i := 0; i < len(s); i++ {
-		if s[i].Id < 0 {
+		if s[i].Id <= 0 {
 			t.Error("Scan error, suppliers with ID 0.")
 			return
 		}
@@ -330,7 +330,7 @@ func TestGetSuppliersRow(t *testing.T) {
 	}
 
 	o := getSupplierRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, supplier row with ID 0.")
 		return
 	}
@@ -579,7 +579,7 @@ func TestGetProduct(t *testing.T) {
 	p := getProduct()
 
 	for i := 0; i < len(p); i++ {
-		if p[i].Id < 0 {
+		if p[i].Id <= 0 {
 			t.Error("Scan error, products with ID 0.")
 			return
 		}
@@ -596,7 +596,7 @@ func TestSearchProduct(t *testing.T) {
 	p := q.searchProduct()
 
 	for i := 0; i < len(p); i++ {
-		if p[i].Id < 0 {
+		if p[i].Id <= 0 {
 			t.Error("Scan error, products with ID 0.")
 			return
 		}
@@ -607,7 +607,7 @@ func TestSearchProduct(t *testing.T) {
 	p = q.searchProduct()
 
 	for i := 0; i < len(p); i++ {
-		if p[i].Id < 0 {
+		if p[i].Id <= 0 {
 			t.Error("Scan error, products with ID 0.")
 			return
 		}
@@ -620,7 +620,7 @@ func TestGetProductRow(t *testing.T) {
 	}
 
 	o := getProductRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, product row with ID 0.")
 		return
 	}

@@ -133,12 +133,33 @@ func (p *Product) deleteProduct() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.product WHERE id=$1`
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return false
+	}
+	///
+
+	sqlStatement := `DELETE FROM stock WHERE product=$1`
+	_, err = db.Exec(sqlStatement, p.Id)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	sqlStatement = `DELETE FROM public.product WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id)
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		return false
+	}
+	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0

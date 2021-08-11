@@ -43,7 +43,7 @@ func TestGetSalesOrder(t *testing.T) {
 	o := q.getSalesOrder()
 
 	for i := 0; i < len(o.Orders); i++ {
-		if o.Orders[i].Id < 0 {
+		if o.Orders[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -60,7 +60,7 @@ func TestSearchSalesOrder(t *testing.T) {
 	o := q.searchSalesOrder()
 
 	for i := 0; i < len(o.Orders); i++ {
-		if o.Orders[i].Id < 0 {
+		if o.Orders[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -71,7 +71,7 @@ func TestSearchSalesOrder(t *testing.T) {
 	o = q.searchSalesOrder()
 
 	for i := 0; i < len(o.Orders); i++ {
-		if o.Orders[i].Id < 0 {
+		if o.Orders[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -82,7 +82,7 @@ func TestSearchSalesOrder(t *testing.T) {
 	o = q.searchSalesOrder()
 
 	for i := 0; i < len(o.Orders); i++ {
-		if o.Orders[i].Id < 0 {
+		if o.Orders[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -95,7 +95,7 @@ func TestSearchSalesOrder(t *testing.T) {
 	o = q.searchSalesOrder()
 
 	for i := 0; i < len(o.Orders); i++ {
-		if o.Orders[i].Id < 0 {
+		if o.Orders[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -110,7 +110,7 @@ func TestGetStatusSalesOrder(t *testing.T) {
 	o := getSalesOrderPreparation()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -119,7 +119,7 @@ func TestGetStatusSalesOrder(t *testing.T) {
 	o = getSalesOrderAwaitingShipping()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -128,7 +128,7 @@ func TestGetStatusSalesOrder(t *testing.T) {
 	o = getSalesOrderStatus("A")
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -141,7 +141,7 @@ func TestGetRowStatusSalesOrder(t *testing.T) {
 	}
 
 	o := getSalesOrderRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, sale order row with ID 0.")
 		return
 	}
@@ -156,7 +156,7 @@ func TestLocateSaleOrder(t *testing.T) {
 	o := locateSaleOrder()
 
 	for i := 0; i < len(o); i++ {
-		if o[i].Id < 0 {
+		if o[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}
@@ -316,7 +316,7 @@ func TestGetRowStatusSalesOrderDetail(t *testing.T) {
 
 	d := getSalesOrderDetail(1)
 	for i := 0; i < len(d); i++ {
-		if d[i].Id < 0 {
+		if d[i].Id <= 0 {
 			t.Error("Scan error, sale order details with ID 0.")
 			return
 		}
@@ -330,7 +330,7 @@ func TestGetRowStatusSalesOrderDetailRow(t *testing.T) {
 	}
 
 	o := getSalesOrderDetailRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, sale order detail row with ID 0.")
 		return
 	}
@@ -559,7 +559,7 @@ func TestGetSalesInvoices(t *testing.T) {
 	o := q.getSalesInvoices()
 
 	for i := 0; i < len(o.Invoices); i++ {
-		if o.Invoices[i].Id < 0 {
+		if o.Invoices[i].Id <= 0 {
 			t.Error("Scan error, sale invoices with ID 0.")
 			return
 		}
@@ -576,7 +576,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	si := q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
-		if si.Invoices[i].Id < 0 {
+		if si.Invoices[i].Id <= 0 {
 			t.Error("Scan error, sale invoices with ID 0.")
 			return
 		}
@@ -587,7 +587,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	si = q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
-		if si.Invoices[i].Id < 0 {
+		if si.Invoices[i].Id <= 0 {
 			t.Error("Scan error, sale invoices with ID 0.")
 			return
 		}
@@ -598,7 +598,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	si = q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
-		if si.Invoices[i].Id < 0 {
+		if si.Invoices[i].Id <= 0 {
 			t.Error("Scan error, sale invoices with ID 0.")
 			return
 		}
@@ -611,7 +611,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	si = q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
-		if si.Invoices[i].Id < 0 {
+		if si.Invoices[i].Id <= 0 {
 			t.Error("Scan error, sale invoices with ID 0.")
 			return
 		}
@@ -624,7 +624,7 @@ func TestGetSalesInvoiceRow(t *testing.T) {
 	}
 
 	o := getSalesInvoiceRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, sale invoices row with ID 0.")
 		return
 	}
@@ -876,7 +876,7 @@ func TestGetSalesInvoiceDetail(t *testing.T) {
 	d := getSalesInvoiceDetail(1)
 
 	for i := 0; i < len(d); i++ {
-		if d[i].Id < 0 {
+		if d[i].Id <= 0 {
 			t.Error("Scan error, sale invoice details with ID 0.")
 			return
 		}
@@ -889,7 +889,7 @@ func TestGetSalesInvoiceDetailRow(t *testing.T) {
 	}
 
 	o := getSalesInvoiceDetailRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, sale invoice detail row with ID 0.")
 		return
 	}
@@ -961,7 +961,7 @@ func TestGetSalesDeliveryNotes(t *testing.T) {
 	o := q.getSalesDeliveryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
-		if o.Notes[i].Id < 0 {
+		if o.Notes[i].Id <= 0 {
 			t.Error("Scan error, sale delivery note with ID 0.")
 			return
 		}
@@ -978,7 +978,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	o := q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
-		if o.Notes[i].Id < 0 {
+		if o.Notes[i].Id <= 0 {
 			t.Error("Scan error, sale delivery note with ID 0.")
 			return
 		}
@@ -989,7 +989,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	o = q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
-		if o.Notes[i].Id < 0 {
+		if o.Notes[i].Id <= 0 {
 			t.Error("Scan error, sale delivery note with ID 0.")
 			return
 		}
@@ -1000,7 +1000,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	o = q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
-		if o.Notes[i].Id < 0 {
+		if o.Notes[i].Id <= 0 {
 			t.Error("Scan error, sale delivery note with ID 0.")
 			return
 		}
@@ -1013,7 +1013,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	o = q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
-		if o.Notes[i].Id < 0 {
+		if o.Notes[i].Id <= 0 {
 			t.Error("Scan error, sale delivery note with ID 0.")
 			return
 		}
@@ -1026,7 +1026,7 @@ func TestGetSalesDeliveryNoteRow(t *testing.T) {
 	}
 
 	o := getSalesDeliveryNoteRow(1)
-	if o.Id < 0 {
+	if o.Id <= 0 {
 		t.Error("Scan error, sale delivery note row with ID 0.")
 		return
 	}
