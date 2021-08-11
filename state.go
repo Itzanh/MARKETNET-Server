@@ -55,7 +55,7 @@ func getStateRow(id int32) State {
 	}
 
 	c := State{}
-	row.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode, &c.CountryName)
+	row.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode)
 
 	return c
 }

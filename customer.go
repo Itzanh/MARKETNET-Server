@@ -180,10 +180,10 @@ func (c *Customer) deleteCustomer() bool {
 	return rows > 0
 }
 
-func findCustomerByName(languageName string) []NameInt32 {
+func findCustomerByName(customerName string) []NameInt32 {
 	var customers []NameInt32 = make([]NameInt32, 0)
 	sqlStatement := `SELECT id,name FROM public.customer WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
+	rows, err := db.Query(sqlStatement, strings.ToUpper(customerName))
 	if err != nil {
 		log("DB", err.Error())
 		return customers
