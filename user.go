@@ -220,7 +220,7 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
 	}
 
 	user := getUserByUsername(u.Username)
-	if user.Id <= 0 {
+	if user.Id <= 0 || user.Off {
 		return UserLoginResult{Ok: false}, 0
 	}
 
