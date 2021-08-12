@@ -1502,7 +1502,9 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getAllManufacturingOrders())
+		var manufacturingPaginationQuery ManufacturingPaginationQuery
+		json.Unmarshal(body, &manufacturingPaginationQuery)
+		data, _ := json.Marshal(manufacturingPaginationQuery.getAllManufacturingOrders())
 		w.Write(data)
 		return
 	case "POST":

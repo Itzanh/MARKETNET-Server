@@ -31,46 +31,74 @@ type ManufacturingOrder struct {
 	UserTagPrintedName   *string    `json:"userTagPrintedName"`
 }
 
-func getManufacturingOrder(orderTypeId int16) []ManufacturingOrder {
-	if orderTypeId == 0 {
-		return getAllManufacturingOrders()
+type ManufacturingPaginationQuery struct {
+	PaginationQuery
+	OrderTypeId int16 `json:"orderTypeId"`
+}
+
+type ManufacturingOrders struct {
+	Rows                int32                `json:"rows"`
+	ManufacturingOrders []ManufacturingOrder `json:"manufacturingOrders"`
+}
+
+func (q *ManufacturingPaginationQuery) getManufacturingOrder() ManufacturingOrders {
+	if q.OrderTypeId == 0 {
+		return (q.PaginationQuery).getAllManufacturingOrders()
 	} else {
-		return getManufacturingOrdersByType(orderTypeId)
+		return q.getManufacturingOrdersByType()
 	}
 }
 
-func getAllManufacturingOrders() []ManufacturingOrder {
-	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement)
+func (q *PaginationQuery) getAllManufacturingOrders() ManufacturingOrders {
+	mo := ManufacturingOrders{}
+	mo.ManufacturingOrders = make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order ORDER BY date_created DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
 		log("DB", err.Error())
-		return orders
+		return mo
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
 		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
-		orders = append(orders, o)
+		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
-	return orders
+	sqlStatement = `SELECT COUNT(*) FROM public.manufacturing_order OFFSET $1 LIMIT $2`
+	row := db.QueryRow(sqlStatement, q.Offset, q.Limit)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return mo
+	}
+	row.Scan(&mo.Rows)
+
+	return mo
 }
 
-func getManufacturingOrdersByType(orderTypeId int16) []ManufacturingOrder {
-	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, orderTypeId)
+func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType() ManufacturingOrders {
+	mo := ManufacturingOrders{}
+	mo.ManufacturingOrders = make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE type = $1 ORDER BY date_created DESC OFFSET $2 LIMIT $3`
+	rows, err := db.Query(sqlStatement, q.OrderTypeId, q.Offset, q.Limit)
 	if err != nil {
 		log("DB", err.Error())
-		return orders
+		return mo
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
 		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
-		orders = append(orders, o)
+		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
-	return orders
+	sqlStatement = `SELECT COUNT(*) FROM public.manufacturing_order WHERE type = $1 OFFSET $2 LIMIT $3`
+	row := db.QueryRow(sqlStatement, q.OrderTypeId, q.Offset, q.Limit)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return mo
+	}
+	row.Scan(&mo.Rows)
+
+	return mo
 }
 
 func getManufacturingOrderRow(manufacturingOrderId int64) ManufacturingOrder {

@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const MAX_INT32 = 2147483647
-
 func ConnectTestWithDB(t *testing.T) {
 	// read settings
 	var ok bool

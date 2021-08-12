@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const MAX_INT32 = 2147483647
+
 type Table struct {
 	Name   string  `json:"name"`
 	Fields []Field `json:"fields"`
@@ -306,7 +308,8 @@ func exportToJSON(tableName string) string {
 	case "language":
 		data, _ = json.Marshal(getLanguages())
 	case "manufacturing_order":
-		data, _ = json.Marshal(getManufacturingOrder(0))
+		q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, OrderTypeId: 0}
+		data, _ = json.Marshal(q.getManufacturingOrder())
 	case "manufacturing_order_type":
 		data, _ = json.Marshal(getManufacturingOrderType())
 	case "packages":

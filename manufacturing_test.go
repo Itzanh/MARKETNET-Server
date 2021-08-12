@@ -11,10 +11,11 @@ func TestGetAllManufacturingOrders(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getAllManufacturingOrders()
+	q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, OrderTypeId: 0}
+	o := q.getAllManufacturingOrders()
 
-	for i := 0; i < len(o); i++ {
-		if o[i].Id <= 0 {
+	for i := 0; i < len(o.ManufacturingOrders); i++ {
+		if o.ManufacturingOrders[i].Id <= 0 {
 			t.Error("Scan error, manufacturing orders with ID 0.")
 			return
 		}
@@ -27,10 +28,11 @@ func TestGetManufacturingOrdersByType(t *testing.T) {
 	}
 
 	// search all
-	o := getManufacturingOrdersByType(1)
+	q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, OrderTypeId: 1}
+	o := q.getManufacturingOrdersByType()
 
-	for i := 0; i < len(o); i++ {
-		if o[i].Id <= 0 {
+	for i := 0; i < len(o.ManufacturingOrders); i++ {
+		if o.ManufacturingOrders[i].Id <= 0 {
 			t.Error("Scan error, manufacturing orders with ID 0.")
 			return
 		}
@@ -68,8 +70,9 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	o := getAllManufacturingOrders()
-	mo = o[0]
+	q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1}, OrderTypeId: 0}
+	o := q.getAllManufacturingOrders()
+	mo = o.ManufacturingOrders[0]
 
 	ok = toggleManufactuedManufacturingOrder(mo.Id, 1)
 	if !ok {

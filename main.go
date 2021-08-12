@@ -455,6 +455,13 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getApiKeys())
+	case "MANUFACTURING_ORDER":
+		if !permissions.Manufacturing {
+			return
+		}
+		var manufacturingPaginationQuery ManufacturingPaginationQuery
+		json.Unmarshal([]byte(message), &manufacturingPaginationQuery)
+		data, _ = json.Marshal(manufacturingPaginationQuery.getManufacturingOrder())
 	default:
 		found = false
 	}
@@ -471,11 +478,6 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 	}
 	found = true
 	switch command {
-	case "MANUFACTURING_ORDER": // accepts the "0" value
-		if !permissions.Manufacturing {
-			return
-		}
-		data, _ = json.Marshal(getManufacturingOrder(int16(id)))
 	case "MONTHLY_SALES_AMOUNT":
 		var year *int16
 		if id > 0 {
@@ -2211,7 +2213,7 @@ func isParameterPresent(parameter string) bool {
 
 func getParameterValue(parameter string) string {
 	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i][:len(parameter)] == parameter {
+		if len(os.Args[i]) > len(parameter) && os.Args[i][:len(parameter)] == parameter {
 			return strings.Split(os.Args[i], "=")[1]
 		}
 	}
