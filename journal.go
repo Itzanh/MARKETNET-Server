@@ -3,7 +3,7 @@ package main
 type Journal struct {
 	Id   int16  `json:"id"`
 	Name string `json:"name"`
-	Type string `json:"type"`
+	Type string `json:"type"` // S = Sale, P = Purchase, B = Bank, C = Cash, G = General
 }
 
 func getJournals() []Journal {

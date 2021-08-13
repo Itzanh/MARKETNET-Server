@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"time"
 )
 
@@ -74,6 +75,10 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 		trans.Rollback()
 		return false
 	}
+
+	// Round float to 2 decimal places (round to nearest)
+	a.Credit = float32(math.Round(float64(a.Credit)*100) / 100)
+	a.Debit = float32(math.Round(float64(a.Debit)*100) / 100)
 
 	sqlStatement := `INSERT INTO public.accounting_movement_detail(movement, journal, account, credit, debit, type, note, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.Movement, a.Journal, a.Account, a.Credit, a.Debit, a.Type, a.Note, a.DocumentName, a.PaymentMethod)

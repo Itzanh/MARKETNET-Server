@@ -88,6 +88,9 @@ func (a *Account) insertAccount() bool {
 
 	if a.AccountNumber <= 0 {
 		a.AccountNumber = a.getNextAccountNumber()
+		if a.AccountNumber <= 0 {
+			return false
+		}
 	}
 
 	sqlStatement := `INSERT INTO public.account(journal, name, account_number) VALUES ($1, $2, $3) RETURNING id`

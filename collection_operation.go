@@ -115,6 +115,10 @@ func (c *CollectionOperation) deleteCollectionOperation() bool {
 
 	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1`
 	_, err := db.Exec(sqlStatement, c.Id)
-	log("DB", err.Error())
+
+	if err != nil {
+		log("DB", err.Error())
+	}
+
 	return err == nil
 }

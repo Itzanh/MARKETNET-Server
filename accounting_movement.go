@@ -264,8 +264,8 @@ func salesPostInvoices(invoiceIds []int32) []PostInvoiceResult {
 		}
 
 		// create the collection operation for this charge
-		if c.PaymentMethod != nil && inv.TotalAmount > 0 {
-			p := getPaymentMethodRow(*c.PaymentMethod)
+		if inv.TotalAmount > 0 {
+			p := getPaymentMethodRow(inv.PaymentMethod)
 
 			co := CollectionOperation{}
 			co.AccountingMovement = m.Id
@@ -273,7 +273,7 @@ func salesPostInvoices(invoiceIds []int32) []PostInvoiceResult {
 			co.Account = getAccountIdByAccountNumber(a.Journal, a.AccountNumber)
 			co.Total = inv.TotalAmount
 			co.DocumentName = inv.InvoiceName
-			co.PaymentMethod = *c.PaymentMethod
+			co.PaymentMethod = inv.PaymentMethod
 			co.Bank = p.Bank
 			ok := co.insertCollectionOperation()
 			if !ok {
@@ -282,8 +282,7 @@ func salesPostInvoices(invoiceIds []int32) []PostInvoiceResult {
 			}
 
 			// paid in advance
-			pm := getPaymentMethodRow(*c.PaymentMethod)
-			if pm.PaidInAdvance {
+			if p.PaidInAdvance {
 				ch := Charges{}
 				ch.CollectionOperation = co.Id
 				ch.Amount = inv.TotalAmount
@@ -465,8 +464,8 @@ func purchasePostInvoices(invoiceIds []int32) []PostInvoiceResult {
 		}
 
 		// create the payment transaction for this payment
-		if s.PaymentMethod != nil && inv.TotalAmount > 0 {
-			p := getPaymentMethodRow(*s.PaymentMethod)
+		if inv.TotalAmount > 0 {
+			p := getPaymentMethodRow(inv.PaymentMethod)
 
 			pt := PaymentTransaction{}
 			pt.AccountingMovement = m.Id
@@ -483,8 +482,7 @@ func purchasePostInvoices(invoiceIds []int32) []PostInvoiceResult {
 			}
 
 			// paid in advance
-			pm := getPaymentMethodRow(*s.PaymentMethod)
-			if pm.PaidInAdvance {
+			if p.PaidInAdvance {
 				py := Payment{}
 				py.PaymentTransaction = pt.Id
 				py.Amount = inv.TotalAmount
