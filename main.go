@@ -43,7 +43,7 @@ func main() {
 	err := db.Ping()
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 
 	// installation
