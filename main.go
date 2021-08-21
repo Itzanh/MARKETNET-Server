@@ -106,6 +106,9 @@ func main() {
 	c.Start()
 	c.Run()
 
+	// activation
+	go activate()
+
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
 	wg.Add(1)

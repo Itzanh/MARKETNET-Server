@@ -220,11 +220,11 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
 	}
 
 	user := getUserByUsername(u.Username)
-	if user.Id <= 0 || user.Off {
+	if user.Id <= 0 || user.Off || user.FailedLoginAttemps >= settings.Server.MaxLoginAttemps {
 		return UserLoginResult{Ok: false}, 0
 	}
 
-	passwd := hashPassword([]byte(user.Salt+u.Password), settings.Server.HashIterations)
+	passwd := hashPassword([]byte(user.Salt+u.Password), user.Iterations)
 
 	if comparePasswords(passwd, user.Pwd) {
 		user.setUserFailedLoginAttemps(false)

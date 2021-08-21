@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"math"
 	"strconv"
 )
 
@@ -23,11 +24,12 @@ type DatabaseSettings struct {
 
 // Basic info for the app.
 type ServerSettings struct {
-	Port                 uint16            `json:"port"`
-	HashIterations       int32             `json:"hashIterations"`
-	TokenExpirationHours int16             `json:"tokenExpirationHours"`
-	MaxLoginAttemps      int16             `json:"maxLoginAttemps"`
-	TLS                  ServerSettingsTLS `json:"tls"`
+	Port                 uint16                   `json:"port"`
+	HashIterations       int32                    `json:"hashIterations"`
+	TokenExpirationHours int16                    `json:"tokenExpirationHours"`
+	MaxLoginAttemps      int16                    `json:"maxLoginAttemps"`
+	TLS                  ServerSettingsTLS        `json:"tls"`
+	Activation           ServerSettingsActivation `json:"activation"`
 }
 
 // SSL settings for the web server.
@@ -35,6 +37,14 @@ type ServerSettingsTLS struct {
 	UseTLS  bool   `json:"useTLS"`
 	CrtPath string `json:"crtPath"`
 	KeyPath string `json:"keyPath"`
+}
+
+// License activation.
+type ServerSettingsActivation struct {
+	LicenseCode string  `json:"licenseCode"`
+	Chance      *string `json:"chance"`
+	Secret      *string `json:"secret"`
+	InstallId   *string `json:"installId"`
 }
 
 func getBackendSettings() (BackendSettings, bool) {
@@ -49,6 +59,12 @@ func getBackendSettings() (BackendSettings, bool) {
 		return BackendSettings{}, false
 	}
 	return settings, true
+}
+
+func (s *BackendSettings) setBackendSettings() bool {
+	data, _ := json.MarshalIndent(s, "", "    ")
+	err := ioutil.WriteFile("config.json", data, 0700)
+	return err == nil
 }
 
 // Advanced settings stored in the database. Configurable by final users.
@@ -140,6 +156,13 @@ func (s *Settings) updateSettingsRecord() bool {
 		if err == nil {
 			s.MaxConnections = int32(maxConn)
 		}
+	}
+
+	// licensing
+	if s.MaxConnections == 0 {
+		s.MaxConnections = int32(licenseMaxConnections)
+	} else {
+		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(licenseMaxConnections)))
 	}
 
 	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, cron_clear_logs=$37, enable_api_key=$38, cron_clear_labels=$39 WHERE id=1`
