@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	CHANCE_URL   = "http://izcloud.tk:12278/chance"
-	ACTIVATE_URL = "http://izcloud.tk:12278/activate"
+	CHANCE_URL   = "https://license.marketneterp.io:12278/chance"
+	ACTIVATE_URL = "https://license.marketneterp.io:12278/activate"
 )
 
 // The maximum limit of concurrent connections limited by the adquired license.
