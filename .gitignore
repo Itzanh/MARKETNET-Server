@@ -1,6 +1,6 @@
 main.exe
 icon.png
-config.json
+./config.json
 certificates
 customer_names.txt
 *.zip
