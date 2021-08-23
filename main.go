@@ -707,6 +707,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getSalesOrderDetailsFromPurchaseOrderDetail(int32(id)))
+	case "PURCHASES_ORDER_DETAILS_FROM_SALE_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getPurchasesOrderDetailsFromSaleOrderDetail(int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

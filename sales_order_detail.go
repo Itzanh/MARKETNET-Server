@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 type SalesOrderDetail struct {
 	Id                   int32   `json:"id"`
 	Order                int32   `json:"order"`
@@ -482,4 +484,32 @@ func cancelSalesOrderDetail(detailId int32) bool {
 
 		return err == nil
 	}
+}
+
+type SalePurchasesOrderDetail struct {
+	Id           int32     `json:"id"`
+	Order        int32     `json:"order"`
+	OrderName    string    `json:"orderName"`
+	DateCreated  time.Time `json:"dateCreated"`
+	SupplierName string    `json:"supplierName"`
+	Quantity     int32     `json:"quantity"`
+	TotalAmount  float32   `json:"totalAmount"`
+}
+
+func getPurchasesOrderDetailsFromSaleOrderDetail(detailId int32) []SalePurchasesOrderDetail {
+	salePurchasesOrderDetail := make([]SalePurchasesOrderDetail, 0)
+	sqlStatement := `SELECT purchase_order_detail.id,"order",(SELECT order_name FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order"),(SELECT date_created FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order"),(SELECT name FROM suppliers WHERE suppliers.id=(SELECT supplier FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order")),quantity,total_amount FROM purchase_order_detail WHERE purchase_order_detail.id=(SELECT purchase_order_detail FROM sales_order_detail WHERE id=$1)`
+	rows, err := db.Query(sqlStatement, detailId)
+	if err != nil {
+		log("DB", err.Error())
+		return salePurchasesOrderDetail
+	}
+
+	for rows.Next() {
+		p := SalePurchasesOrderDetail{}
+		rows.Scan(&p.Id, &p.Order, &p.OrderName, &p.DateCreated, &p.SupplierName, &p.Quantity, &p.TotalAmount)
+		salePurchasesOrderDetail = append(salePurchasesOrderDetail, p)
+	}
+
+	return salePurchasesOrderDetail
 }
