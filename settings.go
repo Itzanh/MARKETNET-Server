@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math"
 	"strconv"
+	"time"
 )
 
 // Basic, static, server settings such as the DB password or the port.
@@ -69,46 +70,47 @@ func (s *BackendSettings) setBackendSettings() bool {
 
 // Advanced settings stored in the database. Configurable by final users.
 type Settings struct {
-	DefaultVatPercent               float32 `json:"defaultVatPercent"`
-	DefaultWarehouse                string  `json:"defaultWarehouse"`
-	DefaultWarehouseName            string  `json:"defaultWarehouseName"`
-	DateFormat                      string  `json:"dateFormat"`
-	EnterpriseName                  string  `json:"enterpriseName"`
-	EnterpriseDescription           string  `json:"enterpriseDescription"`
-	Ecommerce                       string  `json:"ecommerce"` // "_" = None, "P" = PrestaShop, "M" = Magento
-	PrestaShopUrl                   string  `json:"prestaShopUrl"`
-	PrestaShopApiKey                string  `json:"prestaShopApiKey"`
-	PrestaShopLanguageId            int32   `json:"prestaShopLanguageId"`
-	PrestaShopExportSerie           string  `json:"prestaShopExportSerie"`
-	PrestaShopIntracommunitySerie   string  `json:"prestaShopIntracommunitySerie"`
-	PrestaShopInteriorSerie         string  `json:"prestaShopInteriorSerie"`
-	Email                           string  `json:"email"`    // "_" = None, "S" = SendGrid, "T" = SMTP
-	Currency                        string  `json:"currency"` // "_" = None, "E" = European Central Bank
-	CurrencyECBurl                  string  `json:"currencyECBurl"`
-	BarcodePrefix                   string  `json:"barcodePrefix"`
-	CronCurrency                    string  `json:"cronCurrency"`
-	CronPrestaShop                  string  `json:"cronPrestaShop"`
-	SendGridKey                     string  `json:"sendGridKey"`
-	EmailFrom                       string  `json:"emailFrom"`
-	NameFrom                        string  `json:"nameFrom"`
-	PalletWeight                    float32 `json:"palletWeight"`
-	PalletWidth                     float32 `json:"palletWidth"`
-	PalletHeight                    float32 `json:"palletHeight"`
-	PalletDepth                     float32 `json:"palletDepth"`
-	MaxConnections                  int32   `json:"maxConnections"`
-	PrestashopStatusPaymentAccepted int32   `json:"prestashopStatusPaymentAccepted"`
-	PrestashopStatusShipped         int32   `json:"prestashopStatusShipped"`
-	MinimumStockSalesPeriods        int16   `json:"minimumStockSalesPeriods"`
-	MinimumStockSalesDays           int16   `json:"minimumStockSalesDays"`
-	CustomerJournal                 *int16  `json:"customerJournal"`
-	SalesJournal                    *int16  `json:"salesJournal"`
-	SalesAccount                    *int32  `json:"salesAccount"`
-	SupplierJournal                 *int16  `json:"supplierJournal"`
-	PurchaseJournal                 *int16  `json:"purchaseJournal"`
-	PurchaseAccount                 *int32  `json:"purchaseAccount"`
-	CronClearLogs                   string  `json:"cronClearLogs"`
-	EnableApiKey                    bool    `json:"enableApiKey"`
-	CronClearLabels                 string  `json:"cronClearLabels"`
+	DefaultVatPercent               float32    `json:"defaultVatPercent"`
+	DefaultWarehouse                string     `json:"defaultWarehouse"`
+	DefaultWarehouseName            string     `json:"defaultWarehouseName"`
+	DateFormat                      string     `json:"dateFormat"`
+	EnterpriseName                  string     `json:"enterpriseName"`
+	EnterpriseDescription           string     `json:"enterpriseDescription"`
+	Ecommerce                       string     `json:"ecommerce"` // "_" = None, "P" = PrestaShop, "M" = Magento
+	PrestaShopUrl                   string     `json:"prestaShopUrl"`
+	PrestaShopApiKey                string     `json:"prestaShopApiKey"`
+	PrestaShopLanguageId            int32      `json:"prestaShopLanguageId"`
+	PrestaShopExportSerie           string     `json:"prestaShopExportSerie"`
+	PrestaShopIntracommunitySerie   string     `json:"prestaShopIntracommunitySerie"`
+	PrestaShopInteriorSerie         string     `json:"prestaShopInteriorSerie"`
+	Email                           string     `json:"email"`    // "_" = None, "S" = SendGrid, "T" = SMTP
+	Currency                        string     `json:"currency"` // "_" = None, "E" = European Central Bank
+	CurrencyECBurl                  string     `json:"currencyECBurl"`
+	BarcodePrefix                   string     `json:"barcodePrefix"`
+	CronCurrency                    string     `json:"cronCurrency"`
+	CronPrestaShop                  string     `json:"cronPrestaShop"`
+	SendGridKey                     string     `json:"sendGridKey"`
+	EmailFrom                       string     `json:"emailFrom"`
+	NameFrom                        string     `json:"nameFrom"`
+	PalletWeight                    float32    `json:"palletWeight"`
+	PalletWidth                     float32    `json:"palletWidth"`
+	PalletHeight                    float32    `json:"palletHeight"`
+	PalletDepth                     float32    `json:"palletDepth"`
+	MaxConnections                  int32      `json:"maxConnections"`
+	PrestashopStatusPaymentAccepted int32      `json:"prestashopStatusPaymentAccepted"`
+	PrestashopStatusShipped         int32      `json:"prestashopStatusShipped"`
+	MinimumStockSalesPeriods        int16      `json:"minimumStockSalesPeriods"`
+	MinimumStockSalesDays           int16      `json:"minimumStockSalesDays"`
+	CustomerJournal                 *int16     `json:"customerJournal"`
+	SalesJournal                    *int16     `json:"salesJournal"`
+	SalesAccount                    *int32     `json:"salesAccount"`
+	SupplierJournal                 *int16     `json:"supplierJournal"`
+	PurchaseJournal                 *int16     `json:"purchaseJournal"`
+	PurchaseAccount                 *int32     `json:"purchaseAccount"`
+	CronClearLogs                   string     `json:"cronClearLogs"`
+	EnableApiKey                    bool       `json:"enableApiKey"`
+	CronClearLabels                 string     `json:"cronClearLabels"`
+	LimitAccountingDate             *time.Time `json:"limitAccountingDate"`
 }
 
 func getSettingsRecord() Settings {
@@ -120,7 +122,7 @@ func getSettingsRecord() Settings {
 
 	var s Settings
 	var id int32
-	row.Scan(&id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.CronClearLogs, &s.EnableApiKey, &s.CronClearLabels, &s.DefaultWarehouseName)
+	row.Scan(&id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.CronClearLogs, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.DefaultWarehouseName)
 	return s
 }
 
@@ -165,8 +167,12 @@ func (s *Settings) updateSettingsRecord() bool {
 		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(licenseMaxConnections)))
 	}
 
-	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, cron_clear_logs=$37, enable_api_key=$38, cron_clear_labels=$39 WHERE id=1`
-	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays, s.CustomerJournal, s.SalesJournal, salesAccount, s.SupplierJournal, s.PurchaseJournal, purchaseAccount, s.CronClearLogs, s.EnableApiKey, s.CronClearLabels)
+	if s.LimitAccountingDate != nil && (*s.LimitAccountingDate).After(time.Now()) {
+		return false
+	}
+
+	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, cron_clear_logs=$37, enable_api_key=$38, cron_clear_labels=$39, limit_accounting_date=$40 WHERE id=1`
+	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays, s.CustomerJournal, s.SalesJournal, salesAccount, s.SupplierJournal, s.PurchaseJournal, purchaseAccount, s.CronClearLogs, s.EnableApiKey, s.CronClearLabels, s.LimitAccountingDate)
 	if err != nil {
 		log("DB", err.Error())
 		return false

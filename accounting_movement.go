@@ -96,6 +96,12 @@ func (a *AccountingMovement) deleteAccountingMovement() bool {
 		return false
 	}
 
+	accountingMovementInMemory := getAccountingMovementRow(a.Id)
+	settings := getSettingsRecord()
+	if accountingMovementInMemory.Id <= 0 || (settings.LimitAccountingDate != nil && accountingMovementInMemory.DateCreated.Before(*settings.LimitAccountingDate)) {
+		return false
+	}
+
 	///
 	trans, err := db.Begin()
 	if err != nil {
