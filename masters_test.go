@@ -109,7 +109,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok := c.insertCustomer()
+	ok, _ := c.insertCustomer()
 	if !ok {
 		t.Error("Insert error, customer not inserted")
 		return
@@ -216,7 +216,7 @@ func TestSetCustomerAccount(t *testing.T) {
 	}
 
 	// insert
-	ok := c.insertCustomer()
+	ok, _ := c.insertCustomer()
 	if !ok {
 		t.Error("Insert error, customer not inserted")
 		return

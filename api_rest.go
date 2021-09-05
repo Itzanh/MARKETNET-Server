@@ -612,7 +612,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		var customer Customer
 		json.Unmarshal(body, &customer)
-		ok = customer.insertCustomer()
+		ok, _ = customer.insertCustomer()
 	case "PUT":
 		var customer Customer
 		json.Unmarshal(body, &customer)

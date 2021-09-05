@@ -1372,7 +1372,7 @@ func copyPsOrders() {
 		var customer int32
 		row.Scan(&customer)
 
-		if language == 0 { // don't continue if the language doesn't exists
+		if customer == 0 { // don't continue if the customer doesn't exists
 			continue
 		}
 
@@ -1439,11 +1439,11 @@ func copyPsOrders() {
 		s.PrestaShopId = orderId
 
 		if billingZone == "E" {
-			s.BillingSeries = settings.PrestaShopExportSerie
+			s.BillingSeries = *settings.PrestaShopExportSerie
 		} else if billingZone == "U" && !taxIncluded {
-			s.BillingSeries = settings.PrestaShopIntracommunitySerie
+			s.BillingSeries = *settings.PrestaShopIntracommunitySerie
 		} else {
-			s.BillingSeries = settings.PrestaShopInteriorSerie
+			s.BillingSeries = *settings.PrestaShopInteriorSerie
 		}
 
 		s.insertSalesOrder()

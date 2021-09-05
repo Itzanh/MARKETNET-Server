@@ -145,7 +145,7 @@ func (s *Shipping) updateShipping() bool {
 	}
 
 	if inDatabaseShipping.ShippingNumber != s.ShippingNumber || inDatabaseShipping.TrackingNumber != s.TrackingNumber {
-		go updateTrackingNumberPrestaShopOrder(inDatabaseShipping.Order, s.TrackingNumber)
+		go ecommerceControllerUpdateTrackingNumber(inDatabaseShipping.Order, s.TrackingNumber)
 	}
 
 	rows, _ := res.RowsAffected()
@@ -320,7 +320,7 @@ func toggleShippingSent(shippingId int32) ToggleShippingSent {
 	if s.CarrierWebService != "_" {
 		ok, errorMessage := s.sendShipping()
 		if ok {
-			go updateTrackingNumberPrestaShopOrder(s.Order, s.TrackingNumber)
+			go ecommerceControllerUpdateTrackingNumber(s.Order, s.TrackingNumber)
 		}
 		return ToggleShippingSent{Ok: ok, ErrorMessage: errorMessage}
 	}

@@ -3,6 +3,7 @@ module marketnet
 go 1.13
 
 require (
+	github.com/dghubble/oauth1 v0.7.0 // indirect
 	github.com/google/uuid v1.2.0 // direct
 	github.com/gorilla/websocket v1.4.2 // direct
 	github.com/grokify/html-strip-tags-go v0.0.1 // direct

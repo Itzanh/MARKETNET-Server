@@ -9,7 +9,7 @@ type Address struct {
 	City              string  `json:"city"`
 	State             *int32  `json:"state"`
 	Country           int16   `json:"country"`
-	PrivateOrBusiness string  `json:"privateOrBusiness"`
+	PrivateOrBusiness string  `json:"privateOrBusiness"` // P = Private, B = Business, _ = Not specified
 	Notes             string  `json:"notes"`
 	PrestaShopId      int32   `json:"prestaShopId"`
 	ZipCode           string  `json:"zipCode"`
@@ -135,6 +135,7 @@ func (a *Address) insertAddress() bool {
 		}
 	}
 
+	a.Id = addressId
 	return true
 }
 

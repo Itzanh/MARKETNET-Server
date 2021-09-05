@@ -480,7 +480,7 @@ func (f *ImportInfo) importJson() bool {
 		var customer []Customer
 		json.Unmarshal(jsonData, &customer)
 		for i := 0; i < len(customer); i++ {
-			ok = customer[i].insertCustomer()
+			ok, _ = customer[i].insertCustomer()
 			if !ok {
 				trans.Rollback()
 				return false

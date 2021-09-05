@@ -99,7 +99,7 @@ func main() {
 		c.AddFunc(s.CronCurrency, updateCurrencyExchange)
 	}
 	if s.Ecommerce == "P" {
-		c.AddFunc(s.CronPrestaShop, importFromPrestaShop)
+		c.AddFunc(s.CronPrestaShop, ecommerceControllerImportFromEcommerce)
 	}
 	c.AddFunc(s.CronClearLogs, clearLogs)
 	c.AddFunc(s.CronClearLabels, deleteAllShippingTags)
@@ -752,7 +752,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		case "CUSTOMER":
 			var customer Customer
 			json.Unmarshal(message, &customer)
-			ok = customer.insertCustomer()
+			ok, _ = customer.insertCustomer()
 		case "PRODUCT":
 			var product Product
 			json.Unmarshal(message, &product)
@@ -2034,6 +2034,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		importFromPrestaShop()
+	case "WOOCOMMERCE":
+		if !permissions.Admin {
+			return
+		}
+		importFromWooCommerce()
 	case "CALCULATE_MINIMUM_STOCK":
 		if !permissions.Masters {
 			return
