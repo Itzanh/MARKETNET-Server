@@ -133,6 +133,10 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 	if !ok || permissions == nil {
 		return
 	}
+	okFilter := userConnection(userId, r.RemoteAddr)
+	if !okFilter {
+		return
+	}
 	// END AUTHENTICATION
 	c := Connection{Address: r.RemoteAddr, User: userId, ws: ws}
 	c.addConnection()
@@ -142,6 +146,7 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		mt, message, err := ws.ReadMessage()
 		if err != nil {
 			c.deleteConnection()
+			userDisconnected(userId)
 			return
 		}
 
@@ -465,6 +470,18 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal([]byte(message), &manufacturingPaginationQuery)
 		data, _ = json.Marshal(manufacturingPaginationQuery.getManufacturingOrder())
+	case "CONNECTION_LOG":
+		if !permissions.Admin {
+			return
+		}
+		var paginationQuery PaginationQuery
+		json.Unmarshal([]byte(message), &paginationQuery)
+		data, _ = json.Marshal(paginationQuery.getConnectionLogs())
+	case "CONNECTION_FILTERS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getConnectionFilters())
 	default:
 		found = false
 	}
@@ -712,6 +729,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getPurchasesOrderDetailsFromSaleOrderDetail(int32(id)))
+	case "CONNECTION_FILTER_USERS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getConnectionFilterUser(int16(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1056,6 +1078,20 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &apiKey)
 		apiKey.UserCreated = userId
 		ok = apiKey.insertApiKey()
+	case "CONNECTION_FILTER":
+		if !permissions.Admin {
+			return
+		}
+		var filter ConnectionFilter
+		json.Unmarshal(message, &filter)
+		ok = filter.insertConnectionFilter()
+	case "CONNECTION_FILTER_USER":
+		if !permissions.Admin {
+			return
+		}
+		var filter ConnectionFilterUser
+		json.Unmarshal(message, &filter)
+		ok = filter.insertConnectionFilterUser()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1226,6 +1262,13 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var account Account
 		json.Unmarshal(message, &account)
 		ok = account.updateAccount()
+	case "CONNECTION_FILTER":
+		if !permissions.Accounting {
+			return
+		}
+		var filter ConnectionFilter
+		json.Unmarshal(message, &filter)
+		ok = filter.updateConnectionFilter()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1267,6 +1310,13 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var configAccountsVat ConfigAccountsVat
 		configAccountsVat.VatPercent = float32(id)
 		ok = configAccountsVat.deleteConfigAccountsVat()
+	case "CONNECTION_FILTER_USER":
+		if !permissions.Admin {
+			return
+		}
+		var filter ConnectionFilterUser
+		json.Unmarshal([]byte(message), &filter)
+		ok = filter.deleteConnectionFilterUser()
 	default:
 		found = false
 	}
@@ -1539,6 +1589,13 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var apiKey ApiKey
 		apiKey.Id = int16(id)
 		ok = apiKey.deleteApiKey()
+	case "CONNECTION_FILTER":
+		if !permissions.Admin {
+			return
+		}
+		var filter ConnectionFilter
+		filter.Id = int16(id)
+		ok = filter.deleteConnectionFilter()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
