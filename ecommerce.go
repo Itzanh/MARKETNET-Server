@@ -12,6 +12,8 @@ func ecommerceControllerImportFromEcommerce() {
 		importFromPrestaShop()
 	case "W":
 		importFromWooCommerce()
+	case "S":
+		importFromShopify()
 	}
 }
 
@@ -23,6 +25,8 @@ func ecommerceControllerUpdateTrackingNumber(salesOrderId int32, trackingNumber 
 		return updateTrackingNumberPrestaShopOrder(salesOrderId, trackingNumber)
 	case "W":
 		return updateTrackingNumberWooCommerceOrder(salesOrderId, trackingNumber)
+	case "S":
+		return updateTrackingNumberShopifyOrder(salesOrderId, trackingNumber)
 	}
 
 	return false
@@ -36,6 +40,8 @@ func ecommerceControllerupdateStatusPaymentAccepted(salesOrderId int32) bool {
 		return updateStatusPaymentAcceptedPrestaShop(salesOrderId)
 	case "W":
 		return updateStatusPaymentAcceptedWooCommerce(salesOrderId)
+	case "S":
+		return updateStatusPaymentAcceptedShopify(salesOrderId)
 	}
 
 	return false

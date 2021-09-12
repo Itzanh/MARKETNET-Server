@@ -2149,6 +2149,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		a := ApiKey{}
 		a.Id = int16(id)
 		data, _ = json.Marshal(a.offApiKey())
+	case "SHOPIFY":
+		if !permissions.Admin {
+			return
+		}
+		importFromShopify()
 	}
 	ws.WriteMessage(mt, data)
 }

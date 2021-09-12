@@ -16,7 +16,7 @@ import (
 const WOOCOMMERCE_PROCESSING = "processing"
 
 // =====
-// GENERIS FUNCTIONS
+// GENERIC FUNCTIONS
 // =====
 
 func getWooCommerceAPI_URL(resourceName string) string {
@@ -748,6 +748,8 @@ func copyWcCustomers() {
 } // copyWcCustomers
 
 func copyWcProducts() {
+	s := getSettingsRecord()
+
 	sqlStatement := `SELECT id FROM public.wc_products`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
@@ -815,6 +817,7 @@ func copyWcProducts() {
 				if err == nil {
 					p.Height = float32(f_height)
 				}
+				p.VatPercent = s.DefaultVatPercent
 				p.WooCommerceId = id
 				p.insertProduct()
 
@@ -873,6 +876,7 @@ func copyWcProducts() {
 					if err == nil {
 						p.Height = float32(f_height)
 					}
+					p.VatPercent = s.DefaultVatPercent
 					p.WooCommerceId = id
 					p.WooCommerceVariationId = v_id
 					p.insertProduct()

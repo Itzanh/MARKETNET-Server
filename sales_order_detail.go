@@ -20,6 +20,8 @@ type SalesOrderDetail struct {
 	ProductName              string `json:"productName"`
 	Cancelled                bool   `json:"cancelled"`
 	WooCommerceId            int32  `json:"wooCommerceId"`
+	ShopifyId                int64
+	ShopifyDraftId           int64
 }
 
 func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
@@ -32,7 +34,7 @@ func getSalesOrderDetail(orderId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ShopifyId, &d.ShopifyDraftId, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -48,7 +50,7 @@ func getSalesOrderDetailRow(detailId int32) SalesOrderDetail {
 	}
 
 	d := SalesOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId)
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ShopifyId, &d.ShopifyDraftId)
 
 	return d
 }
@@ -64,7 +66,7 @@ func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDet
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ShopifyId, &d.ShopifyDraftId)
 		details = append(details, d)
 	}
 
@@ -82,7 +84,7 @@ func getSalesOrderDetailPurchaseOrderPending(purchaseOrderDetail int32) []SalesO
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ShopifyId, &d.ShopifyDraftId)
 		details = append(details, d)
 	}
 
@@ -108,8 +110,8 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging, ps_id, wc_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-	res, err := db.Exec(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity, s.PrestaShopId, s.WooCommerceId)
+	sqlStatement := `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging, ps_id, wc_id, sy_draft_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+	res, err := db.Exec(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity, s.PrestaShopId, s.WooCommerceId, s.ShopifyDraftId)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -163,8 +165,8 @@ func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
 	}
 
 	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
-	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5,total_amount=$6 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount)
+	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5,total_amount=$6,sy_id=$7 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.ShopifyId)
 	if err != nil {
 		log("DB", err.Error())
 		return false

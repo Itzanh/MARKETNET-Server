@@ -10,6 +10,7 @@ type PaymentMethod struct {
 	DaysExpiration        int16  `json:"daysExpiration"`
 	Bank                  *int32 `json:"bank"`
 	WooCommerceModuleName string `json:"wooCommerceModuleName"`
+	ShopifyModuleName     string `json:"shopifyModuleName"`
 }
 
 func getPaymentMethods() []PaymentMethod {
@@ -22,7 +23,7 @@ func getPaymentMethods() []PaymentMethod {
 	}
 	for rows.Next() {
 		p := PaymentMethod{}
-		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName)
+		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName, &p.ShopifyModuleName)
 		paymentMethod = append(paymentMethod, p)
 	}
 
@@ -38,7 +39,7 @@ func getPaymentMethodRow(paymentMethodId int16) PaymentMethod {
 	}
 
 	p := PaymentMethod{}
-	row.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName)
+	row.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName, &p.ShopifyModuleName)
 
 	return p
 }
@@ -52,8 +53,8 @@ func (p *PaymentMethod) insertPaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance, prestashop_module_name, days_expiration, bank, woocommerce_module_name) VALUES ($1, $2, $3, $4, $5, $6)`
-	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank, p.WooCommerceModuleName)
+	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance, prestashop_module_name, days_expiration, bank, woocommerce_module_name, shopify_module_name) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank, p.WooCommerceModuleName, p.ShopifyModuleName)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -68,8 +69,8 @@ func (p *PaymentMethod) updatePaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3, prestashop_module_name=$4, days_expiration=$5, bank=$6, woocommerce_module_name=$7 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank, p.WooCommerceModuleName)
+	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3, prestashop_module_name=$4, days_expiration=$5, bank=$6, woocommerce_module_name=$7, shopify_module_name=$8 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank, p.WooCommerceModuleName, p.ShopifyModuleName)
 	if err != nil {
 		log("DB", err.Error())
 		return false
