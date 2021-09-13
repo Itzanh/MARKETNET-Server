@@ -329,20 +329,16 @@ func TestPermissions(t *testing.T) {
 	user := users[len(users)-1]
 
 	// create groups
-	g := Group{
+	gSales := Group{
 		Name:  "Test sales",
 		Sales: true,
 	}
-	g.insertGroup()
-	groups := getGroup()
-	gSales := groups[len(groups)-1]
-	g = Group{
+	gSales.insertGroup()
+	gPurchases := Group{
 		Name:      "Test purchases",
 		Purchases: true,
 	}
-	g.insertGroup()
-	groups = getGroup()
-	gPurchases := groups[len(groups)-1]
+	gPurchases.insertGroup()
 
 	// create user group
 	ug := UserGroup{
@@ -392,7 +388,8 @@ func TestPermissions(t *testing.T) {
 	}
 
 	// delete group
-	g.deleteGroup()
+	gSales.deleteGroup()
+	gPurchases.deleteGroup()
 
 	// delete user
 	user.deleteUser()

@@ -44,15 +44,16 @@ func (g *Group) insertGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-	res, err := db.Exec(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, &g.Accounting)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
+	row := db.QueryRow(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, &g.Accounting)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	row.Scan(&g.Id)
+
+	return g.Id > 0
 }
 
 func (g *Group) updateGroup() bool {

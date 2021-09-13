@@ -109,16 +109,12 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok, _ := c.insertCustomer()
+	ok, customerId := c.insertCustomer()
 	if !ok {
 		t.Error("Insert error, customer not inserted")
 		return
 	}
-
-	// update
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
-	customers := q.getCustomers().Customers
-	c = customers[0]
+	c.Id = customerId
 
 	c.TaxId = "ABCDEF1234"
 	ok = c.updateCustomer()
