@@ -118,7 +118,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	// update
 	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
 	customers := q.getCustomers().Customers
-	c = customers[len(customers)-1]
+	c = customers[0]
 
 	c.TaxId = "ABCDEF1234"
 	ok = c.updateCustomer()
@@ -136,7 +136,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 
 	// check defaults
 	defaults := getCustomerDefaults(c.Id)
-	if (defaults.PaymentMethod == nil || *defaults.PaymentMethod != paymentMethod) || (defaults.BillingSeriesName == nil || len(*defaults.BillingSeriesName) == 0) || (defaults.BillingSeries == nil || *defaults.BillingSeries != billingSeries) || (defaults.BillingSeriesName == nil || len(*defaults.BillingSeriesName) == 0) {
+	if (defaults.PaymentMethod == nil || *defaults.PaymentMethod != paymentMethod) || (defaults.BillingSeriesName == nil || len(*defaults.BillingSeriesName) == 0) || (defaults.BillingSeries == nil || *defaults.BillingSeries != billingSeries) {
 		t.Error("Customer defaults are not correct")
 		return
 	}

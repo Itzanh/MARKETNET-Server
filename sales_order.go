@@ -40,9 +40,9 @@ type SaleOrder struct {
 	BillingStatus      string     `json:"billingStatus"`
 	OrderName          string     `json:"orderName"`
 	Carrier            *int16     `json:"carrier"`
-	PrestaShopId       int32      `json:"prestaShopId"`
 	CustomerName       string     `json:"customerName"`
-	WooCommerceId      int32      `json:"wooCommerceId"`
+	PrestaShopId       int32
+	WooCommerceId      int32
 	ShopifyId          int64
 	ShopifyDraftId     int64
 }

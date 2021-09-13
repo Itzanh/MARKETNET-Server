@@ -27,13 +27,13 @@ type Product struct {
 	Manufacturing           bool      `json:"manufacturing"`
 	ManufacturingOrderType  *int16    `json:"manufacturingOrderType"`
 	Supplier                *int32    `json:"supplier"`
-	PrestaShopId            int32     `json:"prestaShopId"`
-	PrestaShopCombinationId int32     `json:"prestaShopCombinationId"`
 	FamilyName              *string   `json:"familyName"`
 	MinimumStock            int32     `json:"minimumStock"`
 	TrackMinimumStock       bool      `json:"trackMinimumStock"`
-	WooCommerceId           int32     `json:"wooCommerceId"`
-	WooCommerceVariationId  int32     `json:"wooCommerceVariationId"`
+	PrestaShopId            int32
+	PrestaShopCombinationId int32
+	WooCommerceId           int32
+	WooCommerceVariationId  int32
 	ShopifyId               int64
 	ShopifyVariantId        int64
 }

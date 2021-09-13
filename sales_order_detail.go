@@ -3,23 +3,22 @@ package main
 import "time"
 
 type SalesOrderDetail struct {
-	Id                   int32   `json:"id"`
-	Order                int32   `json:"order"`
-	Product              int32   `json:"product"`
-	Price                float32 `json:"price"`
-	Quantity             int32   `json:"quantity"`
-	VatPercent           float32 `json:"vatPercent"`
-	TotalAmount          float32 `json:"totalAmount"`
-	QuantityInvoiced     int32   `json:"quantityInvoiced"`
-	QuantityDeliveryNote int32   `json:"quantityDeliveryNote"`
-	// _ = Waiting for payment, A = Waiting for purchase order, B = Purchase order pending, C = Waiting for manufacturing orders, D = Manufacturing orders pending, E = Sent to preparation, F = Awaiting for shipping, G = Shipped, H = Receiced by the customer
-	Status                   string `json:"status"`
-	QuantityPendingPackaging int32  `json:"quantityPendingPackaging"`
-	PurchaseOrderDetail      *int32 `json:"purchaseOrderDetail"`
-	PrestaShopId             int32  `json:"prestaShopId"`
-	ProductName              string `json:"productName"`
-	Cancelled                bool   `json:"cancelled"`
-	WooCommerceId            int32  `json:"wooCommerceId"`
+	Id                       int32   `json:"id"`
+	Order                    int32   `json:"order"`
+	Product                  int32   `json:"product"`
+	Price                    float32 `json:"price"`
+	Quantity                 int32   `json:"quantity"`
+	VatPercent               float32 `json:"vatPercent"`
+	TotalAmount              float32 `json:"totalAmount"`
+	QuantityInvoiced         int32   `json:"quantityInvoiced"`
+	QuantityDeliveryNote     int32   `json:"quantityDeliveryNote"`
+	Status                   string  `json:"status"` // _ = Waiting for payment, A = Waiting for purchase order, B = Purchase order pending, C = Waiting for manufacturing orders, D = Manufacturing orders pending, E = Sent to preparation, F = Awaiting for shipping, G = Shipped, H = Receiced by the customer
+	QuantityPendingPackaging int32   `json:"quantityPendingPackaging"`
+	PurchaseOrderDetail      *int32  `json:"purchaseOrderDetail"`
+	ProductName              string  `json:"productName"`
+	Cancelled                bool    `json:"cancelled"`
+	PrestaShopId             int32
+	WooCommerceId            int32
 	ShopifyId                int64
 	ShopifyDraftId           int64
 }

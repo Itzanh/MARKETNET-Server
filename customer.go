@@ -24,11 +24,11 @@ type Customer struct {
 	PaymentMethod       *int16    `json:"paymentMethod"`
 	BillingSeries       *string   `json:"billingSeries"`
 	DateCreated         time.Time `json:"dateCreated"`
-	PrestaShopId        int32     `json:"prestaShopId"`
 	Account             *int32    `json:"account"`
 	CountryName         *string   `json:"countryName"`
 	WooCommerceId       int32     `json:"wooCommerceId"`
-	ShopifyId           int64     `json:"shopifyId"`
+	PrestaShopId        int32
+	ShopifyId           int64
 }
 
 type Customers struct {
@@ -43,7 +43,7 @@ func (q *PaginationQuery) getCustomers() Customers {
 	}
 
 	ct.Customers = make([]Customer, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id ASC OFFSET $1 LIMIT $2`
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer ORDER BY id DESC OFFSET $1 LIMIT $2`
 	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
 	if err != nil {
 		log("DB", err.Error())
@@ -73,7 +73,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	}
 
 	ct.Customers = make([]Customer, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id ASC LIMIT $2 OFFSET $3`
+	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1 ORDER BY id DESC LIMIT $2 OFFSET $3`
 	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Limit, s.Offset)
 	if err != nil {
 		log("DB", err.Error())
@@ -237,6 +237,7 @@ func getCustomerDefaults(customerId int32) ContactDefauls {
 	}
 	c := ContactDefauls{}
 	row.Scan(&c.MainShippingAddress, &c.MainShippingAddressName, &c.MainBillingAddress, &c.MainBillingAddressName, &c.PaymentMethod, &c.PaymentMethodName, &c.BillingSeries, &c.BillingSeriesName, &c.Currency, &c.CurrencyName, &c.CurrencyChange)
+
 	return c
 }
 

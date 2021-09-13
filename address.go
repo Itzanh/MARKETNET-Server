@@ -11,12 +11,12 @@ type Address struct {
 	Country           int16   `json:"country"`
 	PrivateOrBusiness string  `json:"privateOrBusiness"` // P = Private, B = Business, _ = Not specified
 	Notes             string  `json:"notes"`
-	PrestaShopId      int32   `json:"prestaShopId"`
 	ZipCode           string  `json:"zipCode"`
 	ContactName       string  `json:"contactName"`
 	CountryName       string  `json:"countryName"`
 	StateName         *string `json:"stateName"`
-	ShopifyId         int64   `json:"shopifyId"`
+	PrestaShopId      int32
+	ShopifyId         int64
 }
 
 type Addresses struct {
