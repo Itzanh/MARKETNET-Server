@@ -30,12 +30,12 @@ type Product struct {
 	FamilyName              *string   `json:"familyName"`
 	MinimumStock            int32     `json:"minimumStock"`
 	TrackMinimumStock       bool      `json:"trackMinimumStock"`
-	PrestaShopId            int32
-	PrestaShopCombinationId int32
-	WooCommerceId           int32
-	WooCommerceVariationId  int32
-	ShopifyId               int64
-	ShopifyVariantId        int64
+	prestaShopId            int32
+	prestaShopCombinationId int32
+	wooCommerceId           int32
+	wooCommerceVariationId  int32
+	shopifyId               int64
+	shopifyVariantId        int64
 }
 
 func getProduct() []Product {
@@ -48,7 +48,7 @@ func getProduct() []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.WooCommerceId, &p.WooCommerceVariationId, &p.ShopifyId, &p.ShopifyVariantId, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -75,7 +75,7 @@ func (search *ProductSearch) searchProduct() []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.WooCommerceId, &p.WooCommerceVariationId, &p.ShopifyId, &p.ShopifyVariantId, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -91,7 +91,7 @@ func getProductRow(productId int32) Product {
 	}
 
 	p := Product{}
-	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.PrestaShopId, &p.PrestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.WooCommerceId, &p.WooCommerceVariationId, &p.ShopifyId, &p.ShopifyVariantId)
+	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId)
 
 	return p
 }
@@ -106,7 +106,7 @@ func (p *Product) insertProduct() bool {
 	}
 
 	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING id`
-	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.PrestaShopId, p.PrestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.WooCommerceId, &p.WooCommerceVariationId, p.ShopifyId, p.ShopifyVariantId)
+	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -228,7 +228,7 @@ func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ShopifyId, &d.ShopifyDraftId, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -264,7 +264,7 @@ func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.PrestaShopId, &d.Cancelled, &d.WooCommerceId, &d.ShopifyId, &d.ShopifyDraftId, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.ProductName)
 		details = append(details, d)
 	}
 

@@ -986,7 +986,7 @@ func copyPsCustomers() {
 			c.Name = c.Tradename + " / " + c.FiscalName
 			c.Email = email
 			c.DateCreated = date_add
-			c.PrestaShopId = id
+			c.prestaShopId = id
 			if lang != 0 {
 				c.Language = &lang
 			}
@@ -1094,7 +1094,7 @@ func copyPsAddresses() {
 			a.Address = address1
 			a.Address2 = address2
 			a.Notes = other
-			a.PrestaShopId = id
+			a.prestaShopId = id
 			a.PrivateOrBusiness = "_"
 			a.insertAddress()
 
@@ -1225,7 +1225,7 @@ func copyPsProducts() {
 				p.Price = price
 				p.DateCreated = dateAdd
 				p.Description = description
-				p.PrestaShopId = ps_productId
+				p.prestaShopId = ps_productId
 				p.insertProduct()
 			} else {
 				p := getProductRow(productId)
@@ -1283,8 +1283,8 @@ func copyPsProducts() {
 					p.Price = combinationPrice
 					p.DateCreated = dateAdd
 					p.Description = description
-					p.PrestaShopId = ps_productId
-					p.PrestaShopCombinationId = combinationId
+					p.prestaShopId = ps_productId
+					p.prestaShopCombinationId = combinationId
 					p.insertProduct()
 				} else {
 					p := getProductRow(productId)
@@ -1436,7 +1436,7 @@ func copyPsOrders() {
 		s.Currency = currency
 		s.BillingAddress = billingAddress
 		s.ShippingAddress = shippingAddress
-		s.PrestaShopId = orderId
+		s.prestaShopId = orderId
 
 		if billingZone == "E" {
 			s.BillingSeries = *settings.PrestaShopExportSerie
@@ -1609,11 +1609,11 @@ func updateTrackingNumberPrestaShopOrder(salesOrderId int32, trackingNumber stri
 	}
 
 	s := getSalesOrderRow(salesOrderId)
-	if s.Id <= 0 || s.PrestaShopId <= 0 {
+	if s.Id <= 0 || s.prestaShopId <= 0 {
 		return false
 	}
 
-	url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+	url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.prestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
 
 	xmlPs, err := getPrestaShopJSON(url)
 	if err != nil {
@@ -1682,7 +1682,7 @@ func updateStatusPaymentAcceptedPrestaShop(orderId int32) bool {
 	}
 
 	s := getSalesOrderRow(orderId)
-	if s.PrestaShopId <= 0 {
+	if s.prestaShopId <= 0 {
 		return true
 	}
 
@@ -1693,7 +1693,7 @@ func updateStatusPaymentAcceptedPrestaShop(orderId int32) bool {
 	row.Scan(&paidInAdvance)
 
 	if !paidInAdvance { // this is not an automatically generated invoice, someone accepted the payment, notify PrestaShop
-		url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+		url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.prestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
 
 		xmlPs, err := getPrestaShopJSON(url)
 		if err != nil {

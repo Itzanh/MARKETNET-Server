@@ -199,7 +199,7 @@ func getSupplierAddresses(supplierId int32) []Address {
 	}
 	for rows.Next() {
 		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ShopifyId, &a.ContactName, &a.CountryName, &a.StateName)
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.ContactName, &a.CountryName, &a.StateName)
 		addresses = append(addresses, a)
 	}
 

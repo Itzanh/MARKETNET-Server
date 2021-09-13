@@ -500,7 +500,7 @@ func copySyCustomers() {
 			// create customer
 			c := Customer{}
 			c.Email = email
-			c.ShopifyId = id
+			c.shopifyId = id
 			c.Phone = phone
 			c.Tradename = firstName + " " + lastName
 
@@ -574,7 +574,7 @@ func copySyCustomers() {
 				a.ZipCode = zip
 				a.Country = countryId
 				a.State = provinceId
-				a.ShopifyId = id
+				a.shopifyId = id
 				if len(company) > 0 {
 					a.PrivateOrBusiness = "B"
 				} else {
@@ -598,7 +598,7 @@ func copySyCustomers() {
 
 			c := getCustomerRow(erpCustomerId)
 			c.Email = email
-			c.ShopifyId = id
+			c.shopifyId = id
 			c.Phone = phone
 			c.Tradename = firstName + " " + lastName
 
@@ -675,7 +675,7 @@ func copySyCustomers() {
 					a.ZipCode = zip
 					a.Country = countryId
 					a.State = provinceId
-					a.ShopifyId = id
+					a.shopifyId = id
 					if len(company) > 0 {
 						a.PrivateOrBusiness = "B"
 					} else {
@@ -757,8 +757,8 @@ func copySyProducts() {
 			// if the product uses variants, crate a product on the ERP for every single variant, or, if there is only one variant, create a single product on the ERP
 			if len(variants) == 1 {
 				p := Product{}
-				p.ShopifyId = id
-				p.ShopifyVariantId = variants[0].Id
+				p.shopifyId = id
+				p.shopifyVariantId = variants[0].Id
 				p.Name = title
 				p.Description = bodyHtml
 				p.Price = variants[0].Price
@@ -777,8 +777,8 @@ func copySyProducts() {
 			} else {
 				for i := 0; i < len(variants); i++ {
 					p := Product{}
-					p.ShopifyId = id
-					p.ShopifyVariantId = variants[i].Id
+					p.shopifyId = id
+					p.shopifyVariantId = variants[i].Id
 					p.Name = title + " " + variants[i].Option1
 					if variants[i].Option2 != nil {
 						p.Name += " " + *variants[i].Option2
@@ -872,8 +872,8 @@ func copySyProducts() {
 						p.updateProduct()
 					} else { // the variant does not exist
 						p := Product{}
-						p.ShopifyId = id
-						p.ShopifyVariantId = variants[i].Id
+						p.shopifyId = id
+						p.shopifyVariantId = variants[i].Id
 						p.Name = title + " " + variants[i].Option1
 						if variants[i].Option2 != nil {
 							p.Name += " " + *variants[i].Option2
@@ -1021,7 +1021,7 @@ func copySyDraftOrders() {
 				o.BillingSeries = *s.ShopifyInteriorSerie
 			}
 
-			o.ShopifyDraftId = id
+			o.shopifyDraftId = id
 			ok, orderId := o.insertSalesOrder()
 			if !ok {
 				continue
@@ -1074,7 +1074,7 @@ func copySyDraftOrders() {
 					d.VatPercent = 0
 				}
 				d.Product = productIdErp
-				d.ShopifyDraftId = id
+				d.shopifyDraftId = id
 				d.insertSalesOrderDetail()
 			} // for rows.Next()
 		} else { // if rows == 0
@@ -1171,7 +1171,7 @@ func copySyDraftOrders() {
 						d.VatPercent = 0
 					}
 					d.Product = productIdErp
-					d.ShopifyDraftId = id
+					d.shopifyDraftId = id
 					d.insertSalesOrderDetail()
 				} else { // if salesOrderDetailId <= 0
 					d := getSalesOrderDetailRow(salesOrderDetailId)
@@ -1358,7 +1358,7 @@ func copySyOrders() {
 				o.BillingSeries = *s.ShopifyInteriorSerie
 			}
 
-			o.ShopifyId = id
+			o.shopifyId = id
 			ok := o.updateSalesOrder()
 			if !ok {
 				continue
@@ -1422,7 +1422,7 @@ func copySyOrders() {
 						d.VatPercent = 0
 					}
 					d.Product = productIdErp
-					d.ShopifyId = id
+					d.shopifyId = id
 					d.updateSalesOrderDetail()
 				}
 			}
@@ -1493,13 +1493,13 @@ func updateTrackingNumberShopifyOrder(salesOrderId int32, trackingNumber string)
 	details := getSalesOrderDetail(salesOrderId)
 	for i := 0; i < len(details); i++ {
 		fulfillment.Fulfillment.LineItems = append(fulfillment.Fulfillment.LineItems, SYFulfillmentLineItem{
-			Id: details[i].ShopifyId,
+			Id: details[i].shopifyId,
 		})
 	}
 
 	// send data
 	data, _ := json.Marshal(fulfillment)
-	url := getShopifyAPI_URL("orders/" + strconv.Itoa(int(order.ShopifyId)) + "/fulfillments")
+	url := getShopifyAPI_URL("orders/" + strconv.Itoa(int(order.shopifyId)) + "/fulfillments")
 	postShopifyJSON(url, data)
 	return true
 }
@@ -1513,7 +1513,7 @@ func updateStatusPaymentAcceptedShopify(salesOrderId int32) bool {
 	order := getSalesOrderRow(salesOrderId)
 	// send data
 	data, _ := json.Marshal(complete)
-	url := getShopifyAPI_URL("draft_orders/" + strconv.Itoa(int(order.ShopifyDraftId)) + "/complete")
+	url := getShopifyAPI_URL("draft_orders/" + strconv.Itoa(int(order.shopifyDraftId)) + "/complete")
 	putShopifyJSON(url, data)
 	return true
 }

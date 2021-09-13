@@ -82,9 +82,22 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var saleOrder SaleOrder
-		json.Unmarshal(body, &saleOrder)
-		ok, _ = saleOrder.insertSalesOrder()
+		if string(body[0]) == "{" {
+			var saleOrder SaleOrder
+			json.Unmarshal(body, &saleOrder)
+			ok, _ = saleOrder.insertSalesOrder()
+		} else if string(body[0]) == "[" {
+			var saleOrders []SaleOrder
+			json.Unmarshal(body, &saleOrders)
+			for i := 0; i < len(saleOrders); i++ {
+				ok, _ = saleOrders[i].insertSalesOrder()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var saleOrder SaleOrder
 		json.Unmarshal(body, &saleOrder)
@@ -140,9 +153,22 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var saleOrderDetail SalesOrderDetail
-		json.Unmarshal(body, &saleOrderDetail)
-		ok = saleOrderDetail.insertSalesOrderDetail()
+		if string(body[0]) == "{" {
+			var saleOrderDetail SalesOrderDetail
+			json.Unmarshal(body, &saleOrderDetail)
+			ok = saleOrderDetail.insertSalesOrderDetail()
+		} else if string(body[0]) == "[" {
+			var saleOrderDetails []SalesOrderDetail
+			json.Unmarshal(body, &saleOrderDetails)
+			for i := 0; i < len(saleOrderDetails); i++ {
+				ok = saleOrderDetails[i].insertSalesOrderDetail()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var salesOrderDetail SalesOrderDetail
 		json.Unmarshal(body, &salesOrderDetail)
@@ -195,9 +221,22 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var saleInvoice SalesInvoice
-		json.Unmarshal(body, &saleInvoice)
-		ok, _ = saleInvoice.insertSalesInvoice()
+		if string(body[0]) == "{" {
+			var saleInvoice SalesInvoice
+			json.Unmarshal(body, &saleInvoice)
+			ok, _ = saleInvoice.insertSalesInvoice()
+		} else if string(body[0]) == "[" {
+			var saleInvoices []SalesInvoice
+			json.Unmarshal(body, &saleInvoices)
+			for i := 0; i < len(saleInvoices); i++ {
+				ok, _ = saleInvoices[i].insertSalesInvoice()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -249,9 +288,22 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var salesInvoiceDetail SalesInvoiceDetail
-		json.Unmarshal(body, &salesInvoiceDetail)
-		ok = salesInvoiceDetail.insertSalesInvoiceDetail(true)
+		if string(body[0]) == "{" {
+			var salesInvoiceDetail SalesInvoiceDetail
+			json.Unmarshal(body, &salesInvoiceDetail)
+			ok = salesInvoiceDetail.insertSalesInvoiceDetail(true)
+		} else if string(body[0]) == "[" {
+			var salesInvoiceDetails []SalesInvoiceDetail
+			json.Unmarshal(body, &salesInvoiceDetails)
+			for i := 0; i < len(salesInvoiceDetails); i++ {
+				ok = salesInvoiceDetails[i].insertSalesInvoiceDetail(true)
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -300,9 +352,22 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var salesDeliveryNote SalesDeliveryNote
-		json.Unmarshal(body, &salesDeliveryNote)
-		ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
+		if string(body[0]) == "{" {
+			var salesDeliveryNote SalesDeliveryNote
+			json.Unmarshal(body, &salesDeliveryNote)
+			ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
+		} else if string(body[0]) == "[" {
+			var salesDeliveryNotes []SalesDeliveryNote
+			json.Unmarshal(body, &salesDeliveryNotes)
+			for i := 0; i < len(salesDeliveryNotes); i++ {
+				ok, _ = salesDeliveryNotes[i].insertSalesDeliveryNotes()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -349,9 +414,22 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var purchaseOrder PurchaseOrder
-		json.Unmarshal(body, &purchaseOrder)
-		ok, _ = purchaseOrder.insertPurchaseOrder()
+		if string(body[0]) == "{" {
+			var purchaseOrder PurchaseOrder
+			json.Unmarshal(body, &purchaseOrder)
+			ok, _ = purchaseOrder.insertPurchaseOrder()
+		} else if string(body[0]) == "[" {
+			var purchaseOrders []PurchaseOrder
+			json.Unmarshal(body, &purchaseOrders)
+			for i := 0; i < len(purchaseOrders); i++ {
+				ok, _ = purchaseOrders[i].insertPurchaseOrder()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var PurchaseOrdep PurchaseOrder
 		json.Unmarshal(body, &PurchaseOrdep)
@@ -407,9 +485,22 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var purchaseOrderDetail PurchaseOrderDetail
-		json.Unmarshal(body, &purchaseOrderDetail)
-		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
+		if string(body[0]) == "{" {
+			var purchaseOrderDetail PurchaseOrderDetail
+			json.Unmarshal(body, &purchaseOrderDetail)
+			ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
+		} else if string(body[0]) == "[" {
+			var purchaseOrderDetails []PurchaseOrderDetail
+			json.Unmarshal(body, &purchaseOrderDetails)
+			for i := 0; i < len(purchaseOrderDetails); i++ {
+				ok, _ = purchaseOrderDetails[i].insertPurchaseOrderDetail(true)
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -456,9 +547,22 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var purchaseInvoice PurchaseInvoice
-		json.Unmarshal(body, &purchaseInvoice)
-		ok, _ = purchaseInvoice.insertPurchaseInvoice()
+		if string(body[0]) == "{" {
+			var purchaseInvoice PurchaseInvoice
+			json.Unmarshal(body, &purchaseInvoice)
+			ok, _ = purchaseInvoice.insertPurchaseInvoice()
+		} else if string(body[0]) == "[" {
+			var purchaseInvoices []PurchaseInvoice
+			json.Unmarshal(body, &purchaseInvoices)
+			for i := 0; i < len(purchaseInvoices); i++ {
+				ok, _ = purchaseInvoices[i].insertPurchaseInvoice()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -510,9 +614,22 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var purchaseInvoiceDetail PurchaseInvoiceDetail
-		json.Unmarshal(body, &purchaseInvoiceDetail)
-		ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
+		if string(body[0]) == "{" {
+			var purchaseInvoiceDetail PurchaseInvoiceDetail
+			json.Unmarshal(body, &purchaseInvoiceDetail)
+			ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
+		} else if string(body[0]) == "[" {
+			var purchaseInvoiceDetails []PurchaseInvoiceDetail
+			json.Unmarshal(body, &purchaseInvoiceDetails)
+			for i := 0; i < len(purchaseInvoiceDetails); i++ {
+				ok = purchaseInvoiceDetails[i].insertPurchaseInvoiceDetail(true)
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -559,9 +676,22 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var purchaseDeliveryNote PurchaseDeliveryNote
-		json.Unmarshal(body, &purchaseDeliveryNote)
-		ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
+		if string(body[0]) == "{" {
+			var purchaseDeliveryNote PurchaseDeliveryNote
+			json.Unmarshal(body, &purchaseDeliveryNote)
+			ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
+		} else if string(body[0]) == "[" {
+			var purchaseDeliveryNotes []PurchaseDeliveryNote
+			json.Unmarshal(body, &purchaseDeliveryNotes)
+			for i := 0; i < len(purchaseDeliveryNotes); i++ {
+				ok, _ = purchaseDeliveryNotes[i].insertPurchaseDeliveryNotes()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -610,9 +740,22 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var customer Customer
-		json.Unmarshal(body, &customer)
-		ok, _ = customer.insertCustomer()
+		if string(body[0]) == "{" {
+			var customer Customer
+			json.Unmarshal(body, &customer)
+			ok, _ = customer.insertCustomer()
+		} else if string(body[0]) == "[" {
+			var customers []Customer
+			json.Unmarshal(body, &customers)
+			for i := 0; i < len(customers); i++ {
+				ok, _ = customers[i].insertCustomer()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var customer Customer
 		json.Unmarshal(body, &customer)
@@ -663,9 +806,22 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var supplier Supplier
-		json.Unmarshal(body, &supplier)
-		ok = supplier.insertSupplier()
+		if string(body[0]) == "{" {
+			var supplier Supplier
+			json.Unmarshal(body, &supplier)
+			ok = supplier.insertSupplier()
+		} else if string(body[0]) == "[" {
+			var suppliers []Supplier
+			json.Unmarshal(body, &suppliers)
+			for i := 0; i < len(suppliers); i++ {
+				ok = suppliers[i].insertSupplier()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var supplier Supplier
 		json.Unmarshal(body, &supplier)
@@ -716,9 +872,22 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var product Product
-		json.Unmarshal(body, &product)
-		ok = product.insertProduct()
+		if string(body[0]) == "{" {
+			var product Product
+			json.Unmarshal(body, &product)
+			ok = product.insertProduct()
+		} else if string(body[0]) == "[" {
+			var products []Product
+			json.Unmarshal(body, &products)
+			for i := 0; i < len(products); i++ {
+				ok = products[i].insertProduct()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var product Product
 		json.Unmarshal(body, &product)
@@ -983,9 +1152,22 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var address Address
-		json.Unmarshal(body, &address)
-		ok = address.insertAddress()
+		if string(body[0]) == "{" {
+			var address Address
+			json.Unmarshal(body, &address)
+			ok = address.insertAddress()
+		} else if string(body[0]) == "[" {
+			var addresses []Address
+			json.Unmarshal(body, &addresses)
+			for i := 0; i < len(addresses); i++ {
+				ok = addresses[i].insertAddress()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "PUT":
 		var address Address
 		json.Unmarshal(body, &address)
@@ -1457,9 +1639,22 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
-		var warehouseMovement WarehouseMovement
-		json.Unmarshal(body, &warehouseMovement)
-		ok = warehouseMovement.insertWarehouseMovement()
+		if string(body[0]) == "{" {
+			var warehouseMovement WarehouseMovement
+			json.Unmarshal(body, &warehouseMovement)
+			ok = warehouseMovement.insertWarehouseMovement()
+		} else if string(body[0]) == "[" {
+			var warehouseMovements []WarehouseMovement
+			json.Unmarshal(body, &warehouseMovements)
+			for i := 0; i < len(warehouseMovements); i++ {
+				ok = warehouseMovements[i].insertWarehouseMovement()
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {

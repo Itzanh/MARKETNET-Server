@@ -411,7 +411,7 @@ func copyWcCustomers() {
 			}
 			c.Email = email
 			c.DateCreated = dateCreated
-			c.WooCommerceId = id
+			c.wooCommerceId = id
 			if len(billingPhone) > 0 {
 				c.Phone = billingPhone
 			} else if len(shippingPhone) > 0 {
@@ -823,7 +823,7 @@ func copyWcProducts() {
 					p.Height = float32(f_height)
 				}
 				p.VatPercent = s.DefaultVatPercent
-				p.WooCommerceId = id
+				p.wooCommerceId = id
 				p.insertProduct()
 
 				for i := 0; i < len(images); i++ {
@@ -882,8 +882,8 @@ func copyWcProducts() {
 						p.Height = float32(f_height)
 					}
 					p.VatPercent = s.DefaultVatPercent
-					p.WooCommerceId = id
-					p.WooCommerceVariationId = v_id
+					p.wooCommerceId = id
+					p.wooCommerceVariationId = v_id
 					p.insertProduct()
 
 					for i := 0; i < len(images); i++ {
@@ -1216,7 +1216,7 @@ func copyWcOrders() {
 		s.ShippingAddress = shippingAddress
 		s.ShippingPrice = shippingTotal
 		s.FixDiscount = discountTax
-		s.WooCommerceId = id
+		s.wooCommerceId = id
 
 		if billingZone == "E" {
 			s.BillingSeries = *settings.WooCommerceExportSerie
@@ -1281,7 +1281,7 @@ func copyWcOrders() {
 				d.VatPercent = vatPercent
 			}
 
-			d.WooCommerceId = id
+			d.wooCommerceId = id
 			d.insertSalesOrderDetail()
 
 		} // for rows.Next() {
@@ -1312,13 +1312,13 @@ func updateStatusPaymentAcceptedWooCommerce(salesOrderId int32) bool {
 	}
 
 	s := getSalesOrderRow(salesOrderId)
-	if s.Id <= 0 || s.WooCommerceId <= 0 {
+	if s.Id <= 0 || s.wooCommerceId <= 0 {
 		return false
 	}
 
-	url := settings.WooCommerceUrl + "orders/" + strconv.Itoa(int(s.WooCommerceId))
+	url := settings.WooCommerceUrl + "orders/" + strconv.Itoa(int(s.wooCommerceId))
 
-	update := WooCommerceStatusUpdate{Id: s.WooCommerceId, Status: WOOCOMMERCE_PROCESSING}
+	update := WooCommerceStatusUpdate{Id: s.wooCommerceId, Status: WOOCOMMERCE_PROCESSING}
 	json, _ := json.Marshal(update)
 
 	// OAuth 1.0 request

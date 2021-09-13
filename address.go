@@ -15,8 +15,8 @@ type Address struct {
 	ContactName       string  `json:"contactName"`
 	CountryName       string  `json:"countryName"`
 	StateName         *string `json:"stateName"`
-	PrestaShopId      int32
-	ShopifyId         int64
+	prestaShopId      int32
+	shopifyId         int64
 }
 
 type Addresses struct {
@@ -39,7 +39,7 @@ func (q *PaginationQuery) getAddresses() Addresses {
 	}
 	for rows.Next() {
 		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ShopifyId, &a.ContactName, &a.CountryName, &a.StateName)
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.ContactName, &a.CountryName, &a.StateName)
 		ad.Addresses = append(ad.Addresses, a)
 	}
 
@@ -59,7 +59,7 @@ func getAddressRow(addressId int32) Address {
 	}
 
 	a := Address{}
-	row.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ShopifyId)
+	row.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId)
 
 	return a
 }
@@ -79,7 +79,7 @@ func (s *PaginatedSearch) searchAddresses() Addresses {
 	}
 	for rows.Next() {
 		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ShopifyId, &a.ContactName, &a.CountryName, &a.StateName)
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.ContactName, &a.CountryName, &a.StateName)
 		ad.Addresses = append(ad.Addresses, a)
 	}
 
@@ -104,7 +104,7 @@ func (a *Address) insertAddress() bool {
 	}
 
 	sqlStatement := `INSERT INTO address(customer, address, address_2, city, state, country, private_business, notes, supplier, ps_id, zip_code, sy_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`
-	row := db.QueryRow(sqlStatement, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.PrestaShopId, a.ZipCode, a.ShopifyId)
+	row := db.QueryRow(sqlStatement, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.prestaShopId, a.ZipCode, a.shopifyId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false

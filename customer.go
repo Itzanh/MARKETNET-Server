@@ -26,9 +26,9 @@ type Customer struct {
 	DateCreated         time.Time `json:"dateCreated"`
 	Account             *int32    `json:"account"`
 	CountryName         *string   `json:"countryName"`
-	WooCommerceId       int32     `json:"wooCommerceId"`
-	PrestaShopId        int32
-	ShopifyId           int64
+	wooCommerceId       int32
+	prestaShopId        int32
+	shopifyId           int64
 }
 
 type Customers struct {
@@ -51,7 +51,7 @@ func (q *PaginationQuery) getCustomers() Customers {
 	}
 	for rows.Next() {
 		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.WooCommerceId, &c.ShopifyId, &c.CountryName)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.CountryName)
 		ct.Customers = append(ct.Customers, c)
 	}
 
@@ -81,7 +81,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	}
 	for rows.Next() {
 		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.WooCommerceId, &c.ShopifyId, &c.CountryName)
+		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.CountryName)
 		ct.Customers = append(ct.Customers, c)
 	}
 
@@ -105,7 +105,7 @@ func getCustomerRow(customerId int32) Customer {
 	}
 
 	c := Customer{}
-	row.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.PrestaShopId, &c.Account, &c.WooCommerceId, &c.ShopifyId)
+	row.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId)
 
 	return c
 }
@@ -130,7 +130,7 @@ func (c *Customer) insertCustomer() (bool, int32) {
 	}
 
 	sqlStatement := `INSERT INTO public.customer(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, ps_id, account, wc_id, sy_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.PrestaShopId, c.Account, c.WooCommerceId, c.ShopifyId)
+	row := db.QueryRow(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.prestaShopId, c.Account, c.wooCommerceId, c.shopifyId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false, 0
@@ -251,7 +251,7 @@ func getCustomerAddresses(customerId int32) []Address {
 	}
 	for rows.Next() {
 		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.PrestaShopId, &a.ZipCode, &a.ShopifyId, &a.ContactName, &a.CountryName, &a.StateName)
+		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.ContactName, &a.CountryName, &a.StateName)
 		addresses = append(addresses, a)
 	}
 
@@ -270,8 +270,8 @@ func getCustomerSaleOrders(customerId int32) []SaleOrder {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.PrestaShopId,
-			&s.WooCommerceId, &s.ShopifyId, &s.ShopifyDraftId, &s.CustomerName)
+			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.prestaShopId,
+			&s.wooCommerceId, &s.shopifyId, &s.shopifyDraftId, &s.CustomerName)
 		sales = append(sales, s)
 	}
 

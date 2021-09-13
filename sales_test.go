@@ -391,7 +391,7 @@ func TestIsValidSaleOrderDetail(t *testing.T) {
 		Status:                   "_",
 		QuantityPendingPackaging: 2,
 		PurchaseOrderDetail:      nil,
-		PrestaShopId:             0,
+		prestaShopId:             0,
 		ProductName:              "",
 		Cancelled:                false}
 
