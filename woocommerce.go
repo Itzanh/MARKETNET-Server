@@ -186,18 +186,19 @@ func importWcCustomers() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(customers); i++ {
+		customer := customers[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM wc_customers WHERE id=$1`
-		row := db.QueryRow(sqlStatement, customers[i].Id)
+		row := db.QueryRow(sqlStatement, customer.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
 			sqlStatement := `INSERT INTO public.wc_customers(id, date_created, email, first_name, last_name, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, billing_company) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
-			db.Exec(sqlStatement, customers[i].Id, customers[i].DateCreated.ToTime(), customers[i].Email, customers[i].FirstName, customers[i].LastName, customers[i].Billing.Address1, customers[i].Billing.Address2, customers[i].Billing.City, customers[i].Billing.PostCode, customers[i].Billing.Country, customers[i].Billing.State, customers[i].Billing.Phone, customers[i].Shipping.Address1, customers[i].Shipping.Address2, customers[i].Shipping.City, customers[i].Shipping.PostCode, customers[i].Shipping.Country, customers[i].Shipping.State, customers[i].Shipping.Phone, customers[i].Billing.Company)
+			db.Exec(sqlStatement, customer.Id, customer.DateCreated.ToTime(), customer.Email, customer.FirstName, customer.LastName, customer.Billing.Address1, customer.Billing.Address2, customer.Billing.City, customer.Billing.PostCode, customer.Billing.Country, customer.Billing.State, customer.Billing.Phone, customer.Shipping.Address1, customer.Shipping.Address2, customer.Shipping.City, customer.Shipping.PostCode, customer.Shipping.Country, customer.Shipping.State, customer.Shipping.Phone, customer.Billing.Company)
 		} else { // the row exists, update
 			sqlStatement := `UPDATE public.wc_customers SET date_created=$2, email=$3, first_name=$4, last_name=$5, billing_address_1=$6, billing_address_2=$7, billing_city=$8, billing_postcode=$9, billing_country=$10, billing_state=$11, billing_phone=$12, shipping_address_1=$13, shipping_address_2=$14, shipping_city=$15, shipping_postcode=$16, shipping_country=$17, shipping_state=$18, shipping_phone=$19, billing_company=$20, wc_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, customers[i].Id, customers[i].DateCreated.ToTime(), customers[i].Email, customers[i].FirstName, customers[i].LastName, customers[i].Billing.Address1, customers[i].Billing.Address2, customers[i].Billing.City, customers[i].Billing.PostCode, customers[i].Billing.Country, customers[i].Billing.State, customers[i].Billing.Phone, customers[i].Shipping.Address1, customers[i].Shipping.Address2, customers[i].Shipping.City, customers[i].Shipping.PostCode, customers[i].Shipping.Country, customers[i].Shipping.State, customers[i].Shipping.Phone, customers[i].Billing.Company)
+			db.Exec(sqlStatement, customer.Id, customer.DateCreated.ToTime(), customer.Email, customer.FirstName, customer.LastName, customer.Billing.Address1, customer.Billing.Address2, customer.Billing.City, customer.Billing.PostCode, customer.Billing.Country, customer.Billing.State, customer.Billing.Phone, customer.Shipping.Address1, customer.Shipping.Address2, customer.Shipping.City, customer.Shipping.PostCode, customer.Shipping.Country, customer.Shipping.State, customer.Shipping.Phone, customer.Billing.Company)
 		}
 	}
 
@@ -221,27 +222,28 @@ func importWcProducts() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(products); i++ {
+		product := products[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM wc_products WHERE id=$1`
-		row := db.QueryRow(sqlStatement, products[i].Id)
+		row := db.QueryRow(sqlStatement, product.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		var images []string = make([]string, 0)
-		for j := 0; j < len(products[i].Images); j++ {
-			images = append(images, products[i].Images[j].Src)
+		for j := 0; j < len(product.Images); j++ {
+			images = append(images, product.Images[j].Src)
 		}
 
 		if rows == 0 { // the row does not exist, insert
 			sqlStatement := `INSERT INTO public.wc_products(id, name, date_created, description, short_description, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, images, variations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
-			db.Exec(sqlStatement, products[i].Id, products[i].Name, products[i].DateCreated.ToTime(), products[i].Description, products[i].ShortDescription, products[i].Sku, products[i].Price, products[i].Weight, products[i].Dimensions.Length, products[i].Dimensions.Width, products[i].Dimensions.Height, pq.Array(images), pq.Array(products[i].Variations))
+			db.Exec(sqlStatement, product.Id, product.Name, product.DateCreated.ToTime(), product.Description, product.ShortDescription, product.Sku, product.Price, product.Weight, product.Dimensions.Length, product.Dimensions.Width, product.Dimensions.Height, pq.Array(images), pq.Array(product.Variations))
 		} else { // the row exists, update
 			sqlStatement := `UPDATE public.wc_products SET name=$2, date_created=$3, description=$4, short_description=$5, sku=$6, price=$7, weight=$8, dimensions_length=$9, dimensions_width=$10, dimensions_height=$11, images=$12, variations=$13, wc_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, products[i].Id, products[i].Name, products[i].DateCreated.ToTime(), products[i].Description, products[i].ShortDescription, products[i].Sku, products[i].Price, products[i].Weight, products[i].Dimensions.Length, products[i].Dimensions.Width, products[i].Dimensions.Height, pq.Array(images), pq.Array(products[i].Variations))
+			db.Exec(sqlStatement, product.Id, product.Name, product.DateCreated.ToTime(), product.Description, product.ShortDescription, product.Sku, product.Price, product.Weight, product.Dimensions.Length, product.Dimensions.Width, product.Dimensions.Height, pq.Array(images), pq.Array(product.Variations))
 		}
 
 		// get the variations
-		url := getWooCommerceAPI_URL("products") + "/" + strconv.Itoa(int(products[i].Id)) + "/variations/"
+		url := getWooCommerceAPI_URL("products") + "/" + strconv.Itoa(int(product.Id)) + "/variations/"
 		jsonWC, err := getWooCommerceJSON(url)
 		if err != nil {
 			continue
@@ -252,23 +254,24 @@ func importWcProducts() {
 
 		// insert/update variations
 		for j := 0; j < len(variations); j++ {
+			variation := variations[j]
 			// ¿does the row exist?
 			sqlStatement := `SELECT COUNT(*) FROM wc_product_variations WHERE id=$1`
-			row := db.QueryRow(sqlStatement, variations[j].Id)
+			row := db.QueryRow(sqlStatement, variation.Id)
 			var rows int32
 			row.Scan(&rows)
 
 			var attributes []string = make([]string, 0)
-			for k := 0; k < len(variations[j].Attributes); k++ {
-				attributes = append(attributes, variations[j].Attributes[k].Option)
+			for k := 0; k < len(variation.Attributes); k++ {
+				attributes = append(attributes, variation.Attributes[k].Option)
 			}
 
 			if rows == 0 { // the row does not exist, insert
 				sqlStatement := `INSERT INTO public.wc_product_variations(id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-				db.Exec(sqlStatement, variations[j].Id, variations[j].Sku, variations[j].Price, variations[j].Weight, variations[j].Dimensions.Length, variations[j].Dimensions.Width, variations[j].Dimensions.Height, pq.Array(attributes))
+				db.Exec(sqlStatement, variation.Id, variation.Sku, variation.Price, variation.Weight, variation.Dimensions.Length, variation.Dimensions.Width, variation.Dimensions.Height, pq.Array(attributes))
 			} else { // the row exists, update
 				sqlStatement := `UPDATE public.wc_product_variations SET sku=$2, price=$3, weight=$4, dimensions_length=$5, dimensions_width=$6, dimensions_height=$7, attributes=$8, wc_exists=true WHERE id=$1`
-				db.Exec(sqlStatement, variations[j].Id, variations[j].Sku, variations[j].Price, variations[j].Weight, variations[j].Dimensions.Length, variations[j].Dimensions.Width, variations[j].Dimensions.Height, pq.Array(attributes))
+				db.Exec(sqlStatement, variation.Id, variation.Sku, variation.Price, variation.Weight, variation.Dimensions.Length, variation.Dimensions.Width, variation.Dimensions.Height, pq.Array(attributes))
 			}
 		}
 
@@ -294,47 +297,49 @@ func importWcOrders() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(orders); i++ {
+		order := orders[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM wc_orders WHERE id=$1`
-		row := db.QueryRow(sqlStatement, orders[i].Id)
+		row := db.QueryRow(sqlStatement, order.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 {
-			f_discount_tax, err := strconv.ParseFloat(orders[i].DiscountTax, 32)
+			f_discount_tax, err := strconv.ParseFloat(order.DiscountTax, 32)
 			if err != nil {
 				continue
 			}
-			f_shipping_total, err := strconv.ParseFloat(orders[i].ShippingTotal, 32)
+			f_shipping_total, err := strconv.ParseFloat(order.ShippingTotal, 32)
 			if err != nil {
 				continue
 			}
-			f_shipping_tax, err := strconv.ParseFloat(orders[i].ShippingTax, 32)
+			f_shipping_tax, err := strconv.ParseFloat(order.ShippingTax, 32)
 			if err != nil {
 				continue
 			}
-			f_total_tax, err := strconv.ParseFloat(orders[i].TotalTax, 32)
+			f_total_tax, err := strconv.ParseFloat(order.TotalTax, 32)
 			if err != nil {
 				continue
 			}
 
 			sqlStatement = `INSERT INTO public.wc_orders(id, status, currency, date_created, discount_tax, shipping_total, shipping_tax, total_tax, customer_id, order_key, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, payment_method, billing_company) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`
-			db.Exec(sqlStatement, orders[i].Id, orders[i].Status, orders[i].Currency, orders[i].DateCreated.ToTime(), f_discount_tax, f_shipping_total, f_shipping_tax, f_total_tax, orders[i].CustomerId, orders[i].OrderKey, orders[i].Billing.Address1, orders[i].Billing.Address2, orders[i].Billing.City, orders[i].Billing.PostCode, orders[i].Billing.Country, orders[i].Billing.State, orders[i].Billing.Phone, orders[i].Shipping.Address1, orders[i].Shipping.Address2, orders[i].Shipping.City, orders[i].Shipping.PostCode, orders[i].Shipping.Country, orders[i].Shipping.State, orders[i].Shipping.Phone, orders[i].PaymentMethod, orders[i].Billing.Company)
+			db.Exec(sqlStatement, order.Id, order.Status, order.Currency, order.DateCreated.ToTime(), f_discount_tax, f_shipping_total, f_shipping_tax, f_total_tax, order.CustomerId, order.OrderKey, order.Billing.Address1, order.Billing.Address2, order.Billing.City, order.Billing.PostCode, order.Billing.Country, order.Billing.State, order.Billing.Phone, order.Shipping.Address1, order.Shipping.Address2, order.Shipping.City, order.Shipping.PostCode, order.Shipping.Country, order.Shipping.State, order.Shipping.Phone, order.PaymentMethod, order.Billing.Company)
 
 			// add order details
-			for j := 0; j < len(orders[i].LineItems); j++ {
-				f_total_tax, err := strconv.ParseFloat(orders[i].LineItems[j].TotalTax, 32)
+			for j := 0; j < len(order.LineItems); j++ {
+				lineItem := order.LineItems[j]
+				f_total_tax, err := strconv.ParseFloat(lineItem.TotalTax, 32)
 				if err != nil {
 					continue
 				}
 
 				sqlStatement := `INSERT INTO public.wc_order_details(id, "order", product_id, variation_id, quantity, total_tax, price) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-				db.Exec(sqlStatement, orders[i].LineItems[j].Id, orders[i].Id, orders[i].LineItems[j].ProductId, orders[i].LineItems[j].VariationId, orders[i].LineItems[j].Quantity, f_total_tax, orders[i].LineItems[j].Price)
+				db.Exec(sqlStatement, lineItem.Id, order.Id, lineItem.ProductId, lineItem.VariationId, lineItem.Quantity, f_total_tax, lineItem.Price)
 			}
 
 		} else { // if rows == 0
 			sqlStatement := `UPDATE public.wc_orders SET wc_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, orders[i].Id)
+			db.Exec(sqlStatement, order.Id)
 		}
 	} // for
 

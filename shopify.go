@@ -254,33 +254,35 @@ func importSyCustomers() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(customers.Customers); i++ {
+		customer := customers.Customers[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM sy_customers WHERE id=$1`
-		row := db.QueryRow(sqlStatement, customers.Customers[i].Id)
+		row := db.QueryRow(sqlStatement, customer.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
 			sqlStatement := `INSERT INTO public.sy_customers(id, email, first_name, last_name, tax_exempt, phone, currency, default_address_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-			db.Exec(sqlStatement, customers.Customers[i].Id, customers.Customers[i].Email, customers.Customers[i].FirstName, customers.Customers[i].LastName, customers.Customers[i].TaxExempt, customers.Customers[i].Phone, customers.Customers[i].Currency, customers.Customers[i].DefaultAddress.Id)
+			db.Exec(sqlStatement, customer.Id, customer.Email, customer.FirstName, customer.LastName, customer.TaxExempt, customer.Phone, customer.Currency, customer.DefaultAddress.Id)
 		} else { // the row exists, update
 			sqlStatement := `UPDATE public.sy_customers SET email=$2, first_name=$3, last_name=$4, tax_exempt=$5, phone=$6, currency=$7, sy_exists=true, default_address_id=$8 WHERE id=$1`
-			db.Exec(sqlStatement, customers.Customers[i].Id, customers.Customers[i].Email, customers.Customers[i].FirstName, customers.Customers[i].LastName, customers.Customers[i].TaxExempt, customers.Customers[i].Phone, customers.Customers[i].Currency, customers.Customers[i].DefaultAddress.Id)
+			db.Exec(sqlStatement, customer.Id, customer.Email, customer.FirstName, customer.LastName, customer.TaxExempt, customer.Phone, customer.Currency, customer.DefaultAddress.Id)
 		}
 
-		for j := 0; j < len(customers.Customers[i].Addresses); j++ {
+		for j := 0; j < len(customer.Addresses); j++ {
+			address := customer.Addresses[j]
 			// ¿does the row exist?
 			sqlStatement := `SELECT COUNT(*) FROM sy_addresses WHERE id=$1`
-			row := db.QueryRow(sqlStatement, customers.Customers[i].Addresses[j].Id)
+			row := db.QueryRow(sqlStatement, address.Id)
 			var rows int32
 			row.Scan(&rows)
 
 			if rows == 0 { // the row does not exist, insert
 				sqlStatement := `INSERT INTO public.sy_addresses(id, customer_id, company, address1, address2, city, province, zip, country_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-				db.Exec(sqlStatement, customers.Customers[i].Addresses[j].Id, customers.Customers[i].Addresses[j].CustomerId, customers.Customers[i].Addresses[j].Company, customers.Customers[i].Addresses[j].Address1, customers.Customers[i].Addresses[j].Address2, customers.Customers[i].Addresses[j].City, customers.Customers[i].Addresses[j].Province, customers.Customers[i].Addresses[j].Zip, customers.Customers[i].Addresses[j].CountryCode)
+				db.Exec(sqlStatement, address.Id, address.CustomerId, address.Company, address.Address1, address.Address2, address.City, address.Province, address.Zip, address.CountryCode)
 			} else { // the row exists, update
 				sqlStatement := `UPDATE public.sy_addresses SET customer_id=$2, company=$3, address1=$4, address2=$5, city=$6, province=$7, zip=$8, country_code=$9, sy_exists=true WHERE id=$1`
-				db.Exec(sqlStatement, customers.Customers[i].Addresses[j].Id, customers.Customers[i].Addresses[j].CustomerId, customers.Customers[i].Addresses[j].Company, customers.Customers[i].Addresses[j].Address1, customers.Customers[i].Addresses[j].Address2, customers.Customers[i].Addresses[j].City, customers.Customers[i].Addresses[j].Province, customers.Customers[i].Addresses[j].Zip, customers.Customers[i].Addresses[j].CountryCode)
+				db.Exec(sqlStatement, address.Id, address.CustomerId, address.Company, address.Address1, address.Address2, address.City, address.Province, address.Zip, address.CountryCode)
 			}
 
 		}
@@ -308,34 +310,36 @@ func importSyProducts() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(products.Products); i++ {
+		product := products.Products[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM sy_products WHERE id=$1`
-		row := db.QueryRow(sqlStatement, products.Products[i].Id)
+		row := db.QueryRow(sqlStatement, product.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
 			sqlStatement := `INSERT INTO public.sy_products(id, title, body_html) VALUES ($1, $2, $3)`
-			db.Exec(sqlStatement, products.Products[i].Id, products.Products[i].Title, strip.StripTags(products.Products[i].BodyHtml))
+			db.Exec(sqlStatement, product.Id, product.Title, strip.StripTags(product.BodyHtml))
 		} else { // the row exists, update
 			sqlStatement := `UPDATE public.sy_products SET title=$2, body_html=$3, sy_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, products.Products[i].Id, products.Products[i].Title, strip.StripTags(products.Products[i].BodyHtml))
+			db.Exec(sqlStatement, product.Id, product.Title, strip.StripTags(product.BodyHtml))
 		}
 
 		// product variants
-		for j := 0; j < len(products.Products[i].Variants); j++ {
+		for j := 0; j < len(product.Variants); j++ {
+			variant := product.Variants[j]
 			// ¿does the row exist?
 			sqlStatement := `SELECT COUNT(*) FROM sy_variants WHERE id=$1`
-			row := db.QueryRow(sqlStatement, products.Products[i].Variants[j].Id)
+			row := db.QueryRow(sqlStatement, variant.Id)
 			var rows int32
 			row.Scan(&rows)
 
 			if rows == 0 { // the row does not exist, insert
 				sqlStatement := `INSERT INTO public.sy_variants(id, product_id, title, price, sku, option1, option2, option3, taxable, barcode, grams) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-				db.Exec(sqlStatement, products.Products[i].Variants[j].Id, products.Products[i].Variants[j].ProductId, products.Products[i].Variants[j].Title, products.Products[i].Variants[j].Price, products.Products[i].Variants[j].Sku, products.Products[i].Variants[j].Option1, products.Products[i].Variants[j].Option2, products.Products[i].Variants[j].Option3, products.Products[i].Variants[j].Taxable, products.Products[i].Variants[j].Barcode, products.Products[i].Variants[j].Grams)
+				db.Exec(sqlStatement, variant.Id, variant.ProductId, variant.Title, variant.Price, variant.Sku, variant.Option1, variant.Option2, variant.Option3, variant.Taxable, variant.Barcode, variant.Grams)
 			} else { // the row exists, update
 				sqlStatement := `UPDATE public.sy_variants SET product_id=$2, title=$3, price=$4, sku=$5, option1=$6, option2=$7, option3=$8, taxable=$9, barcode=$10, grams=$11, sy_exists=true WHERE id=$1`
-				db.Exec(sqlStatement, products.Products[i].Variants[j].Id, products.Products[i].Variants[j].ProductId, products.Products[i].Variants[j].Title, products.Products[i].Variants[j].Price, products.Products[i].Variants[j].Sku, products.Products[i].Variants[j].Option1, products.Products[i].Variants[j].Option2, products.Products[i].Variants[j].Option3, products.Products[i].Variants[j].Taxable, products.Products[i].Variants[j].Barcode, products.Products[i].Variants[j].Grams)
+				db.Exec(sqlStatement, variant.Id, variant.ProductId, variant.Title, variant.Price, variant.Sku, variant.Option1, variant.Option2, variant.Option3, variant.Taxable, variant.Barcode, variant.Grams)
 			}
 		}
 	}
@@ -362,33 +366,35 @@ func importSyDraftOrders() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(orders.DraftOrders); i++ {
+		draftOrder := orders.DraftOrders[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM sy_draft_orders WHERE id=$1`
-		row := db.QueryRow(sqlStatement, orders.DraftOrders[i].Id)
+		row := db.QueryRow(sqlStatement, draftOrder.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
 			sqlStatement := `INSERT INTO public.sy_draft_orders(id, currency, tax_exempt, name, shipping_address_1, shipping_address2, shipping_address_city, shipping_address_zip, shipping_address_country_code, billing_address_1, billing_address2, billing_address_city, billing_address_zip, billing_address_country_code, total_tax, customer_id, order_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
-			db.Exec(sqlStatement, orders.DraftOrders[i].Id, orders.DraftOrders[i].Currency, orders.DraftOrders[i].TaxExempt, orders.DraftOrders[i].Name, orders.DraftOrders[i].ShippingAddress.Address1, orders.DraftOrders[i].ShippingAddress.Address2, orders.DraftOrders[i].ShippingAddress.City, orders.DraftOrders[i].ShippingAddress.Zip, orders.DraftOrders[i].ShippingAddress.CountryCode, orders.DraftOrders[i].BillingAddress.Address1, orders.DraftOrders[i].BillingAddress.Address2, orders.DraftOrders[i].BillingAddress.City, orders.DraftOrders[i].BillingAddress.Zip, orders.DraftOrders[i].BillingAddress.CountryCode, orders.DraftOrders[i].TotalTax, orders.DraftOrders[i].Customer.Id, orders.DraftOrders[i].OrderId)
+			db.Exec(sqlStatement, draftOrder.Id, draftOrder.Currency, draftOrder.TaxExempt, draftOrder.Name, draftOrder.ShippingAddress.Address1, draftOrder.ShippingAddress.Address2, draftOrder.ShippingAddress.City, draftOrder.ShippingAddress.Zip, draftOrder.ShippingAddress.CountryCode, draftOrder.BillingAddress.Address1, draftOrder.BillingAddress.Address2, draftOrder.BillingAddress.City, draftOrder.BillingAddress.Zip, draftOrder.BillingAddress.CountryCode, draftOrder.TotalTax, draftOrder.Customer.Id, draftOrder.OrderId)
 		} else { // the row exists, update
 			sqlStatement := `UPDATE public.sy_draft_orders SET currency=$2, tax_exempt=$3, name=$4, shipping_address_1=$5, shipping_address2=$6, shipping_address_city=$7, shipping_address_zip=$8, shipping_address_country_code=$9, billing_address_1=$10, billing_address2=$11, billing_address_city=$12, billing_address_zip=$13, billing_address_country_code=$14, total_tax=$15, customer_id=$16, sy_exists=true, order_id=$17 WHERE id=$1`
-			db.Exec(sqlStatement, orders.DraftOrders[i].Id, orders.DraftOrders[i].Currency, orders.DraftOrders[i].TaxExempt, orders.DraftOrders[i].Name, orders.DraftOrders[i].ShippingAddress.Address1, orders.DraftOrders[i].ShippingAddress.Address2, orders.DraftOrders[i].ShippingAddress.City, orders.DraftOrders[i].ShippingAddress.Zip, orders.DraftOrders[i].ShippingAddress.CountryCode, orders.DraftOrders[i].BillingAddress.Address1, orders.DraftOrders[i].BillingAddress.Address2, orders.DraftOrders[i].BillingAddress.City, orders.DraftOrders[i].BillingAddress.Zip, orders.DraftOrders[i].BillingAddress.CountryCode, orders.DraftOrders[i].TotalTax, orders.DraftOrders[i].Customer.Id, orders.DraftOrders[i].OrderId)
+			db.Exec(sqlStatement, draftOrder.Id, draftOrder.Currency, draftOrder.TaxExempt, draftOrder.Name, draftOrder.ShippingAddress.Address1, draftOrder.ShippingAddress.Address2, draftOrder.ShippingAddress.City, draftOrder.ShippingAddress.Zip, draftOrder.ShippingAddress.CountryCode, draftOrder.BillingAddress.Address1, draftOrder.BillingAddress.Address2, draftOrder.BillingAddress.City, draftOrder.BillingAddress.Zip, draftOrder.BillingAddress.CountryCode, draftOrder.TotalTax, draftOrder.Customer.Id, draftOrder.OrderId)
 		}
 
-		for j := 0; j < len(orders.DraftOrders[i].LineItems); j++ {
+		for j := 0; j < len(draftOrder.LineItems); j++ {
+			lineItem := draftOrder.LineItems[j]
 			// ¿does the row exist?
 			sqlStatement := `SELECT COUNT(*) FROM sy_draft_order_line_item WHERE id=$1`
-			row := db.QueryRow(sqlStatement, orders.DraftOrders[i].LineItems[j].Id)
+			row := db.QueryRow(sqlStatement, lineItem.Id)
 			var rows int32
 			row.Scan(&rows)
 
 			if rows == 0 { // the row does not exist, insert
 				sqlStatement := `INSERT INTO public.sy_draft_order_line_item(id, variant_id, product_id, quantity, taxable, price, draft_order_id) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-				db.Exec(sqlStatement, orders.DraftOrders[i].LineItems[j].Id, orders.DraftOrders[i].LineItems[j].VariantId, orders.DraftOrders[i].LineItems[j].ProductId, orders.DraftOrders[i].LineItems[j].Quantity, orders.DraftOrders[i].LineItems[j].Taxable, orders.DraftOrders[i].LineItems[j].Price, orders.DraftOrders[i].Id)
+				db.Exec(sqlStatement, lineItem.Id, lineItem.VariantId, lineItem.ProductId, lineItem.Quantity, lineItem.Taxable, lineItem.Price, draftOrder.Id)
 			} else { // the row exists, update
 				sqlStatement := `UPDATE public.sy_draft_order_line_item SET variant_id=$2, product_id=$3, quantity=$4, taxable=$5, price=$6, draft_order_id=$7, sy_exists=true WHERE id=$1`
-				db.Exec(sqlStatement, orders.DraftOrders[i].LineItems[j].Id, orders.DraftOrders[i].LineItems[j].VariantId, orders.DraftOrders[i].LineItems[j].ProductId, orders.DraftOrders[i].LineItems[j].Quantity, orders.DraftOrders[i].LineItems[j].Taxable, orders.DraftOrders[i].LineItems[j].Price, orders.DraftOrders[i].Id)
+				db.Exec(sqlStatement, lineItem.Id, lineItem.VariantId, lineItem.ProductId, lineItem.Quantity, lineItem.Taxable, lineItem.Price, draftOrder.Id)
 			}
 		}
 	}
@@ -415,33 +421,35 @@ func importSyOrders() {
 	db.Exec(sqlStatement)
 
 	for i := 0; i < len(orders.Orders); i++ {
+		order := orders.Orders[i]
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM sy_orders WHERE id=$1`
-		row := db.QueryRow(sqlStatement, orders.Orders[i].Id)
+		row := db.QueryRow(sqlStatement, order.Id)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
 			sqlStatement := `INSERT INTO public.sy_orders(id, currency, current_total_discounts, total_shipping_price_set_amount, total_shipping_price_set_currency_code, tax_exempt, name, shipping_address_1, shipping_address2, shipping_address_city, shipping_address_zip, shipping_address_country_code, billing_address_1, billing_address2, billing_address_city, billing_address_zip, billing_address_country_code, total_tax, customer_id, gateway) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
-			db.Exec(sqlStatement, orders.Orders[i].Id, orders.Orders[i].Currency, orders.Orders[i].CurrentTotalDiscounts, orders.Orders[i].TotalShippingPriceSet.ShopMoney.Amount, orders.Orders[i].TotalShippingPriceSet.ShopMoney.CurrencyCode, orders.Orders[i].Customer.TaxExempt, orders.Orders[i].Name, orders.Orders[i].ShippingAddress.Address1, orders.Orders[i].ShippingAddress.Address2, orders.Orders[i].ShippingAddress.City, orders.Orders[i].ShippingAddress.Zip, orders.Orders[i].ShippingAddress.CountryCode, orders.Orders[i].BillingAddress.Address1, orders.Orders[i].BillingAddress.Address2, orders.Orders[i].BillingAddress.City, orders.Orders[i].BillingAddress.Zip, orders.Orders[i].BillingAddress.CountryCode, orders.Orders[i].TotalTax, orders.Orders[i].Customer.Id, orders.Orders[i].Gateway)
+			db.Exec(sqlStatement, order.Id, order.Currency, order.CurrentTotalDiscounts, order.TotalShippingPriceSet.ShopMoney.Amount, order.TotalShippingPriceSet.ShopMoney.CurrencyCode, order.Customer.TaxExempt, order.Name, order.ShippingAddress.Address1, order.ShippingAddress.Address2, order.ShippingAddress.City, order.ShippingAddress.Zip, order.ShippingAddress.CountryCode, order.BillingAddress.Address1, order.BillingAddress.Address2, order.BillingAddress.City, order.BillingAddress.Zip, order.BillingAddress.CountryCode, order.TotalTax, order.Customer.Id, order.Gateway)
 		} else { // the row exists, update
 			sqlStatement := `UPDATE public.sy_orders SET currency=$2, current_total_discounts=$3, total_shipping_price_set_amount=$4, total_shipping_price_set_currency_code=$5, tax_exempt=$6, name=$7, shipping_address_1=$8, shipping_address2=$9, shipping_address_city=$10, shipping_address_zip=$11, shipping_address_country_code=$12, billing_address_1=$13, billing_address2=$14, billing_address_city=$15, billing_address_zip=$16, billing_address_country_code=$17, total_tax=$18, customer_id=$19, sy_exists=true, gateway=$20 WHERE id=$1`
-			db.Exec(sqlStatement, orders.Orders[i].Id, orders.Orders[i].Currency, orders.Orders[i].CurrentTotalDiscounts, orders.Orders[i].TotalShippingPriceSet.ShopMoney.Amount, orders.Orders[i].TotalShippingPriceSet.ShopMoney.CurrencyCode, orders.Orders[i].Customer.TaxExempt, orders.Orders[i].Name, orders.Orders[i].ShippingAddress.Address1, orders.Orders[i].ShippingAddress.Address2, orders.Orders[i].ShippingAddress.City, orders.Orders[i].ShippingAddress.Zip, orders.Orders[i].ShippingAddress.CountryCode, orders.Orders[i].BillingAddress.Address1, orders.Orders[i].BillingAddress.Address2, orders.Orders[i].BillingAddress.City, orders.Orders[i].BillingAddress.Zip, orders.Orders[i].BillingAddress.CountryCode, orders.Orders[i].TotalTax, orders.Orders[i].Customer.Id, orders.Orders[i].Gateway)
+			db.Exec(sqlStatement, order.Id, order.Currency, order.CurrentTotalDiscounts, order.TotalShippingPriceSet.ShopMoney.Amount, order.TotalShippingPriceSet.ShopMoney.CurrencyCode, order.Customer.TaxExempt, order.Name, order.ShippingAddress.Address1, order.ShippingAddress.Address2, order.ShippingAddress.City, order.ShippingAddress.Zip, order.ShippingAddress.CountryCode, order.BillingAddress.Address1, order.BillingAddress.Address2, order.BillingAddress.City, order.BillingAddress.Zip, order.BillingAddress.CountryCode, order.TotalTax, order.Customer.Id, order.Gateway)
 		}
 
-		for j := 0; j < len(orders.Orders[i].LineItems); j++ {
+		for j := 0; j < len(order.LineItems); j++ {
+			lineItem := order.LineItems[j]
 			// ¿does the row exist?
 			sqlStatement := `SELECT COUNT(*) FROM sy_order_line_item WHERE id=$1`
-			row := db.QueryRow(sqlStatement, orders.Orders[i].LineItems[j].Id)
+			row := db.QueryRow(sqlStatement, lineItem.Id)
 			var rows int32
 			row.Scan(&rows)
 
 			if rows == 0 { // the row does not exist, insert
 				sqlStatement := `INSERT INTO public.sy_order_line_item(id, variant_id, product_id, quantity, taxable, price, order_id) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-				db.Exec(sqlStatement, orders.Orders[i].LineItems[j].Id, orders.Orders[i].LineItems[j].VariantId, orders.Orders[i].LineItems[j].ProductId, orders.Orders[i].LineItems[j].Quantity, orders.Orders[i].LineItems[j].Taxable, orders.Orders[i].LineItems[j].Price, orders.Orders[i].Id)
+				db.Exec(sqlStatement, lineItem.Id, lineItem.VariantId, lineItem.ProductId, lineItem.Quantity, lineItem.Taxable, lineItem.Price, order.Id)
 			} else { // the row exists, update
 				sqlStatement := `UPDATE public.sy_order_line_item SET variant_id=$2, product_id=$3, quantity=$4, taxable=$5, price=$6, order_id=$7, sy_exists=true WHERE id=$1`
-				db.Exec(sqlStatement, orders.Orders[i].LineItems[j].Id, orders.Orders[i].LineItems[j].VariantId, orders.Orders[i].LineItems[j].ProductId, orders.Orders[i].LineItems[j].Quantity, orders.Orders[i].LineItems[j].Taxable, orders.Orders[i].LineItems[j].Price, orders.Orders[i].Id)
+				db.Exec(sqlStatement, lineItem.Id, lineItem.VariantId, lineItem.ProductId, lineItem.Quantity, lineItem.Taxable, lineItem.Price, order.Id)
 			}
 		}
 	}
