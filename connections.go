@@ -8,9 +8,10 @@ import (
 )
 
 type Connection struct {
-	Id            string    `json:"id"`
-	Address       string    `json:"address"`
-	User          int16     `json:"user"`
+	Id            string `json:"id"`
+	Address       string `json:"address"`
+	User          int32  `json:"user"`
+	enterprise    int32
 	DateConnected time.Time `json:"dateConnected"`
 	ws            *websocket.Conn
 }
@@ -31,9 +32,9 @@ func (c *Connection) deleteConnection() {
 	}
 }
 
-func disconnectConnection(id string) bool {
+func disconnectConnection(id string, enterpriseId int32) bool {
 	for i := 0; i < len(connections); i++ {
-		if connections[i].Id == id {
+		if connections[i].Id == id && connections[i].enterprise == enterpriseId {
 			connections[i].ws.Close()
 			return true
 		}
@@ -48,10 +49,13 @@ type ConnectionWeb struct {
 	DateConnected time.Time `json:"dateConnected"`
 }
 
-func getConnections() []ConnectionWeb {
+func getConnections(enterpriseId int32) []ConnectionWeb {
 	conn := make([]ConnectionWeb, 0)
 
 	for i := 0; i < len(connections); i++ {
+		if connections[i].enterprise != enterpriseId {
+			continue
+		}
 		var userName string
 
 		sqlStatement := `SELECT username FROM "user" WHERE id=$1`

@@ -3,28 +3,29 @@ package main
 import "fmt"
 
 type Packaging struct {
-	Id              int32                      `json:"id"`
-	Package         int16                      `json:"package"`
+	Id              int64                      `json:"id"`
+	Package         int32                      `json:"package"`
 	PackageName     string                     `json:"packageName"`
-	SalesOrder      int32                      `json:"salesOrder"`
+	SalesOrder      int64                      `json:"salesOrder"`
 	Weight          float32                    `json:"weight"`
-	Shipping        *int32                     `json:"shipping"`
+	Shipping        *int64                     `json:"shipping"`
 	DetailsPackaged []SalesOrderDetailPackaged `json:"detailsPackaged"`
 	Pallet          *int32                     `json:"pallet"`
+	enterprise      int32
 }
 
-func getPackaging(salesOrderId int32) []Packaging {
+func getPackaging(salesOrderId int64, enterpriseId int32) []Packaging {
 	var packaging []Packaging = make([]Packaging, 0)
-	sqlStatement := `SELECT * FROM public.packaging WHERE sales_order=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, salesOrderId)
+	sqlStatement := `SELECT * FROM public.packaging WHERE sales_order=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, salesOrderId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return packaging
 	}
 	for rows.Next() {
 		p := Packaging{}
-		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet)
-		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id)
+		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet, &p.enterprise)
+		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id, enterpriseId)
 
 		_package := getPackagesRow(p.Package)
 		p.PackageName = _package.Name + " (" + fmt.Sprintf("%dx%dx%d", int(_package.Width), int(_package.Height), int(_package.Depth)) + ")"
@@ -35,18 +36,18 @@ func getPackaging(salesOrderId int32) []Packaging {
 	return packaging
 }
 
-func getPackagingByShipping(shippingId int32) []Packaging {
+func getPackagingByShipping(shippingId int64, enterpriseId int32) []Packaging {
 	var packaging []Packaging = make([]Packaging, 0)
-	sqlStatement := `SELECT * FROM public.packaging WHERE shipping=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, shippingId)
+	sqlStatement := `SELECT * FROM public.packaging WHERE shipping=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, shippingId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return packaging
 	}
 	for rows.Next() {
 		p := Packaging{}
-		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet)
-		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id)
+		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet, &p.enterprise)
+		p.DetailsPackaged = getSalesOrderDetailPackaged(p.Id, enterpriseId)
 
 		_package := getPackagesRow(p.Package)
 		p.PackageName = _package.Name + " (" + fmt.Sprintf("%dx%dx%d", int(_package.Width), int(_package.Height), int(_package.Depth)) + ")"
@@ -57,7 +58,7 @@ func getPackagingByShipping(shippingId int32) []Packaging {
 	return packaging
 }
 
-func getPackagingRow(packagingId int32) Packaging {
+func getPackagingRow(packagingId int64) Packaging {
 	sqlStatement := `SELECT * FROM public.packaging WHERE id=$1`
 	row := db.QueryRow(sqlStatement, packagingId)
 	if row.Err() != nil {
@@ -66,7 +67,7 @@ func getPackagingRow(packagingId int32) Packaging {
 	}
 
 	p := Packaging{}
-	row.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet)
+	row.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet, &p.enterprise)
 
 	return p
 }
@@ -93,8 +94,8 @@ func (p *Packaging) insertPackaging() bool {
 		return false
 	}
 	p.Weight = _package.Weight
-	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight, pallet) VALUES ($1, $2, $3, $4)`
-	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight, p.Pallet)
+	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight, pallet, enterprise) VALUES ($1, $2, $3, $4, $5)`
+	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight, p.Pallet, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -108,7 +109,7 @@ func (p *Packaging) insertPackaging() bool {
 	}
 
 	s := getSalesOrderRow(p.SalesOrder)
-	addQuantityStock(_package.Product, s.Warehouse, -1)
+	addQuantityStock(_package.Product, s.Warehouse, -1, p.enterprise)
 
 	///
 	transErr = trans.Commit()
@@ -116,7 +117,7 @@ func (p *Packaging) insertPackaging() bool {
 	///
 }
 
-func (p *Packaging) deletePackaging() bool {
+func (p *Packaging) deletePackaging(enterpriseId int32) bool {
 	if p.Id <= 0 {
 		return false
 	}
@@ -129,13 +130,14 @@ func (p *Packaging) deletePackaging() bool {
 	///
 
 	inMemoryPackaging := getPackagingRow(p.Id)
-	if inMemoryPackaging.Id <= 0 {
+	if inMemoryPackaging.Id <= 0 || inMemoryPackaging.enterprise != enterpriseId {
 		trans.Rollback()
 		return false
 	}
 
-	detailsPackaged := getSalesOrderDetailPackaged(p.Id)
+	detailsPackaged := getSalesOrderDetailPackaged(p.Id, enterpriseId)
 	for i := 0; i < len(detailsPackaged); i++ {
+		detailsPackaged[i].enterprise = enterpriseId
 		ok := detailsPackaged[i].deleteSalesOrderDetailPackaged(false)
 		if !ok {
 			trans.Rollback()
@@ -143,8 +145,8 @@ func (p *Packaging) deletePackaging() bool {
 		}
 	}
 
-	sqlStatement := `DELETE FROM packaging WHERE id=$1`
-	_, err := db.Exec(sqlStatement, p.Id)
+	sqlStatement := `DELETE FROM packaging WHERE id=$1 AND enterprise=$2`
+	_, err := db.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -152,7 +154,7 @@ func (p *Packaging) deletePackaging() bool {
 
 	_package := getPackagesRow(inMemoryPackaging.Package)
 	s := getSalesOrderRow(inMemoryPackaging.SalesOrder)
-	addQuantityStock(_package.Product, s.Warehouse, 1)
+	addQuantityStock(_package.Product, s.Warehouse, 1, p.enterprise)
 
 	///
 	transErr = trans.Commit()
@@ -161,7 +163,7 @@ func (p *Packaging) deletePackaging() bool {
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addWeightPackaging(packagingId int32, weight float32) bool {
+func addWeightPackaging(packagingId int64, weight float32) bool {
 	sqlStatement := `UPDATE packaging SET weight = weight + $2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, packagingId, weight)
 	rows, _ := res.RowsAffected()

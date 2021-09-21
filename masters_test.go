@@ -14,7 +14,7 @@ func TestGetCustomers(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
@@ -31,7 +31,7 @@ func TestSearchCustomers(t *testing.T) {
 	}
 
 	// search all
-	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}}
+	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}
 	c := q.searchCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
@@ -60,7 +60,7 @@ func TestFindCustomerByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	c := findCustomerByName("")
+	c := findCustomerByName("", 1)
 	if len(c) == 0 {
 		t.Error("Can't find customers by name")
 	}
@@ -78,7 +78,7 @@ func TestGetNameCustomer(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	customerName := getNameCustomer(1)
+	customerName := getNameCustomer(1, 1)
 	if customerName == "" {
 		t.Error("Can't get the name of the customers")
 	}
@@ -91,9 +91,9 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	country := int16(55)
-	language := int16(8)
-	paymentMethod := int16(3)
+	country := int32(55)
+	language := int32(8)
+	paymentMethod := int32(3)
 	billingSeries := "EXP"
 
 	c := Customer{
@@ -106,6 +106,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 		Language:      &language,
 		PaymentMethod: &paymentMethod,
 		BillingSeries: &billingSeries,
+		enterprise:    1,
 	}
 
 	// insert
@@ -131,7 +132,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check defaults
-	defaults := getCustomerDefaults(c.Id)
+	defaults := getCustomerDefaults(c.Id, 1)
 	if (defaults.PaymentMethod == nil || *defaults.PaymentMethod != paymentMethod) || (defaults.BillingSeriesName == nil || len(*defaults.BillingSeriesName) == 0) || (defaults.BillingSeries == nil || *defaults.BillingSeries != billingSeries) {
 		t.Error("Customer defaults are not correct")
 		return
@@ -152,14 +153,14 @@ func TestGetCustomerAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
-		addresses := getCustomerAddresses(c.Customers[i].Id)
+		addresses := getCustomerAddresses(c.Customers[i].Id, 1)
 		if len(addresses) > 0 {
 			if addresses[0].Id <= 0 {
-				t.Error("Customer addresses not scanned successfully")
+				t.Error("Customer addresses not scanned successfully.")
 				return
 			} else {
 				return
@@ -173,14 +174,14 @@ func TestGetCustomerSaleOrders(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
-		orders := getCustomerSaleOrders(c.Customers[i].Id)
+		orders := getCustomerSaleOrders(c.Customers[i].Id, 1)
 		if len(orders) > 0 {
 			if orders[0].Id <= 0 {
-				t.Error("Customer sale orders not scanned successfully")
+				t.Error("Customer sale orders not scanned successfully.")
 				return
 			} else {
 				return
@@ -194,9 +195,9 @@ func TestSetCustomerAccount(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	country := int16(1)
-	language := int16(8)
-	paymentMethod := int16(3)
+	country := int32(1)
+	language := int32(8)
+	paymentMethod := int32(3)
 	billingSeries := "EXP"
 
 	c := Customer{
@@ -209,19 +210,18 @@ func TestSetCustomerAccount(t *testing.T) {
 		Language:      &language,
 		PaymentMethod: &paymentMethod,
 		BillingSeries: &billingSeries,
+		enterprise:    1,
 	}
 
 	// insert
-	ok, _ := c.insertCustomer()
+	ok, customerId := c.insertCustomer()
 	if !ok {
 		t.Error("Insert error, customer not inserted")
 		return
 	}
 
 	// update
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
-	customers := q.getCustomers().Customers
-	c = customers[len(customers)-1]
+	c.Id = customerId
 
 	c.setCustomerAccount()
 
@@ -231,7 +231,10 @@ func TestSetCustomerAccount(t *testing.T) {
 		return
 	}
 
-	c.deleteCustomer()
+	ok = c.deleteCustomer()
+	if !ok {
+		t.Error("Customer not deleted")
+	}
 }
 
 func TestLocateCustomers(t *testing.T) {
@@ -240,7 +243,7 @@ func TestLocateCustomers(t *testing.T) {
 	}
 
 	q := CustomerLocateQuery{Mode: 0, Value: ""}
-	customers := q.locateCustomers()
+	customers := q.locateCustomers(1)
 
 	if len(customers) == 0 {
 		t.Error("Customers can't be empty")
@@ -255,7 +258,7 @@ func TestLocateCustomers(t *testing.T) {
 	}
 
 	q = CustomerLocateQuery{Mode: 1, Value: ""}
-	customers = q.locateCustomers()
+	customers = q.locateCustomers(1)
 
 	if len(customers) == 0 {
 		t.Error("Customers can't be empty")
@@ -270,7 +273,7 @@ func TestLocateCustomers(t *testing.T) {
 	}
 
 	q = CustomerLocateQuery{Mode: 0, Value: "1"}
-	customers = q.locateCustomers()
+	customers = q.locateCustomers(1)
 
 	if len(customers) == 0 {
 		t.Error("Customers can't be empty")
@@ -294,7 +297,7 @@ func TestGetSuppliers(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := getSuppliers()
+	s := getSuppliers(1)
 
 	for i := 0; i < len(s); i++ {
 		if s[i].Id <= 0 {
@@ -310,7 +313,7 @@ func TestSearchSuppliers(t *testing.T) {
 	}
 
 	// search all
-	s := searchSuppliers("")
+	s := searchSuppliers("", 1)
 
 	for i := 0; i < len(s); i++ {
 		if s[i].Id <= 0 {
@@ -338,7 +341,7 @@ func TestFindSupplierByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	c := findSupplierByName("")
+	c := findSupplierByName("", 1)
 	if len(c) == 0 {
 		t.Error("Can't find suppliers by name")
 	}
@@ -356,7 +359,7 @@ func TestGetNameSupplier(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	supplierName := getNameSupplier(1)
+	supplierName := getNameSupplier(1, 1)
 	if supplierName == "" {
 		t.Error("Can't get the name of the suppliers")
 	}
@@ -369,9 +372,9 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	country := int16(55)
-	language := int16(8)
-	paymentMethod := int16(3)
+	country := int32(55)
+	language := int32(8)
+	paymentMethod := int32(3)
 	billingSeries := "EXP"
 
 	c := Supplier{
@@ -384,6 +387,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 		Language:      &language,
 		PaymentMethod: &paymentMethod,
 		BillingSeries: &billingSeries,
+		enterprise:    1,
 	}
 
 	// insert
@@ -394,7 +398,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	}
 
 	// update
-	suppliers := getSuppliers()
+	suppliers := getSuppliers(1)
 	c = suppliers[len(suppliers)-1]
 
 	c.TaxId = "ABCDEF1234"
@@ -412,7 +416,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check defaults
-	defaults := getSupplierDefaults(c.Id)
+	defaults := getSupplierDefaults(c.Id, 1)
 	if (defaults.PaymentMethod == nil || *defaults.PaymentMethod != paymentMethod) || (defaults.BillingSeriesName == nil || len(*defaults.BillingSeriesName) == 0) || (defaults.BillingSeries == nil || *defaults.BillingSeries != billingSeries) || (defaults.BillingSeriesName == nil || len(*defaults.BillingSeriesName) == 0) {
 		t.Error("Supplier defaults are not correct")
 		return
@@ -433,10 +437,10 @@ func TestGetSupplierAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := getSuppliers()
+	s := getSuppliers(1)
 
 	for i := 0; i < len(s); i++ {
-		addresses := getSupplierAddresses(s[i].Id)
+		addresses := getSupplierAddresses(s[i].Id, 1)
 		if len(addresses) > 0 {
 			if addresses[0].Id <= 0 {
 				t.Error("Supplier addresses not scanned successfully")
@@ -453,10 +457,10 @@ func TestGetSupplierSaleOrders(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := getSuppliers()
+	s := getSuppliers(1)
 
 	for i := 0; i < len(s); i++ {
-		orders := getSupplierPurchaseOrders(s[i].Id)
+		orders := getSupplierPurchaseOrders(s[i].Id, 1)
 		if len(orders) > 0 {
 			if orders[0].Id <= 0 {
 				t.Error("Supplier purchase orders not scanned successfully")
@@ -473,9 +477,9 @@ func TestSetSupplierAccount(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	country := int16(1)
-	language := int16(8)
-	paymentMethod := int16(3)
+	country := int32(1)
+	language := int32(8)
+	paymentMethod := int32(3)
 	billingSeries := "EXP"
 
 	s := Supplier{
@@ -488,6 +492,7 @@ func TestSetSupplierAccount(t *testing.T) {
 		Language:      &language,
 		PaymentMethod: &paymentMethod,
 		BillingSeries: &billingSeries,
+		enterprise:    1,
 	}
 
 	// insert
@@ -498,7 +503,7 @@ func TestSetSupplierAccount(t *testing.T) {
 	}
 
 	// update
-	suppliers := getSuppliers()
+	suppliers := getSuppliers(1)
 	s = suppliers[len(suppliers)-1]
 
 	s.setSupplierAccount()
@@ -518,7 +523,7 @@ func TestLocateSuppliers(t *testing.T) {
 	}
 
 	q := SupplierLocateQuery{Mode: 0, Value: ""}
-	suppliers := q.locateSuppliers()
+	suppliers := q.locateSuppliers(1)
 
 	if len(suppliers) == 0 {
 		t.Error("Suppliers can't be empty")
@@ -533,7 +538,7 @@ func TestLocateSuppliers(t *testing.T) {
 	}
 
 	q = SupplierLocateQuery{Mode: 1, Value: ""}
-	suppliers = q.locateSuppliers()
+	suppliers = q.locateSuppliers(1)
 
 	if len(suppliers) == 0 {
 		t.Error("Suppliers can't be empty")
@@ -548,7 +553,7 @@ func TestLocateSuppliers(t *testing.T) {
 	}
 
 	q = SupplierLocateQuery{Mode: 0, Value: "1"}
-	suppliers = q.locateSuppliers()
+	suppliers = q.locateSuppliers(1)
 
 	if len(suppliers) == 0 {
 		t.Error("Suppliers can't be empty")
@@ -572,7 +577,7 @@ func TestGetProduct(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	p := getProduct()
+	p := getProduct(1)
 
 	for i := 0; i < len(p); i++ {
 		if p[i].Id <= 0 {
@@ -589,7 +594,7 @@ func TestSearchProduct(t *testing.T) {
 
 	// search all
 	q := ProductSearch{Search: "", TrackMinimumStock: false}
-	p := q.searchProduct()
+	p := q.searchProduct(1)
 
 	for i := 0; i < len(p); i++ {
 		if p[i].Id <= 0 {
@@ -600,7 +605,7 @@ func TestSearchProduct(t *testing.T) {
 
 	// search track minimum stock
 	q = ProductSearch{Search: "", TrackMinimumStock: true}
-	p = q.searchProduct()
+	p = q.searchProduct(1)
 
 	for i := 0; i < len(p); i++ {
 		if p[i].Id <= 0 {
@@ -628,7 +633,7 @@ func TestGetNameProduct(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	productName := getNameProduct(1)
+	productName := getNameProduct(1, 1)
 	if productName == "" {
 		t.Error("Could not get the name of the product")
 		return
@@ -642,8 +647,8 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	family := int16(1)
-	manufacturingOrderType := int16(2)
+	family := int32(1)
+	manufacturingOrderType := int32(2)
 	supplier := int32(1)
 
 	p := Product{
@@ -662,6 +667,8 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		ManufacturingOrderType: &manufacturingOrderType,
 		Supplier:               &supplier,
 		TrackMinimumStock:      true,
+		prestaShopId:           1,
+		enterprise:             1,
 	}
 
 	ok := p.insertProduct()
@@ -670,7 +677,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	products := getProduct()
+	products := getProduct(1)
 	p = products[len(products)-1]
 
 	p.Name = "Wooden Office Desk"
@@ -700,7 +707,7 @@ func TestGetOrderDetailDefaults(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	detauls := getOrderDetailDefaults(1)
+	detauls := getOrderDetailDefaults(1, 1)
 	if detauls.Price == 0 || detauls.VatPercent == 0 {
 		t.Error("Order details defaults lot loaded")
 		return
@@ -711,10 +718,10 @@ func TestProductRelations(t *testing.T) {
 	if db == nil {
 		ConnectTestWithDB(t)
 	}
-	products := getProduct()
+	products := getProduct(1)
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductSalesOrderDetailsPending(products[i].Id)
+		saleOrders := getProductSalesOrderDetailsPending(products[i].Id, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Sale orders with ID 0 on product")
@@ -726,7 +733,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductPurchaseOrderDetailsPending(products[i].Id)
+		saleOrders := getProductPurchaseOrderDetailsPending(products[i].Id, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Purchase orders with ID 0 on product")
@@ -738,7 +745,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductSalesOrderDetails(products[i].Id)
+		saleOrders := getProductSalesOrderDetails(products[i].Id, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Sale orders with ID 0 on product")
@@ -750,7 +757,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductPurchaseOrderDetails(products[i].Id)
+		saleOrders := getProductPurchaseOrderDetails(products[i].Id, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Purchase orders with ID 0 on product")
@@ -762,10 +769,10 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductWarehouseMovement(products[i].Id)
+		saleOrders := getProductWarehouseMovement(products[i].Id, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
-				t.Error("Warehouse movement with ID 0 on product")
+				t.Error("Warehouse movement with ID 0 on product.")
 				return
 			} else {
 				break
@@ -779,8 +786,8 @@ func TestGenerateBarcode(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	family := int16(1)
-	manufacturingOrderType := int16(2)
+	family := int32(1)
+	manufacturingOrderType := int32(2)
 	supplier := int32(1)
 
 	p := Product{
@@ -799,6 +806,7 @@ func TestGenerateBarcode(t *testing.T) {
 		ManufacturingOrderType: &manufacturingOrderType,
 		Supplier:               &supplier,
 		TrackMinimumStock:      true,
+		enterprise:             1,
 	}
 
 	ok := p.insertProduct()
@@ -807,10 +815,10 @@ func TestGenerateBarcode(t *testing.T) {
 		return
 	}
 
-	products := getProduct()
+	products := getProduct(1)
 	p = products[len(products)-1]
 
-	ok = p.generateBarcode()
+	ok = p.generateBarcode(1)
 	if !ok {
 		t.Error("Error generating product barcode")
 		return
@@ -834,10 +842,10 @@ func TestGetProductImages(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	products := getProduct()
+	products := getProduct(1)
 
 	for i := 0; i < len(products); i++ {
-		images := getProductImages(products[i].Id)
+		images := getProductImages(products[i].Id, 1)
 		if len(images) > 0 {
 			if images[0].Id <= 0 {
 				t.Error("Product images not scanned successfully")
@@ -859,23 +867,23 @@ func TestProductImageInsertUpdateDelete(t *testing.T) {
 		URL:     "http://example.domain/picture.png",
 	}
 
-	ok := pi.insertProductImage()
+	ok := pi.insertProductImage(1)
 	if !ok {
 		t.Error("Product image not inserted")
 		return
 	}
 
-	images := getProductImages(1)
+	images := getProductImages(1, 1)
 	pi = images[len(images)-1]
 
 	pi.URL = "https://example.domain/picture.png"
-	pi.updateProductImage()
+	pi.updateProductImage(1)
 	if !ok {
 		t.Error("Product image not updated")
 		return
 	}
 
-	pi.deleteProductImage()
+	pi.deleteProductImage(1)
 	if !ok {
 		t.Error("Product image not deleted")
 		return
@@ -887,7 +895,7 @@ func TestCalculateMinimumStock(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	ok := calculateMinimumStock()
+	ok := calculateMinimumStock(1)
 	if !ok {
 		t.Error("Calculate minimum stock not successful")
 	}
@@ -898,7 +906,7 @@ func TestGenerateManufacturingOrPurchaseOrdersMinimumStock(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	ok := generateManufacturingOrPurchaseOrdersMinimumStock(1)
+	ok := generateManufacturingOrPurchaseOrdersMinimumStock(1, 1)
 	if !ok {
 		t.Error("Could not generate manufacturing or purchase orders to cover minumum stock")
 		return
@@ -911,7 +919,7 @@ func TestLocateProduct(t *testing.T) {
 	}
 
 	q := ProductLocateQuery{Mode: 0, Value: ""}
-	produts := q.locateProduct()
+	produts := q.locateProduct(1)
 
 	if len(produts) == 0 || produts[0].Id <= 0 {
 		t.Error("Could not scan products")
@@ -919,7 +927,7 @@ func TestLocateProduct(t *testing.T) {
 	}
 
 	q = ProductLocateQuery{Mode: 0, Value: "1"}
-	produts = q.locateProduct()
+	produts = q.locateProduct(1)
 
 	if len(produts) == 0 || produts[0].Id <= 0 {
 		t.Error("Could not scan products")
@@ -927,7 +935,7 @@ func TestLocateProduct(t *testing.T) {
 	}
 
 	q = ProductLocateQuery{Mode: 1, Value: ""}
-	produts = q.locateProduct()
+	produts = q.locateProduct(1)
 
 	if len(produts) == 0 || produts[0].Id <= 0 {
 		t.Error("Could not scan products")
@@ -935,7 +943,7 @@ func TestLocateProduct(t *testing.T) {
 	}
 
 	q = ProductLocateQuery{Mode: 2, Value: ""}
-	produts = q.locateProduct()
+	produts = q.locateProduct(1)
 
 	if len(produts) == 0 || produts[0].Id <= 0 {
 		t.Error("Could not scan products")
@@ -952,7 +960,7 @@ func TestGetCountries(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	countries := getCountries()
+	countries := getCountries(1)
 	if len(countries) == 0 || countries[0].Id <= 0 {
 		t.Error("Can't scan countries")
 		return
@@ -964,7 +972,7 @@ func TestGetCountryRow(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	country := getCountryRow(1)
+	country := getCountryRow(1, 1)
 	if country.Id <= 0 {
 		t.Error("Can't scan country row")
 		return
@@ -976,7 +984,7 @@ func TestSearchCountries(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	countries := searchCountries("")
+	countries := searchCountries("", 1)
 	if len(countries) == 0 || countries[0].Id <= 0 {
 		t.Error("Can't scan countries")
 		return
@@ -997,6 +1005,7 @@ func TestCountryInsertUpdateDelete(t *testing.T) {
 		UNCode:      12345,
 		Zone:        "E",
 		PhonePrefix: 4321,
+		enterprise:  1,
 	}
 
 	ok := c.insertCountry()
@@ -1005,7 +1014,7 @@ func TestCountryInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	countries := getCountries()
+	countries := getCountries(1)
 	c = countries[len(countries)-1]
 
 	c.Name = "Test test"
@@ -1015,7 +1024,7 @@ func TestCountryInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	c = getCountryRow(c.Id)
+	c = getCountryRow(c.Id, 1)
 	if c.Name != "Test test" {
 		t.Error("Update not successful")
 		return
@@ -1035,7 +1044,7 @@ func TestFindCountryByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	countries := findCountryByName("")
+	countries := findCountryByName("", 1)
 	if len(countries) == 0 || countries[0].Id <= 0 {
 		t.Error("Can't scan countries")
 		return
@@ -1047,7 +1056,7 @@ func TestGetNameCountry(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	countryName := getNameCountry(1)
+	countryName := getNameCountry(1, 1)
 	if countryName == "" {
 		t.Error("Can't scan state name")
 	}
@@ -1062,7 +1071,7 @@ func TestGetStates(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	states := getStates()
+	states := getStates(1)
 	if len(states) == 0 || states[0].Id <= 0 {
 		t.Error("Can't scan states")
 		return
@@ -1086,7 +1095,7 @@ func TestGetStatesByCountry(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	states := getStatesByCountry(1)
+	states := getStatesByCountry(1, 1)
 	if len(states) == 0 || states[0].Id <= 0 {
 		t.Error("Can't scan states")
 		return
@@ -1101,9 +1110,10 @@ func TestStateInsertUpdateDelete(t *testing.T) {
 	}
 
 	s := State{
-		Country: 1,
-		Name:    "Test",
-		IsoCode: "XYZ",
+		Country:    1,
+		Name:       "Test",
+		IsoCode:    "XYZ",
+		enterprise: 1,
 	}
 
 	ok := s.insertState()
@@ -1112,7 +1122,7 @@ func TestStateInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	states := getStates()
+	states := getStates(1)
 	s = states[len(states)-1]
 
 	s.Name = "Test test"
@@ -1142,7 +1152,7 @@ func TestFindStateByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	countries := findCountryByName("")
+	countries := findCountryByName("", 1)
 	if len(countries) == 0 || countries[0].Id <= 0 {
 		t.Error("Can't scan countries")
 		return
@@ -1154,7 +1164,7 @@ func TestGetNameState(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	stateName := getNameState(1)
+	stateName := getNameState(1, 1)
 	if stateName == "" {
 		t.Error("Can't scan state name")
 	}
@@ -1169,7 +1179,7 @@ func TestGetColor(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	color := getColor()
+	color := getColor(1)
 	if len(color) == 0 || color[0].Id <= 0 {
 		t.Error("Can't scan colors")
 		return
@@ -1184,8 +1194,9 @@ func TestColorInsertUpdateDelete(t *testing.T) {
 	}
 
 	c := Color{
-		Name:     "Test",
-		HexColor: "123456",
+		Name:       "Test",
+		HexColor:   "123456",
+		enterprise: 1,
 	}
 
 	ok := c.insertColor()
@@ -1194,7 +1205,7 @@ func TestColorInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	colors := getColor()
+	colors := getColor(1)
 	c = colors[len(colors)-1]
 
 	c.Name = "Test test"
@@ -1204,7 +1215,7 @@ func TestColorInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	colors = getColor()
+	colors = getColor(1)
 	c = colors[len(colors)-1]
 
 	if c.Name != "Test test" {
@@ -1226,7 +1237,7 @@ func TestFindColorByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	colors := findColorByName("")
+	colors := findColorByName("", 1)
 	if len(colors) == 0 || colors[0].Id <= 0 {
 		t.Error("Can't scan colors")
 		return
@@ -1238,7 +1249,7 @@ func TestGetNameColor(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	color := getNameColor(1)
+	color := getNameColor(1, 1)
 	if color == "" {
 		t.Error("Can't scan color name")
 	}
@@ -1253,7 +1264,7 @@ func TestGetProductFamilies(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	family := getProductFamilies()
+	family := getProductFamilies(1)
 	if len(family) == 0 || family[0].Id <= 0 {
 		t.Error("Can't scan family")
 		return
@@ -1268,8 +1279,9 @@ func TestProductFamilyInsertUpdateDelete(t *testing.T) {
 	}
 
 	pf := ProductFamily{
-		Name:      "Test",
-		Reference: "XYZ",
+		Name:       "Test",
+		Reference:  "XYZ",
+		enterprise: 1,
 	}
 
 	ok := pf.insertProductFamily()
@@ -1278,7 +1290,7 @@ func TestProductFamilyInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	families := getProductFamilies()
+	families := getProductFamilies(1)
 	pf = families[len(families)-1]
 
 	pf.Name = "Test test"
@@ -1288,7 +1300,7 @@ func TestProductFamilyInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	families = getProductFamilies()
+	families = getProductFamilies(1)
 	pf = families[len(families)-1]
 
 	if pf.Name != "Test test" {
@@ -1310,7 +1322,7 @@ func TestFindProductFamilyByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	pf := findProductFamilyByName("")
+	pf := findProductFamilyByName("", 1)
 	if len(pf) == 0 || pf[0].Id <= 0 {
 		t.Error("Can't scan product families")
 		return
@@ -1322,7 +1334,7 @@ func TestGetNameProductFamily(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	color := getNameProductFamily(1)
+	color := getNameProductFamily(1, 1)
 	if color == "" {
 		t.Error("Can't scan product family name")
 	}
@@ -1337,7 +1349,7 @@ func TestGetAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: 1}
+	q := PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}
 	addresses := q.getAddresses()
 	if len(addresses.Addresses) == 0 || addresses.Addresses[0].Id <= 0 {
 		t.Error("Can't scan addresses")
@@ -1362,7 +1374,7 @@ func TestSearchAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1}, Search: ""}
+	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}, Search: ""}
 	addresses := q.searchAddresses()
 	if len(addresses.Addresses) == 0 || addresses.Addresses[0].Id <= 0 {
 		t.Error("Can't scan addresses")
@@ -1387,6 +1399,7 @@ func TestAddressInsertUpdateDelete(t *testing.T) {
 		Country:           1,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
+		enterprise:        1,
 	}
 
 	ok := a.insertAddress()
@@ -1395,7 +1408,7 @@ func TestAddressInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	addresses := q.getAddresses().Addresses
 	a = addresses[len(addresses)-1]
 
@@ -1426,7 +1439,7 @@ func TestLocateAddressByCustomer(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	address := locateAddressByCustomer(1)
+	address := locateAddressByCustomer(1, 1)
 	if len(address) == 0 || address[0].Id <= 0 {
 		t.Error("Can't scan addresses")
 		return
@@ -1438,7 +1451,7 @@ func TestLocateAddressBySupplier(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	address := locateAddressBySupplier(1)
+	address := locateAddressBySupplier(1, 1)
 	if len(address) == 0 || address[0].Id <= 0 {
 		t.Error("Can't scan addresses")
 		return
@@ -1450,7 +1463,7 @@ func TestGetAddressName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	addressName := getAddressName(1)
+	addressName := getAddressName(1, 1)
 	if addressName == "" {
 		t.Error("Can't scan address name")
 	}
@@ -1465,7 +1478,7 @@ func TestGetCariers(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	carriers := getCariers()
+	carriers := getCariers(1)
 	if len(carriers) == 0 || carriers[0].Id <= 0 {
 		t.Error("Can't scan carriers")
 		return
@@ -1501,6 +1514,7 @@ func TestCarrierInsertUpdateDelete(t *testing.T) {
 		Email:      "contact@acme.com",
 		Web:        "acmecorp.com",
 		Webservice: "_",
+		enterprise: 1,
 	}
 
 	ok := c.insertCarrier()
@@ -1509,7 +1523,7 @@ func TestCarrierInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	carriers := getCariers()
+	carriers := getCariers(1)
 	c = carriers[len(carriers)-1]
 
 	c.Name = "Test test"
@@ -1539,7 +1553,7 @@ func TestFindCarrierByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	carriers := findCarrierByName("")
+	carriers := findCarrierByName("", 1)
 	if len(carriers) == 0 || carriers[0].Id <= 0 {
 		t.Error("Can't scan carriers")
 		return
@@ -1551,7 +1565,7 @@ func TestGetNameCarrier(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	carrierName := getNameCarrier(1)
+	carrierName := getNameCarrier(1, 1)
 	if carrierName == "" {
 		t.Error("Can't scan carrier name")
 	}
@@ -1566,7 +1580,7 @@ func TestGetBillingSeries(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	billingSeries := getBillingSeries()
+	billingSeries := getBillingSeries(1)
 	if len(billingSeries) == 0 || len(billingSeries[0].Id) == 0 {
 		t.Error("Can't scan billing series")
 		return
@@ -1585,6 +1599,7 @@ func TestBillingSeriesInsertUpdateDelete(t *testing.T) {
 		Name:        "Example series",
 		BillingType: "S",
 		Year:        2021,
+		enterprise:  1,
 	}
 
 	ok := b.insertBillingSerie()
@@ -1593,7 +1608,7 @@ func TestBillingSeriesInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	billingSeries := getBillingSeries()
+	billingSeries := getBillingSeries(1)
 	for i := 0; i < len(billingSeries); i++ {
 		if billingSeries[i].Id == "EXA" {
 			b = billingSeries[i]
@@ -1608,7 +1623,7 @@ func TestBillingSeriesInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	billingSeries = getBillingSeries()
+	billingSeries = getBillingSeries(1)
 	for i := 0; i < len(billingSeries); i++ {
 		if billingSeries[i].Id == "EXA" {
 			b = billingSeries[i]
@@ -1635,7 +1650,7 @@ func TestFindBillingSerieByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	billingSeries := findBillingSerieByName("")
+	billingSeries := findBillingSerieByName("", 1)
 	if len(billingSeries) == 0 || len(billingSeries[0].Id) == 0 {
 		t.Error("Can't scan billing series")
 		return
@@ -1647,7 +1662,7 @@ func TestGetNameBillingSerie(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	billingSeries := getNameBillingSerie("INT")
+	billingSeries := getNameBillingSerie("INT", 1)
 	if billingSeries == "" {
 		t.Error("Can't scan billing series name")
 	}
@@ -1658,32 +1673,32 @@ func TestGetNextNumberBillingSeries(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	number := getNextSaleOrderNumber("INT")
+	number := getNextSaleOrderNumber("INT", 1)
 	if number <= 0 {
 		t.Error("Could not get next sale order number")
 	}
 
-	number = getNextSaleInvoiceNumber("INT")
+	number = getNextSaleInvoiceNumber("INT", 1)
 	if number <= 0 {
 		t.Error("Could not get next sale invoice number")
 	}
 
-	number = getNextSaleDeliveryNoteNumber("INT")
+	number = getNextSaleDeliveryNoteNumber("INT", 1)
 	if number <= 0 {
 		t.Error("Could not get next sale delivery note number")
 	}
 
-	number = getNextPurchaseOrderNumber("INT")
+	number = getNextPurchaseOrderNumber("INT", 1)
 	if number <= 0 {
 		t.Error("Could not get next purchase order number")
 	}
 
-	number = getNextPurchaseInvoiceNumber("INT")
+	number = getNextPurchaseInvoiceNumber("INT", 1)
 	if number <= 0 {
 		t.Error("Could not get next purchase invoicer number")
 	}
 
-	number = getNextPurchaseDeliveryNoteNumber("INT")
+	number = getNextPurchaseDeliveryNoteNumber("INT", 1)
 	if number <= 0 {
 		t.Error("Could not get next purchase delivery note number")
 	}
@@ -1698,7 +1713,7 @@ func TestGetCurrencies(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	currencies := getCurrencies()
+	currencies := getCurrencies(1)
 	if len(currencies) == 0 || currencies[0].Id <= 0 {
 		t.Error("Can't scan currencies")
 		return
@@ -1719,6 +1734,7 @@ func TestCurrenciesInsertUpdateDelete(t *testing.T) {
 		IsoNum:       12345,
 		Change:       1,
 		ExchangeDate: time.Now(),
+		enterprise:   1,
 	}
 
 	ok := c.insertCurrency()
@@ -1727,7 +1743,7 @@ func TestCurrenciesInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	currencies := getCurrencies()
+	currencies := getCurrencies(1)
 	c = currencies[len(currencies)-1]
 
 	c.Name = "Test test"
@@ -1737,7 +1753,7 @@ func TestCurrenciesInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	currencies = getCurrencies()
+	currencies = getCurrencies(1)
 	c = currencies[len(currencies)-1]
 
 	if c.Name != "Test test" {
@@ -1759,7 +1775,7 @@ func TestFindCurrencyByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	currency := findCurrencyByName("")
+	currency := findCurrencyByName("", 1)
 	if len(currency) == 0 || currency[0].Id <= 0 {
 		t.Error("Can't scan currency")
 		return
@@ -1771,7 +1787,7 @@ func TestGetNameCurrency(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	currencyName := getNameCurrency(1)
+	currencyName := getNameCurrency(1, 1)
 	if currencyName == "" {
 		t.Error("Can't scan currency name")
 	}
@@ -1797,7 +1813,7 @@ func TestGetPaymentMethods(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	paymentMethods := getPaymentMethods()
+	paymentMethods := getPaymentMethods(1)
 	if len(paymentMethods) == 0 || paymentMethods[0].Id <= 0 {
 		t.Error("Can't scan payment methods")
 		return
@@ -1828,6 +1844,7 @@ func TestPaymentMethodInsertUpdateDelete(t *testing.T) {
 		PaidInAdvance:        true,
 		PrestashopModuleName: "btc",
 		DaysExpiration:       0,
+		enterprise:           1,
 	}
 
 	ok := pm.insertPaymentMethod()
@@ -1836,7 +1853,7 @@ func TestPaymentMethodInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	paymentMethods := getPaymentMethods()
+	paymentMethods := getPaymentMethods(1)
 	pm = paymentMethods[len(paymentMethods)-1]
 
 	pm.Name = "Test test"
@@ -1846,7 +1863,7 @@ func TestPaymentMethodInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	paymentMethods = getPaymentMethods()
+	paymentMethods = getPaymentMethods(1)
 	pm = paymentMethods[len(paymentMethods)-1]
 
 	if pm.Name != "Test test" {
@@ -1868,7 +1885,7 @@ func TestFindPaymentMethodByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	paymentMethod := findPaymentMethodByName("")
+	paymentMethod := findPaymentMethodByName("", 1)
 	if len(paymentMethod) == 0 || paymentMethod[0].Id <= 0 {
 		t.Error("Can't scan payment methods")
 		return
@@ -1880,7 +1897,7 @@ func TestGetNamePaymentMethod(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	paymentMethodName := getNamePaymentMethod(1)
+	paymentMethodName := getNamePaymentMethod(1, 1)
 	if paymentMethodName == "" {
 		t.Error("Can't scan payment method name")
 	}
@@ -1895,7 +1912,7 @@ func TestGetLanguages(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	languages := getLanguages()
+	languages := getLanguages(1)
 	if len(languages) == 0 || languages[0].Id <= 0 {
 		t.Error("Can't scan payment methods")
 		return
@@ -1910,9 +1927,10 @@ func TestLanguageInsertUpdateDelete(t *testing.T) {
 	}
 
 	l := Language{
-		Name: "ACME Corp. Super Secrete Language",
-		Iso2: "AC",
-		Iso3: "ACM",
+		Name:       "ACME Corp. Super Secrete Language",
+		Iso2:       "AC",
+		Iso3:       "ACM",
+		enterprise: 1,
 	}
 
 	ok := l.insertLanguage()
@@ -1921,7 +1939,7 @@ func TestLanguageInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	language := getLanguages()
+	language := getLanguages(1)
 	l = language[len(language)-1]
 
 	l.Name = "Test test"
@@ -1931,7 +1949,7 @@ func TestLanguageInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	language = getLanguages()
+	language = getLanguages(1)
 	l = language[len(language)-1]
 
 	if l.Name != "Test test" {
@@ -1953,7 +1971,7 @@ func TestFindLanguageByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	language := findLanguageByName("")
+	language := findLanguageByName("", 1)
 	if len(language) == 0 || language[0].Id <= 0 {
 		t.Error("Can't scan language")
 		return
@@ -1965,7 +1983,7 @@ func TestGetNameLanguage(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	language := getNameLanguage(1)
+	language := getNameLanguage(1, 1)
 	if language == "" {
 		t.Error("Can't scan language name")
 	}
@@ -1980,7 +1998,7 @@ func TestGetPackages(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	packages := getPackages()
+	packages := getPackages(1)
 	if len(packages) == 0 || packages[0].Id <= 0 {
 		t.Error("Can't scan packages")
 		return
@@ -2007,12 +2025,13 @@ func TestPackagesInsertUpdateDelete(t *testing.T) {
 	}
 
 	p := Packages{
-		Name:    "Test box",
-		Weight:  1,
-		Width:   40,
-		Height:  40,
-		Depth:   40,
-		Product: 1,
+		Name:       "Test box",
+		Weight:     1,
+		Width:      40,
+		Height:     40,
+		Depth:      40,
+		Product:    1,
+		enterprise: 1,
 	}
 
 	ok := p.insertPackage()
@@ -2021,7 +2040,7 @@ func TestPackagesInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	language := getPackages()
+	language := getPackages(1)
 	p = language[len(language)-1]
 
 	p.Name = "Test test"
@@ -2031,7 +2050,7 @@ func TestPackagesInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	language = getPackages()
+	language = getPackages(1)
 	p = language[len(language)-1]
 
 	if p.Name != "Test test" {
@@ -2055,7 +2074,7 @@ func TestGetIncoterm(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	incoterms := getIncoterm()
+	incoterms := getIncoterm(1)
 	if len(incoterms) == 0 || incoterms[0].Id <= 0 {
 		t.Error("Can't scan incoterms")
 		return
@@ -2070,8 +2089,9 @@ func TestIncotermsInsertUpdateDelete(t *testing.T) {
 	}
 
 	i := Incoterm{
-		Name: "Test incoterm",
-		Key:  "TST",
+		Name:       "Test incoterm",
+		Key:        "TST",
+		enterprise: 1,
 	}
 
 	ok := i.insertIncoterm()
@@ -2080,7 +2100,7 @@ func TestIncotermsInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	incoterms := getIncoterm()
+	incoterms := getIncoterm(1)
 	i = incoterms[len(incoterms)-1]
 
 	i.Name = "Test test"
@@ -2090,7 +2110,7 @@ func TestIncotermsInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	incoterms = getIncoterm()
+	incoterms = getIncoterm(1)
 	i = incoterms[len(incoterms)-1]
 
 	if i.Name != "Test test" {
@@ -2114,7 +2134,7 @@ func TestGetDocumentContainer(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	docContainers := getDocumentContainer()
+	docContainers := getDocumentContainer(1)
 	if len(docContainers) == 0 || docContainers[0].Id <= 0 {
 		t.Error("Can't scan document containers")
 		return
@@ -2144,6 +2164,7 @@ func TestDocumentContainerInsertUpdateDelete(t *testing.T) {
 		Name:        "Test",
 		Path:        "/marketnet/docs/",
 		MaxFileSize: 1000,
+		enterprise:  1,
 	}
 
 	ok := p.insertDocumentContainer()
@@ -2152,7 +2173,7 @@ func TestDocumentContainerInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	docContainers := getDocumentContainer()
+	docContainers := getDocumentContainer(1)
 	p = docContainers[len(docContainers)-1]
 
 	p.Name = "Test test"
@@ -2162,7 +2183,7 @@ func TestDocumentContainerInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	docContainers = getDocumentContainer()
+	docContainers = getDocumentContainer(1)
 	p = docContainers[len(docContainers)-1]
 
 	if p.Name != "Test test" {
@@ -2184,7 +2205,7 @@ func TestLocateDocumentContainer(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	docContainers := locateDocumentContainer()
+	docContainers := locateDocumentContainer(1)
 	if len(docContainers) == 0 || docContainers[0].Id <= 0 {
 		t.Error("Can't scan document containers")
 		return

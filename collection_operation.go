@@ -15,40 +15,41 @@ type CollectionOperation struct {
 	Paid                     float32   `json:"paid"`
 	Pending                  float32   `json:"pending"`
 	DocumentName             string    `json:"documentName"`
-	PaymentMethod            int16     `json:"paymentMethod"`
+	PaymentMethod            int32     `json:"paymentMethod"`
 	BankName                 string    `json:"bankName"`
 	PaymentMethodName        string    `json:"paymentMethodName"`
 	AccountName              string    `json:"accountName"`
+	enterprise               int32
 }
 
-func getPendingColletionOperations() []CollectionOperation {
+func getPendingColletionOperations(enterpriseId int32) []CollectionOperation {
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
-	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE status='P' ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE status='P' AND enterprise=$1 ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return collectionOperation
 	}
 	for rows.Next() {
 		o := CollectionOperation{}
-		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.BankName, &o.PaymentMethodName, &o.AccountName)
+		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName)
 		collectionOperation = append(collectionOperation, o)
 	}
 
 	return collectionOperation
 }
 
-func getColletionOperations(accountingMovement int64) []CollectionOperation {
+func getColletionOperations(accountingMovement int64, enterpriseId int32) []CollectionOperation {
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE accounting_movement=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, accountingMovement)
+	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE accounting_movement=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, accountingMovement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return collectionOperation
 	}
 	for rows.Next() {
 		o := CollectionOperation{}
-		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.BankName, &o.PaymentMethodName, &o.AccountName)
+		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName)
 		collectionOperation = append(collectionOperation, o)
 	}
 
@@ -64,7 +65,7 @@ func getColletionOperationRow(collectionOperationId int32) CollectionOperation {
 	}
 
 	o := CollectionOperation{}
-	row.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod)
+	row.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise)
 
 	return o
 }
@@ -80,8 +81,8 @@ func (c *CollectionOperation) insertCollectionOperation() bool {
 	p := getPaymentMethodRow(c.PaymentMethod)
 	c.DateExpiration = time.Now().AddDate(0, 0, int(p.DaysExpiration))
 
-	sqlStatement := `INSERT INTO public.collection_operation(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod)
+	sqlStatement := `INSERT INTO public.collection_operation(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod, c.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -113,8 +114,8 @@ func (c *CollectionOperation) deleteCollectionOperation() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1`
-	_, err := db.Exec(sqlStatement, c.Id)
+	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1 AND enterprise=$2`
+	_, err := db.Exec(sqlStatement, c.Id, c.enterprise)
 
 	if err != nil {
 		log("DB", err.Error())

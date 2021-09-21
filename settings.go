@@ -29,6 +29,7 @@ type ServerSettings struct {
 	HashIterations       int32                    `json:"hashIterations"`
 	TokenExpirationHours int16                    `json:"tokenExpirationHours"`
 	MaxLoginAttemps      int16                    `json:"maxLoginAttemps"`
+	CronClearLogs        string                   `json:"cronClearLogs"`
 	TLS                  ServerSettingsTLS        `json:"tls"`
 	Activation           ServerSettingsActivation `json:"activation"`
 }
@@ -70,6 +71,7 @@ func (s *BackendSettings) setBackendSettings() bool {
 
 // Advanced settings stored in the database. Configurable by final users.
 type Settings struct {
+	Id                              int32      `json:"id"`
 	DefaultVatPercent               float32    `json:"defaultVatPercent"`
 	DefaultWarehouse                string     `json:"defaultWarehouse"`
 	DefaultWarehouseName            string     `json:"defaultWarehouseName"`
@@ -107,7 +109,6 @@ type Settings struct {
 	SupplierJournal                 *int16     `json:"supplierJournal"`
 	PurchaseJournal                 *int16     `json:"purchaseJournal"`
 	PurchaseAccount                 *int32     `json:"purchaseAccount"`
-	CronClearLogs                   string     `json:"cronClearLogs"`
 	EnableApiKey                    bool       `json:"enableApiKey"`
 	CronClearLabels                 string     `json:"cronClearLabels"`
 	LimitAccountingDate             *time.Time `json:"limitAccountingDate"`
@@ -117,7 +118,7 @@ type Settings struct {
 	WooCommerceExportSerie          *string    `json:"wooCommerceExportSerie"`
 	WooCommerceIntracommunitySerie  *string    `json:"wooCommerceIntracommunitySerie"`
 	WooCommerceInteriorSerie        *string    `json:"wooCommerceInteriorSerie"`
-	WooCommerceDefaultPaymentMethod *int16     `json:"wooCommerceDefaultPaymentMethod"`
+	WooCommerceDefaultPaymentMethod *int32     `json:"wooCommerceDefaultPaymentMethod"`
 	ConnectionLog                   bool       `json:"connectionLog"`
 	FilterConnections               bool       `json:"filterConnections"`
 	ShopifyUrl                      string     `json:"shopifyUrl"`
@@ -125,20 +126,61 @@ type Settings struct {
 	ShopifyExportSerie              *string    `json:"shopifyExportSerie"`
 	ShopifyIntracommunitySerie      *string    `json:"shopifyIntracommunitySerie"`
 	ShopifyInteriorSerie            *string    `json:"shopifyInteriorSerie"`
-	ShopifyDefaultPaymentMethod     *int16     `json:"shopifyDefaultPaymentMethod"`
+	ShopifyDefaultPaymentMethod     *int32     `json:"shopifyDefaultPaymentMethod"`
 	ShopifyShopLocationId           int64      `json:"shopifyShopLocationId"`
+	EnterpriseKey                   string     `json:"enterpriseKey"`
 }
 
 func getSettingsRecord() Settings {
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse) FROM config WHERE id=1`
+	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE id=1`
 	row := db.QueryRow(sqlStatement)
 	if row.Err() != nil {
 		return Settings{}
 	}
 
 	var s Settings
-	var id int32
-	row.Scan(&id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.CronClearLogs, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.DefaultWarehouseName)
+	row.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.DefaultWarehouseName)
+	return s
+}
+
+func getSettingsRecordById(id int32) Settings {
+	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE id=$1`
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return Settings{}
+	}
+
+	var s Settings
+	row.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.DefaultWarehouseName)
+	return s
+}
+
+func getSettingsRecords() []Settings {
+	settings := make([]Settings, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config`
+	rows, err := db.Query(sqlStatement)
+	if err != nil {
+		return settings
+	}
+
+	for rows.Next() {
+		var s Settings
+		rows.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.DefaultWarehouseName)
+		settings = append(settings, s)
+	}
+
+	return settings
+}
+
+func getSettingsRecordByEnterprise(enterpriseKey string) Settings {
+	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE enterprise_key=$1`
+	row := db.QueryRow(sqlStatement, enterpriseKey)
+	if row.Err() != nil {
+		return Settings{}
+	}
+
+	var s Settings
+	row.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.DefaultWarehouseName)
 	return s
 }
 
@@ -153,14 +195,14 @@ func (s *Settings) updateSettingsRecord() bool {
 
 	var salesAccount *int32
 	if s.SalesJournal != nil && *s.SalesJournal > 0 {
-		acc := getAccountIdByAccountNumber(*s.SalesJournal, 1)
+		acc := getAccountIdByAccountNumber(*s.SalesJournal, 1, s.Id)
 		if acc > 0 {
 			salesAccount = &acc
 		}
 	}
 	var purchaseAccount *int32
 	if s.PurchaseJournal != nil && *s.PurchaseJournal > 0 {
-		acc := getAccountIdByAccountNumber(*s.PurchaseJournal, 1)
+		acc := getAccountIdByAccountNumber(*s.PurchaseJournal, 1, s.Id)
 		if acc > 0 {
 			purchaseAccount = &acc
 		}
@@ -191,8 +233,8 @@ func (s *Settings) updateSettingsRecord() bool {
 		s.FilterConnections = false
 	}
 
-	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, cron_clear_logs=$37, enable_api_key=$38, cron_clear_labels=$39, limit_accounting_date=$40, woocommerce_url=$41, woocommerce_consumer_key=$42, woocommerce_consumer_secret=$43, woocommerce_export_serie=$44, woocommerce_intracommunity_serie=$45, woocommerce_interior_serie=$46, woocommerce_default_payment_method=$47, connection_log=$48, filter_connections=$49, shopify_url=$50, shopify_token=$51, shopify_export_serie=$52, shopify_intracommunity_serie=$53, shopify_interior_serie=$54, shopify_default_payment_method=$55, shopify_shop_location_id=$56 WHERE id=1`
-	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays, s.CustomerJournal, s.SalesJournal, salesAccount, s.SupplierJournal, s.PurchaseJournal, purchaseAccount, s.CronClearLogs, s.EnableApiKey, s.CronClearLabels, s.LimitAccountingDate, s.WooCommerceUrl, s.WooCommerceConsumerKey, s.WooCommerceConsumerSecret, s.WooCommerceExportSerie, s.WooCommerceIntracommunitySerie, s.WooCommerceInteriorSerie, s.WooCommerceDefaultPaymentMethod, s.ConnectionLog, s.FilterConnections, s.ShopifyUrl, s.ShopifyToken, s.ShopifyExportSerie, s.ShopifyIntracommunitySerie, s.ShopifyInteriorSerie, s.ShopifyDefaultPaymentMethod, s.ShopifyShopLocationId)
+	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, enable_api_key=$37, cron_clear_labels=$38, limit_accounting_date=$39, woocommerce_url=$40, woocommerce_consumer_key=$41, woocommerce_consumer_secret=$42, woocommerce_export_serie=$43, woocommerce_intracommunity_serie=$44, woocommerce_interior_serie=$45, woocommerce_default_payment_method=$46, connection_log=$47, filter_connections=$48, shopify_url=$49, shopify_token=$50, shopify_export_serie=$51, shopify_intracommunity_serie=$52, shopify_interior_serie=$53, shopify_default_payment_method=$54, shopify_shop_location_id=$55 WHERE id=$56`
+	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays, s.CustomerJournal, s.SalesJournal, salesAccount, s.SupplierJournal, s.PurchaseJournal, purchaseAccount, s.EnableApiKey, s.CronClearLabels, s.LimitAccountingDate, s.WooCommerceUrl, s.WooCommerceConsumerKey, s.WooCommerceConsumerSecret, s.WooCommerceExportSerie, s.WooCommerceIntracommunitySerie, s.WooCommerceInteriorSerie, s.WooCommerceDefaultPaymentMethod, s.ConnectionLog, s.FilterConnections, s.ShopifyUrl, s.ShopifyToken, s.ShopifyExportSerie, s.ShopifyIntracommunitySerie, s.ShopifyInteriorSerie, s.ShopifyDefaultPaymentMethod, s.ShopifyShopLocationId, s.Id)
 	if err != nil {
 		log("DB", err.Error())
 		return false

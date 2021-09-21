@@ -2,12 +2,13 @@ package main
 
 type Pallet struct {
 	Id         int32   `json:"id"`
-	SalesOrder int32   `json:"salesOrder"`
+	SalesOrder int64   `json:"salesOrder"`
 	Weight     float32 `json:"weight"`
 	Width      float32 `json:"width"`
 	Height     float32 `json:"height"`
 	Depth      float32 `json:"depth"`
 	Name       string  `json:"name"`
+	enterprise int32
 }
 
 type Pallets struct {
@@ -15,9 +16,9 @@ type Pallets struct {
 	Pallets    []Pallet `json:"pallets"`
 }
 
-func getSalesOrderPallets(orderId int32) Pallets {
-	sqlStatement := `SELECT pallets FROM sales_order INNER JOIN carrier ON carrier.id=sales_order.carrier WHERE sales_order.id=$1`
-	row := db.QueryRow(sqlStatement, orderId)
+func getSalesOrderPallets(orderId int64, enterpriseId int32) Pallets {
+	sqlStatement := `SELECT pallets FROM sales_order INNER JOIN carrier ON carrier.id=sales_order.carrier WHERE sales_order.id=$1 AND sales_order.enterprise=$2`
+	row := db.QueryRow(sqlStatement, orderId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return Pallets{}
@@ -30,15 +31,15 @@ func getSalesOrderPallets(orderId int32) Pallets {
 	}
 
 	var pallets []Pallet = make([]Pallet, 0)
-	sqlStatement = `SELECT * FROM public.pallets WHERE sales_order = $1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, orderId)
+	sqlStatement = `SELECT * FROM public.pallets WHERE sales_order=$1 AND pallets.enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return Pallets{}
 	}
 	for rows.Next() {
 		p := Pallet{}
-		rows.Scan(&p.Id, &p.SalesOrder, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Name)
+		rows.Scan(&p.Id, &p.SalesOrder, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Name, &p.enterprise)
 		pallets = append(pallets, p)
 	}
 
@@ -54,7 +55,7 @@ func getPalletsRow(palletId int32) Pallet {
 	}
 
 	p := Pallet{}
-	row.Scan(&p.Id, &p.SalesOrder, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Name)
+	row.Scan(&p.Id, &p.SalesOrder, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Name, &p.enterprise)
 
 	return p
 }
@@ -68,14 +69,14 @@ func (p *Pallet) insertPallet() bool {
 		return false
 	}
 
-	s := getSettingsRecord()
+	s := getSettingsRecordById(p.enterprise)
 	p.Weight = s.PalletWeight
 	p.Width = s.PalletWidth
 	p.Height = s.PalletHeight
 	p.Depth = s.PalletDepth
 
-	sqlStatement := `INSERT INTO public.pallets(sales_order, weight, width, height, depth, name) VALUES ($1, $2, $3, $4, $5, $6)`
-	res, err := db.Exec(sqlStatement, p.SalesOrder, p.Weight, p.Width, p.Height, p.Depth, p.Name)
+	sqlStatement := `INSERT INTO public.pallets(sales_order, weight, width, height, depth, name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	res, err := db.Exec(sqlStatement, p.SalesOrder, p.Weight, p.Width, p.Height, p.Depth, p.Name, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -90,8 +91,8 @@ func (p *Pallet) updatePallet() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.pallets SET weight=$2, width=$3, height=$4, depth=$5, name=$6 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Weight, p.Width, p.Height, p.Depth, p.Name)
+	sqlStatement := `UPDATE public.pallets SET weight=$2, width=$3, height=$4, depth=$5, name=$6 WHERE id=$1 AND enterprise=$7`
+	res, err := db.Exec(sqlStatement, p.Id, p.Weight, p.Width, p.Height, p.Depth, p.Name, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -106,8 +107,8 @@ func (p *Pallet) deletePallet() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.pallets WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id)
+	sqlStatement := `DELETE FROM public.pallets WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false

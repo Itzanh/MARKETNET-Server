@@ -55,7 +55,7 @@ type ParcelShipment struct {
 	Name *string `json:"name"`
 }
 
-func (s *Shipping) generateSendCloudParcel() (bool, *Parcel) {
+func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	p := Parcel{}
 	p.Quantity = 1
 	p.RequestLabel = true
@@ -79,7 +79,7 @@ func (s *Shipping) generateSendCloudParcel() (bool, *Parcel) {
 	p.Name = c.Name
 
 	// company name
-	settings := getSettingsRecord()
+	settings := getSettingsRecordById(enterpriseId)
 	p.CompanyName = settings.EnterpriseName
 
 	// address
@@ -97,7 +97,7 @@ func (s *Shipping) generateSendCloudParcel() (bool, *Parcel) {
 	}
 	p.City = a.City
 	p.PostalCode = a.ZipCode
-	p.Country = getCountryRow(a.Country).Iso2 // country must have a ISO2 code!
+	p.Country = getCountryRow(a.Country, enterpriseId).Iso2 // country must have a ISO2 code!
 	if a.State != nil {
 		stateIsoCode := getStateRow(*a.State).IsoCode
 		p.CountryState = &stateIsoCode
@@ -123,13 +123,13 @@ func (s *Shipping) generateSendCloudParcel() (bool, *Parcel) {
 
 	// parcel items
 	p.ParcelItems = make([]ParcelItem, 0)
-	packaging := getPackagingByShipping(s.Id)
+	packaging := getPackagingByShipping(s.Id, enterpriseId)
 	for i := 0; i < len(packaging); i++ {
 		pi := ParcelItem{}
 		pi.Description = packaging[i].PackageName
 		pi.Weight = packaging[i].Weight
 
-		details := getSalesOrderDetailPackaged(packaging[i].Id)
+		details := getSalesOrderDetailPackaged(packaging[i].Id, enterpriseId)
 		for j := 0; j < len(details); j++ {
 			pi.Quantity += int8(details[j].Quantity)
 			pi.Value += getSalesOrderDetailRow(details[j].OrderDetail).Price * float32(details[j].Quantity)
@@ -147,7 +147,7 @@ func (s *Shipping) generateSendCloudParcel() (bool, *Parcel) {
 	p.SenderAddress = carrier.SendcloudSenderAddress
 
 	// commercial invoice
-	invoices := getSalesOrderInvoices(s.Order)
+	invoices := getSalesOrderInvoices(s.Order, enterpriseId)
 	if len(invoices) > 0 {
 		p.CustomsInvoiceNr = invoices[0].InvoiceName
 		commercialGoods := SENDCLOUD_COMMERCIAL_GOODS
@@ -219,7 +219,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	return parcelResponse.saveLabel(c, s.Id), nil
 }
 
-func (p *ParcelResponse) saveLabel(c Carrier, shippingId int32) bool {
+func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64) bool {
 	req, err := http.NewRequest("GET", p.Label.LabelPrinter, nil)
 	if err != nil {
 		return false

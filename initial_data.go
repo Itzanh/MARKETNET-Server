@@ -6,25 +6,25 @@ import (
 	"io/ioutil"
 )
 
-func initialData() {
-	initialPaymentData()
-	initialLanguageData()
-	initialCurrenciesData()
-	initialCountriesData()
-	initialStatesData()
-	initialColorData()
-	initialIncotermData()
-	initialWarehouseData()
-	initiaBillingSeriesData()
-	initialJournals()
-	initialAccount()
-	initialConfig()
-	initialUser()
-	initialGroup()
+func initialData(enterpriseId int32) {
+	initialPaymentData(enterpriseId)
+	initialLanguageData(enterpriseId)
+	initialCurrenciesData(enterpriseId)
+	initialCountriesData(enterpriseId)
+	initialStatesData(enterpriseId)
+	initialColorData(enterpriseId)
+	initialIncotermData(enterpriseId)
+	initialWarehouseData(enterpriseId)
+	initiaBillingSeriesData(enterpriseId)
+	initialJournals(enterpriseId)
+	initialAccount(enterpriseId)
+	initialConfig(enterpriseId)
+	initialUser(enterpriseId)
+	initialGroup(enterpriseId)
 	initialUserGroup()
 }
 
-func initialPaymentData() {
+func initialPaymentData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM payment_method`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -39,13 +39,14 @@ func initialPaymentData() {
 		var paymentMethod []PaymentMethod
 		json.Unmarshal(content, &paymentMethod)
 		for i := 0; i < len(paymentMethod); i++ {
+			paymentMethod[i].enterprise = enterpriseId
 			paymentMethod[i].insertPaymentMethod()
 		}
 		fmt.Println("INITIAL DATA: Generated payment methods data")
 	}
 }
 
-func initialLanguageData() {
+func initialLanguageData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM language`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -60,13 +61,14 @@ func initialLanguageData() {
 		var language []Language
 		json.Unmarshal(content, &language)
 		for i := 0; i < len(language); i++ {
+			language[i].enterprise = enterpriseId
 			language[i].insertLanguage()
 		}
 		fmt.Println("INITIAL DATA: Generated language data")
 	}
 }
 
-func initialCurrenciesData() {
+func initialCurrenciesData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM currency`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -81,13 +83,14 @@ func initialCurrenciesData() {
 		var currencies []Currency
 		json.Unmarshal(content, &currencies)
 		for i := 0; i < len(currencies); i++ {
+			currencies[i].enterprise = enterpriseId
 			currencies[i].insertCurrency()
 		}
 		fmt.Println("INITIAL DATA: Generated currency data")
 	}
 }
 
-func initialCountriesData() {
+func initialCountriesData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM country`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -102,13 +105,14 @@ func initialCountriesData() {
 		var country []Country
 		json.Unmarshal(content, &country)
 		for i := 0; i < len(country); i++ {
+			country[i].enterprise = enterpriseId
 			country[i].insertCountry()
 		}
 		fmt.Println("INITIAL DATA: Generated countries data")
 	}
 }
 
-func initialStatesData() {
+func initialStatesData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM state`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -123,13 +127,14 @@ func initialStatesData() {
 		var state []State
 		json.Unmarshal(content, &state)
 		for i := 0; i < len(state); i++ {
+			state[i].enterprise = enterpriseId
 			state[i].insertState()
 		}
 		fmt.Println("INITIAL DATA: Generated states data")
 	}
 }
 
-func initialColorData() {
+func initialColorData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM color`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -144,13 +149,14 @@ func initialColorData() {
 		var color []Color
 		json.Unmarshal(content, &color)
 		for i := 0; i < len(color); i++ {
+			color[i].enterprise = enterpriseId
 			color[i].insertColor()
 		}
 		fmt.Println("INITIAL DATA: Generated colors data")
 	}
 }
 
-func initialIncotermData() {
+func initialIncotermData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM incoterm`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -165,13 +171,14 @@ func initialIncotermData() {
 		var incoterms []Incoterm
 		json.Unmarshal(content, &incoterms)
 		for i := 0; i < len(incoterms); i++ {
+			incoterms[i].enterprise = enterpriseId
 			incoterms[i].insertIncoterm()
 		}
 		fmt.Println("INITIAL DATA: Generated incoterms data")
 	}
 }
 
-func initialWarehouseData() {
+func initialWarehouseData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM warehouse`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -186,13 +193,14 @@ func initialWarehouseData() {
 		var warehouse []Warehouse
 		json.Unmarshal(content, &warehouse)
 		for i := 0; i < len(warehouse); i++ {
+			warehouse[i].enterprise = enterpriseId
 			warehouse[i].insertWarehouse()
 		}
 		fmt.Println("INITIAL DATA: Generated warehouse data")
 	}
 }
 
-func initiaBillingSeriesData() {
+func initiaBillingSeriesData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM billing_series`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -207,13 +215,14 @@ func initiaBillingSeriesData() {
 		var billingSerie []BillingSerie
 		json.Unmarshal(content, &billingSerie)
 		for i := 0; i < len(billingSerie); i++ {
+			billingSerie[i].enterprise = enterpriseId
 			billingSerie[i].insertBillingSerie()
 		}
 		fmt.Println("INITIAL DATA: Generated billing series data")
 	}
 }
 
-func initialJournals() {
+func initialJournals(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM journal`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -228,6 +237,7 @@ func initialJournals() {
 		var journal []Journal
 		json.Unmarshal(content, &journal)
 		for i := 0; i < len(journal); i++ {
+			journal[i].enterprise = enterpriseId
 			journal[i].insertJournal()
 		}
 
@@ -235,7 +245,7 @@ func initialJournals() {
 	}
 }
 
-func initialAccount() {
+func initialAccount(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM account`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -250,6 +260,7 @@ func initialAccount() {
 		var account []Account
 		json.Unmarshal(content, &account)
 		for i := 0; i < len(account); i++ {
+			account[i].enterprise = enterpriseId
 			account[i].insertAccount()
 		}
 
@@ -257,7 +268,7 @@ func initialAccount() {
 	}
 }
 
-func initialConfig() {
+func initialConfig(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM config WHERE id=1`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -274,14 +285,14 @@ func initialConfig() {
 
 		var salesAccount *int32
 		if config.SalesJournal != nil && *config.SalesJournal > 0 {
-			acc := getAccountIdByAccountNumber(*config.SalesJournal, 1)
+			acc := getAccountIdByAccountNumber(*config.SalesJournal, 1, enterpriseId)
 			if acc > 0 {
 				salesAccount = &acc
 			}
 		}
 		var purchaseAccount *int32
 		if config.PurchaseJournal != nil && *config.PurchaseJournal > 0 {
-			acc := getAccountIdByAccountNumber(*config.PurchaseJournal, 1)
+			acc := getAccountIdByAccountNumber(*config.PurchaseJournal, 1, enterpriseId)
 			if acc > 0 {
 				purchaseAccount = &acc
 			}
@@ -297,7 +308,7 @@ func initialConfig() {
 	}
 }
 
-func initialUser() {
+func initialUser(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM "user" WHERE username='marketnet'`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -305,20 +316,20 @@ func initialUser() {
 
 	if rows == 0 {
 		u := UserInsert{Username: "marketnet", FullName: "MARKETNET ADMINISTRATOR", Password: "admin1234", Language: "en"} // INITIAL PASSWORD, USER MUST CHANGE THIS!!!
-		u.insertUser()
+		u.insertUser(enterpriseId)
 
 		fmt.Println("INITIAL DATA: Generated admin user")
 	}
 }
 
-func initialGroup() {
+func initialGroup(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM "group" WHERE name='Administrators'`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
 	row.Scan(&rows)
 
 	if rows == 0 {
-		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true, Accounting: true}
+		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true, Accounting: true, enterprise: enterpriseId}
 		g.insertGroup()
 
 		fmt.Println("INITIAL DATA: Generated admin group")
@@ -335,12 +346,12 @@ func initialUserGroup() {
 
 		sqlStatement := `SELECT id FROM "user" WHERE username='marketnet'`
 		row := db.QueryRow(sqlStatement)
-		var userId int16
+		var userId int32
 		row.Scan(&userId)
 
 		sqlStatement = `SELECT id FROM "group" WHERE name='Administrators'`
 		row = db.QueryRow(sqlStatement)
-		var groupId int16
+		var groupId int32
 		row.Scan(&groupId)
 
 		ug := UserGroup{}

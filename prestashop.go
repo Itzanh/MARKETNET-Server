@@ -17,8 +17,8 @@ import (
 // GENERIS FUNCTIONS
 // =====
 
-func getPrestaShopAPI_URL(resourceName string) string {
-	s := getSettingsRecord()
+func getPrestaShopAPI_URL(resourceName string, enterpriseId int32) string {
+	s := getSettingsRecordById(enterpriseId)
 
 	return s.PrestaShopUrl + resourceName + "?ws_key=" + s.PrestaShopApiKey + "&output_format=JSON&language=" + strconv.Itoa(int(s.PrestaShopLanguageId))
 }
@@ -249,46 +249,46 @@ type PSOrderDetail struct {
 }
 
 // main import function
-func importFromPrestaShop() {
-	s := getSettingsRecord()
+func importFromPrestaShop(enterpriseId int32) {
+	s := getSettingsRecordById(enterpriseId)
 	if s.Ecommerce != "P" {
 		return
 	}
 
 	// get all data from PrestaShop, write it in tables like the ones that PrestaShop uses
-	importPsZones()
-	importPsCurrencies()
-	importPsCountries()
-	importPsStates()
-	importPsCustomers()
-	importPsAddresses()
-	importPsProducts()
-	importPsProductCombinations()
-	importPsProductOptionValues()
-	importPsLanguage()
-	importPsCarriers()
-	importPsOrders()
-	importPsOrderDetails()
+	importPsZones(enterpriseId)
+	importPsCurrencies(enterpriseId)
+	importPsCountries(enterpriseId)
+	importPsStates(enterpriseId)
+	importPsCustomers(enterpriseId)
+	importPsAddresses(enterpriseId)
+	importPsProducts(enterpriseId)
+	importPsProductCombinations(enterpriseId)
+	importPsProductOptionValues(enterpriseId)
+	importPsLanguage(enterpriseId)
+	importPsCarriers(enterpriseId)
+	importPsOrders(enterpriseId)
+	importPsOrderDetails(enterpriseId)
 
 	// trasnfer the data form the PrestaShop tables to the ERP
-	copyPsCurrencies()
-	copyPsCountries()
-	copyPsStates()
-	copyPsCustomers()
-	copyPsAddresses()
-	copyPsLanguages()
-	copyPsCarriers()
-	copyPsProducts()
-	copyPsOrders()
-	copyPsOrderDetails()
+	copyPsCurrencies(enterpriseId)
+	copyPsCountries(enterpriseId)
+	copyPsStates(enterpriseId)
+	copyPsCustomers(enterpriseId)
+	copyPsAddresses(enterpriseId)
+	copyPsLanguages(enterpriseId)
+	copyPsCarriers(enterpriseId)
+	copyPsProducts(enterpriseId)
+	copyPsOrders(enterpriseId)
+	copyPsOrderDetails(enterpriseId)
 }
 
 // =====
 // COPY THE DATA FROM PRESTASHOP TO THE PS MARKETNET TABLES
 // =====
 
-func importPsZones() {
-	url := getPrestaShopAPI_URL("zones") + "&display=[id,name,active]"
+func importPsZones(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("zones", enterpriseId) + "&display=[id,name,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -297,33 +297,33 @@ func importPsZones() {
 	var zones PSZones
 	json.Unmarshal(jsonPS, &zones)
 
-	sqlStatement := `UPDATE public.ps_zone SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_zone SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(zones.Zones); i++ {
 		zone := zones.Zones[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_zone WHERE id=$1`
-		row := db.QueryRow(sqlStatement, zone.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_zone WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, zone.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_zone(id, name, active) VALUES ($1, $2, $3)`
+			sqlStatement := `INSERT INTO public.ps_zone(id, name, active, enterprise) VALUES ($1, $2, $3, $4)`
 			db.Exec(sqlStatement, zone.Id, zone.Name, zone.Active)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_zone SET name=$2, active=$3, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, zone.Id, zone.Name, zone.Active)
+			sqlStatement := `UPDATE public.ps_zone SET name=$2, active=$3, ps_exists=true WHERE id=$1 AND enterprise=$4`
+			db.Exec(sqlStatement, zone.Id, zone.Name, zone.Active, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_zone WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_zone WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsCurrencies() {
-	url := getPrestaShopAPI_URL("currencies") + "&display=[id,name,symbol,iso_code,numeric_iso_code,conversion_rate,deleted,active]"
+func importPsCurrencies(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("currencies", enterpriseId) + "&display=[id,name,symbol,iso_code,numeric_iso_code,conversion_rate,deleted,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -332,8 +332,8 @@ func importPsCurrencies() {
 	var currencies PSCurrencies
 	json.Unmarshal(jsonPS, &currencies)
 
-	sqlStatement := `UPDATE public.ps_currency SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_currency SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(currencies.Currencies); i++ {
 		currency := currencies.Currencies[i]
@@ -342,26 +342,26 @@ func importPsCurrencies() {
 		}
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_currency WHERE id=$1`
-		row := db.QueryRow(sqlStatement, currency.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_currency WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, currency.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_currency(id, name, symbol, iso_code, numeric_iso_code, conversion_rate, deleted, active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-			db.Exec(sqlStatement, currency.Id, currency.Name, currency.Symbol, currency.IsoCode, currency.NumericIsoCode, currency.ConversionRate, currency.Deleted, currency.Active)
+			sqlStatement := `INSERT INTO public.ps_currency(id, name, symbol, iso_code, numeric_iso_code, conversion_rate, deleted, active, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+			db.Exec(sqlStatement, currency.Id, currency.Name, currency.Symbol, currency.IsoCode, currency.NumericIsoCode, currency.ConversionRate, currency.Deleted, currency.Active, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_currency SET name=$2, symbol=$3, iso_code=$4, numeric_iso_code=$5, conversion_rate=$6, deleted=$7, active=$8, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, currency.Id, currency.Name, currency.Symbol, currency.IsoCode, currency.NumericIsoCode, currency.ConversionRate, currency.Deleted, currency.Active)
+			sqlStatement := `UPDATE public.ps_currency SET name=$2, symbol=$3, iso_code=$4, numeric_iso_code=$5, conversion_rate=$6, deleted=$7, active=$8, ps_exists=true WHERE id=$1 AND enterprise=$9`
+			db.Exec(sqlStatement, currency.Id, currency.Name, currency.Symbol, currency.IsoCode, currency.NumericIsoCode, currency.ConversionRate, currency.Deleted, currency.Active, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_currency WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_currency WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsCountries() {
-	url := getPrestaShopAPI_URL("countries") + "&display=[id,id_zone,id_currency,iso_code,call_prefix,name,active]"
+func importPsCountries(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("countries", enterpriseId) + "&display=[id,id_zone,id_currency,iso_code,call_prefix,name,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -370,33 +370,33 @@ func importPsCountries() {
 	var countries PSCountries
 	json.Unmarshal(jsonPS, &countries)
 
-	sqlStatement := `UPDATE public.ps_country SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_country SET ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(countries.Countries); i++ {
 		country := countries.Countries[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_country WHERE id=$1`
-		row := db.QueryRow(sqlStatement, country.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_country WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, country.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_country(id, id_zone, id_currency, iso_code, call_prefix, active, name) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-			db.Exec(sqlStatement, country.Id, country.IdZone, country.IdCurrency, country.IsoCode, country.CallPrefix, country.Active, country.Name)
+			sqlStatement := `INSERT INTO public.ps_country(id, id_zone, id_currency, iso_code, call_prefix, active, name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+			db.Exec(sqlStatement, country.Id, country.IdZone, country.IdCurrency, country.IsoCode, country.CallPrefix, country.Active, country.Name, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_country SET id_zone=$2, id_currency=$3, iso_code=$4, call_prefix=$5, active=$6, name=$7, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, country.Id, country.IdZone, country.IdCurrency, country.IsoCode, country.CallPrefix, country.Active, country.Name)
+			sqlStatement := `UPDATE public.ps_country SET id_zone=$2, id_currency=$3, iso_code=$4, call_prefix=$5, active=$6, name=$7, ps_exists=true WHERE id=$1 AND enterprise=$8`
+			db.Exec(sqlStatement, country.Id, country.IdZone, country.IdCurrency, country.IsoCode, country.CallPrefix, country.Active, country.Name, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_country WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_country WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsStates() {
-	url := getPrestaShopAPI_URL("states") + "&display=[id,id_zone,id_country,iso_code,name,active]"
+func importPsStates(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("states", enterpriseId) + "&display=[id,id_zone,id_country,iso_code,name,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -405,33 +405,33 @@ func importPsStates() {
 	var states PSStates
 	json.Unmarshal(jsonPS, &states)
 
-	sqlStatement := `UPDATE public.ps_state SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_state SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(states.States); i++ {
 		state := states.States[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_state WHERE id=$1`
-		row := db.QueryRow(sqlStatement, state.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_state WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, state.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_state(id, id_country, id_zone, name, iso_code, active) VALUES ($1, $2, $3, $4, $5, $6)`
-			db.Exec(sqlStatement, state.Id, state.IdCountry, state.IdZone, state.Name, state.IsoCode, state.Active)
+			sqlStatement := `INSERT INTO public.ps_state(id, id_country, id_zone, name, iso_code, active, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+			db.Exec(sqlStatement, state.Id, state.IdCountry, state.IdZone, state.Name, state.IsoCode, state.Active, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_state SET id_country=$2, id_zone=$3, name=$4, iso_code=$5, active=$6, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, state.Id, state.IdCountry, state.IdZone, state.Name, state.IsoCode, state.Active)
+			sqlStatement := `UPDATE public.ps_state SET id_country=$2, id_zone=$3, name=$4, iso_code=$5, active=$6, ps_exists=true WHERE id=$1 AND enterprise=$7`
+			db.Exec(sqlStatement, state.Id, state.IdCountry, state.IdZone, state.Name, state.IsoCode, state.Active, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_state WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_state WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsCustomers() {
-	url := getPrestaShopAPI_URL("customers") + "&display=[id,id_lang,company,firstname,lastname,email,note,active,deleted,date_add,date_upd]"
+func importPsCustomers(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("customers", enterpriseId) + "&display=[id,id_lang,company,firstname,lastname,email,note,active,deleted,date_add,date_upd]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -440,33 +440,33 @@ func importPsCustomers() {
 	var customers PSCustomers
 	json.Unmarshal(jsonPS, &customers)
 
-	sqlStatement := `UPDATE public.ps_customer SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_customer SET ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(customers.Customers); i++ {
 		customer := customers.Customers[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_customer WHERE id=$1`
-		row := db.QueryRow(sqlStatement, customer.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_customer WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, customer.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_customer(id, id_lang, company, firstname, lastname, email, note, active, deleted, date_add, date_upd) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-			db.Exec(sqlStatement, customer.Id, customer.IdLang, customer.Company, customer.Firstname, customer.Lastname, customer.Email, customer.Note, customer.Active, customer.Deleted, customer.DateAdd, customer.DateUpd)
+			sqlStatement := `INSERT INTO public.ps_customer(id, id_lang, company, firstname, lastname, email, note, active, deleted, date_add, date_upd, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+			db.Exec(sqlStatement, customer.Id, customer.IdLang, customer.Company, customer.Firstname, customer.Lastname, customer.Email, customer.Note, customer.Active, customer.Deleted, customer.DateAdd, customer.DateUpd, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_customer SET id_lang=$2, company=$3, firstname=$4, lastname=$5, email=$6, note=$7, active=$8, deleted=$9, date_add=$10, date_upd=$11, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, customer.Id, customer.IdLang, customer.Company, customer.Firstname, customer.Lastname, customer.Email, customer.Note, customer.Active, customer.Deleted, customer.DateAdd, customer.DateUpd)
+			sqlStatement := `UPDATE public.ps_customer SET id_lang=$2, company=$3, firstname=$4, lastname=$5, email=$6, note=$7, active=$8, deleted=$9, date_add=$10, date_upd=$11, ps_exists=true WHERE id=$1 AND enterprise=$12`
+			db.Exec(sqlStatement, customer.Id, customer.IdLang, customer.Company, customer.Firstname, customer.Lastname, customer.Email, customer.Note, customer.Active, customer.Deleted, customer.DateAdd, customer.DateUpd, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_customer WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_customer WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsAddresses() {
-	url := getPrestaShopAPI_URL("addresses") + "&display=[id,id_customer,id_country,id_state,alias,company,lastname,firstname,vat_number,address1,address2,postcode,city,other,phone,phone_mobile,dni,date_add,date_upd,deleted]"
+func importPsAddresses(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("addresses", enterpriseId) + "&display=[id,id_customer,id_country,id_state,alias,company,lastname,firstname,vat_number,address1,address2,postcode,city,other,phone,phone_mobile,dni,date_add,date_upd,deleted]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -475,8 +475,8 @@ func importPsAddresses() {
 	var addresses PSAddresses
 	json.Unmarshal(jsonPS, &addresses)
 
-	sqlStatement := `UPDATE public.ps_address SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_address SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(addresses.Addresses); i++ {
 		address := addresses.Addresses[i]
@@ -485,8 +485,8 @@ func importPsAddresses() {
 		}
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_address WHERE id=$1`
-		row := db.QueryRow(sqlStatement, address.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_address WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, address.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
@@ -499,12 +499,12 @@ func importPsAddresses() {
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_address WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_address WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsProducts() {
-	url := getPrestaShopAPI_URL("products") + "&display=[id,name,description,on_sale,ean13,price,reference,active,date_add,date_upd]"
+func importPsProducts(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("products", enterpriseId) + "&display=[id,name,description,on_sale,ean13,price,reference,active,date_add,date_upd]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -513,33 +513,33 @@ func importPsProducts() {
 	var products PSProducts
 	json.Unmarshal(jsonPS, &products)
 
-	sqlStatement := `UPDATE public.ps_product SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_product SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(products.Products); i++ {
 		product := products.Products[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_product WHERE id=$1`
-		row := db.QueryRow(sqlStatement, product.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_product WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, product.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_product(id, on_sale, ean13, price, reference, active, date_add, date_upd, name, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-			db.Exec(sqlStatement, product.Id, product.OnSale, product.Ean13, product.Price, product.Reference, product.Active, product.DateAdd, product.DateUpd, product.Name, product.Description)
+			sqlStatement := `INSERT INTO public.ps_product(id, on_sale, ean13, price, reference, active, date_add, date_upd, name, description, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+			db.Exec(sqlStatement, product.Id, product.OnSale, product.Ean13, product.Price, product.Reference, product.Active, product.DateAdd, product.DateUpd, product.Name, product.Description, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_product SET on_sale=$2, ean13=$3, price=$4, reference=$5, active=$6, date_add=$7, date_upd=$8, name=$9, description=$10, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, product.Id, product.OnSale, product.Ean13, product.Price, product.Reference, product.Active, product.DateAdd, product.DateUpd, product.Name, product.Description)
+			sqlStatement := `UPDATE public.ps_product SET on_sale=$2, ean13=$3, price=$4, reference=$5, active=$6, date_add=$7, date_upd=$8, name=$9, description=$10, ps_exists=true WHERE id=$1 AND enterprise=$11`
+			db.Exec(sqlStatement, product.Id, product.OnSale, product.Ean13, product.Price, product.Reference, product.Active, product.DateAdd, product.DateUpd, product.Name, product.Description, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_product WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_product WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsProductCombinations() {
-	url := getPrestaShopAPI_URL("combinations") + "&display=full"
+func importPsProductCombinations(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("combinations", enterpriseId) + "&display=full"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -548,15 +548,15 @@ func importPsProductCombinations() {
 	var combinations PSProductCombinations
 	json.Unmarshal(jsonPS, &combinations)
 
-	sqlStatement := `UPDATE public.ps_product_combination SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_product_combination SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(combinations.Combinations); i++ {
 		combination := combinations.Combinations[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_product_combination WHERE id=$1`
-		row := db.QueryRow(sqlStatement, combination.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_product_combination WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, combination.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
@@ -568,20 +568,20 @@ func importPsProductCombinations() {
 		}
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_product_combination(id, id_product, reference, ean13, price, product_option_values) VALUES ($1, $2, $3, $4, $5, $6)`
-			db.Exec(sqlStatement, combination.Id, combination.IdProduct, combination.Reference, combination.Ean13, combination.Price, pq.Array(productOptionValues))
+			sqlStatement := `INSERT INTO public.ps_product_combination(id, id_product, reference, ean13, price, product_option_values, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+			db.Exec(sqlStatement, combination.Id, combination.IdProduct, combination.Reference, combination.Ean13, combination.Price, pq.Array(productOptionValues), enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_product_combination SET id_product=$2, reference=$3, ean13=$4, price=$5, product_option_values=$6, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, combination.Id, combination.IdProduct, combination.Reference, combination.Ean13, combination.Price, pq.Array(productOptionValues))
+			sqlStatement := `UPDATE public.ps_product_combination SET id_product=$2, reference=$3, ean13=$4, price=$5, product_option_values=$6, ps_exists=true WHERE id=$1 AND enterprise=$7`
+			db.Exec(sqlStatement, combination.Id, combination.IdProduct, combination.Reference, combination.Ean13, combination.Price, pq.Array(productOptionValues), enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_product_combination WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_product_combination WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsProductOptionValues() {
-	url := getPrestaShopAPI_URL("product_option_values") + "&display=[id,name]"
+func importPsProductOptionValues(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("product_option_values", enterpriseId) + "&display=[id,name]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -590,33 +590,33 @@ func importPsProductOptionValues() {
 	var values PSProductOptionValues
 	json.Unmarshal(jsonPS, &values)
 
-	sqlStatement := `UPDATE public.product_option_values SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.product_option_values SET ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(values.ProductOptionValues); i++ {
 		value := values.ProductOptionValues[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM product_option_values WHERE id=$1`
-		row := db.QueryRow(sqlStatement, value.Id)
+		sqlStatement := `SELECT COUNT(*) FROM product_option_values WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, value.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_product_option_values(id, name) VALUES ($1, $2)`
-			db.Exec(sqlStatement, value.Id, value.Name)
+			sqlStatement := `INSERT INTO public.ps_product_option_values(id, name, enterprise) VALUES ($1, $2, $3)`
+			db.Exec(sqlStatement, value.Id, value.Name, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_product_option_values SET name=$2, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, value.Id, value.Name)
+			sqlStatement := `UPDATE public.ps_product_option_values SET name=$2, ps_exists=true WHERE id=$1 AND enterprise=$3`
+			db.Exec(sqlStatement, value.Id, value.Name, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.product_option_values WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.product_option_values WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsLanguage() {
-	url := getPrestaShopAPI_URL("languages") + "&display=[id,name,iso_code,active]"
+func importPsLanguage(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("languages", enterpriseId) + "&display=[id,name,iso_code,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -625,33 +625,33 @@ func importPsLanguage() {
 	var languages PSLanguages
 	json.Unmarshal(jsonPS, &languages)
 
-	sqlStatement := `UPDATE public.ps_language SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_language SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(languages.Languages); i++ {
 		language := languages.Languages[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_language WHERE id=$1`
-		row := db.QueryRow(sqlStatement, language.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_language WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, language.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_language(id, name, iso_code, active) VALUES ($1, $2, $3, $4)`
-			db.Exec(sqlStatement, language.Id, language.Name, language.IsoCode, language.Active)
+			sqlStatement := `INSERT INTO public.ps_language(id, name, iso_code, active, enterprise) VALUES ($1, $2, $3, $4, $5)`
+			db.Exec(sqlStatement, language.Id, language.Name, language.IsoCode, language.Active, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_language SET name=$2, iso_code=$3, active=$4, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, language.Id, language.Name, language.IsoCode, language.Active)
+			sqlStatement := `UPDATE public.ps_language SET name=$2, iso_code=$3, active=$4, ps_exists=true WHERE id=$1 AND enterprise$5`
+			db.Exec(sqlStatement, language.Id, language.Name, language.IsoCode, language.Active, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_language WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_language WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsCarriers() {
-	url := getPrestaShopAPI_URL("carriers") + "&display=[id,deleted,name,active,url,max_width,max_height,max_depth,max_weight]"
+func importPsCarriers(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("carriers", enterpriseId) + "&display=[id,deleted,name,active,url,max_width,max_height,max_depth,max_weight]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -660,33 +660,33 @@ func importPsCarriers() {
 	var carriers PSCarriers
 	json.Unmarshal(jsonPS, &carriers)
 
-	sqlStatement := `UPDATE public.ps_carrier SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_carrier SET ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(carriers.Carriers); i++ {
 		carrier := carriers.Carriers[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_carrier WHERE id=$1`
-		row := db.QueryRow(sqlStatement, carrier.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_carrier WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, carrier.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_carrier(id, deleted, name, active, url, max_width, max_height, max_depth, max_weight) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-			db.Exec(sqlStatement, carrier.Id, carrier.Deleted, carrier.Name, carrier.Active, carrier.Url, carrier.MaxWidth, carrier.MaxHeight, carrier.MaxDepth, carrier.MaxWeight)
+			sqlStatement := `INSERT INTO public.ps_carrier(id, deleted, name, active, url, max_width, max_height, max_depth, max_weight, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+			db.Exec(sqlStatement, carrier.Id, carrier.Deleted, carrier.Name, carrier.Active, carrier.Url, carrier.MaxWidth, carrier.MaxHeight, carrier.MaxDepth, carrier.MaxWeight, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_carrier SET deleted=$2, name=$3, active=$4, url=$5, max_width=$6, max_height=$7, max_depth=$8, max_weight=$9, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, carrier.Id, carrier.Deleted, carrier.Name, carrier.Active, carrier.Url, carrier.MaxWidth, carrier.MaxHeight, carrier.MaxDepth, carrier.MaxWeight)
+			sqlStatement := `UPDATE public.ps_carrier SET deleted=$2, name=$3, active=$4, url=$5, max_width=$6, max_height=$7, max_depth=$8, max_weight=$9, ps_exists=true WHERE id=$1 AND enterprise=$10`
+			db.Exec(sqlStatement, carrier.Id, carrier.Deleted, carrier.Name, carrier.Active, carrier.Url, carrier.MaxWidth, carrier.MaxHeight, carrier.MaxDepth, carrier.MaxWeight, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_carrier WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_carrier WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsOrders() {
-	url := getPrestaShopAPI_URL("orders") + "&display=[id,reference,id_carrier,id_lang,id_customer,id_currency,id_address_delivery,id_address_invoice,module,total_discounts_tax_excl,total_shipping_tax_excl,date_add,date_upd]"
+func importPsOrders(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("orders", enterpriseId) + "&display=[id,reference,id_carrier,id_lang,id_customer,id_currency,id_address_delivery,id_address_invoice,module,total_discounts_tax_excl,total_shipping_tax_excl,date_add,date_upd]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -695,35 +695,35 @@ func importPsOrders() {
 	var orders PSOrders
 	json.Unmarshal(jsonPS, &orders)
 
-	sqlStatement := `UPDATE public.ps_order SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_order SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(orders.Orders); i++ {
 		order := orders.Orders[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_order WHERE id=$1`
-		row := db.QueryRow(sqlStatement, order.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_order WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, order.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		taxIncluded := order.TotalPaidTaxExcl != order.TotalPaidTaxIncl
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_order(id, reference, id_carrier, id_lang, id_customer, id_currency, id_address_delivery, id_address_invoice, module, total_discounts_tax_excl, total_shipping_tax_excl, date_add, date_upd, tax_included) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
-			db.Exec(sqlStatement, order.Id, order.Reference, order.IdCarrier, order.IdLang, order.IdCustomer, order.IdCurrency, order.IdAddressDelivery, order.IdAddressInvoice, order.Module, order.TotalDiscountsTaxExcl, order.TotalShippingTaxExcl, order.DateAdd, order.DateUpd, taxIncluded)
+			sqlStatement := `INSERT INTO public.ps_order(id, reference, id_carrier, id_lang, id_customer, id_currency, id_address_delivery, id_address_invoice, module, total_discounts_tax_excl, total_shipping_tax_excl, date_add, date_upd, tax_included, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+			db.Exec(sqlStatement, order.Id, order.Reference, order.IdCarrier, order.IdLang, order.IdCustomer, order.IdCurrency, order.IdAddressDelivery, order.IdAddressInvoice, order.Module, order.TotalDiscountsTaxExcl, order.TotalShippingTaxExcl, order.DateAdd, order.DateUpd, taxIncluded, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_order SET reference=$2, id_carrier=$3, id_lang=$4, id_customer=$5, id_currency=$6, id_address_delivery=$7, id_address_invoice=$8, module=$9, total_discounts_tax_excl=$10, total_shipping_tax_excl=$11, date_add=$12, date_upd=$13, tax_included=$14, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, order.Id, order.Reference, order.IdCarrier, order.IdLang, order.IdCustomer, order.IdCurrency, order.IdAddressDelivery, order.IdAddressInvoice, order.Module, order.TotalDiscountsTaxExcl, order.TotalShippingTaxExcl, order.DateAdd, order.DateUpd, taxIncluded)
+			sqlStatement := `UPDATE public.ps_order SET reference=$2, id_carrier=$3, id_lang=$4, id_customer=$5, id_currency=$6, id_address_delivery=$7, id_address_invoice=$8, module=$9, total_discounts_tax_excl=$10, total_shipping_tax_excl=$11, date_add=$12, date_upd=$13, tax_included=$14, ps_exists=true WHERE id=$1 AND enterprise=$15`
+			db.Exec(sqlStatement, order.Id, order.Reference, order.IdCarrier, order.IdLang, order.IdCustomer, order.IdCurrency, order.IdAddressDelivery, order.IdAddressInvoice, order.Module, order.TotalDiscountsTaxExcl, order.TotalShippingTaxExcl, order.DateAdd, order.DateUpd, taxIncluded, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_order WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_order WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importPsOrderDetails() {
-	url := getPrestaShopAPI_URL("order_details") + "&display=[id,id_order,product_id,product_attribute_id,product_quantity,product_price]"
+func importPsOrderDetails(enterpriseId int32) {
+	url := getPrestaShopAPI_URL("order_details", enterpriseId) + "&display=[id,id_order,product_id,product_attribute_id,product_quantity,product_price]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		return
@@ -732,38 +732,38 @@ func importPsOrderDetails() {
 	var details PSOrderDetails
 	json.Unmarshal(jsonPS, &details)
 
-	sqlStatement := `UPDATE public.ps_order_detail SET ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.ps_order_detail SET ps_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(details.OrderDetails); i++ {
 		detail := details.OrderDetails[i]
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM ps_order_detail WHERE id=$1`
-		row := db.QueryRow(sqlStatement, detail.Id)
+		sqlStatement := `SELECT COUNT(*) FROM ps_order_detail WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, detail.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.ps_order_detail(id, id_order, product_id, product_attribute_id, product_quantity, product_price) VALUES ($1, $2, $3, $4, $5, $6)`
-			db.Exec(sqlStatement, detail.Id, detail.IdOrder, detail.ProductId, detail.ProductAttributeId, detail.ProductQuantity, detail.ProductPrice)
+			sqlStatement := `INSERT INTO public.ps_order_detail(id, id_order, product_id, product_attribute_id, product_quantity, product_price, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+			db.Exec(sqlStatement, detail.Id, detail.IdOrder, detail.ProductId, detail.ProductAttributeId, detail.ProductQuantity, detail.ProductPrice, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.ps_order_detail SET id_order=$2, product_id=$3, product_attribute_id=$4, product_quantity=$5, product_price=$6, ps_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, detail.Id, detail.IdOrder, detail.ProductId, detail.ProductAttributeId, detail.ProductQuantity, detail.ProductPrice)
+			sqlStatement := `UPDATE public.ps_order_detail SET id_order=$2, product_id=$3, product_attribute_id=$4, product_quantity=$5, product_price=$6, ps_exists=true WHERE id=$1 AND enterprise=$7`
+			db.Exec(sqlStatement, detail.Id, detail.IdOrder, detail.ProductId, detail.ProductAttributeId, detail.ProductQuantity, detail.ProductPrice, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.ps_order_detail WHERE ps_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.ps_order_detail WHERE ps_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
 // =====
 // TRANSFER THE DATA TO THE ERP TABLES
 // =====
 
-func copyPsCurrencies() {
-	sqlStatement := `SELECT iso_code FROM public.ps_currency`
-	rows, err := db.Query(sqlStatement)
+func copyPsCurrencies(enterpriseId int32) {
+	sqlStatement := `SELECT iso_code FROM public.ps_currency WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -773,14 +773,14 @@ func copyPsCurrencies() {
 		rows.Scan(&isoCode)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM currency WHERE iso_code=$1`
-		row := db.QueryRow(sqlStatement, isoCode)
+		sqlStatement := `SELECT COUNT(*) FROM currency WHERE iso_code=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 {
-			sqlStatement := `SELECT name,conversion_rate,symbol,numeric_iso_code FROM public.ps_currency WHERE iso_code=$1 LIMIT 1`
-			row := db.QueryRow(sqlStatement, isoCode)
+			sqlStatement := `SELECT name,conversion_rate,symbol,numeric_iso_code FROM public.ps_currency WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+			row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 			if row.Err() != nil {
 				return
 			}
@@ -798,14 +798,15 @@ func copyPsCurrencies() {
 			c.Sign = symbol
 			c.IsoNum = int16(numericIsoCode)
 			c.ExchangeDate = time.Now()
+			c.enterprise = enterpriseId
 			c.insertCurrency()
 		}
 	}
 }
 
-func copyPsCountries() {
-	sqlStatement := `SELECT iso_code FROM public.ps_country`
-	rows, err := db.Query(sqlStatement)
+func copyPsCountries(enterpriseId int32) {
+	sqlStatement := `SELECT iso_code FROM public.ps_country WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -815,14 +816,14 @@ func copyPsCountries() {
 		rows.Scan(&isoCode)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM country WHERE iso_2=$1`
-		row := db.QueryRow(sqlStatement, isoCode)
+		sqlStatement := `SELECT COUNT(*) FROM country WHERE iso_2=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 {
-			sqlStatement := `SELECT name,id_zone,id_currency FROM public.ps_country WHERE iso_code=$1 LIMIT 1`
-			row := db.QueryRow(sqlStatement, isoCode)
+			sqlStatement := `SELECT name,id_zone,id_currency FROM public.ps_country WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+			row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 			if row.Err() != nil {
 				return
 			}
@@ -832,8 +833,8 @@ func copyPsCountries() {
 			var call_prefix int32
 			row.Scan(&name, &id_zone, &call_prefix)
 
-			sqlStatement = `SELECT zone FROM public.ps_zone WHERE id=$1 LIMIT 1`
-			row = db.QueryRow(sqlStatement, id_zone)
+			sqlStatement = `SELECT zone FROM public.ps_zone WHERE id=$1 AND enterprise=$2 LIMIT 1`
+			row = db.QueryRow(sqlStatement, id_zone, enterpriseId)
 			if row.Err() != nil {
 				return
 			}
@@ -846,14 +847,15 @@ func copyPsCountries() {
 			c.Name = name
 			c.PhonePrefix = int16(call_prefix)
 			c.Zone = zone
+			c.enterprise = enterpriseId
 			c.insertCountry()
 		}
 	}
 }
 
-func copyPsStates() {
-	sqlStatement := `SELECT iso_code FROM public.ps_state`
-	rows, err := db.Query(sqlStatement)
+func copyPsStates(enterpriseId int32) {
+	sqlStatement := `SELECT iso_code FROM public.ps_state WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -863,14 +865,14 @@ func copyPsStates() {
 		rows.Scan(&isoCode)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM state WHERE iso_code=$1`
-		row := db.QueryRow(sqlStatement, isoCode)
+		sqlStatement := `SELECT COUNT(*) FROM state WHERE iso_code=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 {
-			sqlStatement := `SELECT name,iso_code,id_country FROM public.ps_state WHERE iso_code=$1 LIMIT 1`
-			row := db.QueryRow(sqlStatement, isoCode)
+			sqlStatement := `SELECT name,iso_code,id_country FROM public.ps_state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+			row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 			if row.Err() != nil {
 				return
 			}
@@ -880,8 +882,8 @@ func copyPsStates() {
 			var id_country int32
 			row.Scan(&name, &iso_code, &id_country)
 
-			sqlStatement = `SELECT iso_code FROM ps_country WHERE id=$1`
-			row = db.QueryRow(sqlStatement, id_country)
+			sqlStatement = `SELECT iso_code FROM ps_country WHERE id=$1 AND enterprise=$2`
+			row = db.QueryRow(sqlStatement, id_country, enterpriseId)
 			if row.Err() != nil {
 				return
 			}
@@ -889,27 +891,28 @@ func copyPsStates() {
 			var iso_country string
 			row.Scan(&iso_country)
 
-			sqlStatement = `SELECT id FROM country WHERE iso_2=$1`
-			row = db.QueryRow(sqlStatement, iso_country)
+			sqlStatement = `SELECT id FROM country WHERE iso_2=$1 AND enterprise=$2`
+			row = db.QueryRow(sqlStatement, iso_country, enterpriseId)
 			if row.Err() != nil {
 				return
 			}
 
-			var country int16
+			var country int32
 			row.Scan(&country)
 
 			s := State{}
 			s.Country = country
 			s.Name = name
 			s.IsoCode = iso_code
+			s.enterprise = enterpriseId
 			s.insertState()
 		}
 	}
 }
 
-func copyPsCustomers() {
-	sqlStatement := `SELECT id FROM public.ps_customer`
-	rows, err := db.Query(sqlStatement)
+func copyPsCustomers(enterpriseId int32) {
+	sqlStatement := `SELECT id FROM public.ps_customer WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -919,15 +922,15 @@ func copyPsCustomers() {
 		rows.Scan(&id)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM customer WHERE ps_id=$1`
-		row := db.QueryRow(sqlStatement, id)
+		sqlStatement := `SELECT COUNT(*) FROM customer WHERE ps_id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 {
 			// get the customer data
-			sqlStatement := `SELECT id_lang,company,firstname,lastname,email,date_add FROM public.ps_customer WHERE id=$1 LIMIT 1`
-			row := db.QueryRow(sqlStatement, id)
+			sqlStatement := `SELECT id_lang,company,firstname,lastname,email,date_add FROM public.ps_customer WHERE id=$1 AND enterprise=$2 LIMIT 1`
+			row := db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
 				continue
 			}
@@ -941,10 +944,10 @@ func copyPsCustomers() {
 			row.Scan(&id_lang, &company, &firstname, &lastname, &email, &date_add)
 
 			// get the customer language
-			var lang int16
+			var lang int32
 			if id_lang != 0 {
-				sqlStatement := `SELECT iso_code FROM ps_language WHERE id=$1`
-				row := db.QueryRow(sqlStatement, id_lang)
+				sqlStatement := `SELECT iso_code FROM ps_language WHERE id=$1 AND enterprise=$2`
+				row := db.QueryRow(sqlStatement, id_lang, enterpriseId)
 				if row.Err() != nil {
 					continue
 				}
@@ -952,8 +955,8 @@ func copyPsCustomers() {
 				var iso_code string
 				row.Scan(&iso_code)
 
-				sqlStatement = `SELECT id FROM language WHERE iso_2=$1`
-				row = db.QueryRow(sqlStatement, strings.ToUpper(iso_code))
+				sqlStatement = `SELECT id FROM language WHERE iso_2=$1 AND enterprise=$2`
+				row = db.QueryRow(sqlStatement, strings.ToUpper(iso_code), enterpriseId)
 				if row.Err() != nil {
 					continue
 				}
@@ -965,8 +968,8 @@ func copyPsCustomers() {
 			var taxId string
 			var vatNumber string
 
-			sqlStatement = `SELECT dni,vat_number FROM ps_address WHERE id_customer=$1 AND dni != '' ORDER BY id DESC LIMIT 1`
-			row = db.QueryRow(sqlStatement, id)
+			sqlStatement = `SELECT dni,vat_number FROM ps_address WHERE id_customer=$1 AND enterprise=$2 AND dni != '' ORDER BY id DESC LIMIT 1`
+			row = db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
 				continue
 			}
@@ -992,14 +995,15 @@ func copyPsCustomers() {
 			}
 			c.TaxId = taxId
 			c.VatNumber = vatNumber
+			c.enterprise = enterpriseId
 			c.insertCustomer()
 		}
 	}
 }
 
-func copyPsAddresses() {
-	sqlStatement := `SELECT id FROM public.ps_address`
-	rows, err := db.Query(sqlStatement)
+func copyPsAddresses(enterpriseId int32) {
+	sqlStatement := `SELECT id FROM public.ps_address WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -1009,15 +1013,15 @@ func copyPsAddresses() {
 		rows.Scan(&id)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM address WHERE ps_id=$1`
-		row := db.QueryRow(sqlStatement, id)
+		sqlStatement := `SELECT COUNT(*) FROM address WHERE ps_id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 {
 			// get address data
-			sqlStatement := `SELECT id_country,id_state,id_customer,address1,address2,postcode,city,other,phone,vat_number,dni FROM public.ps_address WHERE id=$1 LIMIT 1`
-			row := db.QueryRow(sqlStatement, id)
+			sqlStatement := `SELECT id_country,id_state,id_customer,address1,address2,postcode,city,other,phone,vat_number,dni FROM public.ps_address WHERE id=$1 AND enterprise=$2 LIMIT 1`
+			row := db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
 				continue
 			}
@@ -1036,8 +1040,8 @@ func copyPsAddresses() {
 			row.Scan(&id_country, &id_state, &id_customer, &address1, &address2, &postcode, &city, &other, &phone, &vat_number, &dni)
 
 			// get customer
-			sqlStatement = `SELECT id FROM customer WHERE ps_id=$1`
-			row = db.QueryRow(sqlStatement, id_customer)
+			sqlStatement = `SELECT id FROM customer WHERE ps_id=$1 AND enterprise=$2`
+			row = db.QueryRow(sqlStatement, id_customer, enterpriseId)
 			if row.Err() != nil {
 				continue
 			}
@@ -1046,8 +1050,8 @@ func copyPsAddresses() {
 			row.Scan(&customer)
 
 			// get country
-			sqlStatement = `SELECT iso_code FROM ps_country WHERE id=$1`
-			row = db.QueryRow(sqlStatement, id_country)
+			sqlStatement = `SELECT iso_code FROM ps_country WHERE id=$1 AND enterprise=$2`
+			row = db.QueryRow(sqlStatement, id_country, enterpriseId)
 			if row.Err() != nil {
 				continue
 			}
@@ -1055,20 +1059,20 @@ func copyPsAddresses() {
 			var iso_code string
 			row.Scan(&iso_code)
 
-			sqlStatement = `SELECT id FROM country WHERE iso_2=$1`
-			row = db.QueryRow(sqlStatement, iso_code)
+			sqlStatement = `SELECT id FROM country WHERE iso_2=$1 AND enterprise=$2`
+			row = db.QueryRow(sqlStatement, iso_code, enterpriseId)
 			if row.Err() != nil {
 				continue
 			}
 
-			var country int16
+			var country int32
 			row.Scan(&country)
 
 			// get state
 			var state *int32
 			if id_state != 0 {
-				sqlStatement := `SELECT iso_code FROM ps_state WHERE id=$1`
-				row = db.QueryRow(sqlStatement, id_state)
+				sqlStatement := `SELECT iso_code FROM ps_state WHERE id=$1 AND enterprise=$2`
+				row = db.QueryRow(sqlStatement, id_state, enterpriseId)
 				if row.Err() != nil {
 					continue
 				}
@@ -1076,8 +1080,8 @@ func copyPsAddresses() {
 				var iso_code string
 				row.Scan(&iso_code)
 
-				sqlStatement = `SELECT id FROM state WHERE iso_code=$1`
-				row = db.QueryRow(sqlStatement, iso_code)
+				sqlStatement = `SELECT id FROM state WHERE iso_code=$1 AND enterprise=$2`
+				row = db.QueryRow(sqlStatement, iso_code, enterpriseId)
 				if row.Err() != nil {
 					continue
 				}
@@ -1096,6 +1100,7 @@ func copyPsAddresses() {
 			a.Notes = other
 			a.prestaShopId = id
 			a.PrivateOrBusiness = "_"
+			a.enterprise = enterpriseId
 			a.insertAddress()
 
 			// set the customer details if are empty
@@ -1120,9 +1125,9 @@ func copyPsAddresses() {
 	}
 }
 
-func copyPsLanguages() {
-	sqlStatement := `SELECT iso_code,name FROM public.ps_language`
-	rows, err := db.Query(sqlStatement)
+func copyPsLanguages(enterpriseId int32) {
+	sqlStatement := `SELECT iso_code,name FROM public.ps_language WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -1133,8 +1138,8 @@ func copyPsLanguages() {
 		rows.Scan(&isoCode, &name)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM language WHERE iso_2=$1`
-		row := db.QueryRow(sqlStatement, strings.ToUpper(isoCode))
+		sqlStatement := `SELECT COUNT(*) FROM language WHERE iso_2=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, strings.ToUpper(isoCode), enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
@@ -1142,14 +1147,15 @@ func copyPsLanguages() {
 			l := Language{}
 			l.Name = name
 			l.Iso2 = strings.ToUpper(isoCode)
+			l.enterprise = enterpriseId
 			l.insertLanguage()
 		}
 	}
 }
 
-func copyPsCarriers() {
-	sqlStatement := `SELECT id,name,url,max_width,max_height,max_depth,max_weight FROM public.ps_carrier`
-	rows, err := db.Query(sqlStatement)
+func copyPsCarriers(enterpriseId int32) {
+	sqlStatement := `SELECT id,name,url,max_width,max_height,max_depth,max_weight FROM public.ps_carrier WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -1165,8 +1171,8 @@ func copyPsCarriers() {
 		rows.Scan(&id, &name, &url, &max_width, &max_height, &max_depth, &max_weight)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM carrier WHERE ps_id=$1`
-		row := db.QueryRow(sqlStatement, id)
+		sqlStatement := `SELECT COUNT(*) FROM carrier WHERE ps_id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
@@ -1179,14 +1185,15 @@ func copyPsCarriers() {
 			c.MaxDepth = max_depth
 			c.MaxWeight = max_weight
 			c.PrestaShopId = id
+			c.enterprise = enterpriseId
 			c.insertCarrier()
 		}
 	}
 }
 
-func copyPsProducts() {
-	sqlStatement := `SELECT id,name,ean13,reference,price,date_add,description FROM public.ps_product`
-	rows, err := db.Query(sqlStatement)
+func copyPsProducts(enterpriseId int32) {
+	sqlStatement := `SELECT id,name,ean13,reference,price,date_add,description FROM public.ps_product WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -1202,8 +1209,8 @@ func copyPsProducts() {
 		rows.Scan(&ps_productId, &name, &ean13, &reference, &price, &dateAdd, &description)
 		description = strip.StripTags(description)
 
-		sqlStatement := `SELECT COUNT(id) FROM ps_product_combination WHERE id_product=$1`
-		row := db.QueryRow(sqlStatement, ps_productId)
+		sqlStatement := `SELECT COUNT(id) FROM ps_product_combination WHERE id_product=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, ps_productId, enterpriseId)
 
 		var combinations int32
 		row.Scan(&combinations)
@@ -1211,8 +1218,8 @@ func copyPsProducts() {
 		if combinations == 0 { // it's a simple product
 
 			// does the product exist?
-			sqlStatement := `SELECT id FROM product WHERE ps_id=$1`
-			row := db.QueryRow(sqlStatement, ps_productId)
+			sqlStatement := `SELECT id FROM product WHERE ps_id=$1 AND enterprise=$2`
+			row := db.QueryRow(sqlStatement, ps_productId, enterpriseId)
 
 			var productId int32
 			row.Scan(&productId)
@@ -1226,6 +1233,7 @@ func copyPsProducts() {
 				p.DateCreated = dateAdd
 				p.Description = description
 				p.prestaShopId = ps_productId
+				p.enterprise = enterpriseId
 				p.insertProduct()
 			} else {
 				p := getProductRow(productId)
@@ -1239,8 +1247,8 @@ func copyPsProducts() {
 			}
 
 		} else { // it's a product with combinations
-			sqlStatement := `SELECT id,reference,ean13,product_option_values,price FROM ps_product_combination WHERE id_product=$1`
-			rows, err := db.Query(sqlStatement, ps_productId)
+			sqlStatement := `SELECT id,reference,ean13,product_option_values,price FROM ps_product_combination WHERE id_product=$1 AND enterprise=$2`
+			rows, err := db.Query(sqlStatement, ps_productId, enterpriseId)
 			if err != nil {
 				return
 			}
@@ -1254,8 +1262,8 @@ func copyPsProducts() {
 				rows.Scan(&combinationId, &combinationReference, &combinationEan13, pq.Array(&productOptionValues), &combinationPrice)
 
 				// does the product exist?
-				sqlStatement := `SELECT id FROM product WHERE ps_id=$1 AND ps_combination_id=$2`
-				row := db.QueryRow(sqlStatement, ps_productId, combinationId)
+				sqlStatement := `SELECT id FROM product WHERE ps_id=$1 AND ps_combination_id=$2 AND enterprise=$3`
+				row := db.QueryRow(sqlStatement, ps_productId, combinationId, enterpriseId)
 
 				var productId int32
 				row.Scan(&productId)
@@ -1263,8 +1271,8 @@ func copyPsProducts() {
 				// generate the product name
 				combinationName := name
 				for i := 0; i < len(productOptionValues); i++ {
-					sqlStatement := `SELECT name FROM ps_product_option_values WHERE id=$1`
-					row := db.QueryRow(sqlStatement, productOptionValues[i])
+					sqlStatement := `SELECT name FROM ps_product_option_values WHERE id=$1 AND enterprise=$2`
+					row := db.QueryRow(sqlStatement, productOptionValues[i], enterpriseId)
 
 					var name string
 					row.Scan(&name)
@@ -1285,6 +1293,7 @@ func copyPsProducts() {
 					p.Description = description
 					p.prestaShopId = ps_productId
 					p.prestaShopCombinationId = combinationId
+					p.enterprise = enterpriseId
 					p.insertProduct()
 				} else {
 					p := getProductRow(productId)
@@ -1302,11 +1311,11 @@ func copyPsProducts() {
 	}
 }
 
-func copyPsOrders() {
-	settings := getSettingsRecord()
+func copyPsOrders(enterpriseId int32) {
+	settings := getSettingsRecordById(enterpriseId)
 
-	sqlStatement := `SELECT id,reference,id_carrier,id_lang,id_customer,id_currency,id_address_delivery,id_address_invoice,module,total_discounts_tax_excl,total_shipping_tax_excl,tax_included FROM public.ps_order;`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT id,reference,id_carrier,id_lang,id_customer,id_currency,id_address_delivery,id_address_invoice,module,total_discounts_tax_excl,total_shipping_tax_excl,tax_included FROM public.ps_order WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -1327,8 +1336,8 @@ func copyPsOrders() {
 		rows.Scan(&orderId, &reference, &idCarrier, &idLang, &idCustomer, &idCurrency, &idAddressDelivery, &idAddressInvoice, &module, &totalDiscountsTaxExcl, &totalShippingTaxExcl, &taxIncluded)
 
 		// does the order exist?
-		sqlStatement := `SELECT COUNT(id) FROM sales_order WHERE ps_id=$1`
-		row := db.QueryRow(sqlStatement, orderId)
+		sqlStatement := `SELECT COUNT(id) FROM sales_order WHERE ps_id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, orderId, enterpriseId)
 
 		var orders int32
 		row.Scan(&orders)
@@ -1338,8 +1347,8 @@ func copyPsOrders() {
 		}
 
 		// get the carrier
-		sqlStatement = `SELECT id FROM carrier WHERE ps_id=$1 LIMIT 1`
-		row = db.QueryRow(sqlStatement, idCarrier)
+		sqlStatement = `SELECT id FROM carrier WHERE ps_id=$1 AND enterprise=$2 LIMIT 1`
+		row = db.QueryRow(sqlStatement, idCarrier, enterpriseId)
 
 		var carrier int32
 		row.Scan(&carrier)
@@ -1349,14 +1358,14 @@ func copyPsOrders() {
 		}
 
 		// get the language
-		sqlStatement = `SELECT iso_code FROM ps_language WHERE id=$1 LIMIT 1`
-		row = db.QueryRow(sqlStatement, idLang)
+		sqlStatement = `SELECT iso_code FROM ps_language WHERE id=$1 AND enterprise=$2 LIMIT 1`
+		row = db.QueryRow(sqlStatement, idLang, enterpriseId)
 
 		var lang_iso_code string
 		row.Scan(&lang_iso_code)
 
-		sqlStatement = `SELECT id FROM language WHERE iso_2=$1 LIMIT 1`
-		row = db.QueryRow(sqlStatement, strings.ToUpper(lang_iso_code))
+		sqlStatement = `SELECT id FROM language WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+		row = db.QueryRow(sqlStatement, strings.ToUpper(lang_iso_code), enterpriseId)
 
 		var language int32
 		row.Scan(&language)
@@ -1366,8 +1375,8 @@ func copyPsOrders() {
 		}
 
 		// get the customer
-		sqlStatement = `SELECT id FROM customer WHERE ps_id=$1 LIMIT 1`
-		row = db.QueryRow(sqlStatement, idCustomer)
+		sqlStatement = `SELECT id FROM customer WHERE ps_id=$1 AND enterprise=$2 LIMIT 1`
+		row = db.QueryRow(sqlStatement, idCustomer, enterpriseId)
 
 		var customer int32
 		row.Scan(&customer)
@@ -1377,10 +1386,10 @@ func copyPsOrders() {
 		}
 
 		// get the payment method
-		sqlStatement = `SELECT id,paid_in_advance FROM payment_method WHERE prestashop_module_name=$1`
-		row = db.QueryRow(sqlStatement, module)
+		sqlStatement = `SELECT id,paid_in_advance FROM payment_method WHERE prestashop_module_name=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, module, enterpriseId)
 
-		var paymentMethod int16
+		var paymentMethod int32
 		var paidInAdvance bool
 		row.Scan(&paymentMethod, &paidInAdvance)
 
@@ -1389,16 +1398,16 @@ func copyPsOrders() {
 		}
 
 		// get the currency
-		sqlStatement = `SELECT iso_code FROM ps_currency WHERE id=$1`
-		row = db.QueryRow(sqlStatement, idCurrency)
+		sqlStatement = `SELECT iso_code FROM ps_currency WHERE id=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, idCurrency, enterpriseId)
 
 		var currency_iso_code string
 		row.Scan(&currency_iso_code)
 
-		sqlStatement = `SELECT id FROM currency WHERE iso_code=$1`
-		row = db.QueryRow(sqlStatement, currency_iso_code)
+		sqlStatement = `SELECT id FROM currency WHERE iso_code=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, currency_iso_code, enterpriseId)
 
-		var currency int16
+		var currency int32
 		row.Scan(&currency)
 
 		if currency == 0 { // don't continue if the currency doesn't exists
@@ -1406,8 +1415,8 @@ func copyPsOrders() {
 		}
 
 		// get the billing address
-		sqlStatement = `SELECT id,(SELECT zone FROM country WHERE country.id=address.country) FROM address WHERE ps_id=$1`
-		row = db.QueryRow(sqlStatement, idAddressInvoice)
+		sqlStatement = `SELECT id,(SELECT zone FROM country WHERE country.id=address.country) FROM address WHERE ps_id=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, idAddressInvoice, enterpriseId)
 
 		var billingAddress int32
 		var billingZone string
@@ -1418,8 +1427,8 @@ func copyPsOrders() {
 		}
 
 		// get the shipping address
-		sqlStatement = `SELECT id FROM address WHERE ps_id=$1`
-		row = db.QueryRow(sqlStatement, idAddressDelivery)
+		sqlStatement = `SELECT id FROM address WHERE ps_id=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, idAddressDelivery, enterpriseId)
 
 		var shippingAddress int32
 		row.Scan(&shippingAddress)
@@ -1446,6 +1455,7 @@ func copyPsOrders() {
 			s.BillingSeries = *settings.PrestaShopInteriorSerie
 		}
 
+		s.enterprise = enterpriseId
 		s.insertSalesOrder()
 
 		// set the customer details if are empty
@@ -1460,14 +1470,14 @@ func copyPsOrders() {
 	}
 }
 
-func copyPsOrderDetails() {
-	sqlStatement := `SELECT id,id_order,product_id,product_attribute_id,product_quantity,product_price,(SELECT tax_included FROM ps_order WHERE ps_order.id=ps_order_detail.id_order),(SELECT vat_percent FROM product WHERE product.ps_id=ps_order_detail.product_id AND product.ps_combination_id=ps_order_detail.product_attribute_id) FROM public.ps_order_detail`
-	rows, err := db.Query(sqlStatement)
+func copyPsOrderDetails(enterpriseId int32) {
+	sqlStatement := `SELECT id,id_order,product_id,product_attribute_id,product_quantity,product_price,(SELECT tax_included FROM ps_order WHERE ps_order.id=ps_order_detail.id_order),(SELECT vat_percent FROM product WHERE product.ps_id=ps_order_detail.product_id AND product.ps_combination_id=ps_order_detail.product_attribute_id) FROM public.ps_order_detail WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
 
-	orderIds := make([]int32, 0)
+	orderIds := make([]int64, 0)
 
 	for rows.Next() {
 		var detailId int32
@@ -1480,8 +1490,8 @@ func copyPsOrderDetails() {
 		var vatPercent float32
 		rows.Scan(&detailId, &orderId, &productId, &productAttributeId, &ProductQuantity, &productPrice, &taxIncluded, &vatPercent)
 
-		sqlStatement := `SELECT COUNT(id) FROM sales_order_detail WHERE ps_id=$1`
-		row := db.QueryRow(sqlStatement, detailId)
+		sqlStatement := `SELECT COUNT(id) FROM sales_order_detail WHERE ps_id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, detailId, enterpriseId)
 
 		var details int32
 		row.Scan(&details)
@@ -1491,10 +1501,10 @@ func copyPsOrderDetails() {
 		}
 
 		// get the sale order
-		sqlStatement = `SELECT id FROM sales_order WHERE ps_id=$1`
-		row = db.QueryRow(sqlStatement, orderId)
+		sqlStatement = `SELECT id FROM sales_order WHERE ps_id=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, orderId, enterpriseId)
 
-		var order int32
+		var order int64
 		row.Scan(&order)
 
 		if order <= 0 {
@@ -1502,8 +1512,8 @@ func copyPsOrderDetails() {
 		}
 
 		// get the product
-		sqlStatement = `SELECT id FROM product WHERE ps_id=$1 AND ps_combination_id=$2`
-		row = db.QueryRow(sqlStatement, productId, productAttributeId)
+		sqlStatement = `SELECT id FROM product WHERE ps_id=$1 AND ps_combination_id=$2 AND enterprise=$3`
+		row = db.QueryRow(sqlStatement, productId, productAttributeId, enterpriseId)
 
 		var product int32
 		row.Scan(&product)
@@ -1524,6 +1534,8 @@ func copyPsOrderDetails() {
 			d.VatPercent = vatPercent
 		}
 
+		d.enterprise = enterpriseId
+		d.prestaShopId = detailId
 		ok := d.insertSalesOrderDetail()
 
 		if ok {
@@ -1544,14 +1556,14 @@ func copyPsOrderDetails() {
 	// automatically generate an invoice for this payment
 
 	for i := 0; i < len(orderIds); i++ {
-		sqlStatement = `SELECT paid_in_advance FROM payment_method WHERE id=(SELECT payment_method FROM sales_order WHERE id=$1)`
-		row := db.QueryRow(sqlStatement, orderIds[i])
+		sqlStatement = `SELECT paid_in_advance FROM payment_method WHERE id=(SELECT payment_method FROM sales_order WHERE id=$1) AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, orderIds[i], enterpriseId)
 
 		var paidInAdvance bool
 		row.Scan(&paidInAdvance)
 
 		if paidInAdvance {
-			invoiceAllSaleOrder(orderIds[i])
+			invoiceAllSaleOrder(orderIds[i], enterpriseId)
 		}
 	}
 
@@ -1562,21 +1574,22 @@ func copyPsOrderDetails() {
 // =====
 
 type PSZoneWeb struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-	Zone string `json:"zone"`
+	Id         int32  `json:"id"`
+	Name       string `json:"name"`
+	Zone       string `json:"zone"`
+	enterprise int32
 }
 
-func getPSZones() []PSZoneWeb {
+func getPSZones(enterpriseId int32) []PSZoneWeb {
 	var zones []PSZoneWeb = make([]PSZoneWeb, 0)
-	sqlStatement := `SELECT id,name,zone FROM public.ps_zone ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT id,name,zone FROM public.ps_zone WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return zones
 	}
 	for rows.Next() {
 		z := PSZoneWeb{}
-		rows.Scan(&z.Id, &z.Name, &z.Zone)
+		rows.Scan(&z.Id, &z.Name, &z.Zone, &z.enterprise)
 		zones = append(zones, z)
 	}
 
@@ -1588,8 +1601,8 @@ func (z *PSZoneWeb) updatePSZoneWeb() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.ps_zone SET zone=$2 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, z.Id, z.Zone)
+	sqlStatement := `UPDATE public.ps_zone SET zone=$2 WHERE id=$1 AND enterprise=$3`
+	res, err := db.Exec(sqlStatement, z.Id, z.Zone, z.enterprise)
 	if err != nil {
 		return false
 	}
@@ -1602,8 +1615,8 @@ func (z *PSZoneWeb) updatePSZoneWeb() bool {
 // SET TRACKING NUMBER
 //
 
-func updateTrackingNumberPrestaShopOrder(salesOrderId int32, trackingNumber string) bool {
-	settings := getSettingsRecord()
+func updateTrackingNumberPrestaShopOrder(salesOrderId int64, trackingNumber string, enterpriseId int32) bool {
+	settings := getSettingsRecordById(enterpriseId)
 	if settings.Ecommerce != "P" {
 		return false
 	}
@@ -1675,8 +1688,8 @@ func setStatusXmlOrderPrestaShop(xmlPs []byte, status string) []byte {
 	return xml
 }
 
-func updateStatusPaymentAcceptedPrestaShop(orderId int32) bool {
-	settings := getSettingsRecord()
+func updateStatusPaymentAcceptedPrestaShop(orderId int64, enterpriseId int32) bool {
+	settings := getSettingsRecordById(enterpriseId)
 	if settings.Ecommerce != "P" {
 		return false
 	}
@@ -1686,8 +1699,8 @@ func updateStatusPaymentAcceptedPrestaShop(orderId int32) bool {
 		return true
 	}
 
-	sqlStatement := `SELECT paid_in_advance FROM payment_method WHERE id=(SELECT payment_method FROM sales_order WHERE id=$1)`
-	row := db.QueryRow(sqlStatement, orderId)
+	sqlStatement := `SELECT paid_in_advance FROM payment_method WHERE id=(SELECT payment_method FROM sales_order WHERE id=$1) AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, orderId, enterpriseId)
 
 	var paidInAdvance bool
 	row.Scan(&paidInAdvance)

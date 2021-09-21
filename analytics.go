@@ -14,16 +14,16 @@ type MonthlySalesAmount struct {
 }
 
 // Monthly sales (amount)
-func monthlySalesAmount(year *int16) []MonthlySalesAmount {
+func monthlySalesAmount(year *int16, enterpriseId int32) []MonthlySalesAmount {
 	acounts := make([]MonthlySalesAmount, 0)
 	var rows *sql.Rows
 	var err error
 	if year == nil {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created),SUM(total_amount) FROM sales_order GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ASC`
-		rows, err = db.Query(sqlStatement)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created),SUM(total_amount) FROM sales_order WHERE enterprise=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ASC`
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created),SUM(total_amount) FROM sales_order WHERE EXTRACT(YEAR FROM date_created)=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ASC`
-		rows, err = db.Query(sqlStatement, year)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created),SUM(total_amount) FROM sales_order WHERE enterprise=$2 AND EXTRACT(YEAR FROM date_created)=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),EXTRACT(DAY FROM date_created) ASC`
+		rows, err = db.Query(sqlStatement, year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -46,16 +46,16 @@ type MonthlySalesQuantity struct {
 }
 
 // Monthly sales (quantity)
-func monthlySalesQuantity(year *int16) []MonthlySalesQuantity {
+func monthlySalesQuantity(year *int16, enterpriseId int32) []MonthlySalesQuantity {
 	quantity := make([]MonthlySalesQuantity, 0)
 	var rows *sql.Rows
 	var err error
 	if year == nil {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),COUNT(*) FROM sales_order GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ASC`
-		rows, err = db.Query(sqlStatement)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),COUNT(*) FROM sales_order WHERE enterprise=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ASC`
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),COUNT(*) FROM sales_order WHERE EXTRACT(YEAR FROM date_created)=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ASC`
-		rows, err = db.Query(sqlStatement, year)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),COUNT(*) FROM sales_order WHERE enterprise=$2 AND EXTRACT(YEAR FROM date_created)=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created) ASC`
+		rows, err = db.Query(sqlStatement, year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -78,10 +78,10 @@ type SalesOfAProductQuantity struct {
 }
 
 // Sales of a product by months (quantity)
-func salesOfAProductQuantity(productId int32) []SalesOfAProductQuantity {
+func salesOfAProductQuantity(productId int32, enterpriseId int32) []SalesOfAProductQuantity {
 	quantity := make([]SalesOfAProductQuantity, 0)
-	sqlStatement := `SELECT (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),COUNT(*) FROM sales_order_detail WHERE product=$1 GROUP BY (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order)`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),COUNT(*) FROM sales_order_detail WHERE product=$1 AND enterprise=$2 GROUP BY (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order)`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return quantity
@@ -104,10 +104,10 @@ type SalesOfAProductAmount struct {
 }
 
 // Sales of a product by month (amount)
-func salesOfAProductAmount(productId int32) []SalesOfAProductAmount {
+func salesOfAProductAmount(productId int32, enterpriseId int32) []SalesOfAProductAmount {
 	quantity := make([]SalesOfAProductAmount, 0)
-	sqlStatement := `SELECT (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),SUM(total_amount) FROM sales_order_detail WHERE product=$1 GROUP BY (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order)`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),SUM(total_amount) FROM sales_order_detail WHERE product=$1 AND enterprise=$2 GROUP BY (SELECT EXTRACT(YEAR FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order),(SELECT EXTRACT(MONTH FROM date_created) FROM sales_order WHERE sales_order.id=sales_order_detail.order)`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return quantity
@@ -130,16 +130,16 @@ type DaysOfServiceSaleOrders struct {
 }
 
 // Days of service of the sale orders
-func daysOfServiceSaleOrders(year *int16) []DaysOfServiceSaleOrders {
+func daysOfServiceSaleOrders(year *int16, enterpriseId int32) []DaysOfServiceSaleOrders {
 	days := make([]DaysOfServiceSaleOrders, 0)
 	var rows *sql.Rows
 	var err error
 	if year == nil {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created),AVG(EXTRACT(DAY FROM (shipping.date_sent - sales_order.date_created))) FROM sales_order INNER JOIN shipping ON shipping.order=sales_order.id WHERE shipping.date_sent IS NOT NULL GROUP BY EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created)`
-		rows, err = db.Query(sqlStatement)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created),AVG(EXTRACT(DAY FROM (shipping.date_sent - sales_order.date_created))) FROM sales_order INNER JOIN shipping ON shipping.order=sales_order.id WHERE shipping.date_sent IS NOT NULL AND sales_order.enterprise=$1 GROUP BY EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created)`
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created),AVG(EXTRACT(DAY FROM (shipping.date_sent - sales_order.date_created))) FROM sales_order INNER JOIN shipping ON shipping.order=sales_order.id WHERE shipping.date_sent IS NOT NULL AND EXTRACT(YEAR FROM sales_order.date_created)=$1 GROUP BY EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created)`
-		rows, err = db.Query(sqlStatement, year)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created),AVG(EXTRACT(DAY FROM (shipping.date_sent - sales_order.date_created))) FROM sales_order INNER JOIN shipping ON shipping.order=sales_order.id WHERE shipping.date_sent IS NOT NULL AND EXTRACT(YEAR FROM sales_order.date_created)=$1 AND sales_order.enterprise=$2 GROUP BY EXTRACT(YEAR FROM sales_order.date_created),EXTRACT(MONTH FROM sales_order.date_created)`
+		rows, err = db.Query(sqlStatement, year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -163,16 +163,16 @@ type DaysOfServicePurchaseOrders struct {
 }
 
 // Days of service of the purchase orders
-func daysOfServicePurchaseOrders(year *int16) []DaysOfServicePurchaseOrders {
+func daysOfServicePurchaseOrders(year *int16, enterpriseId int32) []DaysOfServicePurchaseOrders {
 	days := make([]DaysOfServicePurchaseOrders, 0)
 	var rows *sql.Rows
 	var err error
 	if year == nil {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created),AVG(EXTRACT(DAY FROM (purchase_delivery_note.date_created - purchase_order.date_created))) FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order_detail.order=purchase_order.id INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON purchase_delivery_note.id=warehouse_movement.purchase_delivery_note WHERE purchase_order.lines_number>0 AND purchase_order.lines_number=purchase_order.delivery_note_lines GROUP BY EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created)`
-		rows, err = db.Query(sqlStatement)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created),AVG(EXTRACT(DAY FROM (purchase_delivery_note.date_created - purchase_order.date_created))) FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order_detail.order=purchase_order.id INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON purchase_delivery_note.id=warehouse_movement.purchase_delivery_note WHERE purchase_order.lines_number>0 AND purchase_order.lines_number=purchase_order.delivery_note_lines AND purchase_order.enterprise=$1 GROUP BY EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created)`
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created),AVG(EXTRACT(DAY FROM (purchase_delivery_note.date_created - purchase_order.date_created))) FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order_detail.order=purchase_order.id INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON purchase_delivery_note.id=warehouse_movement.purchase_delivery_note WHERE purchase_order.lines_number>0 AND purchase_order.lines_number=purchase_order.delivery_note_lines AND EXTRACT(YEAR FROM purchase_order.date_created)=$1 GROUP BY EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created))`
-		rows, err = db.Query(sqlStatement, year)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created),AVG(EXTRACT(DAY FROM (purchase_delivery_note.date_created - purchase_order.date_created))) FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order_detail.order=purchase_order.id INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON purchase_delivery_note.id=warehouse_movement.purchase_delivery_note WHERE purchase_order.lines_number>0 AND purchase_order.lines_number=purchase_order.delivery_note_lines AND EXTRACT(YEAR FROM purchase_order.date_created)=$1 AND purchase_order.enterprise=$2 GROUP BY EXTRACT(YEAR FROM purchase_order.date_created),EXTRACT(MONTH FROM purchase_order.date_created))`
+		rows, err = db.Query(sqlStatement, year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -196,16 +196,16 @@ type PurchaseOrdersByMonthAmount struct {
 }
 
 // Purchase orders by months (amount)
-func purchaseOrdersByMonthAmount(year *int16) []PurchaseOrdersByMonthAmount {
+func purchaseOrdersByMonthAmount(year *int16, enterpriseId int32) []PurchaseOrdersByMonthAmount {
 	amounts := make([]PurchaseOrdersByMonthAmount, 0)
 	var rows *sql.Rows
 	var err error
 	if year == nil {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),SUM(total_amount) FROM purchase_order GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created)`
-		rows, err = db.Query(sqlStatement)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),SUM(total_amount) FROM purchase_order WHERE enterprise=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created)`
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
-		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),SUM(total_amount) FROM purchase_order WHERE EXTRACT(YEAR FROM date_created)=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created)`
-		rows, err = db.Query(sqlStatement, year)
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created),SUM(total_amount) FROM purchase_order WHERE enterprise=$2 AND EXTRACT(YEAR FROM date_created)=$1 GROUP BY EXTRACT(YEAR FROM date_created),EXTRACT(MONTH FROM date_created)`
+		rows, err = db.Query(sqlStatement, year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -229,16 +229,16 @@ type PaymentMethodsSaleOrdersQuantity struct {
 }
 
 // Payment methods of the sale orders
-func paymentMethodsSaleOrdersAmount(year *int16) []PaymentMethodsSaleOrdersQuantity {
+func paymentMethodsSaleOrdersAmount(year *int16, enterpriseId int32) []PaymentMethodsSaleOrdersQuantity {
 	quantity := make([]PaymentMethodsSaleOrdersQuantity, 0)
 	var rows *sql.Rows
 	var err error
 	if year == nil {
-		sqlStatement := `SELECT COUNT(*),payment_method,(SELECT name FROM payment_method WHERE sales_order.payment_method=payment_method.id) FROM sales_order GROUP BY payment_method`
-		rows, err = db.Query(sqlStatement)
+		sqlStatement := `SELECT COUNT(*),payment_method,(SELECT name FROM payment_method WHERE sales_order.payment_method=payment_method.id) FROM sales_order WHERE enterprise=$1 GROUP BY payment_method`
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
-		sqlStatement := `SELECT COUNT(*),payment_method,(SELECT name FROM payment_method WHERE sales_order.payment_method=payment_method.id) FROM sales_order WHERE EXTRACT(YEAR FROM date_created)=$1 GROUP BY payment_method`
-		rows, err = db.Query(sqlStatement, year)
+		sqlStatement := `SELECT COUNT(*),payment_method,(SELECT name FROM payment_method WHERE sales_order.payment_method=payment_method.id) FROM sales_order WHERE enterprise=$2 AND EXTRACT(YEAR FROM date_created)=$1 GROUP BY payment_method`
+		rows, err = db.Query(sqlStatement, year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -268,25 +268,25 @@ type CountriesSaleOrdersAmount struct {
 }
 
 // Sales by countries (amount)
-func (q *CountriesSaleOrdersQuery) countriesSaleOrdersAmount() []CountriesSaleOrdersAmount {
+func (q *CountriesSaleOrdersQuery) countriesSaleOrdersAmount(enterpriseId int32) []CountriesSaleOrdersAmount {
 	quantity := make([]CountriesSaleOrdersAmount, 0)
 	var rows *sql.Rows
 	var err error
 	sqlStatement := ``
 	if q.Year == nil {
 		if q.ShippingAddress {
-			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.shipping_address INNER JOIN country ON country.id=address.country GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
+			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.shipping_address INNER JOIN country ON country.id=address.country WHERE sales_order.enterprise=$1 GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
 		} else {
-			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.billing_address INNER JOIN country ON country.id=address.country GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
+			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.billing_address INNER JOIN country ON country.id=address.country WHERE sales_order.enterprise=$1 GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
 		}
-		rows, err = db.Query(sqlStatement)
+		rows, err = db.Query(sqlStatement, enterpriseId)
 	} else {
 		if q.ShippingAddress {
-			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.shipping_address INNER JOIN country ON country.id=address.country WHERE EXTRACT(YEAR FROM date_created)=$1 GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
+			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.shipping_address INNER JOIN country ON country.id=address.country WHERE EXTRACT(YEAR FROM date_created)=$1 AND enterprise=$2 GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
 		} else {
-			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.billing_address INNER JOIN country ON country.id=address.country WHERE EXTRACT(YEAR FROM date_created)=$1 GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
+			sqlStatement = `SELECT SUM(sales_order.total_amount),country.id,country.name FROM sales_order INNER JOIN address ON address.id=sales_order.billing_address INNER JOIN country ON country.id=address.country WHERE EXTRACT(YEAR FROM date_created)=$1 AND enterprise=$2 GROUP BY country.id ORDER BY SUM(sales_order.total_amount) DESC LIMIT 10`
 		}
-		rows, err = db.Query(sqlStatement, q.Year)
+		rows, err = db.Query(sqlStatement, q.Year, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -315,12 +315,12 @@ type ManufacturingOrderCreatedManufactured struct {
 }
 
 // Manufacturing orders created/manufactured daily
-func manufacturingOrderCreatedManufacturedDaily() ManufacturingOrderCreatedManufactured {
+func manufacturingOrderCreatedManufacturedDaily(enterpriseId int32) ManufacturingOrderCreatedManufactured {
 	quantity := ManufacturingOrderCreatedManufactured{}
 	quantity.Created = make([]ManufacturingOrderCreatedManufacturedDaily, 0)
 	quantity.Manufactured = make([]ManufacturingOrderCreatedManufacturedDaily, 0)
-	sqlStatement := `SELECT date_created::date,COUNT(*) FROM manufacturing_order GROUP BY date_created::date ORDER BY date_created::date`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT date_created::date,COUNT(*) FROM manufacturing_order WHERE enterprise=$1 GROUP BY date_created::date ORDER BY date_created::date`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return quantity
@@ -332,8 +332,8 @@ func manufacturingOrderCreatedManufacturedDaily() ManufacturingOrderCreatedManuf
 		quantity.Created = append(quantity.Created, d)
 	}
 
-	sqlStatement = `SELECT date_manufactured::date,COUNT(*) FROM manufacturing_order WHERE date_manufactured IS NOT NULL GROUP BY date_manufactured::date ORDER BY date_manufactured::date`
-	rows, err = db.Query(sqlStatement)
+	sqlStatement = `SELECT date_manufactured::date,COUNT(*) FROM manufacturing_order WHERE date_manufactured IS NOT NULL AND enterprise=$1 GROUP BY date_manufactured::date ORDER BY date_manufactured::date`
+	rows, err = db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return quantity
@@ -355,10 +355,10 @@ type DailyShippingQuantity struct {
 }
 
 // Daily shipping (quantity)
-func dailyShippingQuantity() []DailyShippingQuantity {
+func dailyShippingQuantity(enterpriseId int32) []DailyShippingQuantity {
 	quantity := make([]DailyShippingQuantity, 0)
-	sqlStatement := `SELECT date_created::date,COUNT(*) FROM shipping GROUP BY date_created::date ORDER BY date_created::date`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT date_created::date,COUNT(*) FROM shipping WHERE enterprise=$1 GROUP BY date_created::date ORDER BY date_created::date`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return quantity
@@ -381,10 +381,10 @@ type ShippingByCarriers struct {
 }
 
 // Shippings by carrier
-func shippingByCarriers() []ShippingByCarriers {
+func shippingByCarriers(enterpriseId int32) []ShippingByCarriers {
 	quantity := make([]ShippingByCarriers, 0)
-	sqlStatement := `SELECT COUNT(*),carrier,(SELECT name FROM carrier WHERE carrier.id=shipping.carrier) FROM shipping GROUP BY carrier`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT COUNT(*),carrier,(SELECT name FROM carrier WHERE carrier.id=shipping.carrier) FROM shipping WHERE enterprise=$1 GROUP BY carrier`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return quantity

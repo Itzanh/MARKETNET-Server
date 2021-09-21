@@ -19,14 +19,14 @@ const WOOCOMMERCE_PROCESSING = "processing"
 // GENERIC FUNCTIONS
 // =====
 
-func getWooCommerceAPI_URL(resourceName string) string {
-	s := getSettingsRecord()
+func getWooCommerceAPI_URL(resourceName string, enterpriseId int32) string {
+	s := getSettingsRecordById(enterpriseId)
 
 	return s.WooCommerceUrl + resourceName
 }
 
-func getWooCommerceJSON(URL string) ([]byte, error) {
-	s := getSettingsRecord()
+func getWooCommerceJSON(URL string, enterpriseId int32) ([]byte, error) {
+	s := getSettingsRecordById(enterpriseId)
 
 	// OAuth 1.0 request
 	config := oauth1.NewConfig(s.WooCommerceConsumerKey, s.WooCommerceConsumerSecret)
@@ -151,30 +151,30 @@ func (j *WcJsonDateTime) ToTime() time.Time {
 }
 
 // main import function
-func importFromWooCommerce() {
-	s := getSettingsRecord()
+func importFromWooCommerce(enterpriseId int32) {
+	s := getSettingsRecordById(enterpriseId)
 	if s.Ecommerce != "W" {
 		return
 	}
 
 	// get all data from WooCommerce, write it in tables like the ones that WooCommerce uses
-	importWcCustomers()
-	importWcProducts()
-	importWcOrders()
+	importWcCustomers(enterpriseId)
+	importWcProducts(enterpriseId)
+	importWcOrders(enterpriseId)
 
 	// trasnfer the data form the WooCommerce tables to the ERP
-	copyWcCustomers()
-	copyWcProducts()
-	copyWcOrders()
+	copyWcCustomers(enterpriseId)
+	copyWcProducts(enterpriseId)
+	copyWcOrders(enterpriseId)
 }
 
 // =====
 // COPY THE DATA FROM WOOCOMMERCE TO THE WC MARKETNET TABLES
 // =====
 
-func importWcCustomers() {
-	url := getWooCommerceAPI_URL("customers")
-	jsonWC, err := getWooCommerceJSON(url)
+func importWcCustomers(enterpriseId int32) {
+	url := getWooCommerceAPI_URL("customers", enterpriseId)
+	jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -182,33 +182,33 @@ func importWcCustomers() {
 	var customers []WCCustomer
 	json.Unmarshal(jsonWC, &customers)
 
-	sqlStatement := `UPDATE public.wc_customers SET wc_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.wc_customers SET wc_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(customers); i++ {
 		customer := customers[i]
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM wc_customers WHERE id=$1`
-		row := db.QueryRow(sqlStatement, customer.Id)
+		sqlStatement := `SELECT COUNT(*) FROM wc_customers WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, customer.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.wc_customers(id, date_created, email, first_name, last_name, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, billing_company) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
-			db.Exec(sqlStatement, customer.Id, customer.DateCreated.ToTime(), customer.Email, customer.FirstName, customer.LastName, customer.Billing.Address1, customer.Billing.Address2, customer.Billing.City, customer.Billing.PostCode, customer.Billing.Country, customer.Billing.State, customer.Billing.Phone, customer.Shipping.Address1, customer.Shipping.Address2, customer.Shipping.City, customer.Shipping.PostCode, customer.Shipping.Country, customer.Shipping.State, customer.Shipping.Phone, customer.Billing.Company)
+			sqlStatement := `INSERT INTO public.wc_customers(id, date_created, email, first_name, last_name, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, billing_company, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`
+			db.Exec(sqlStatement, customer.Id, customer.DateCreated.ToTime(), customer.Email, customer.FirstName, customer.LastName, customer.Billing.Address1, customer.Billing.Address2, customer.Billing.City, customer.Billing.PostCode, customer.Billing.Country, customer.Billing.State, customer.Billing.Phone, customer.Shipping.Address1, customer.Shipping.Address2, customer.Shipping.City, customer.Shipping.PostCode, customer.Shipping.Country, customer.Shipping.State, customer.Shipping.Phone, customer.Billing.Company, enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.wc_customers SET date_created=$2, email=$3, first_name=$4, last_name=$5, billing_address_1=$6, billing_address_2=$7, billing_city=$8, billing_postcode=$9, billing_country=$10, billing_state=$11, billing_phone=$12, shipping_address_1=$13, shipping_address_2=$14, shipping_city=$15, shipping_postcode=$16, shipping_country=$17, shipping_state=$18, shipping_phone=$19, billing_company=$20, wc_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, customer.Id, customer.DateCreated.ToTime(), customer.Email, customer.FirstName, customer.LastName, customer.Billing.Address1, customer.Billing.Address2, customer.Billing.City, customer.Billing.PostCode, customer.Billing.Country, customer.Billing.State, customer.Billing.Phone, customer.Shipping.Address1, customer.Shipping.Address2, customer.Shipping.City, customer.Shipping.PostCode, customer.Shipping.Country, customer.Shipping.State, customer.Shipping.Phone, customer.Billing.Company)
+			sqlStatement := `UPDATE public.wc_customers SET date_created=$2, email=$3, first_name=$4, last_name=$5, billing_address_1=$6, billing_address_2=$7, billing_city=$8, billing_postcode=$9, billing_country=$10, billing_state=$11, billing_phone=$12, shipping_address_1=$13, shipping_address_2=$14, shipping_city=$15, shipping_postcode=$16, shipping_country=$17, shipping_state=$18, shipping_phone=$19, billing_company=$20, wc_exists=true WHERE id=$1 AND enterprise=$21`
+			db.Exec(sqlStatement, customer.Id, customer.DateCreated.ToTime(), customer.Email, customer.FirstName, customer.LastName, customer.Billing.Address1, customer.Billing.Address2, customer.Billing.City, customer.Billing.PostCode, customer.Billing.Country, customer.Billing.State, customer.Billing.Phone, customer.Shipping.Address1, customer.Shipping.Address2, customer.Shipping.City, customer.Shipping.PostCode, customer.Shipping.Country, customer.Shipping.State, customer.Shipping.Phone, customer.Billing.Company, enterpriseId)
 		}
 	}
 
-	sqlStatement = `DELETE FROM public.wc_customers WHERE wc_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.wc_customers WHERE wc_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importWcProducts() {
-	url := getWooCommerceAPI_URL("products")
-	jsonWC, err := getWooCommerceJSON(url)
+func importWcProducts(enterpriseId int32) {
+	url := getWooCommerceAPI_URL("products", enterpriseId)
+	jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -216,16 +216,16 @@ func importWcProducts() {
 	var products []WCProduct
 	json.Unmarshal(jsonWC, &products)
 
-	sqlStatement := `UPDATE public.wc_products SET wc_exists=false`
-	db.Exec(sqlStatement)
-	sqlStatement = `UPDATE public.wc_product_variations SET wc_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.wc_products SET wc_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
+	sqlStatement = `UPDATE public.wc_product_variations SET wc_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(products); i++ {
 		product := products[i]
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM wc_products WHERE id=$1`
-		row := db.QueryRow(sqlStatement, product.Id)
+		sqlStatement := `SELECT COUNT(*) FROM wc_products WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, product.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
@@ -235,16 +235,16 @@ func importWcProducts() {
 		}
 
 		if rows == 0 { // the row does not exist, insert
-			sqlStatement := `INSERT INTO public.wc_products(id, name, date_created, description, short_description, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, images, variations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
-			db.Exec(sqlStatement, product.Id, product.Name, product.DateCreated.ToTime(), product.Description, product.ShortDescription, product.Sku, product.Price, product.Weight, product.Dimensions.Length, product.Dimensions.Width, product.Dimensions.Height, pq.Array(images), pq.Array(product.Variations))
+			sqlStatement := `INSERT INTO public.wc_products(id, name, date_created, description, short_description, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, images, variations, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+			db.Exec(sqlStatement, product.Id, product.Name, product.DateCreated.ToTime(), product.Description, product.ShortDescription, product.Sku, product.Price, product.Weight, product.Dimensions.Length, product.Dimensions.Width, product.Dimensions.Height, pq.Array(images), pq.Array(product.Variations), enterpriseId)
 		} else { // the row exists, update
-			sqlStatement := `UPDATE public.wc_products SET name=$2, date_created=$3, description=$4, short_description=$5, sku=$6, price=$7, weight=$8, dimensions_length=$9, dimensions_width=$10, dimensions_height=$11, images=$12, variations=$13, wc_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, product.Id, product.Name, product.DateCreated.ToTime(), product.Description, product.ShortDescription, product.Sku, product.Price, product.Weight, product.Dimensions.Length, product.Dimensions.Width, product.Dimensions.Height, pq.Array(images), pq.Array(product.Variations))
+			sqlStatement := `UPDATE public.wc_products SET name=$2, date_created=$3, description=$4, short_description=$5, sku=$6, price=$7, weight=$8, dimensions_length=$9, dimensions_width=$10, dimensions_height=$11, images=$12, variations=$13, wc_exists=true WHERE id=$1 AND enterprise=$14`
+			db.Exec(sqlStatement, product.Id, product.Name, product.DateCreated.ToTime(), product.Description, product.ShortDescription, product.Sku, product.Price, product.Weight, product.Dimensions.Length, product.Dimensions.Width, product.Dimensions.Height, pq.Array(images), pq.Array(product.Variations), enterpriseId)
 		}
 
 		// get the variations
-		url := getWooCommerceAPI_URL("products") + "/" + strconv.Itoa(int(product.Id)) + "/variations/"
-		jsonWC, err := getWooCommerceJSON(url)
+		url := getWooCommerceAPI_URL("products", enterpriseId) + "/" + strconv.Itoa(int(product.Id)) + "/variations/"
+		jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 		if err != nil {
 			continue
 		}
@@ -256,8 +256,8 @@ func importWcProducts() {
 		for j := 0; j < len(variations); j++ {
 			variation := variations[j]
 			// ¿does the row exist?
-			sqlStatement := `SELECT COUNT(*) FROM wc_product_variations WHERE id=$1`
-			row := db.QueryRow(sqlStatement, variation.Id)
+			sqlStatement := `SELECT COUNT(*) FROM wc_product_variations WHERE id=$1 AND enterprise=$2`
+			row := db.QueryRow(sqlStatement, variation.Id, enterpriseId)
 			var rows int32
 			row.Scan(&rows)
 
@@ -267,25 +267,25 @@ func importWcProducts() {
 			}
 
 			if rows == 0 { // the row does not exist, insert
-				sqlStatement := `INSERT INTO public.wc_product_variations(id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-				db.Exec(sqlStatement, variation.Id, variation.Sku, variation.Price, variation.Weight, variation.Dimensions.Length, variation.Dimensions.Width, variation.Dimensions.Height, pq.Array(attributes))
+				sqlStatement := `INSERT INTO public.wc_product_variations(id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+				db.Exec(sqlStatement, variation.Id, variation.Sku, variation.Price, variation.Weight, variation.Dimensions.Length, variation.Dimensions.Width, variation.Dimensions.Height, pq.Array(attributes), enterpriseId)
 			} else { // the row exists, update
-				sqlStatement := `UPDATE public.wc_product_variations SET sku=$2, price=$3, weight=$4, dimensions_length=$5, dimensions_width=$6, dimensions_height=$7, attributes=$8, wc_exists=true WHERE id=$1`
-				db.Exec(sqlStatement, variation.Id, variation.Sku, variation.Price, variation.Weight, variation.Dimensions.Length, variation.Dimensions.Width, variation.Dimensions.Height, pq.Array(attributes))
+				sqlStatement := `UPDATE public.wc_product_variations SET sku=$2, price=$3, weight=$4, dimensions_length=$5, dimensions_width=$6, dimensions_height=$7, attributes=$8, wc_exists=true WHERE id=$1 AND enterprise=$9`
+				db.Exec(sqlStatement, variation.Id, variation.Sku, variation.Price, variation.Weight, variation.Dimensions.Length, variation.Dimensions.Width, variation.Dimensions.Height, pq.Array(attributes), enterpriseId)
 			}
 		}
 
 	}
 
-	sqlStatement = `DELETE FROM public.wc_products WHERE wc_exists=false`
-	db.Exec(sqlStatement)
-	sqlStatement = `DELETE FROM public.wc_product_variations WHERE wc_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM public.wc_products WHERE wc_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
+	sqlStatement = `DELETE FROM public.wc_product_variations WHERE wc_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
-func importWcOrders() {
-	url := getWooCommerceAPI_URL("orders")
-	jsonWC, err := getWooCommerceJSON(url)
+func importWcOrders(enterpriseId int32) {
+	url := getWooCommerceAPI_URL("orders", enterpriseId)
+	jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -293,14 +293,14 @@ func importWcOrders() {
 	var orders []WCOrder
 	json.Unmarshal(jsonWC, &orders)
 
-	sqlStatement := `UPDATE public.wc_orders SET wc_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement := `UPDATE public.wc_orders SET wc_exists=false WHERE enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 
 	for i := 0; i < len(orders); i++ {
 		order := orders[i]
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM wc_orders WHERE id=$1`
-		row := db.QueryRow(sqlStatement, order.Id)
+		sqlStatement := `SELECT COUNT(*) FROM wc_orders WHERE id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, order.Id, enterpriseId)
 		var rows int32
 		row.Scan(&rows)
 
@@ -322,8 +322,8 @@ func importWcOrders() {
 				continue
 			}
 
-			sqlStatement = `INSERT INTO public.wc_orders(id, status, currency, date_created, discount_tax, shipping_total, shipping_tax, total_tax, customer_id, order_key, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, payment_method, billing_company) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`
-			db.Exec(sqlStatement, order.Id, order.Status, order.Currency, order.DateCreated.ToTime(), f_discount_tax, f_shipping_total, f_shipping_tax, f_total_tax, order.CustomerId, order.OrderKey, order.Billing.Address1, order.Billing.Address2, order.Billing.City, order.Billing.PostCode, order.Billing.Country, order.Billing.State, order.Billing.Phone, order.Shipping.Address1, order.Shipping.Address2, order.Shipping.City, order.Shipping.PostCode, order.Shipping.Country, order.Shipping.State, order.Shipping.Phone, order.PaymentMethod, order.Billing.Company)
+			sqlStatement = `INSERT INTO public.wc_orders(id, status, currency, date_created, discount_tax, shipping_total, shipping_tax, total_tax, customer_id, order_key, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, payment_method, billing_company, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`
+			db.Exec(sqlStatement, order.Id, order.Status, order.Currency, order.DateCreated.ToTime(), f_discount_tax, f_shipping_total, f_shipping_tax, f_total_tax, order.CustomerId, order.OrderKey, order.Billing.Address1, order.Billing.Address2, order.Billing.City, order.Billing.PostCode, order.Billing.Country, order.Billing.State, order.Billing.Phone, order.Shipping.Address1, order.Shipping.Address2, order.Shipping.City, order.Shipping.PostCode, order.Shipping.Country, order.Shipping.State, order.Shipping.Phone, order.PaymentMethod, order.Billing.Company, enterpriseId)
 
 			// add order details
 			for j := 0; j < len(order.LineItems); j++ {
@@ -333,29 +333,29 @@ func importWcOrders() {
 					continue
 				}
 
-				sqlStatement := `INSERT INTO public.wc_order_details(id, "order", product_id, variation_id, quantity, total_tax, price) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-				db.Exec(sqlStatement, lineItem.Id, order.Id, lineItem.ProductId, lineItem.VariationId, lineItem.Quantity, f_total_tax, lineItem.Price)
+				sqlStatement := `INSERT INTO public.wc_order_details(id, "order", product_id, variation_id, quantity, total_tax, price, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+				db.Exec(sqlStatement, lineItem.Id, order.Id, lineItem.ProductId, lineItem.VariationId, lineItem.Quantity, f_total_tax, lineItem.Price, enterpriseId)
 			}
 
 		} else { // if rows == 0
-			sqlStatement := `UPDATE public.wc_orders SET wc_exists=true WHERE id=$1`
-			db.Exec(sqlStatement, order.Id)
+			sqlStatement := `UPDATE public.wc_orders SET wc_exists=true WHERE id=$1 AND enterprise=$2`
+			db.Exec(sqlStatement, order.Id, enterpriseId)
 		}
 	} // for
 
-	sqlStatement = `DELETE FROM wc_order_details WHERE NOT (SELECT wc_exists FROM wc_orders WHERE wc_orders.id=wc_order_details."order")`
-	db.Exec(sqlStatement)
-	sqlStatement = `DELETE FROM public.wc_orders WHERE wc_exists=false`
-	db.Exec(sqlStatement)
+	sqlStatement = `DELETE FROM wc_order_details WHERE NOT (SELECT wc_exists FROM wc_orders WHERE wc_orders.id=wc_order_details."order") AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
+	sqlStatement = `DELETE FROM public.wc_orders WHERE wc_exists=false AND enterprise=$1`
+	db.Exec(sqlStatement, enterpriseId)
 }
 
 // =====
 // TRANSFER THE DATA TO THE ERP TABLES
 // =====
 
-func copyWcCustomers() {
-	sqlStatement := `SELECT id FROM public.wc_customers`
-	rows, err := db.Query(sqlStatement)
+func copyWcCustomers(enterpriseId int32) {
+	sqlStatement := `SELECT id FROM public.wc_customers WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -365,13 +365,13 @@ func copyWcCustomers() {
 		rows.Scan(&wcCustomerId)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM customer WHERE wc_id=$1`
-		rowCount := db.QueryRow(sqlStatement, wcCustomerId)
+		sqlStatement := `SELECT COUNT(*) FROM customer WHERE wc_id=$1 AND enterprise=$2`
+		rowCount := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 		var rows int32
 		rowCount.Scan(&rows)
 
-		sqlStatement = `SELECT id, date_created, email, first_name, last_name, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, billing_company FROM public.wc_customers WHERE id=$1 LIMIT 1`
-		row := db.QueryRow(sqlStatement, wcCustomerId)
+		sqlStatement = `SELECT id, date_created, email, first_name, last_name, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, billing_company FROM public.wc_customers WHERE id=$1 AND enterprise=$2 LIMIT 1`
+		row := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 		if row.Err() != nil {
 			return
 		}
@@ -417,6 +417,7 @@ func copyWcCustomers() {
 			} else if len(shippingPhone) > 0 {
 				c.Phone = shippingPhone
 			}
+			c.enterprise = enterpriseId
 			ok, customerId := c.insertCustomer()
 			if !ok {
 				continue
@@ -431,20 +432,20 @@ func copyWcCustomers() {
 			ba.ZipCode = billingPostcode
 			// search for the country by iso code
 			if len(billingCountry) == 2 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, billingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					ba.Country = countryId
 				} else {
 					log("DB", row.Err().Error())
 				}
 			} else if len(billingCountry) == 3 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, billingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					ba.Country = countryId
 				} else {
@@ -455,8 +456,8 @@ func copyWcCustomers() {
 			}
 			// search for the state
 			if len(billingState) > 0 {
-				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, billingState)
+				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, billingState, enterpriseId)
 				if row.Err() == nil {
 					var stateid int32
 					row.Scan(&stateid)
@@ -472,6 +473,7 @@ func copyWcCustomers() {
 			} else {
 				ba.PrivateOrBusiness = "B"
 			}
+			ba.enterprise = enterpriseId
 			ba.insertAddress()
 
 			// create shipping address
@@ -483,20 +485,20 @@ func copyWcCustomers() {
 			sa.ZipCode = shippingPostcode
 			// search for the country by iso code
 			if len(shippingCountry) == 2 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, shippingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
 					log("DB", row.Err().Error())
 				}
 			} else if len(shippingCountry) == 3 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, shippingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
@@ -507,8 +509,8 @@ func copyWcCustomers() {
 			}
 			// search for the state
 			if len(shippingState) > 0 {
-				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, shippingState)
+				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, shippingState, enterpriseId)
 				if row.Err() == nil {
 					var stateid int32
 					row.Scan(&stateid)
@@ -524,6 +526,7 @@ func copyWcCustomers() {
 			} else {
 				sa.PrivateOrBusiness = "B"
 			}
+			sa.enterprise = enterpriseId
 			sa.insertAddress()
 
 			// set as the main billing and shipping address
@@ -533,8 +536,8 @@ func copyWcCustomers() {
 			customer.updateCustomer()
 		} else {
 			// update the addresses
-			sqlStatement := `SELECT id FROM public.customer WHERE wc_id=$1 LIMIT 1`
-			row := db.QueryRow(sqlStatement, wcCustomerId)
+			sqlStatement := `SELECT id FROM public.customer WHERE wc_id=$1 AND enterprise=$2 LIMIT 1`
+			row := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 			if row.Err() != nil {
 				log("DB", row.Err().Error())
 				continue
@@ -543,7 +546,7 @@ func copyWcCustomers() {
 			var customerIdErp int32
 			row.Scan(&customerIdErp)
 
-			addresses := getCustomerAddresses(customerIdErp)
+			addresses := getCustomerAddresses(customerIdErp, enterpriseId)
 
 			// compare both the billing and shipping address from woocommerce with the ones that are in the erp.
 			// if the addresses are different, create new ones
@@ -552,19 +555,19 @@ func copyWcCustomers() {
 			var billingAddressFound bool = false
 			for i := 0; i < len(addresses); i++ {
 				// search for the country by iso code
-				var countryId int16
+				var countryId int32
 				var stateId *int32
 				if len(billingCountry) == 2 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, billingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
 						log("DB", row.Err().Error())
 					}
 				} else if len(billingCountry) == 3 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, billingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
@@ -575,8 +578,8 @@ func copyWcCustomers() {
 				}
 				// search for the state
 				if len(billingState) > 0 {
-					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, billingState)
+					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, billingState, enterpriseId)
 					if row.Err() == nil {
 						var id int32
 						row.Scan(&id)
@@ -609,20 +612,20 @@ func copyWcCustomers() {
 				}
 				// search for the country by iso code
 				if len(billingCountry) == 2 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, billingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 					if row.Err() == nil {
-						var countryId int16
+						var countryId int32
 						row.Scan(&countryId)
 						ba.Country = countryId
 					} else {
 						log("DB", row.Err().Error())
 					}
 				} else if len(billingCountry) == 3 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, billingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 					if row.Err() == nil {
-						var countryId int16
+						var countryId int32
 						row.Scan(&countryId)
 						ba.Country = countryId
 					} else {
@@ -633,8 +636,8 @@ func copyWcCustomers() {
 				}
 				// search for the state
 				if len(billingState) > 0 {
-					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, billingState)
+					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, billingState, enterpriseId)
 					if row.Err() == nil {
 						var stateid int32
 						row.Scan(&stateid)
@@ -645,6 +648,7 @@ func copyWcCustomers() {
 						log("DB", row.Err().Error())
 					}
 				}
+				ba.enterprise = enterpriseId
 				ba.insertAddress()
 			}
 
@@ -652,19 +656,19 @@ func copyWcCustomers() {
 			var shippingAddressFound bool = false
 			for i := 0; i < len(addresses); i++ {
 				// search for the country by iso code
-				var countryId int16
+				var countryId int32
 				var stateId *int32
 				if len(shippingCountry) == 2 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, shippingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
 						log("DB", row.Err().Error())
 					}
 				} else if len(shippingCountry) == 3 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, shippingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
@@ -675,8 +679,8 @@ func copyWcCustomers() {
 				}
 				// search for the state
 				if len(shippingState) > 0 {
-					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, shippingState)
+					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, shippingState, enterpriseId)
 					if row.Err() == nil {
 						var id int32
 						row.Scan(&id)
@@ -709,20 +713,20 @@ func copyWcCustomers() {
 				}
 				// search for the country by iso code
 				if len(shippingCountry) == 2 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, shippingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 					if row.Err() == nil {
-						var countryId int16
+						var countryId int32
 						row.Scan(&countryId)
 						sa.Country = countryId
 					} else {
 						log("DB", row.Err().Error())
 					}
 				} else if len(shippingCountry) == 3 {
-					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, shippingCountry)
+					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 					if row.Err() == nil {
-						var countryId int16
+						var countryId int32
 						row.Scan(&countryId)
 						sa.Country = countryId
 					} else {
@@ -733,8 +737,8 @@ func copyWcCustomers() {
 				}
 				// search for the state
 				if len(shippingState) > 0 {
-					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, shippingState)
+					sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, shippingState, enterpriseId)
 					if row.Err() == nil {
 						var stateid int32
 						row.Scan(&stateid)
@@ -745,6 +749,7 @@ func copyWcCustomers() {
 						log("DB", row.Err().Error())
 					}
 				}
+				sa.enterprise = enterpriseId
 				sa.insertAddress()
 			}
 
@@ -752,11 +757,11 @@ func copyWcCustomers() {
 	} // for rows.Next()
 } // copyWcCustomers
 
-func copyWcProducts() {
-	s := getSettingsRecord()
+func copyWcProducts(enterpriseId int32) {
+	s := getSettingsRecordById(enterpriseId)
 
-	sqlStatement := `SELECT id FROM public.wc_products`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT id FROM public.wc_products AND enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -766,13 +771,13 @@ func copyWcProducts() {
 		rows.Scan(&wcCustomerId)
 
 		// ¿does the row exist?
-		sqlStatement := `SELECT COUNT(*) FROM product WHERE wc_id=$1`
-		rowCount := db.QueryRow(sqlStatement, wcCustomerId)
+		sqlStatement := `SELECT COUNT(*) FROM product WHERE wc_id=$1 AND enterprise=$2`
+		rowCount := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 		var rows int32
 		rowCount.Scan(&rows)
 
-		sqlStatement = `SELECT id, name, date_created, description, short_description, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, images, variations FROM public.wc_products WHERE id=$1 LIMIT 1`
-		row := db.QueryRow(sqlStatement, wcCustomerId)
+		sqlStatement = `SELECT id, name, date_created, description, short_description, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, images, variations FROM public.wc_products WHERE id=$1 AND enterprise=$2 LIMIT 1`
+		row := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 		if row.Err() != nil {
 			return
 		}
@@ -824,6 +829,7 @@ func copyWcProducts() {
 				}
 				p.VatPercent = s.DefaultVatPercent
 				p.wooCommerceId = id
+				p.enterprise = enterpriseId
 				p.insertProduct()
 
 				for i := 0; i < len(images); i++ {
@@ -831,13 +837,13 @@ func copyWcProducts() {
 						Product: p.Id,
 						URL:     images[i],
 					}
-					pi.insertProductImage()
+					pi.insertProductImage(enterpriseId)
 				}
 			} else {
 				// the product has variations. create a new product by each variation (combination of options)
 				for i := 0; i < len(variations); i++ {
-					sqlStatement := `SELECT id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes FROM public.wc_product_variations WHERE id=$1 LIMIT 1`
-					row := db.QueryRow(sqlStatement, variations[i])
+					sqlStatement := `SELECT id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes FROM public.wc_product_variations WHERE id=$1 AND enterprise=$2 LIMIT 1`
+					row := db.QueryRow(sqlStatement, variations[i], enterpriseId)
 					if row.Err() != nil {
 						continue
 					}
@@ -884,6 +890,7 @@ func copyWcProducts() {
 					p.VatPercent = s.DefaultVatPercent
 					p.wooCommerceId = id
 					p.wooCommerceVariationId = v_id
+					p.enterprise = enterpriseId
 					p.insertProduct()
 
 					for i := 0; i < len(images); i++ {
@@ -891,15 +898,15 @@ func copyWcProducts() {
 							Product: p.Id,
 							URL:     images[i],
 						}
-						pi.insertProductImage()
+						pi.insertProductImage(enterpriseId)
 					}
 				}
 			} // else
 		} else { // if rows == 0 {
 
 			if len(variations) == 0 {
-				sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 LIMIT 1`
-				row := db.QueryRow(sqlStatement, id, 0)
+				sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 AND enterprise=$3 LIMIT 1`
+				row := db.QueryRow(sqlStatement, id, 0, enterpriseId)
 				if row.Err() != nil {
 					continue
 				}
@@ -934,8 +941,8 @@ func copyWcProducts() {
 				p.updateProduct()
 			} else { // if len(variations) == 0 {
 				for i := 0; i < len(variations); i++ {
-					sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 LIMIT 1`
-					row := db.QueryRow(sqlStatement, id, variations[i])
+					sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 AND enterprise=$3 LIMIT 1`
+					row := db.QueryRow(sqlStatement, id, variations[i], enterpriseId)
 					if row.Err() != nil {
 						continue
 					}
@@ -944,8 +951,8 @@ func copyWcProducts() {
 					row.Scan(&productId)
 					p := getProductRow(productId)
 
-					sqlStatement = `SELECT id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes FROM public.wc_product_variations WHERE id=$1 LIMIT 1`
-					row = db.QueryRow(sqlStatement, variations[i])
+					sqlStatement = `SELECT id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes FROM public.wc_product_variations WHERE id=$1 AND enterprise=$2 LIMIT 1`
+					row = db.QueryRow(sqlStatement, variations[i], enterpriseId)
 					if row.Err() != nil {
 						continue
 					}
@@ -991,11 +998,11 @@ func copyWcProducts() {
 	} // for
 } // copyWcProducts
 
-func copyWcOrders() {
-	settings := getSettingsRecord()
+func copyWcOrders(enterpriseId int32) {
+	settings := getSettingsRecordById(enterpriseId)
 
-	sqlStatement := `SELECT id, status, currency, date_created, discount_tax, shipping_total, shipping_tax, total_tax, customer_id, order_key, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, payment_method, billing_company FROM public.wc_orders;`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT id, status, currency, date_created, discount_tax, shipping_total, shipping_tax, total_tax, customer_id, order_key, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, payment_method, billing_company FROM public.wc_orders WHERE enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		return
 	}
@@ -1028,8 +1035,8 @@ func copyWcOrders() {
 		rows.Scan(&id, &status, &currency, &dateCreated, &discountTax, &shippingTotal, &shippingTax, &totalTax, &customerId, &orderKey, &billingAddress1, &billingAddress2, &billingCity, &billingPostcode, &billingCountry, &billingState, &shippingAddress1, &shippingAddress2, &shippingCity, &shippingPostcode, &shippingCountry, &shippingState, &paymentMethod, &billingCompany)
 
 		// does the order exist?
-		sqlStatement := `SELECT COUNT(id) FROM sales_order WHERE wc_id=$1`
-		row := db.QueryRow(sqlStatement, id)
+		sqlStatement := `SELECT COUNT(id) FROM sales_order WHERE wc_id=$1 AND enterprise=$2`
+		row := db.QueryRow(sqlStatement, id, enterpriseId)
 
 		var orders int32
 		row.Scan(&orders)
@@ -1039,8 +1046,8 @@ func copyWcOrders() {
 		}
 
 		// get the customer
-		sqlStatement = `SELECT id FROM customer WHERE wc_id=$1 LIMIT 1`
-		row = db.QueryRow(sqlStatement, customerId)
+		sqlStatement = `SELECT id FROM customer WHERE wc_id=$1 AND enterprise=$2 LIMIT 1`
+		row = db.QueryRow(sqlStatement, customerId, enterpriseId)
 
 		var customer int32
 		row.Scan(&customer)
@@ -1050,25 +1057,26 @@ func copyWcOrders() {
 		}
 
 		// get the payment method
-		sqlStatement = `SELECT id,paid_in_advance FROM payment_method WHERE woocommerce_module_name=$1`
-		row = db.QueryRow(sqlStatement, paymentMethod)
+		sqlStatement = `SELECT id,paid_in_advance FROM payment_method WHERE woocommerce_module_name=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, paymentMethod, enterpriseId)
 
-		var erpPaymentMethod int16
+		var erpPaymentMethod int32
 		var paidInAdvance bool
 		row.Scan(&erpPaymentMethod, &paidInAdvance)
 
-		if erpPaymentMethod == 0 { // attemp the default one in the settings (no payment method = likely a manual order)
+		if erpPaymentMethod <= 0 { // attempt the default one in the settings (no payment method = likely a manual order)
 			if settings.WooCommerceDefaultPaymentMethod == nil { // don't continue if the payment method doesn't exists
 				continue
 			}
 			erpPaymentMethod = *settings.WooCommerceDefaultPaymentMethod
+			paidInAdvance = getPaymentMethodRow(erpPaymentMethod).PaidInAdvance
 		}
 
 		// get the currency
-		sqlStatement = `SELECT id FROM currency WHERE iso_code=$1`
-		row = db.QueryRow(sqlStatement, currency)
+		sqlStatement = `SELECT id FROM currency WHERE iso_code=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, currency, enterpriseId)
 
-		var erpCurrency int16
+		var erpCurrency int32
 		row.Scan(&erpCurrency)
 
 		if erpCurrency == 0 { // don't continue if the currency doesn't exists
@@ -1078,9 +1086,9 @@ func copyWcOrders() {
 		// get the billing address
 		var billingAddress int32
 		var billingZone string
-		customerAddresses := getCustomerAddresses(customer)
+		customerAddresses := getCustomerAddresses(customer, enterpriseId)
 		for i := 0; i < len(customerAddresses); i++ {
-			country := getCountryRow(customerAddresses[i].Country)
+			country := getCountryRow(customerAddresses[i].Country, enterpriseId)
 			if customerAddresses[i].Address == billingAddress1 && customerAddresses[i].Address2 == billingAddress2 && customerAddresses[i].City == billingCity && customerAddresses[i].ZipCode == billingPostcode && (country.Iso2 == billingCountry || country.Iso3 == billingCountry) {
 				billingAddress = customerAddresses[i].Id
 				billingZone = country.Zone
@@ -1102,20 +1110,20 @@ func copyWcOrders() {
 			}
 			// search for the country by iso code
 			if len(billingCountry) == 2 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, billingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					ba.Country = countryId
 				} else {
 					log("DB", row.Err().Error())
 				}
 			} else if len(billingCountry) == 3 {
-				sqlStatement := `SELECT id, zone FROM public.country WHERE iso_3=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, billingCountry)
+				sqlStatement := `SELECT id, zone FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, billingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId, &billingZone)
 					ba.Country = countryId
 				} else {
@@ -1126,8 +1134,8 @@ func copyWcOrders() {
 			}
 			// search for the state
 			if len(billingState) > 0 {
-				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, billingState)
+				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, billingState, enterpriseId)
 				if row.Err() == nil {
 					var stateid int32
 					row.Scan(&stateid)
@@ -1138,6 +1146,7 @@ func copyWcOrders() {
 					log("DB", row.Err().Error())
 				}
 			}
+			ba.enterprise = enterpriseId
 			ba.insertAddress()
 			billingAddress = ba.Id
 		}
@@ -1145,7 +1154,7 @@ func copyWcOrders() {
 		// get the shipping address
 		var shippingAddress int32
 		for i := 0; i < len(customerAddresses); i++ {
-			country := getCountryRow(customerAddresses[i].Country)
+			country := getCountryRow(customerAddresses[i].Country, enterpriseId)
 			if customerAddresses[i].Address == shippingAddress1 && customerAddresses[i].Address2 == shippingAddress2 && customerAddresses[i].City == shippingCity && customerAddresses[i].ZipCode == shippingPostcode && (country.Iso2 == shippingCountry || country.Iso3 == shippingCountry) {
 				shippingAddress = customerAddresses[i].Id
 				break
@@ -1166,20 +1175,20 @@ func copyWcOrders() {
 			}
 			// search for the country by iso code
 			if len(shippingCountry) == 2 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, shippingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_2=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
 					log("DB", row.Err().Error())
 				}
 			} else if len(shippingCountry) == 3 {
-				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, shippingCountry)
+				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, shippingCountry, enterpriseId)
 				if row.Err() == nil {
-					var countryId int16
+					var countryId int32
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
@@ -1190,8 +1199,8 @@ func copyWcOrders() {
 			}
 			// search for the state
 			if len(shippingState) > 0 {
-				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 LIMIT 1`
-				row := db.QueryRow(sqlStatement, shippingState)
+				sqlStatement := `SELECT id FROM public.state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
+				row := db.QueryRow(sqlStatement, shippingState, enterpriseId)
 				if row.Err() == nil {
 					var stateid int32
 					row.Scan(&stateid)
@@ -1202,6 +1211,7 @@ func copyWcOrders() {
 					log("DB", row.Err().Error())
 				}
 			}
+			sa.enterprise = enterpriseId
 			sa.insertAddress()
 			shippingAddress = sa.Id
 		}
@@ -1226,6 +1236,7 @@ func copyWcOrders() {
 			s.BillingSeries = *settings.WooCommerceInteriorSerie
 		}
 
+		s.enterprise = enterpriseId
 		ok, orderId := s.insertSalesOrder()
 		if !ok {
 			continue
@@ -1242,8 +1253,8 @@ func copyWcOrders() {
 		c.updateCustomer()
 
 		// insert the details
-		sqlStatement = `SELECT id, product_id, variation_id, quantity, total_tax, price FROM public.wc_order_details WHERE "order"=$1`
-		rows, err := db.Query(sqlStatement, id)
+		sqlStatement = `SELECT id, product_id, variation_id, quantity, total_tax, price FROM public.wc_order_details WHERE "order"=$1 AND enterprise=$2`
+		rows, err := db.Query(sqlStatement, id, enterpriseId)
 		if err != nil {
 			return
 		}
@@ -1258,8 +1269,8 @@ func copyWcOrders() {
 			rows.Scan(&id, &productId, &variationId, &quantity, &totalTax, &price)
 
 			// get the product
-			sqlStatement = `SELECT id, vat_percent FROM product WHERE wc_id=$1 AND wc_variation_id=$2`
-			row = db.QueryRow(sqlStatement, productId, variationId)
+			sqlStatement = `SELECT id, vat_percent FROM product WHERE wc_id=$1 AND wc_variation_id=$2 AND enterprise=$3`
+			row = db.QueryRow(sqlStatement, productId, variationId, enterpriseId)
 
 			var product int32
 			var vatPercent float32
@@ -1282,6 +1293,7 @@ func copyWcOrders() {
 			}
 
 			d.wooCommerceId = id
+			d.enterprise = enterpriseId
 			d.insertSalesOrderDetail()
 
 		} // for rows.Next() {
@@ -1289,7 +1301,7 @@ func copyWcOrders() {
 		// if the payment method is paid in advance, it means that this order is already paid (by VISA o PayPal etc)
 		// automatically generate an invoice for this payment
 		if paidInAdvance {
-			invoiceAllSaleOrder(orderId)
+			invoiceAllSaleOrder(orderId, enterpriseId)
 		}
 
 	} // for rows.Next() {
@@ -1300,13 +1312,13 @@ type WooCommerceStatusUpdate struct {
 	Status string `json:"status"`
 }
 
-func updateTrackingNumberWooCommerceOrder(salesOrderId int32, trackingNumber string) bool {
+func updateTrackingNumberWooCommerceOrder(salesOrderId int64, trackingNumber string, enterpriseId int32) bool {
 	// Currently not supported! (WooCommerce's web service does not have a tracking number field in the order)
 	return true
 }
 
-func updateStatusPaymentAcceptedWooCommerce(salesOrderId int32) bool {
-	settings := getSettingsRecord()
+func updateStatusPaymentAcceptedWooCommerce(salesOrderId int64, enterpriseId int32) bool {
+	settings := getSettingsRecordById(enterpriseId)
 	if settings.Ecommerce != "W" {
 		return false
 	}

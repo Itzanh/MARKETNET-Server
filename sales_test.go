@@ -38,7 +38,7 @@ func TestGetSalesOrder(t *testing.T) {
 	}
 
 	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
-	o := q.getSalesOrder()
+	o := q.getSalesOrder(1)
 
 	for i := 0; i < len(o.Orders); i++ {
 		if o.Orders[i].Id <= 0 {
@@ -105,7 +105,7 @@ func TestGetStatusSalesOrder(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getSalesOrderPreparation()
+	o := getSalesOrderPreparation(1)
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -114,7 +114,7 @@ func TestGetStatusSalesOrder(t *testing.T) {
 		}
 	}
 
-	o = getSalesOrderAwaitingShipping()
+	o = getSalesOrderAwaitingShipping(1)
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -123,7 +123,7 @@ func TestGetStatusSalesOrder(t *testing.T) {
 		}
 	}
 
-	o = getSalesOrderStatus("A")
+	o = getSalesOrderStatus("A", 1)
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -151,7 +151,7 @@ func TestLocateSaleOrder(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := locateSaleOrder()
+	o := locateSaleOrder(1)
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -179,6 +179,7 @@ func TestIsValidSalesOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 	if !o.isValid() {
 		t.Error("Incorrect is valid in sale order.")
@@ -201,6 +202,7 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	ok, orderId := o.insertSalesOrder()
@@ -210,9 +212,10 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o.Id = orderId
-	carrer := int16(1)
+	carrer := int32(1)
 	o.Carrier = &carrer
 
+	o.enterprise = 1
 	ok = o.updateSalesOrder()
 	if !ok || orderId <= 0 {
 		t.Error("Update error, sale order not updated.")
@@ -225,6 +228,7 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
+	o.enterprise = 1
 	ok = o.deleteSalesOrder()
 	if !ok {
 		t.Error("Delete error, sale order not deleted.")
@@ -239,7 +243,7 @@ func TestGetSaleOrderDefaults(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	d := getSaleOrderDefaults()
+	d := getSaleOrderDefaults(1)
 	if len(d.Warehouse) == 0 || len(d.WarehouseName) == 0 {
 		t.Error("Can't get sales order defaults, empty defaults.")
 	}
@@ -251,7 +255,7 @@ func TestGetSalesOrderRelations(t *testing.T) {
 	}
 
 	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
-	o := q.getSalesOrder()
+	o := q.getSalesOrder(1)
 
 	var checkInvoices int8 = 0            // 0 = Not checked, 1 = OK, 2 = Error
 	var checkManufacturingOrders int8 = 0 // 0 = Not checked, 1 = OK, 2 = Error
@@ -259,7 +263,7 @@ func TestGetSalesOrderRelations(t *testing.T) {
 	var checkShippings int8 = 0           // 0 = Not checked, 1 = OK, 2 = Error
 
 	for i := 0; i < len(o.Orders); i++ {
-		r := getSalesOrderRelations(o.Orders[i].Id)
+		r := getSalesOrderRelations(o.Orders[i].Id, 1)
 
 		if checkInvoices == 0 && len(r.Invoices) > 0 {
 			if r.Invoices[0].Id <= 0 {
@@ -312,7 +316,7 @@ func TestGetRowStatusSalesOrderDetail(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	d := getSalesOrderDetail(1)
+	d := getSalesOrderDetail(1, 1)
 	for i := 0; i < len(d); i++ {
 		if d[i].Id <= 0 {
 			t.Error("Scan error, sale order details with ID 0.")
@@ -360,7 +364,7 @@ func TestGetSalesOrderDetailPurchaseOrderPending(t *testing.T) {
 	}
 
 	for i := 1; i < MAX_INT32; i++ {
-		d := getSalesOrderDetailPurchaseOrderPending(int32(i))
+		d := getSalesOrderDetailPurchaseOrderPending(int64(i))
 		if len(d) > 0 {
 			if d[0].Id <= 0 {
 				t.Error("Scan error, sale order details with ID 0.")
@@ -416,6 +420,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -426,6 +431,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	// test insert
@@ -436,7 +442,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check the total amount is correct
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
 	if len(details) == 0 || details[0].Id <= 0 {
 		t.Error("Can't retrieve the sale order details")
 		return
@@ -461,13 +467,14 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 
 	// attemp to update quantity
 	details[0].Quantity = 4
+	details[0].enterprise = 1
 	ok = details[0].updateSalesOrderDetail()
 	if !ok {
 		t.Error("Update error, sale order detail not updated")
 		return
 	}
 
-	details = getSalesOrderDetail(orderId)
+	details = getSalesOrderDetail(orderId, 1)
 	if len(details) == 0 || details[0].Id <= 0 {
 		t.Error("Can't retrieve the sale order details")
 		return
@@ -493,13 +500,13 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// cancel the detail, check if cancelled
-	ok = cancelSalesOrderDetail(details[0].Id)
+	ok = cancelSalesOrderDetail(details[0].Id, 1)
 	if !ok {
 		t.Error("Sale order detail could not be cancelled")
 		return
 	}
 
-	details = getSalesOrderDetail(orderId)
+	details = getSalesOrderDetail(orderId, 1)
 	if len(details) == 0 || details[0].Id <= 0 {
 		t.Error("Can't retrieve the sale order details")
 		return
@@ -510,13 +517,13 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// uncancel the detail, check if uncancelled
-	ok = cancelSalesOrderDetail(details[0].Id)
+	ok = cancelSalesOrderDetail(details[0].Id, 1)
 	if !ok {
 		t.Error("Sale order detail could not be uncancelled")
 		return
 	}
 
-	details = getSalesOrderDetail(orderId)
+	details = getSalesOrderDetail(orderId, 1)
 	if len(details) == 0 || details[0].Id <= 0 {
 		t.Error("Can't retrieve the sale order details")
 		return
@@ -527,6 +534,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// attempt delete
+	details[0].enterprise = 1
 	ok = details[0].deleteSalesOrderDetail()
 	if !ok {
 		t.Error("Delete error, sale order detail not deleted")
@@ -541,6 +549,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -553,12 +562,12 @@ func TestGetSalesInvoices(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	o := q.getSalesInvoices()
 
 	for i := 0; i < len(o.Invoices); i++ {
 		if o.Invoices[i].Id <= 0 {
-			t.Error("Scan error, sale invoices with ID 0.")
+			t.Error("Scan error, sale invoices with ID 0")
 			return
 		}
 	}
@@ -570,7 +579,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}}}
+	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}}
 	si := q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
@@ -581,7 +590,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, Search: "1"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "1"}}
 	si = q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
@@ -592,7 +601,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, Search: "Itzan"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "Itzan"}}
 	si = q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
@@ -605,7 +614,7 @@ func TestSearchSalesInvoices(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}}, DateStart: &start, DateEnd: &end}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	si = q.searchSalesInvoices()
 
 	for i := 0; i < len(si.Invoices); i++ {
@@ -642,6 +651,7 @@ func TestSaleInvoiceInsertUpdateDelete(t *testing.T) {
 		BillingSeries:  "INT",
 		Currency:       1,
 		BillingAddress: 1,
+		enterprise:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice()
@@ -675,6 +685,7 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -685,18 +696,19 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	d.insertSalesOrderDetail()
 
-	ok := invoiceAllSaleOrder(orderId)
+	ok := invoiceAllSaleOrder(orderId, 1)
 	if !ok {
 		t.Error("Could not invoice all sale order")
 		return
 	}
 
 	// get invoice from the sale order relations
-	r := getSalesOrderRelations(orderId)
+	r := getSalesOrderRelations(orderId, 1)
 
 	if len(r.Invoices) == 0 {
 		t.Error("The invoice has not loaded from the sale order relations")
@@ -717,7 +729,7 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 		return
 	}
 
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
 	if details[0].QuantityInvoiced == 0 {
 		t.Error("The quantity invoiced in the sale order detail has not been updated")
 		return
@@ -731,8 +743,10 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created order
+	details[0].enterprise = 1
 	details[0].deleteSalesOrderDetail()
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -751,6 +765,7 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -761,10 +776,11 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 		Price:      9.99,
 		Quantity:   4,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	d.insertSalesOrderDetail()
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
 
 	invoiceInfo := OrderDetailGenerate{
 		OrderId: orderId,
@@ -775,14 +791,14 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.invoicePartiallySaleOrder()
+	ok := invoiceInfo.invoicePartiallySaleOrder(1)
 	if !ok {
 		t.Error("Could not invoice partially sale order")
 		return
 	}
 
 	// get invoice from the sale order relations
-	r := getSalesOrderRelations(orderId)
+	r := getSalesOrderRelations(orderId, 1)
 
 	if len(r.Invoices) == 0 {
 		t.Error("The invoice has not loaded from the sale order relations")
@@ -803,7 +819,7 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 		return
 	}
 
-	details = getSalesOrderDetail(orderId)
+	details = getSalesOrderDetail(orderId, 1)
 	if details[0].QuantityInvoiced == 0 {
 		t.Error("The quantity invoiced in the sale order detail has not been updated")
 		return
@@ -817,8 +833,10 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created order
+	details[0].enterprise = 1
 	details[0].deleteSalesOrderDetail()
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -827,14 +845,14 @@ func TestGetSalesInvoiceRelations(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	o := q.getSalesInvoices()
 
 	var checkOrders int8 = 0        // 0 = Not checked, 1 = OK, 2 = Error
 	var checkDeliveryNotes int8 = 0 // 0 = Not checked, 1 = OK, 2 = Error
 
 	for i := 0; i < len(o.Invoices); i++ {
-		r := getSalesInvoiceRelations(o.Invoices[i].Id)
+		r := getSalesInvoiceRelations(o.Invoices[i].Id, 1)
 
 		if checkOrders == 0 && len(r.Orders) > 0 {
 			if r.Orders[0].Id <= 0 {
@@ -871,7 +889,7 @@ func TestGetSalesInvoiceDetail(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	d := getSalesInvoiceDetail(1)
+	d := getSalesInvoiceDetail(1, 1)
 
 	for i := 0; i < len(d); i++ {
 		if d[i].Id <= 0 {
@@ -907,6 +925,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		BillingSeries:  "INT",
 		Currency:       1,
 		BillingAddress: 1,
+		enterprise:     1,
 	}
 
 	_, invoiceId := i.insertSalesInvoice()
@@ -917,6 +936,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	ok := d.insertSalesInvoiceDetail(true)
@@ -926,7 +946,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check if the totals are the same
-	details := getSalesInvoiceDetail(invoiceId)
+	details := getSalesInvoiceDetail(invoiceId, 1)
 	invoice := getSalesInvoiceRow(invoiceId)
 	if invoice.TotalAmount != details[0].TotalAmount || invoice.TotalProducts != float32(details[0].Quantity)*details[0].Price {
 		t.Error("The totals of the invoice are not updated correctly")
@@ -934,7 +954,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// delete detail
-	details = getSalesInvoiceDetail(invoiceId)
+	details = getSalesInvoiceDetail(invoiceId, 1)
 	ok = details[0].deleteSalesInvoiceDetail()
 	if !ok {
 		t.Error("Delete error, sale invoice detail not deleted")
@@ -955,7 +975,7 @@ func TestGetSalesDeliveryNotes(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	o := q.getSalesDeliveryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
@@ -972,7 +992,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}}}
+	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}}
 	o := q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
@@ -983,7 +1003,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, Search: "1"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "1"}}
 	o = q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
@@ -994,7 +1014,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, Search: "Itzan"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "Itzan"}}
 	o = q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
@@ -1007,7 +1027,7 @@ func TestSearchSalesDelvieryNotes(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}}, DateStart: &start, DateEnd: &end}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchSalesDelvieryNotes()
 
 	for i := 0; i < len(o.Notes); i++ {
@@ -1037,9 +1057,9 @@ func TestLocateSalesDeliveryNotesBySalesOrder(t *testing.T) {
 	}
 
 	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
-	o := q.getSalesOrder()
-	for i := 0; i < len(o.Orders); i++ {
-		notes := locateSalesDeliveryNotesBySalesOrder(o.Orders[i].Id)
+	o := q.getSalesOrder(1)
+	for i := len(o.Orders) - 1; i >= 0; i++ {
+		notes := locateSalesDeliveryNotesBySalesOrder(o.Orders[i].Id, 1)
 		if len(notes) > 0 {
 			if notes[0].Id == 0 {
 				t.Error("Scan error locating sale delivery notes")
@@ -1056,7 +1076,7 @@ func TestGetNameSalesDeliveryNote(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	name := getNameSalesDeliveryNote(1)
+	name := getNameSalesDeliveryNote(1, 1)
 	if name == "" {
 		t.Error("Can't get the name of the sale delivery note")
 		return
@@ -1077,6 +1097,7 @@ func TestSalesDeliveryNoteInsertUpdateDelete(t *testing.T) {
 		BillingSeries:   "EXP",
 		ShippingAddress: 1,
 		Currency:        1,
+		enterprise:      1,
 	}
 
 	ok, noteId := n.insertSalesDeliveryNotes()
@@ -1110,6 +1131,7 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -1120,18 +1142,19 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	d.insertSalesOrderDetail()
 
-	ok, noteId := deliveryNoteAllSaleOrder(orderId)
+	ok, noteId := deliveryNoteAllSaleOrder(orderId, 1)
 	if !ok {
 		t.Error("Could not delivery note all sale order")
 		return
 	}
 
 	// get note from the sale order relations
-	r := getSalesOrderRelations(orderId)
+	r := getSalesOrderRelations(orderId, 1)
 
 	if len(r.DeliveryNotes) == 0 {
 		t.Error("The note has not loaded from the sale order relations")
@@ -1152,7 +1175,7 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 		return
 	}
 
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
 	if details[0].QuantityDeliveryNote == 0 {
 		t.Error("The quantity delivery note in the sale order detail has not been updated")
 		return
@@ -1166,8 +1189,10 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created order
+	details[0].enterprise = 1
 	details[0].deleteSalesOrderDetail()
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -1186,6 +1211,7 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -1196,10 +1222,11 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 		Price:      9.99,
 		Quantity:   4,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	d.insertSalesOrderDetail()
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
 
 	invoiceInfo := OrderDetailGenerate{
 		OrderId: orderId,
@@ -1210,14 +1237,14 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.deliveryNotePartiallySaleOrder()
+	ok := invoiceInfo.deliveryNotePartiallySaleOrder(1)
 	if !ok {
 		t.Error("Could not delivery note partially sale order")
 		return
 	}
 
 	// get note from the sale order relations
-	r := getSalesOrderRelations(orderId)
+	r := getSalesOrderRelations(orderId, 1)
 
 	if len(r.DeliveryNotes) == 0 {
 		t.Error("The delivery note has not loaded from the sale order relations")
@@ -1238,7 +1265,7 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 		return
 	}
 
-	details = getSalesOrderDetail(orderId)
+	details = getSalesOrderDetail(orderId, 1)
 	if details[0].QuantityDeliveryNote == 0 {
 		t.Error("The quantity delivery note in the sale order detail has not been updated")
 		return
@@ -1252,8 +1279,10 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created order
+	details[0].enterprise = 1
 	details[0].deleteSalesOrderDetail()
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -1262,14 +1291,14 @@ func TestGetSalesDeliveryNoteRelations(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
 	o := q.getSalesDeliveryNotes()
 
 	var checkOrders int8 = 0    // 0 = Not checked, 1 = OK, 2 = Error
 	var checkShippings int8 = 0 // 0 = Not checked, 1 = OK, 2 = Error
 
 	for i := 0; i < len(o.Notes); i++ {
-		r := getSalesDeliveryNoteRelations(o.Notes[i].Id)
+		r := getSalesDeliveryNoteRelations(o.Notes[i].Id, 1)
 
 		if checkOrders == 0 && len(r.Orders) > 0 {
 			if r.Orders[0].Id <= 0 {

@@ -5,7 +5,7 @@ package main
 // The getUserGroupsIn function at the beginning of the user_group.go file.
 // The initialGroup function in the initial_data.go file, the admin always has all the permissions set.
 type Group struct {
-	Id            int16  `json:"id"`
+	Id            int32  `json:"id"`
 	Name          string `json:"name"`
 	Sales         bool   `json:"sales"`
 	Purchases     bool   `json:"purchases"`
@@ -16,19 +16,20 @@ type Group struct {
 	Admin         bool   `json:"admin"`
 	PrestaShop    bool   `json:"prestashop"`
 	Accounting    bool   `json:"accounting"`
+	enterprise    int32
 }
 
-func getGroup() []Group {
+func getGroup(enterpriseId int32) []Group {
 	var groups []Group = make([]Group, 0)
-	sqlStatement := `SELECT * FROM "group" ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM "group" WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return groups
 	}
 	for rows.Next() {
 		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting)
+		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise)
 		groups = append(groups, g)
 	}
 
@@ -44,8 +45,8 @@ func (g *Group) insertGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
-	row := db.QueryRow(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, &g.Accounting)
+	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+	row := db.QueryRow(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, g.Accounting, g.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -61,8 +62,8 @@ func (g *Group) updateGroup() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10, accounting=$11 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop, &g.Accounting)
+	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10, accounting=$11 WHERE id=$1 AND enterprise=$12`
+	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop, g.Accounting, g.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -77,8 +78,8 @@ func (g *Group) deleteGroup() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public."group" WHERE id=$1`
-	res, err := db.Exec(sqlStatement, g.Id)
+	sqlStatement := `DELETE FROM public."group" WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, g.Id, g.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -100,8 +101,8 @@ type Permissions struct {
 	Accounting    bool `json:"accounting"`
 }
 
-func getUserPermissions(userId int16) Permissions {
-	ug := getUserGroups(userId)
+func getUserPermissions(userId int32, enterpriseId int32) Permissions {
+	ug := getUserGroups(userId, enterpriseId)
 	p := Permissions{}
 
 	for i := 0; i < len(ug.GroupsIn); i++ {

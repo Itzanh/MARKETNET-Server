@@ -17,40 +17,41 @@ type PaymentTransaction struct {
 	Paid                     float32   `json:"paid"`
 	Pending                  float32   `json:"pending"`
 	DocumentName             string    `json:"documentName"`
-	PaymentMethod            int16     `json:"paymentMethod"`
+	PaymentMethod            int32     `json:"paymentMethod"`
 	BankName                 string    `json:"bankName"`
 	PaymentMethodName        string    `json:"paymentMethodName"`
 	AccountName              string    `json:"accountName"`
+	enterprise               int32
 }
 
-func getPendingPaymentTransaction() []PaymentTransaction {
+func getPendingPaymentTransaction(enterpriseId int32) []PaymentTransaction {
 	var paymentTransaction []PaymentTransaction = make([]PaymentTransaction, 0)
-	sqlStatement := `SELECT payment_transaction.*,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE status='P' ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT payment_transaction.*,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE status='P' AND enterprise=$1 ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return paymentTransaction
 	}
 	for rows.Next() {
 		p := PaymentTransaction{}
-		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.BankName, &p.PaymentMethodName, &p.AccountName)
+		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName)
 		paymentTransaction = append(paymentTransaction, p)
 	}
 
 	return paymentTransaction
 }
 
-func getPaymentTransactions(accountingMovement int64) []PaymentTransaction {
+func getPaymentTransactions(accountingMovement int64, enterpriseId int32) []PaymentTransaction {
 	var paymentTransaction []PaymentTransaction = make([]PaymentTransaction, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE accounting_movement=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, accountingMovement)
+	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE accounting_movement=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, accountingMovement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return paymentTransaction
 	}
 	for rows.Next() {
 		p := PaymentTransaction{}
-		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.BankName, &p.PaymentMethodName, &p.AccountName)
+		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName)
 		paymentTransaction = append(paymentTransaction, p)
 	}
 
@@ -66,7 +67,7 @@ func getPaymentTransactionRow(paymentTransactionId int32) PaymentTransaction {
 	}
 
 	p := PaymentTransaction{}
-	row.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod)
+	row.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise)
 
 	return p
 }
@@ -82,8 +83,8 @@ func (c *PaymentTransaction) insertPaymentTransaction() bool {
 	p := getPaymentMethodRow(c.PaymentMethod)
 	c.DateExpiration = time.Now().AddDate(0, 0, int(p.DaysExpiration))
 
-	sqlStatement := `INSERT INTO public.payment_transaction(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod)
+	sqlStatement := `INSERT INTO public.payment_transaction(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod, c.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -115,8 +116,8 @@ func (c *PaymentTransaction) deletePaymentTransaction() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.payment_transaction WHERE id=$1`
-	_, err := db.Exec(sqlStatement, c.Id)
+	sqlStatement := `DELETE FROM public.payment_transaction WHERE id=$1 AND enterprise=$2`
+	_, err := db.Exec(sqlStatement, c.Id, c.enterprise)
 
 	if err != nil {
 		log("DB", err.Error())

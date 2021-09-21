@@ -262,7 +262,7 @@ func findForeignTableName(tableName string, columnName string) string {
 	return foreignTableName
 }
 
-func exportToJSON(tableName string) string {
+func exportToJSON(tableName string, enterpriseId int32) string {
 	tableInfo := getTableAndFieldInfo()
 	var ok bool = false
 
@@ -286,56 +286,56 @@ func exportToJSON(tableName string) string {
 	var data []byte
 	switch tableName {
 	case "billing_series":
-		data, _ = json.Marshal(getBillingSeries())
+		data, _ = json.Marshal(getBillingSeries(enterpriseId))
 	case "carrier":
-		data, _ = json.Marshal(getCariers())
+		data, _ = json.Marshal(getCariers(enterpriseId))
 	case "color":
-		data, _ = json.Marshal(getColor())
+		data, _ = json.Marshal(getColor(enterpriseId))
 	case "config":
-		data, _ = json.Marshal(getSettingsRecord())
+		data, _ = json.Marshal(getSettingsRecordById(enterpriseId))
 	case "country":
-		data, _ = json.Marshal(getCountries())
+		data, _ = json.Marshal(getCountries(enterpriseId))
 	case "currency":
-		data, _ = json.Marshal(getCurrencies())
+		data, _ = json.Marshal(getCurrencies(enterpriseId))
 	case "document":
-		data, _ = json.Marshal(getDocuments())
+		data, _ = json.Marshal(getDocuments(enterpriseId))
 	case "document_container":
-		data, _ = json.Marshal(getDocumentContainer())
+		data, _ = json.Marshal(getDocumentContainer(enterpriseId))
 	case "group":
-		data, _ = json.Marshal(getGroup())
+		data, _ = json.Marshal(getGroup(enterpriseId))
 	case "incoterm":
-		data, _ = json.Marshal(getIncoterm())
+		data, _ = json.Marshal(getIncoterm(enterpriseId))
 	case "language":
-		data, _ = json.Marshal(getLanguages())
+		data, _ = json.Marshal(getLanguages(enterpriseId))
 	case "manufacturing_order":
 		q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, OrderTypeId: 0}
-		data, _ = json.Marshal(q.getManufacturingOrder())
+		data, _ = json.Marshal(q.getManufacturingOrder(enterpriseId))
 	case "manufacturing_order_type":
-		data, _ = json.Marshal(getManufacturingOrderType())
+		data, _ = json.Marshal(getManufacturingOrderType(enterpriseId))
 	case "packages":
-		data, _ = json.Marshal(getPackages())
+		data, _ = json.Marshal(getPackages(enterpriseId))
 	case "payment_method":
-		data, _ = json.Marshal(getPaymentMethods())
+		data, _ = json.Marshal(getPaymentMethods(enterpriseId))
 	case "product":
-		data, _ = json.Marshal(getProduct())
+		data, _ = json.Marshal(getProduct(enterpriseId))
 	case "product_family":
-		data, _ = json.Marshal(getProductFamilies())
+		data, _ = json.Marshal(getProductFamilies(enterpriseId))
 	case "purchase_delivery_note":
-		data, _ = json.Marshal(getPurchaseDeliveryNotes())
+		data, _ = json.Marshal(getPurchaseDeliveryNotes(enterpriseId))
 	case "purchase_invoice":
-		data, _ = json.Marshal(getPurchaseInvoices())
+		data, _ = json.Marshal(getPurchaseInvoices(enterpriseId))
 	case "purchase_order":
-		data, _ = json.Marshal(getPurchaseOrder())
+		data, _ = json.Marshal(getPurchaseOrder(enterpriseId))
 	case "shipping":
-		data, _ = json.Marshal(getShippings())
+		data, _ = json.Marshal(getShippings(enterpriseId))
 	case "state":
-		data, _ = json.Marshal(getStates())
+		data, _ = json.Marshal(getStates(enterpriseId))
 	case "suppliers":
-		data, _ = json.Marshal(getSuppliers())
+		data, _ = json.Marshal(getSuppliers(enterpriseId))
 	case "user":
-		data, _ = json.Marshal(getUser())
+		data, _ = json.Marshal(getUser(enterpriseId))
 	case "warehouse":
-		data, _ = json.Marshal(getWarehouses())
+		data, _ = json.Marshal(getWarehouses(enterpriseId))
 	default:
 		return ""
 	}
@@ -380,7 +380,7 @@ type ImportInfo struct {
 	TableName string `json:"tableName"`
 }
 
-func (f *ImportInfo) importJson() bool {
+func (f *ImportInfo) importJson(enterpriseId int32) bool {
 	if len(f.JsonData) == 0 || len(f.TableName) == 0 {
 		return false
 	}
@@ -412,6 +412,7 @@ func (f *ImportInfo) importJson() bool {
 		var address []Address
 		json.Unmarshal(jsonData, &address)
 		for i := 0; i < len(address); i++ {
+			address[i].enterprise = enterpriseId
 			ok = address[i].insertAddress()
 			if !ok {
 				trans.Rollback()
@@ -422,6 +423,7 @@ func (f *ImportInfo) importJson() bool {
 		var serie []BillingSerie
 		json.Unmarshal(jsonData, &serie)
 		for i := 0; i < len(serie); i++ {
+			serie[i].enterprise = enterpriseId
 			ok = serie[i].insertBillingSerie()
 			if !ok {
 				trans.Rollback()
@@ -432,6 +434,7 @@ func (f *ImportInfo) importJson() bool {
 		var carrier []Carrier
 		json.Unmarshal(jsonData, &carrier)
 		for i := 0; i < len(carrier); i++ {
+			carrier[i].enterprise = enterpriseId
 			ok = carrier[i].insertCarrier()
 			if !ok {
 				trans.Rollback()
@@ -442,6 +445,7 @@ func (f *ImportInfo) importJson() bool {
 		var color []Color
 		json.Unmarshal(jsonData, &color)
 		for i := 0; i < len(color); i++ {
+			color[i].enterprise = enterpriseId
 			ok = color[i].insertColor()
 			if !ok {
 				trans.Rollback()
@@ -460,6 +464,7 @@ func (f *ImportInfo) importJson() bool {
 		var country []Country
 		json.Unmarshal(jsonData, &country)
 		for i := 0; i < len(country); i++ {
+			country[i].enterprise = enterpriseId
 			ok = country[i].insertCountry()
 			if !ok {
 				trans.Rollback()
@@ -470,6 +475,7 @@ func (f *ImportInfo) importJson() bool {
 		var currency []Currency
 		json.Unmarshal(jsonData, &currency)
 		for i := 0; i < len(currency); i++ {
+			currency[i].enterprise = enterpriseId
 			ok = currency[i].insertCurrency()
 			if !ok {
 				trans.Rollback()
@@ -480,6 +486,7 @@ func (f *ImportInfo) importJson() bool {
 		var customer []Customer
 		json.Unmarshal(jsonData, &customer)
 		for i := 0; i < len(customer); i++ {
+			customer[i].enterprise = enterpriseId
 			ok, _ = customer[i].insertCustomer()
 			if !ok {
 				trans.Rollback()
@@ -490,6 +497,7 @@ func (f *ImportInfo) importJson() bool {
 		var documentContainer []DocumentContainer
 		json.Unmarshal(jsonData, &documentContainer)
 		for i := 0; i < len(documentContainer); i++ {
+			documentContainer[i].enterprise = enterpriseId
 			ok = documentContainer[i].insertDocumentContainer()
 			if !ok {
 				trans.Rollback()
@@ -500,6 +508,7 @@ func (f *ImportInfo) importJson() bool {
 		var group []Group
 		json.Unmarshal(jsonData, &group)
 		for i := 0; i < len(group); i++ {
+			group[i].enterprise = enterpriseId
 			ok = group[i].insertGroup()
 			if !ok {
 				trans.Rollback()
@@ -510,6 +519,7 @@ func (f *ImportInfo) importJson() bool {
 		var incoterm []Incoterm
 		json.Unmarshal(jsonData, &incoterm)
 		for i := 0; i < len(incoterm); i++ {
+			incoterm[i].enterprise = enterpriseId
 			ok = incoterm[i].insertIncoterm()
 			if !ok {
 				trans.Rollback()
@@ -520,6 +530,7 @@ func (f *ImportInfo) importJson() bool {
 		var language []Language
 		json.Unmarshal(jsonData, &language)
 		for i := 0; i < len(language); i++ {
+			language[i].enterprise = enterpriseId
 			ok = language[i].insertLanguage()
 			if !ok {
 				trans.Rollback()
@@ -531,6 +542,7 @@ func (f *ImportInfo) importJson() bool {
 		json.Unmarshal(jsonData, &manufacturingOrder)
 		for i := 0; i < len(manufacturingOrder); i++ {
 			manufacturingOrder[i].UserCreated = 1
+			manufacturingOrder[i].enterprise = enterpriseId
 			ok = manufacturingOrder[i].insertManufacturingOrder()
 			if !ok {
 				trans.Rollback()
@@ -541,6 +553,7 @@ func (f *ImportInfo) importJson() bool {
 		var manufacturingOrderType []ManufacturingOrderType
 		json.Unmarshal(jsonData, &manufacturingOrderType)
 		for i := 0; i < len(manufacturingOrderType); i++ {
+			manufacturingOrderType[i].enterprise = enterpriseId
 			ok = manufacturingOrderType[i].insertManufacturingOrderType()
 			if !ok {
 				trans.Rollback()
@@ -551,6 +564,7 @@ func (f *ImportInfo) importJson() bool {
 		var packages []Packages
 		json.Unmarshal(jsonData, &packages)
 		for i := 0; i < len(packages); i++ {
+			packages[i].enterprise = enterpriseId
 			ok = packages[i].insertPackage()
 			if !ok {
 				trans.Rollback()
@@ -561,6 +575,7 @@ func (f *ImportInfo) importJson() bool {
 		var paymentMethod []PaymentMethod
 		json.Unmarshal(jsonData, &paymentMethod)
 		for i := 0; i < len(paymentMethod); i++ {
+			paymentMethod[i].enterprise = enterpriseId
 			ok = paymentMethod[i].insertPaymentMethod()
 			if !ok {
 				trans.Rollback()
@@ -571,6 +586,7 @@ func (f *ImportInfo) importJson() bool {
 		var product []Product
 		json.Unmarshal(jsonData, &product)
 		for i := 0; i < len(product); i++ {
+			product[i].enterprise = enterpriseId
 			ok = product[i].insertProduct()
 			if !ok {
 				trans.Rollback()
@@ -581,6 +597,7 @@ func (f *ImportInfo) importJson() bool {
 		var productFamily []ProductFamily
 		json.Unmarshal(jsonData, &productFamily)
 		for i := 0; i < len(productFamily); i++ {
+			productFamily[i].enterprise = enterpriseId
 			ok = productFamily[i].insertProductFamily()
 			if !ok {
 				trans.Rollback()
@@ -591,6 +608,7 @@ func (f *ImportInfo) importJson() bool {
 		var purchaseDeliveryNote []PurchaseDeliveryNote
 		json.Unmarshal(jsonData, &purchaseDeliveryNote)
 		for i := 0; i < len(purchaseDeliveryNote); i++ {
+			purchaseDeliveryNote[i].enterprise = enterpriseId
 			ok, _ = purchaseDeliveryNote[i].insertPurchaseDeliveryNotes()
 			if !ok {
 				trans.Rollback()
@@ -601,6 +619,7 @@ func (f *ImportInfo) importJson() bool {
 		var purchaseInvoice []PurchaseInvoice
 		json.Unmarshal(jsonData, &purchaseInvoice)
 		for i := 0; i < len(purchaseInvoice); i++ {
+			purchaseInvoice[i].enterprise = enterpriseId
 			ok, _ = purchaseInvoice[i].insertPurchaseInvoice()
 			if !ok {
 				trans.Rollback()
@@ -611,6 +630,7 @@ func (f *ImportInfo) importJson() bool {
 		var purchaseOrder []PurchaseOrder
 		json.Unmarshal(jsonData, &purchaseOrder)
 		for i := 0; i < len(purchaseOrder); i++ {
+			purchaseOrder[i].enterprise = enterpriseId
 			ok, _ = purchaseOrder[i].insertPurchaseOrder()
 			if !ok {
 				trans.Rollback()
@@ -621,6 +641,7 @@ func (f *ImportInfo) importJson() bool {
 		var salesDeliveryNote []SalesDeliveryNote
 		json.Unmarshal(jsonData, &salesDeliveryNote)
 		for i := 0; i < len(salesDeliveryNote); i++ {
+			salesDeliveryNote[i].enterprise = enterpriseId
 			ok, _ = salesDeliveryNote[i].insertSalesDeliveryNotes()
 			if !ok {
 				trans.Rollback()
@@ -631,6 +652,7 @@ func (f *ImportInfo) importJson() bool {
 		var saleInvoice []SalesInvoice
 		json.Unmarshal(jsonData, &saleInvoice)
 		for i := 0; i < len(saleInvoice); i++ {
+			saleInvoice[i].enterprise = enterpriseId
 			ok, _ = saleInvoice[i].insertSalesInvoice()
 			if !ok {
 				trans.Rollback()
@@ -641,6 +663,7 @@ func (f *ImportInfo) importJson() bool {
 		var saleOrder []SaleOrder
 		json.Unmarshal(jsonData, &saleOrder)
 		for i := 0; i < len(saleOrder); i++ {
+			saleOrder[i].enterprise = enterpriseId
 			ok, _ = saleOrder[i].insertSalesOrder()
 			if !ok {
 				trans.Rollback()
@@ -651,6 +674,7 @@ func (f *ImportInfo) importJson() bool {
 		var shipping []Shipping
 		json.Unmarshal(jsonData, &shipping)
 		for i := 0; i < len(shipping); i++ {
+			shipping[i].enterprise = enterpriseId
 			ok, _ = shipping[i].insertShipping()
 			if !ok {
 				trans.Rollback()
@@ -661,6 +685,7 @@ func (f *ImportInfo) importJson() bool {
 		var state []State
 		json.Unmarshal(jsonData, &state)
 		for i := 0; i < len(state); i++ {
+			state[i].enterprise = enterpriseId
 			ok = state[i].insertState()
 			if !ok {
 				trans.Rollback()
@@ -671,6 +696,7 @@ func (f *ImportInfo) importJson() bool {
 		var supplier []Supplier
 		json.Unmarshal(jsonData, &supplier)
 		for i := 0; i < len(supplier); i++ {
+			supplier[i].enterprise = enterpriseId
 			ok = supplier[i].insertSupplier()
 			if !ok {
 				trans.Rollback()
@@ -681,6 +707,7 @@ func (f *ImportInfo) importJson() bool {
 		var warehouse []Warehouse
 		json.Unmarshal(jsonData, &warehouse)
 		for i := 0; i < len(warehouse); i++ {
+			warehouse[i].enterprise = enterpriseId
 			ok = warehouse[i].insertWarehouse()
 			if !ok {
 				trans.Rollback()
@@ -691,6 +718,7 @@ func (f *ImportInfo) importJson() bool {
 		var warehouseMovement []WarehouseMovement
 		json.Unmarshal(jsonData, &warehouseMovement)
 		for i := 0; i < len(warehouseMovement); i++ {
+			warehouseMovement[i].enterprise = enterpriseId
 			ok = warehouseMovement[i].insertWarehouseMovement()
 			if !ok {
 				trans.Rollback()

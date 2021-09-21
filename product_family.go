@@ -5,22 +5,23 @@ import (
 )
 
 type ProductFamily struct {
-	Id        int16  `json:"id"`
-	Name      string `json:"name"`
-	Reference string `json:"reference"`
+	Id         int32  `json:"id"`
+	Name       string `json:"name"`
+	Reference  string `json:"reference"`
+	enterprise int32
 }
 
-func getProductFamilies() []ProductFamily {
+func getProductFamilies(enterpriseId int32) []ProductFamily {
 	var families []ProductFamily = make([]ProductFamily, 0)
-	sqlStatement := `SELECT * FROM public.product_family ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.product_family WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return families
 	}
 	for rows.Next() {
 		f := ProductFamily{}
-		rows.Scan(&f.Id, &f.Name, &f.Reference)
+		rows.Scan(&f.Id, &f.Name, &f.Reference, &f.enterprise)
 		families = append(families, f)
 	}
 
@@ -36,8 +37,8 @@ func (f *ProductFamily) insertProductFamily() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.product_family(name, reference) VALUES ($1, $2)`
-	res, err := db.Exec(sqlStatement, f.Name, f.Reference)
+	sqlStatement := `INSERT INTO public.product_family(name, reference, enterprise) VALUES ($1, $2, $3)`
+	res, err := db.Exec(sqlStatement, f.Name, f.Reference, f.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -52,8 +53,8 @@ func (f *ProductFamily) updateProductFamily() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.product_family SET name=$2, reference=$3 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, f.Id, f.Name, f.Reference)
+	sqlStatement := `UPDATE public.product_family SET name=$2, reference=$3 WHERE id=$1 AND enterprise=$4`
+	res, err := db.Exec(sqlStatement, f.Id, f.Name, f.Reference, f.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -68,8 +69,8 @@ func (f *ProductFamily) deleteProductFamily() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.product_family WHERE id=$1`
-	res, err := db.Exec(sqlStatement, f.Id)
+	sqlStatement := `DELETE FROM public.product_family WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, f.Id, f.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -79,10 +80,10 @@ func (f *ProductFamily) deleteProductFamily() bool {
 	return rows > 0
 }
 
-func findProductFamilyByName(productFamilyName string) []NameInt16 {
+func findProductFamilyByName(productFamilyName string, enterpriseId int32) []NameInt16 {
 	var productFamily []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.product_family WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(productFamilyName))
+	sqlStatement := `SELECT id,name FROM public.product_family WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(productFamilyName), enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return productFamily
@@ -96,9 +97,9 @@ func findProductFamilyByName(productFamilyName string) []NameInt16 {
 	return productFamily
 }
 
-func getNameProductFamily(id int16) string {
-	sqlStatement := `SELECT name FROM public.product_family WHERE id = $1`
-	row := db.QueryRow(sqlStatement, id)
+func getNameProductFamily(id int32, enterpriseId int32) string {
+	sqlStatement := `SELECT name FROM public.product_family WHERE id=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, id, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ""

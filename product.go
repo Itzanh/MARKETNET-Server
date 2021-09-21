@@ -13,7 +13,7 @@ type Product struct {
 	BarCode                 string    `json:"barCode"`
 	ControlStock            bool      `json:"controlStock"`
 	Weight                  float32   `json:"weight"`
-	Family                  *int16    `json:"family"`
+	Family                  *int32    `json:"family"`
 	Width                   float32   `json:"width"`
 	Height                  float32   `json:"height"`
 	Depth                   float32   `json:"depth"`
@@ -22,10 +22,10 @@ type Product struct {
 	VatPercent              float32   `json:"vatPercent"`
 	DateCreated             time.Time `json:"dateCreated"`
 	Description             string    `json:"description"`
-	Color                   *int16    `json:"color"`
+	Color                   *int32    `json:"color"`
 	Price                   float32   `json:"price"`
 	Manufacturing           bool      `json:"manufacturing"`
-	ManufacturingOrderType  *int16    `json:"manufacturingOrderType"`
+	ManufacturingOrderType  *int32    `json:"manufacturingOrderType"`
 	Supplier                *int32    `json:"supplier"`
 	FamilyName              *string   `json:"familyName"`
 	MinimumStock            int32     `json:"minimumStock"`
@@ -36,19 +36,20 @@ type Product struct {
 	wooCommerceVariationId  int32
 	shopifyId               int64
 	shopifyVariantId        int64
+	enterprise              int32
 }
 
-func getProduct() []Product {
+func getProduct(enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM public.product ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM public.product WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -60,22 +61,22 @@ type ProductSearch struct {
 	TrackMinimumStock bool   `json:"trackMinimumStock"`
 }
 
-func (search *ProductSearch) searchProduct() []Product {
+func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
 	sqlStatement := ""
 	if search.TrackMinimumStock {
-		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE name ILIKE $1 AND track_minimum_stock=true ORDER BY id ASC`
+		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE (name ILIKE $1 AND track_minimum_stock=true) AND (enterprise=$2) ORDER BY id ASC`
 	} else {
-		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE name ILIKE $1 ORDER BY id ASC`
+		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM product WHERE (name ILIKE $1) AND (enterprise=$2) ORDER BY id ASC`
 	}
-	rows, err := db.Query(sqlStatement, "%"+search.Search+"%")
+	rows, err := db.Query(sqlStatement, "%"+search.Search+"%", enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return products
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -91,7 +92,7 @@ func getProductRow(productId int32) Product {
 	}
 
 	p := Product{}
-	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId)
+	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise)
 
 	return p
 }
@@ -105,8 +106,8 @@ func (p *Product) insertProduct() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING id`
-	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId)
+	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING id`
+	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId, p.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -114,6 +115,7 @@ func (p *Product) insertProduct() bool {
 
 	var productId int32
 	row.Scan(&productId)
+	p.Id = productId
 
 	return productId > 0
 }
@@ -123,8 +125,8 @@ func (p *Product) updateProduct() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock)
+	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21 WHERE id=$1 AND enterprise=$22`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -146,15 +148,15 @@ func (p *Product) deleteProduct() bool {
 	}
 	///
 
-	sqlStatement := `DELETE FROM stock WHERE product=$1`
-	_, err = db.Exec(sqlStatement, p.Id)
+	sqlStatement := `DELETE FROM stock WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=stock.product)=$2`
+	_, err = db.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
 
-	sqlStatement = `DELETE FROM public.product WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id)
+	sqlStatement = `DELETE FROM public.product WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -171,10 +173,10 @@ func (p *Product) deleteProduct() bool {
 	return rows > 0
 }
 
-func findProductByName(languageName string) []NameInt32 {
+func findProductByName(languageName string, enterpriseId int32) []NameInt32 {
 	var products []NameInt32 = make([]NameInt32, 0)
-	sqlStatement := `SELECT id,name FROM public.product WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
+	sqlStatement := `SELECT id,name FROM public.product WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return products
@@ -188,9 +190,9 @@ func findProductByName(languageName string) []NameInt32 {
 	return products
 }
 
-func getNameProduct(id int32) string {
-	sqlStatement := `SELECT name FROM public.product WHERE id = $1`
-	row := db.QueryRow(sqlStatement, id)
+func getNameProduct(id int32, enterpriseId int32) string {
+	sqlStatement := `SELECT name FROM public.product WHERE id=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, id, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ""
@@ -205,9 +207,9 @@ type OrderDetailDefaults struct {
 	VatPercent float32 `json:"vatPercent"`
 }
 
-func getOrderDetailDefaults(roductId int32) OrderDetailDefaults {
-	sqlStatement := `SELECT price, vat_percent FROM product WHERE id = $1`
-	row := db.QueryRow(sqlStatement, roductId)
+func getOrderDetailDefaults(productId int32, enterpriseId int32) OrderDetailDefaults {
+	sqlStatement := `SELECT price, vat_percent FROM product WHERE id=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, productId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return OrderDetailDefaults{}
@@ -218,17 +220,17 @@ func getOrderDetailDefaults(roductId int32) OrderDetailDefaults {
 }
 
 // Get the sales order details with pending status, with the product specified.
-func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
+func getProductSalesOrderDetailsPending(productId int32, enterpriseId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity ORDER BY sales_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity AND enterprise=$2 ORDER BY sales_order_detail.id DESC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -236,17 +238,17 @@ func getProductSalesOrderDetailsPending(productId int32) []SalesOrderDetail {
 }
 
 // Get the purchase order details with pending status, with the product specified.
-func getProductPurchaseOrderDetailsPending(productId int32) []PurchaseOrderDetail {
+func getProductPurchaseOrderDetailsPending(productId int32, enterpriseId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity ORDER BY purchase_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity AND enterprise=$2 ORDER BY purchase_order_detail.id DESC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -254,17 +256,17 @@ func getProductPurchaseOrderDetailsPending(productId int32) []PurchaseOrderDetai
 }
 
 // Get the sales order details with the product specified.
-func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
+func getProductSalesOrderDetails(productId int32, enterpriseId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND enterprise=$2 ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -272,17 +274,17 @@ func getProductSalesOrderDetails(productId int32) []SalesOrderDetail {
 }
 
 // Get the purchase order details with the product specified.
-func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
+func getProductPurchaseOrderDetails(productId int32, enterpriseId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 ORDER BY purchase_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND enterprise=$2 ORDER BY purchase_order_detail.id DESC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -290,26 +292,26 @@ func getProductPurchaseOrderDetails(productId int32) []PurchaseOrderDetail {
 }
 
 // Get the warehouse movements with the product specified.
-func getProductWarehouseMovement(productId int32) []WarehouseMovement {
+func getProductWarehouseMovement(productId int32, enterpriseId int32) []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM warehouse_movement WHERE product=$1 ORDER BY warehouse_movement.id DESC`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM warehouse_movement WHERE product=$1 AND enterprise=$2 ORDER BY warehouse_movement.id DESC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
 	return warehouseMovements
 }
 
-func (p *Product) generateBarcode() bool {
-	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE SUBSTRING(barcode,0,5) = $1 ORDER BY barcode DESC LIMIT 1`
-	row := db.QueryRow(sqlStatement, getSettingsRecord().BarcodePrefix)
+func (p *Product) generateBarcode(enterpriseId int32) bool {
+	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE enterprise=$1 AND SUBSTRING(barcode,0,5)=$2 ORDER BY barcode DESC LIMIT 1`
+	row := db.QueryRow(sqlStatement, enterpriseId, getSettingsRecordById(enterpriseId).BarcodePrefix)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -349,10 +351,10 @@ type ProductImage struct {
 	URL     string `json:"url"`
 }
 
-func getProductImages(productId int32) []ProductImage {
+func getProductImages(productId int32, enterpriseId int32) []ProductImage {
 	var image []ProductImage = make([]ProductImage, 0)
-	sqlStatement := `SELECT * FROM public.product_image WHERE product=$1`
-	rows, err := db.Query(sqlStatement, productId)
+	sqlStatement := `SELECT * FROM public.product_image WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=product_image.product)=$2`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return image
@@ -370,8 +372,13 @@ func (i *ProductImage) isValid() bool {
 	return !(len(i.URL) == 0 || len(i.URL) > 255)
 }
 
-func (i *ProductImage) insertProductImage() bool {
+func (i *ProductImage) insertProductImage(enterpriseId int32) bool {
 	if !i.isValid() || i.Product <= 0 {
+		return false
+	}
+
+	p := getProductRow(i.Product)
+	if p.enterprise != enterpriseId {
 		return false
 	}
 
@@ -386,12 +393,26 @@ func (i *ProductImage) insertProductImage() bool {
 	return rows > 0
 }
 
-func (i *ProductImage) updateProductImage() bool {
+func (i *ProductImage) updateProductImage(enterpriseId int32) bool {
 	if i.Id <= 0 || !i.isValid() {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.product_image SET url=$2 WHERE id=$1`
+	sqlStatement := `SELECT product FROM public.product_image WHERE id=$1`
+	row := db.QueryRow(sqlStatement, i.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var productId int32
+	row.Scan(&productId)
+	p := getProductRow(productId)
+	if p.enterprise != enterpriseId {
+		return false
+	}
+
+	sqlStatement = `UPDATE public.product_image SET url=$2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id, i.URL)
 	if err != nil {
 		log("DB", err.Error())
@@ -402,12 +423,26 @@ func (i *ProductImage) updateProductImage() bool {
 	return rows > 0
 }
 
-func (i *ProductImage) deleteProductImage() bool {
+func (i *ProductImage) deleteProductImage(enterpriseId int32) bool {
 	if i.Id <= 0 {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.product_image WHERE id=$1`
+	sqlStatement := `SELECT product FROM public.product_image WHERE id=$1`
+	row := db.QueryRow(sqlStatement, i.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var productId int32
+	row.Scan(&productId)
+	p := getProductRow(productId)
+	if p.enterprise != enterpriseId {
+		return false
+	}
+
+	sqlStatement = `DELETE FROM public.product_image WHERE id=$1`
 	res, err := db.Exec(sqlStatement, i.Id)
 	if err != nil {
 		log("DB", err.Error())
@@ -418,8 +453,8 @@ func (i *ProductImage) deleteProductImage() bool {
 	return rows > 0
 }
 
-func calculateMinimumStock() bool {
-	s := getSettingsRecord()
+func calculateMinimumStock(enterpriseId int32) bool {
+	s := getSettingsRecordById(enterpriseId)
 	t := time.Now()
 	if s.MinimumStockSalesPeriods <= 0 || s.MinimumStockSalesDays <= 0 {
 		return false
@@ -433,8 +468,8 @@ func calculateMinimumStock() bool {
 	}
 	///
 
-	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true AND enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -471,11 +506,12 @@ func calculateMinimumStock() bool {
 	///
 }
 
-func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
+func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseId int32) bool {
+	s := getSettingsRecordById(enterpriseId)
 	var generadedPurchaseOrders map[int32]PurchaseOrder = make(map[int32]PurchaseOrder) // Key: supplier ID, Value: generated purchase order
 
-	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2)`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2) AND product.enterprise=$1`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -494,7 +530,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 		var quantityAvailable int32
 		var minimumStock int32
 		var manufacturing bool
-		var manufacturingOrderType *int16
+		var manufacturingOrderType *int32
 		var supplier *int32
 		rows.Scan(&productId, &quantityAvailable, &minimumStock, &manufacturing, &manufacturingOrderType, &supplier)
 
@@ -504,6 +540,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 
 				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
 				o.UserCreated = userId
+				o.enterprise = enterpriseId
 				ok := o.insertManufacturingOrder()
 				if !ok {
 					trans.Rollback()
@@ -513,8 +550,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 		} else { // if the product is not from manufacture, generate the purchase order to the supplier
 			o, ok := generadedPurchaseOrders[*supplier]
 			if !ok { // there is no purchase order generated for this supplier, create it and add to the map
-				d := getSupplierDefaults(*supplier)
-				s := getSettingsRecord()
+				d := getSupplierDefaults(*supplier, enterpriseId)
 				if d.BillingSeries == nil || d.Currency == nil || d.MainBillingAddress == nil || d.MainShippingAddress == nil || d.PaymentMethod == nil {
 					continue
 				}
@@ -527,6 +563,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 				p.ShippingAddress = *d.MainShippingAddress
 				p.PaymentMethod = *d.PaymentMethod
 
+				p.enterprise = enterpriseId
 				ok, purchaseOrderId := p.insertPurchaseOrder()
 				if !ok {
 					trans.Rollback()
@@ -537,7 +574,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 
 				// generate the needs as a detail
 				product := getProductRow(productId)
-				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent}
+				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
 				ok, _ = det.insertPurchaseOrderDetail(false)
 				if !ok {
 					trans.Rollback()
@@ -546,7 +583,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int16) bool {
 			} else { // it already exists a purchase order for this supplier, add the needs as details
 				// generate the needs as a detail
 				product := getProductRow(productId)
-				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent}
+				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
 				ok, _ = det.insertPurchaseOrderDetail(false)
 				if !ok {
 					trans.Rollback()
@@ -573,26 +610,31 @@ type ProductLocateQuery struct {
 	Value string `json:"value"`
 }
 
-func (q *ProductLocateQuery) locateProduct() []ProductLocate {
+func (q *ProductLocateQuery) locateProduct(enterpriseId int32) []ProductLocate {
 	var products []ProductLocate = make([]ProductLocate, 0)
 	sqlStatement := ``
 	parameters := make([]interface{}, 0)
 	if q.Value == "" {
-		sqlStatement = `SELECT id,name,reference FROM product ORDER BY id ASC`
+		sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 ORDER BY id ASC`
+		parameters = append(parameters, enterpriseId)
 	} else if q.Mode == 0 {
 		id, err := strconv.Atoi(q.Value)
 		if err != nil {
-			sqlStatement = `SELECT id,name,reference FROM product ORDER BY id ASC`
+			sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 ORDER BY id ASC`
+			parameters = append(parameters, enterpriseId)
 		} else {
-			sqlStatement = `SELECT id,name,reference FROM product WHERE id=$1`
+			sqlStatement = `SELECT id,name,reference FROM product WHERE id=$1 AND enterprise=$2`
 			parameters = append(parameters, id)
+			parameters = append(parameters, enterpriseId)
 		}
 	} else if q.Mode == 1 {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE name ILIKE $1 ORDER BY id ASC`
+		sqlStatement = `SELECT id,name,reference FROM product WHERE name ILIKE $1 AND enterprise=$2 ORDER BY id ASC`
 		parameters = append(parameters, "%"+q.Value+"%")
+		parameters = append(parameters, enterpriseId)
 	} else if q.Mode == 2 {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE reference ILIKE $1 ORDER BY id ASC`
+		sqlStatement = `SELECT id,name,reference FROM product WHERE reference ILIKE $1 AND enterprise=$2 ORDER BY id ASC`
 		parameters = append(parameters, "%"+q.Value+"%")
+		parameters = append(parameters, enterpriseId)
 	}
 	rows, err := db.Query(sqlStatement, parameters...)
 	if err != nil {

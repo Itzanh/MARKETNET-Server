@@ -62,7 +62,7 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -78,18 +78,20 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
-		data, _ := json.Marshal(paginationQuery.getSalesOrder())
+		data, _ := json.Marshal(paginationQuery.getSalesOrder(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var saleOrder SaleOrder
 			json.Unmarshal(body, &saleOrder)
+			saleOrder.enterprise = enterpriseId
 			ok, _ = saleOrder.insertSalesOrder()
 		} else if string(body[0]) == "[" {
 			var saleOrders []SaleOrder
 			json.Unmarshal(body, &saleOrders)
 			for i := 0; i < len(saleOrders); i++ {
+				saleOrders[i].enterprise = enterpriseId
 				ok, _ = saleOrders[i].insertSalesOrder()
 				if !ok {
 					break
@@ -101,6 +103,7 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var saleOrder SaleOrder
 		json.Unmarshal(body, &saleOrder)
+		saleOrder.enterprise = enterpriseId
 		ok = saleOrder.updateSalesOrder()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -109,7 +112,8 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var saleOrder SaleOrder
-		saleOrder.Id = int32(id)
+		saleOrder.Id = int64(id)
+		saleOrder.enterprise = enterpriseId
 		ok = saleOrder.deleteSalesOrder()
 	}
 	resp, _ := json.Marshal(ok)
@@ -130,7 +134,7 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -149,18 +153,20 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		data, _ := json.Marshal(getSalesOrderDetail(int32(id)))
+		data, _ := json.Marshal(getSalesOrderDetail(int64(id), enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var saleOrderDetail SalesOrderDetail
 			json.Unmarshal(body, &saleOrderDetail)
+			saleOrderDetail.enterprise = enterpriseId
 			ok = saleOrderDetail.insertSalesOrderDetail()
 		} else if string(body[0]) == "[" {
 			var saleOrderDetails []SalesOrderDetail
 			json.Unmarshal(body, &saleOrderDetails)
 			for i := 0; i < len(saleOrderDetails); i++ {
+				saleOrderDetails[i].enterprise = enterpriseId
 				ok = saleOrderDetails[i].insertSalesOrderDetail()
 				if !ok {
 					break
@@ -172,6 +178,7 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var salesOrderDetail SalesOrderDetail
 		json.Unmarshal(body, &salesOrderDetail)
+		salesOrderDetail.enterprise = enterpriseId
 		ok = salesOrderDetail.updateSalesOrderDetail()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -180,7 +187,8 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var saleOrderDetail SalesOrderDetail
-		saleOrderDetail.Id = int32(id)
+		saleOrderDetail.Id = int64(id)
+		saleOrderDetail.enterprise = enterpriseId
 		ok = saleOrderDetail.deleteSalesOrderDetail()
 	}
 	resp, _ := json.Marshal(ok)
@@ -201,7 +209,7 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -217,6 +225,7 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
+		paginationQuery.Enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getSalesInvoices())
 		w.Write(data)
 		return
@@ -224,11 +233,13 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		if string(body[0]) == "{" {
 			var saleInvoice SalesInvoice
 			json.Unmarshal(body, &saleInvoice)
+			saleInvoice.enterprise = enterpriseId
 			ok, _ = saleInvoice.insertSalesInvoice()
 		} else if string(body[0]) == "[" {
 			var saleInvoices []SalesInvoice
 			json.Unmarshal(body, &saleInvoices)
 			for i := 0; i < len(saleInvoices); i++ {
+				saleInvoices[i].enterprise = enterpriseId
 				ok, _ = saleInvoices[i].insertSalesInvoice()
 				if !ok {
 					break
@@ -244,7 +255,8 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var salesInvoice SalesInvoice
-		salesInvoice.Id = int32(id)
+		salesInvoice.Id = int64(id)
+		salesInvoice.enterprise = enterpriseId
 		ok = salesInvoice.deleteSalesInvoice()
 	}
 	resp, _ := json.Marshal(ok)
@@ -265,7 +277,7 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -284,18 +296,20 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		data, _ := json.Marshal(getSalesInvoiceDetail(int32(id)))
+		data, _ := json.Marshal(getSalesInvoiceDetail(int64(id), enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var salesInvoiceDetail SalesInvoiceDetail
 			json.Unmarshal(body, &salesInvoiceDetail)
+			salesInvoiceDetail.enterprise = enterpriseId
 			ok = salesInvoiceDetail.insertSalesInvoiceDetail(true)
 		} else if string(body[0]) == "[" {
 			var salesInvoiceDetails []SalesInvoiceDetail
 			json.Unmarshal(body, &salesInvoiceDetails)
 			for i := 0; i < len(salesInvoiceDetails); i++ {
+				salesInvoiceDetails[i].enterprise = enterpriseId
 				ok = salesInvoiceDetails[i].insertSalesInvoiceDetail(true)
 				if !ok {
 					break
@@ -311,7 +325,8 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var salesInvoiceDetail SalesInvoiceDetail
-		salesInvoiceDetail.Id = int32(id)
+		salesInvoiceDetail.Id = int64(id)
+		salesInvoiceDetail.enterprise = enterpriseId
 		ok = salesInvoiceDetail.deleteSalesInvoiceDetail()
 	}
 	resp, _ := json.Marshal(ok)
@@ -332,7 +347,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -348,6 +363,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
+		paginationQuery.Enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getSalesDeliveryNotes())
 		w.Write(data)
 		return
@@ -355,11 +371,13 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		if string(body[0]) == "{" {
 			var salesDeliveryNote SalesDeliveryNote
 			json.Unmarshal(body, &salesDeliveryNote)
+			salesDeliveryNote.enterprise = enterpriseId
 			ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
 		} else if string(body[0]) == "[" {
 			var salesDeliveryNotes []SalesDeliveryNote
 			json.Unmarshal(body, &salesDeliveryNotes)
 			for i := 0; i < len(salesDeliveryNotes); i++ {
+				salesDeliveryNotes[i].enterprise = enterpriseId
 				ok, _ = salesDeliveryNotes[i].insertSalesDeliveryNotes()
 				if !ok {
 					break
@@ -375,7 +393,8 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var salesDeliveryNote SalesDeliveryNote
-		salesDeliveryNote.Id = int32(id)
+		salesDeliveryNote.Id = int64(id)
+		salesDeliveryNote.enterprise = enterpriseId
 		ok = salesDeliveryNote.deleteSalesDeliveryNotes()
 	}
 	resp, _ := json.Marshal(ok)
@@ -396,7 +415,7 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -410,18 +429,20 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getPurchaseOrder())
+		data, _ := json.Marshal(getPurchaseOrder(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var purchaseOrder PurchaseOrder
 			json.Unmarshal(body, &purchaseOrder)
+			purchaseOrder.enterprise = enterpriseId
 			ok, _ = purchaseOrder.insertPurchaseOrder()
 		} else if string(body[0]) == "[" {
 			var purchaseOrders []PurchaseOrder
 			json.Unmarshal(body, &purchaseOrders)
 			for i := 0; i < len(purchaseOrders); i++ {
+				purchaseOrders[i].enterprise = enterpriseId
 				ok, _ = purchaseOrders[i].insertPurchaseOrder()
 				if !ok {
 					break
@@ -431,9 +452,10 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
-		var PurchaseOrdep PurchaseOrder
-		json.Unmarshal(body, &PurchaseOrdep)
-		ok = PurchaseOrdep.updatePurchaseOrder()
+		var purchaseOrder PurchaseOrder
+		json.Unmarshal(body, &purchaseOrder)
+		purchaseOrder.enterprise = enterpriseId
+		ok = purchaseOrder.updatePurchaseOrder()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -441,7 +463,8 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var purchaseOrder PurchaseOrder
-		purchaseOrder.Id = int32(id)
+		purchaseOrder.Id = int64(id)
+		purchaseOrder.enterprise = enterpriseId
 		ok = purchaseOrder.deletePurchaseOrder()
 	}
 	resp, _ := json.Marshal(ok)
@@ -462,7 +485,7 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -481,18 +504,20 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		data, _ := json.Marshal(getPurchaseOrderDetail(int32(id)))
+		data, _ := json.Marshal(getPurchaseOrderDetail(int64(id), enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var purchaseOrderDetail PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetail)
+			purchaseOrderDetail.enterprise = enterpriseId
 			ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
 		} else if string(body[0]) == "[" {
 			var purchaseOrderDetails []PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetails)
 			for i := 0; i < len(purchaseOrderDetails); i++ {
+				purchaseOrderDetails[i].enterprise = enterpriseId
 				ok, _ = purchaseOrderDetails[i].insertPurchaseOrderDetail(true)
 				if !ok {
 					break
@@ -508,7 +533,8 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var purchaseOrderDetail PurchaseOrderDetail
-		purchaseOrderDetail.Id = int32(id)
+		purchaseOrderDetail.Id = int64(id)
+		purchaseOrderDetail.enterprise = enterpriseId
 		ok = purchaseOrderDetail.deletePurchaseOrderDetail()
 	}
 	resp, _ := json.Marshal(ok)
@@ -529,7 +555,7 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -543,18 +569,20 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getPurchaseInvoices())
+		data, _ := json.Marshal(getPurchaseInvoices(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var purchaseInvoice PurchaseInvoice
 			json.Unmarshal(body, &purchaseInvoice)
+			purchaseInvoice.enterprise = enterpriseId
 			ok, _ = purchaseInvoice.insertPurchaseInvoice()
 		} else if string(body[0]) == "[" {
 			var purchaseInvoices []PurchaseInvoice
 			json.Unmarshal(body, &purchaseInvoices)
 			for i := 0; i < len(purchaseInvoices); i++ {
+				purchaseInvoices[i].enterprise = enterpriseId
 				ok, _ = purchaseInvoices[i].insertPurchaseInvoice()
 				if !ok {
 					break
@@ -570,7 +598,8 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var purchaseInvoice PurchaseInvoice
-		purchaseInvoice.Id = int32(id)
+		purchaseInvoice.Id = int64(id)
+		purchaseInvoice.enterprise = enterpriseId
 		ok = purchaseInvoice.deletePurchaseInvoice()
 	}
 	resp, _ := json.Marshal(ok)
@@ -591,7 +620,7 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -610,18 +639,20 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		data, _ := json.Marshal(getPurchaseInvoiceDetail(int32(id)))
+		data, _ := json.Marshal(getPurchaseInvoiceDetail(int64(id), enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var purchaseInvoiceDetail PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetail)
+			purchaseInvoiceDetail.enterprise = enterpriseId
 			ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
 		} else if string(body[0]) == "[" {
 			var purchaseInvoiceDetails []PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetails)
 			for i := 0; i < len(purchaseInvoiceDetails); i++ {
+				purchaseInvoiceDetails[i].enterprise = enterpriseId
 				ok = purchaseInvoiceDetails[i].insertPurchaseInvoiceDetail(true)
 				if !ok {
 					break
@@ -637,7 +668,8 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
-		purchaseInvoiceDetail.Id = int32(id)
+		purchaseInvoiceDetail.Id = int64(id)
+		purchaseInvoiceDetail.enterprise = enterpriseId
 		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail()
 	}
 	resp, _ := json.Marshal(ok)
@@ -658,7 +690,7 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -672,18 +704,20 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getPurchaseDeliveryNotes())
+		data, _ := json.Marshal(getPurchaseDeliveryNotes(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var purchaseDeliveryNote PurchaseDeliveryNote
 			json.Unmarshal(body, &purchaseDeliveryNote)
+			purchaseDeliveryNote.enterprise = enterpriseId
 			ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
 		} else if string(body[0]) == "[" {
 			var purchaseDeliveryNotes []PurchaseDeliveryNote
 			json.Unmarshal(body, &purchaseDeliveryNotes)
 			for i := 0; i < len(purchaseDeliveryNotes); i++ {
+				purchaseDeliveryNotes[i].enterprise = enterpriseId
 				ok, _ = purchaseDeliveryNotes[i].insertPurchaseDeliveryNotes()
 				if !ok {
 					break
@@ -699,7 +733,8 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var purchaseDeliveryNote PurchaseDeliveryNote
-		purchaseDeliveryNote.Id = int32(id)
+		purchaseDeliveryNote.Id = int64(id)
+		purchaseDeliveryNote.enterprise = enterpriseId
 		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes()
 	}
 	resp, _ := json.Marshal(ok)
@@ -720,7 +755,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -736,6 +771,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
+		paginationQuery.Enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getCustomers())
 		w.Write(data)
 		return
@@ -743,11 +779,13 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		if string(body[0]) == "{" {
 			var customer Customer
 			json.Unmarshal(body, &customer)
+			customer.enterprise = enterpriseId
 			ok, _ = customer.insertCustomer()
 		} else if string(body[0]) == "[" {
 			var customers []Customer
 			json.Unmarshal(body, &customers)
 			for i := 0; i < len(customers); i++ {
+				customers[i].enterprise = enterpriseId
 				ok, _ = customers[i].insertCustomer()
 				if !ok {
 					break
@@ -759,6 +797,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var customer Customer
 		json.Unmarshal(body, &customer)
+		customer.enterprise = enterpriseId
 		ok = customer.updateCustomer()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -768,6 +807,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		}
 		var customer Customer
 		customer.Id = int32(id)
+		customer.enterprise = enterpriseId
 		ok = customer.deleteCustomer()
 	}
 	resp, _ := json.Marshal(ok)
@@ -788,7 +828,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -802,18 +842,20 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getSuppliers())
+		data, _ := json.Marshal(getSuppliers(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var supplier Supplier
 			json.Unmarshal(body, &supplier)
+			supplier.enterprise = enterpriseId
 			ok = supplier.insertSupplier()
 		} else if string(body[0]) == "[" {
 			var suppliers []Supplier
 			json.Unmarshal(body, &suppliers)
 			for i := 0; i < len(suppliers); i++ {
+				suppliers[i].enterprise = enterpriseId
 				ok = suppliers[i].insertSupplier()
 				if !ok {
 					break
@@ -825,6 +867,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var supplier Supplier
 		json.Unmarshal(body, &supplier)
+		supplier.enterprise = enterpriseId
 		ok = supplier.updateSupplier()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -834,6 +877,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		}
 		var supplier Supplier
 		supplier.Id = int32(id)
+		supplier.enterprise = enterpriseId
 		ok = supplier.deleteSupplier()
 	}
 	resp, _ := json.Marshal(ok)
@@ -854,7 +898,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -868,18 +912,20 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getProduct())
+		data, _ := json.Marshal(getProduct(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		if string(body[0]) == "{" {
 			var product Product
 			json.Unmarshal(body, &product)
+			product.enterprise = enterpriseId
 			ok = product.insertProduct()
 		} else if string(body[0]) == "[" {
 			var products []Product
 			json.Unmarshal(body, &products)
 			for i := 0; i < len(products); i++ {
+				products[i].enterprise = enterpriseId
 				ok = products[i].insertProduct()
 				if !ok {
 					break
@@ -891,6 +937,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var product Product
 		json.Unmarshal(body, &product)
+		product.enterprise = enterpriseId
 		ok = product.updateProduct()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -900,6 +947,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		}
 		var product Product
 		product.Id = int32(id)
+		product.enterprise = enterpriseId
 		ok = product.deleteProduct()
 	}
 	resp, _ := json.Marshal(ok)
@@ -920,7 +968,7 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -934,16 +982,18 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getCountries())
+		data, _ := json.Marshal(getCountries(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var country Country
 		json.Unmarshal(body, &country)
+		country.enterprise = enterpriseId
 		ok = country.insertCountry()
 	case "PUT":
 		var country Country
 		json.Unmarshal(body, &country)
+		country.enterprise = enterpriseId
 		ok = country.updateCountry()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -952,7 +1002,8 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var country Country
-		country.Id = int16(id)
+		country.Id = int32(id)
+		country.enterprise = enterpriseId
 		ok = country.deleteCountry()
 	}
 	resp, _ := json.Marshal(ok)
@@ -973,7 +1024,7 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -987,26 +1038,29 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getStates())
+		data, _ := json.Marshal(getStates(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var state State
 		json.Unmarshal(body, &state)
+		state.enterprise = enterpriseId
 		ok = state.insertState()
 	case "PUT":
-		var city State
-		json.Unmarshal(body, &city)
-		ok = city.updateState()
+		var state State
+		json.Unmarshal(body, &state)
+		state.enterprise = enterpriseId
+		ok = state.updateState()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		var city State
-		city.Id = int32(id)
-		ok = city.deleteState()
+		var state State
+		state.Id = int32(id)
+		state.enterprise = enterpriseId
+		ok = state.deleteState()
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1026,7 +1080,7 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1040,16 +1094,18 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getColor())
+		data, _ := json.Marshal(getColor(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var color Color
 		json.Unmarshal(body, &color)
+		color.enterprise = enterpriseId
 		ok = color.insertColor()
 	case "PUT":
 		var color Color
 		json.Unmarshal(body, &color)
+		color.enterprise = enterpriseId
 		ok = color.updateColor()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1058,7 +1114,8 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var color Color
-		color.Id = int16(id)
+		color.Id = int32(id)
+		color.enterprise = enterpriseId
 		ok = color.deleteColor()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1079,7 +1136,7 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1093,16 +1150,18 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getProductFamilies())
+		data, _ := json.Marshal(getProductFamilies(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var productFamily ProductFamily
 		json.Unmarshal(body, &productFamily)
+		productFamily.enterprise = enterpriseId
 		ok = productFamily.insertProductFamily()
 	case "PUT":
 		var productFamily ProductFamily
 		json.Unmarshal(body, &productFamily)
+		productFamily.enterprise = enterpriseId
 		ok = productFamily.updateProductFamily()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1111,7 +1170,8 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var productFamily ProductFamily
-		productFamily.Id = int16(id)
+		productFamily.Id = int32(id)
+		productFamily.enterprise = enterpriseId
 		ok = productFamily.deleteProductFamily()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1132,7 +1192,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1148,6 +1208,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
+		paginationQuery.Enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getAddresses())
 		w.Write(data)
 		return
@@ -1155,11 +1216,13 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		if string(body[0]) == "{" {
 			var address Address
 			json.Unmarshal(body, &address)
+			address.enterprise = enterpriseId
 			ok = address.insertAddress()
 		} else if string(body[0]) == "[" {
 			var addresses []Address
 			json.Unmarshal(body, &addresses)
 			for i := 0; i < len(addresses); i++ {
+				addresses[i].enterprise = enterpriseId
 				ok = addresses[i].insertAddress()
 				if !ok {
 					break
@@ -1171,6 +1234,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		var address Address
 		json.Unmarshal(body, &address)
+		address.enterprise = enterpriseId
 		ok = address.updateAddress()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1180,6 +1244,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		}
 		var address Address
 		address.Id = int32(id)
+		address.enterprise = enterpriseId
 		ok = address.deleteAddress()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1200,7 +1265,7 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1214,17 +1279,19 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getCariers())
+		data, _ := json.Marshal(getCariers(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var carrier Carrier
 		json.Unmarshal(body, &carrier)
+		carrier.enterprise = enterpriseId
 		ok = carrier.insertCarrier()
 	case "PUT":
-		var incoterm Carrier
-		json.Unmarshal(body, &incoterm)
-		ok = incoterm.updateCarrier()
+		var carrier Carrier
+		json.Unmarshal(body, &carrier)
+		carrier.enterprise = enterpriseId
+		ok = carrier.updateCarrier()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -1232,7 +1299,8 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var carrier Carrier
-		carrier.Id = int16(id)
+		carrier.Id = int32(id)
+		carrier.enterprise = enterpriseId
 		ok = carrier.deleteCarrier()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1253,7 +1321,7 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1267,20 +1335,23 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getBillingSeries())
+		data, _ := json.Marshal(getBillingSeries(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var serie BillingSerie
 		json.Unmarshal(body, &serie)
+		serie.enterprise = enterpriseId
 		ok = serie.insertBillingSerie()
 	case "PUT":
 		var serie BillingSerie
 		json.Unmarshal(body, &serie)
+		serie.enterprise = enterpriseId
 		ok = serie.updateBillingSerie()
 	case "DELETE":
 		var serie BillingSerie
 		serie.Id = string(body)
+		serie.enterprise = enterpriseId
 		ok = serie.deleteBillingSerie()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1301,7 +1372,7 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1315,16 +1386,18 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getCurrencies())
+		data, _ := json.Marshal(getCurrencies(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var currency Currency
 		json.Unmarshal(body, &currency)
+		currency.enterprise = enterpriseId
 		ok = currency.insertCurrency()
 	case "PUT":
 		var currency Currency
 		json.Unmarshal(body, &currency)
+		currency.enterprise = enterpriseId
 		ok = currency.updateCurrency()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1333,7 +1406,8 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var currency Currency
-		currency.Id = int16(id)
+		currency.Id = int32(id)
+		currency.enterprise = enterpriseId
 		ok = currency.deleteCurrency()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1354,7 +1428,7 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1368,16 +1442,18 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getPaymentMethods())
+		data, _ := json.Marshal(getPaymentMethods(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var paymentMethod PaymentMethod
 		json.Unmarshal(body, &paymentMethod)
+		paymentMethod.enterprise = enterpriseId
 		ok = paymentMethod.insertPaymentMethod()
 	case "PUT":
 		var paymentMethod PaymentMethod
 		json.Unmarshal(body, &paymentMethod)
+		paymentMethod.enterprise = enterpriseId
 		ok = paymentMethod.updatePaymentMethod()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1386,7 +1462,8 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var paymentMethod PaymentMethod
-		paymentMethod.Id = int16(id)
+		paymentMethod.Id = int32(id)
+		paymentMethod.enterprise = enterpriseId
 		ok = paymentMethod.deletePaymentMethod()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1407,7 +1484,7 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1421,16 +1498,18 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getLanguages())
+		data, _ := json.Marshal(getLanguages(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var language Language
 		json.Unmarshal(body, &language)
+		language.enterprise = enterpriseId
 		ok = language.insertLanguage()
 	case "PUT":
 		var language Language
 		json.Unmarshal(body, &language)
+		language.enterprise = enterpriseId
 		ok = language.updateLanguage()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1439,7 +1518,8 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var language Language
-		language.Id = int16(id)
+		language.Id = int32(id)
+		language.enterprise = enterpriseId
 		ok = language.deleteLanguage()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1460,7 +1540,7 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1474,16 +1554,18 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getPackages())
+		data, _ := json.Marshal(getPackages(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var packages Packages
 		json.Unmarshal(body, &packages)
+		packages.enterprise = enterpriseId
 		ok = packages.insertPackage()
 	case "PUT":
 		var packages Packages
 		json.Unmarshal(body, &packages)
+		packages.enterprise = enterpriseId
 		ok = packages.updatePackage()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1492,7 +1574,7 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var packages Packages
-		packages.Id = int16(id)
+		packages.Id = int32(id)
 		ok = packages.deletePackage()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1513,7 +1595,7 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1527,16 +1609,18 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getIncoterm())
+		data, _ := json.Marshal(getIncoterm(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var incoterm Incoterm
 		json.Unmarshal(body, &incoterm)
+		incoterm.enterprise = enterpriseId
 		ok = incoterm.insertIncoterm()
 	case "PUT":
 		var incoterm Incoterm
 		json.Unmarshal(body, &incoterm)
+		incoterm.enterprise = enterpriseId
 		ok = incoterm.updateIncoterm()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1545,7 +1629,8 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var incoterm Incoterm
-		incoterm.Id = int16(id)
+		incoterm.Id = int32(id)
+		incoterm.enterprise = enterpriseId
 		ok = incoterm.deleteIncoterm()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1566,7 +1651,7 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1580,16 +1665,18 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getWarehouses())
+		data, _ := json.Marshal(getWarehouses(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var warehouse Warehouse
 		json.Unmarshal(body, &warehouse)
+		warehouse.enterprise = enterpriseId
 		ok = warehouse.insertWarehouse()
 	case "PUT":
 		var warehouse Warehouse
 		json.Unmarshal(body, &warehouse)
+		warehouse.enterprise = enterpriseId
 		ok = warehouse.updateWarehouse()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1599,6 +1686,7 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 		}
 		var warehouse Warehouse
 		warehouse.Id = string(body)
+		warehouse.enterprise = enterpriseId
 		ok = warehouse.deleteWarehouse()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1619,7 +1707,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1635,6 +1723,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
+		paginationQuery.Enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getWarehouseMovement())
 		w.Write(data)
 		return
@@ -1642,11 +1731,13 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		if string(body[0]) == "{" {
 			var warehouseMovement WarehouseMovement
 			json.Unmarshal(body, &warehouseMovement)
+			warehouseMovement.enterprise = enterpriseId
 			ok = warehouseMovement.insertWarehouseMovement()
 		} else if string(body[0]) == "[" {
 			var warehouseMovements []WarehouseMovement
 			json.Unmarshal(body, &warehouseMovements)
 			for i := 0; i < len(warehouseMovements); i++ {
+				warehouseMovements[i].enterprise = enterpriseId
 				ok = warehouseMovements[i].insertWarehouseMovement()
 				if !ok {
 					break
@@ -1663,6 +1754,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		}
 		var warehouseMovement WarehouseMovement
 		warehouseMovement.Id = int64(id)
+		warehouseMovement.enterprise = enterpriseId
 		ok = warehouseMovement.deleteWarehouseMovement()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1683,7 +1775,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1699,13 +1791,14 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal(body, &manufacturingPaginationQuery)
-		data, _ := json.Marshal(manufacturingPaginationQuery.getAllManufacturingOrders())
+		data, _ := json.Marshal(manufacturingPaginationQuery.getAllManufacturingOrders(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var manufacturingOrder ManufacturingOrder
 		json.Unmarshal(body, &manufacturingOrder)
 		manufacturingOrder.UserCreated = userId
+		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.insertManufacturingOrder()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1715,6 +1808,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		var manufacturingOrder ManufacturingOrder
 		manufacturingOrder.Id = int64(id)
+		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.deleteManufacturingOrder()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1735,7 +1829,7 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1749,16 +1843,18 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getManufacturingOrderType())
+		data, _ := json.Marshal(getManufacturingOrderType(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var manufacturingOrderType ManufacturingOrderType
 		json.Unmarshal(body, &manufacturingOrderType)
+		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.insertManufacturingOrderType()
 	case "PUT":
 		var manufacturingOrderType ManufacturingOrderType
 		json.Unmarshal(body, &manufacturingOrderType)
+		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.updateManufacturingOrderType()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1767,7 +1863,8 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var manufacturingOrderType ManufacturingOrderType
-		manufacturingOrderType.Id = int16(id)
+		manufacturingOrderType.Id = int32(id)
+		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.deleteManufacturingOrderType()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1788,7 +1885,7 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1802,16 +1899,18 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
-		data, _ := json.Marshal(getShippings())
+		data, _ := json.Marshal(getShippings(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
 		var shipping Shipping
 		json.Unmarshal(body, &shipping)
+		shipping.enterprise = enterpriseId
 		ok, _ = shipping.insertShipping()
 	case "PUT":
 		var shipping Shipping
 		json.Unmarshal(body, &shipping)
+		shipping.enterprise = enterpriseId
 		ok = shipping.updateShipping()
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
@@ -1820,7 +1919,8 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var shipping Shipping
-		shipping.Id = int32(id)
+		shipping.Id = int64(id)
+		shipping.enterprise = enterpriseId
 		ok = shipping.deleteShipping()
 	}
 	resp, _ := json.Marshal(ok)
@@ -1841,7 +1941,7 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId := checkApiKey(token[0])
+	ok, userId, enterpriseId := checkApiKey(token[0])
 	if !ok || userId <= 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1859,7 +1959,7 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		data, _ := json.Marshal(getStock(int32(id)))
+		data, _ := json.Marshal(getStock(int32(id), enterpriseId))
 		w.Write(data)
 		return
 	}

@@ -1,21 +1,22 @@
 package main
 
 type ManufacturingOrderType struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
+	Id         int32  `json:"id"`
+	Name       string `json:"name"`
+	enterprise int32
 }
 
-func getManufacturingOrderType() []ManufacturingOrderType {
+func getManufacturingOrderType(enterpriseId int32) []ManufacturingOrderType {
 	var types []ManufacturingOrderType = make([]ManufacturingOrderType, 0)
-	sqlStatement := `SELECT * FROM public.manufacturing_order_type ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.manufacturing_order_type WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return types
 	}
 	for rows.Next() {
 		t := ManufacturingOrderType{}
-		rows.Scan(&t.Id, &t.Name)
+		rows.Scan(&t.Id, &t.Name, &t.enterprise)
 		types = append(types, t)
 	}
 
@@ -31,8 +32,8 @@ func (t *ManufacturingOrderType) insertManufacturingOrderType() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.manufacturing_order_type(name) VALUES ($1)`
-	res, err := db.Exec(sqlStatement, t.Name)
+	sqlStatement := `INSERT INTO public.manufacturing_order_type(name, enterprise) VALUES ($1, $2)`
+	res, err := db.Exec(sqlStatement, t.Name, t.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -47,8 +48,8 @@ func (t *ManufacturingOrderType) updateManufacturingOrderType() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.manufacturing_order_type SET name=$2 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, t.Id, t.Name)
+	sqlStatement := `UPDATE public.manufacturing_order_type SET name=$2 WHERE id=$1 AND enterprise=$3`
+	res, err := db.Exec(sqlStatement, t.Id, t.Name, t.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -63,8 +64,8 @@ func (t *ManufacturingOrderType) deleteManufacturingOrderType() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.manufacturing_order_type WHERE id=$1`
-	res, err := db.Exec(sqlStatement, t.Id)
+	sqlStatement := `DELETE FROM public.manufacturing_order_type WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, t.Id, t.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false

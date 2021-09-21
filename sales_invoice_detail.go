@@ -5,35 +5,36 @@ import (
 )
 
 type SalesInvoiceDetail struct {
-	Id          int32   `json:"id"`
-	Invoice     int32   `json:"invoice"`
+	Id          int64   `json:"id"`
+	Invoice     int64   `json:"invoice"`
 	Product     int32   `json:"product"`
 	Price       float32 `json:"price"`
 	Quantity    int32   `json:"quantity"`
 	VatPercent  float32 `json:"vatPercent"`
 	TotalAmount float32 `json:"totalAmount"`
-	OrderDetail *int32  `json:"orderDetail"`
+	OrderDetail *int64  `json:"orderDetail"`
 	ProductName string  `json:"productName"`
+	enterprise  int32
 }
 
-func getSalesInvoiceDetail(invoiceId int32) []SalesInvoiceDetail {
+func getSalesInvoiceDetail(invoiceId int64, enterpriseId int32) []SalesInvoiceDetail {
 	var details []SalesInvoiceDetail = make([]SalesInvoiceDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_invoice_detail.product) FROM sales_invoice_detail WHERE invoice = $1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, invoiceId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_invoice_detail.product) FROM sales_invoice_detail WHERE invoice=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, invoiceId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
 		d := SalesInvoiceDetail{}
-		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.ProductName)
+		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.ProductName)
 		details = append(details, d)
 	}
 
 	return details
 }
 
-func getSalesInvoiceDetailRow(detailId int32) SalesInvoiceDetail {
+func getSalesInvoiceDetailRow(detailId int64) SalesInvoiceDetail {
 	sqlStatement := `SELECT * FROM sales_invoice_detail WHERE id = $1 ORDER BY id ASC`
 	row := db.QueryRow(sqlStatement, detailId)
 	if row.Err() != nil {
@@ -41,7 +42,7 @@ func getSalesInvoiceDetailRow(detailId int32) SalesInvoiceDetail {
 		return SalesInvoiceDetail{}
 	}
 	d := SalesInvoiceDetail{}
-	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail)
+	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise)
 
 	return d
 }
@@ -68,8 +69,8 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) boo
 		///
 	}
 
-	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail)
+	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -121,12 +122,26 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	sqlStatement := `DELETE FROM public.sales_invoice_detail WHERE id=$1`
-	res, err := db.Exec(sqlStatement, d.Id)
+	sqlStatement := `DELETE FROM public.sales_invoice_detail WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
+	rows, _ := res.RowsAffected()
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
+
+	// can't continue
+	if rows == 0 {
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+
+		return rows > 0
+	}
+
 	ok := addTotalProductsSalesInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)
 	if !ok {
 		trans.Rollback()
@@ -161,6 +176,5 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 	}
 	///
 
-	rows, _ := res.RowsAffected()
 	return rows > 0
 }

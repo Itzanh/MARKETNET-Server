@@ -1,8 +1,8 @@
 package main
 
 type UserGroup struct {
-	User  int16 `json:"user"`
-	Group int16 `json:"group"`
+	User  int32 `json:"user"`
+	Group int32 `json:"group"`
 }
 
 type UserGroups struct {
@@ -10,15 +10,15 @@ type UserGroups struct {
 	GroupsOut []Group `json:"groupsOut"`
 }
 
-func getUserGroups(userId int16) UserGroups {
+func getUserGroups(userId int32, enterpriseId int32) UserGroups {
 	groupsIn := getUserGroupsIn(userId)
 	return UserGroups{
 		GroupsIn:  groupsIn,
-		GroupsOut: getUserGroupsOut(userId, groupsIn),
+		GroupsOut: getUserGroupsOut(userId, groupsIn, enterpriseId),
 	}
 }
 
-func getUserGroupsIn(userId int16) []Group {
+func getUserGroupsIn(userId int32) []Group {
 	var groups []Group = make([]Group, 0)
 	sqlStatement := `SELECT "group".* FROM "user" INNER JOIN user_group ON "user".id=user_group.user INNER JOIN "group" ON "group".id=user_group.group WHERE "user".id=$1 ORDER BY "group".id ASC`
 	rows, err := db.Query(sqlStatement, userId)
@@ -28,15 +28,15 @@ func getUserGroupsIn(userId int16) []Group {
 	}
 	for rows.Next() {
 		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting)
+		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise)
 		groups = append(groups, g)
 	}
 
 	return groups
 }
 
-func getUserGroupsOut(userId int16, groupsIn []Group) []Group {
-	groups := getGroup()
+func getUserGroupsOut(userId int32, groupsIn []Group, enterpriseId int32) []Group {
+	groups := getGroup(enterpriseId)
 
 	for i := 0; i < len(groupsIn); i++ {
 		for j := len(groups) - 1; j >= 0; j-- {

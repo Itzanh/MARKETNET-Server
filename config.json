@@ -11,6 +11,7 @@
         "hashIterations": 25000,
         "tokenExpirationHours": 48,
         "maxLoginAttemps": 3,
+        "cronClearLogs": "@monthly",
         "tls": {
             "useTLS": false,
             "crtPath": "./certificates/fullchain.pem",

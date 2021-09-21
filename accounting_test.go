@@ -12,7 +12,7 @@ func TestGetJournals(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	j := getJournals()
+	j := getJournals(1)
 
 	for i := 0; i < len(j); i++ {
 		if j[i].Id <= 0 {
@@ -28,9 +28,10 @@ func TestJournalInsertUpdateDelete(t *testing.T) {
 	}
 
 	j := Journal{
-		Id:   123,
-		Name: "Test",
-		Type: "G",
+		Id:         123,
+		Name:       "Test",
+		Type:       "G",
+		enterprise: 1,
 	}
 
 	ok := j.insertJournal()
@@ -60,7 +61,7 @@ func TestGetAccounts(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	a := getAccounts()
+	a := getAccounts(1)
 
 	for i := 0; i < len(a); i++ {
 		if a[i].Id <= 0 {
@@ -76,7 +77,7 @@ func TestSearchAccounts(t *testing.T) {
 	}
 
 	s := AccountSearch{Journal: 430, Search: ""}
-	a := s.searchAccounts()
+	a := s.searchAccounts(1)
 
 	for i := 0; i < len(a); i++ {
 		if a[i].Id <= 0 {
@@ -105,15 +106,17 @@ func TestAccountInsertUpdateDelete(t *testing.T) {
 	}
 
 	j := Journal{
-		Id:   123,
-		Name: "Test",
-		Type: "G",
+		Id:         123,
+		Name:       "Test",
+		Type:       "G",
+		enterprise: 1,
 	}
 	j.insertJournal()
 
 	a := Account{
-		Journal: 123,
-		Name:    "Test",
+		Journal:    123,
+		Name:       "Test",
+		enterprise: 1,
 	}
 	ok := a.insertAccount()
 	if !ok {
@@ -121,7 +124,7 @@ func TestAccountInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	getAccountId := getAccountIdByAccountNumber(j.Id, a.AccountNumber)
+	getAccountId := getAccountIdByAccountNumber(j.Id, a.AccountNumber, 1)
 	if getAccountId != a.Id {
 		t.Error("Can't get account id by account number")
 		return
@@ -148,7 +151,7 @@ func TestLocateAccountForCustomer(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	a := locateAccountForCustomer()
+	a := locateAccountForCustomer(1)
 
 	for i := 0; i < len(a); i++ {
 		if a[i].Id <= 0 {
@@ -163,7 +166,7 @@ func TestLocateAccountForSupplier(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	a := locateAccountForSupplier()
+	a := locateAccountForSupplier(1)
 
 	for i := 0; i < len(a); i++ {
 		if a[i].Id <= 0 {
@@ -178,7 +181,7 @@ func TestLocateAccountForBanks(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	a := locateAccountForBanks()
+	a := locateAccountForBanks(1)
 
 	for i := 0; i < len(a); i++ {
 		if a[i].Id <= 0 {
@@ -195,7 +198,7 @@ func TestGetAccountingMovement(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := getAccountingMovement()
+	m := getAccountingMovement(1)
 
 	for i := 0; i < len(m); i++ {
 		if m[i].Id <= 0 {
@@ -210,7 +213,7 @@ func TestSearchAccountingMovements(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := searchAccountingMovements("")
+	m := searchAccountingMovements("", 1)
 
 	for i := 0; i < len(m); i++ {
 		if m[i].Id <= 0 {
@@ -225,7 +228,7 @@ func TestGetAccountingMovementRow(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	movements := getAccountingMovement()
+	movements := getAccountingMovement(1)
 	m := getAccountingMovementRow(movements[0].Id)
 
 	if m.Id <= 0 {
@@ -242,6 +245,7 @@ func TestAccountingMovementInsertDelete(t *testing.T) {
 	am := AccountingMovement{
 		Type:         "N",
 		BillingSerie: "INT",
+		enterprise:   1,
 	}
 
 	ok := am.insertAccountingMovement()
@@ -275,6 +279,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		BillingSeries:  "INT",
 		Currency:       1,
 		BillingAddress: 1,
+		enterprise:     1,
 	}
 	_, invoiceId := i.insertSalesInvoice()
 	d := SalesInvoiceDetail{
@@ -283,6 +288,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 	d.insertSalesInvoiceDetail(true)
 	d = SalesInvoiceDetail{
@@ -291,12 +297,13 @@ func TestSalesPostInvoices(t *testing.T) {
 		Price:      4.99,
 		Quantity:   1,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 	d.insertSalesInvoiceDetail(true)
 	i = getSalesInvoiceRow(invoiceId)
 
 	// post sale invoice
-	result := salesPostInvoices([]int32{invoiceId})
+	result := salesPostInvoices([]int64{invoiceId}, 1)
 	for i := 0; i < len(result); i++ {
 		if !result[i].Ok {
 			t.Error("Can't post sale invoice")
@@ -305,7 +312,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	}
 
 	// check accounting movement
-	movements := getAccountingMovement()
+	movements := getAccountingMovement(1)
 	am := movements[0]
 
 	saleInvoices := getAccountingMovementSaleInvoices(am.Id)
@@ -314,7 +321,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		return
 	}
 
-	movementDetails := getAccountingMovementDetail(am.Id)
+	movementDetails := getAccountingMovementDetail(am.Id, 1)
 	if len(movementDetails) == 0 || movementDetails[0].Id <= 0 {
 		t.Error("Can't scan movement details")
 		return
@@ -374,7 +381,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	}
 
 	// check charges
-	collectionOperations := getColletionOperations(am.Id)
+	collectionOperations := getColletionOperations(am.Id, 1)
 	if len(collectionOperations) == 0 || collectionOperations[0].Id <= 0 {
 		t.Error("Charges not created, or can't scan charges")
 		return
@@ -389,6 +396,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		CollectionOperation: collectionOperations[0].Id,
 		Amount:              collectionOperations[0].Pending,
 		Concept:             "TESTING...",
+		enterprise:          1,
 	}
 	ok := charge.insertCharges()
 	if !ok {
@@ -397,7 +405,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	}
 
 	// test charges scan
-	charges := getCharges(collectionOperations[0].Id)
+	charges := getCharges(collectionOperations[0].Id, 1)
 	if len(charges) == 0 || charges[0].Id <= 0 {
 		t.Error("Can't scan charges")
 		return
@@ -409,7 +417,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	}
 
 	// check that the collection operaton has been updated
-	collectionOperations = getColletionOperations(am.Id)
+	collectionOperations = getColletionOperations(am.Id, 1)
 	if collectionOperations[0].Paid != collectionOperations[0].Total || collectionOperations[0].Status != "C" {
 		t.Error("Collection operation not updated")
 		return
@@ -422,7 +430,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		return
 	}
 
-	newMovementDetails := getAccountingMovementDetail(newAccountingMovement.Id)
+	newMovementDetails := getAccountingMovementDetail(newAccountingMovement.Id, 1)
 	if len(movementDetails) == 0 || movementDetails[0].Id <= 0 {
 		t.Error("Can't scan movement details")
 		return
@@ -464,6 +472,7 @@ func TestSalesPostInvoices(t *testing.T) {
 
 	// DELETE
 	// delete the charge (that will delete the new accounting movement)
+	charge.enterprise = 1
 	ok = charge.deleteCharges()
 	if !ok {
 		t.Error("Delete error, can't delete charge")
@@ -499,6 +508,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		BillingSeries:  "INT",
 		Currency:       1,
 		BillingAddress: 1,
+		enterprise:     1,
 	}
 	_, invoiceId := i.insertPurchaseInvoice()
 	d := PurchaseInvoiceDetail{
@@ -507,6 +517,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 	d.insertPurchaseInvoiceDetail(true)
 	d = PurchaseInvoiceDetail{
@@ -515,12 +526,13 @@ func TestPurchasePostInvoices(t *testing.T) {
 		Price:      4.99,
 		Quantity:   1,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 	d.insertPurchaseInvoiceDetail(true)
 	i = getPurchaseInvoiceRow(invoiceId)
 
 	// post purchase invoice
-	result := purchasePostInvoices([]int32{invoiceId})
+	result := purchasePostInvoices([]int64{invoiceId}, 1)
 	for i := 0; i < len(result); i++ {
 		if !result[i].Ok {
 			t.Error("Can't post purchase invoice")
@@ -529,7 +541,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	}
 
 	// check accounting movement
-	movements := getAccountingMovement()
+	movements := getAccountingMovement(1)
 	am := movements[0]
 
 	purchaseInvoices := getAccountingMovementPurchaseInvoices(am.Id)
@@ -538,7 +550,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		return
 	}
 
-	movementDetails := getAccountingMovementDetail(am.Id)
+	movementDetails := getAccountingMovementDetail(am.Id, 1)
 	if len(movementDetails) == 0 || movementDetails[0].Id <= 0 {
 		t.Error("Can't scan movement details")
 		return
@@ -598,7 +610,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	}
 
 	// check payments
-	paymentTransactions := getPaymentTransactions(am.Id)
+	paymentTransactions := getPaymentTransactions(am.Id, 1)
 	if len(paymentTransactions) == 0 || paymentTransactions[0].Id <= 0 {
 		t.Error("Charges not created, or can't scan payments")
 		return
@@ -613,6 +625,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		PaymentTransaction: paymentTransactions[0].Id,
 		Amount:             paymentTransactions[0].Pending,
 		Concept:            "TESTING...",
+		enterprise:         1,
 	}
 	ok := payment.insertPayment()
 	if !ok {
@@ -621,7 +634,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	}
 
 	// test payments scan
-	payments := getPayments(paymentTransactions[0].Id)
+	payments := getPayments(paymentTransactions[0].Id, 1)
 	if len(payments) == 0 || payments[0].Id <= 0 {
 		t.Error("Can't scan payments")
 		return
@@ -633,7 +646,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	}
 
 	// check that the payment transaction has been updated
-	paymentTransactions = getPaymentTransactions(am.Id)
+	paymentTransactions = getPaymentTransactions(am.Id, 1)
 	if paymentTransactions[0].Paid != paymentTransactions[0].Total || paymentTransactions[0].Status != "C" {
 		t.Error("Payment transaction not updated")
 		return
@@ -646,7 +659,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		return
 	}
 
-	newMovementDetails := getAccountingMovementDetail(newAccountingMovement.Id)
+	newMovementDetails := getAccountingMovementDetail(newAccountingMovement.Id, 1)
 	if len(movementDetails) == 0 || movementDetails[0].Id <= 0 {
 		t.Error("Can't scan movement details")
 		return

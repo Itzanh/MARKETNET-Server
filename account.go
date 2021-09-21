@@ -13,12 +13,13 @@ type Account struct {
 	Debit         float32 `json:"debit"`
 	Balance       float32 `json:"balance"`
 	AccountNumber int32   `json:"accountNumber"`
+	enterprise    int32
 }
 
-func getAccounts() []Account {
+func getAccounts(enterpriseId int32) []Account {
 	accounts := make([]Account, 0)
-	sqlStatement := `SELECT * FROM public.account ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.account WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return accounts
@@ -26,7 +27,7 @@ func getAccounts() []Account {
 
 	for rows.Next() {
 		a := Account{}
-		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber)
+		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber, &a.enterprise)
 		accounts = append(accounts, a)
 	}
 
@@ -38,16 +39,16 @@ type AccountSearch struct {
 	Search  string `json:"search"`
 }
 
-func (s *AccountSearch) searchAccounts() []Account {
+func (s *AccountSearch) searchAccounts(enterpriseId int32) []Account {
 	accounts := make([]Account, 0)
 	var rows *sql.Rows
 	var err error
 	if s.Journal <= 0 {
-		sqlStatement := `SELECT * FROM public.account WHERE name ILIKE $1 ORDER BY id ASC`
-		rows, err = db.Query(sqlStatement, "%"+s.Search+"%")
+		sqlStatement := `SELECT * FROM public.account WHERE (name ILIKE $1) AND (enterprise=$2) ORDER BY id ASC`
+		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", enterpriseId)
 	} else {
-		sqlStatement := `SELECT * FROM public.account WHERE name ILIKE $1 AND journal=$2 ORDER BY id ASC`
-		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", s.Journal)
+		sqlStatement := `SELECT * FROM public.account WHERE (name ILIKE $1) AND (journal=$2) AND (enterprise=$3) ORDER BY id ASC`
+		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", s.Journal, enterpriseId)
 	}
 	if err != nil {
 		log("DB", err.Error())
@@ -56,7 +57,7 @@ func (s *AccountSearch) searchAccounts() []Account {
 
 	for rows.Next() {
 		a := Account{}
-		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber)
+		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber, &a.enterprise)
 		accounts = append(accounts, a)
 	}
 
@@ -72,7 +73,7 @@ func getAccountRow(accountId int32) Account {
 	}
 
 	a := Account{}
-	row.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber)
+	row.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber, &a.enterprise)
 
 	return a
 }
@@ -93,8 +94,8 @@ func (a *Account) insertAccount() bool {
 		}
 	}
 
-	sqlStatement := `INSERT INTO public.account(journal, name, account_number) VALUES ($1, $2, $3) RETURNING id`
-	row := db.QueryRow(sqlStatement, a.Journal, a.Name, a.AccountNumber)
+	sqlStatement := `INSERT INTO public.account(journal, name, account_number, enterprise) VALUES ($1, $2, $3, $4) RETURNING id`
+	row := db.QueryRow(sqlStatement, a.Journal, a.Name, a.AccountNumber, a.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -125,8 +126,8 @@ func (a *Account) updateAccount() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.account SET journal=$2, name=$3, account_number=$4 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, a.Id, a.Journal, a.Name, a.AccountNumber)
+	sqlStatement := `UPDATE public.account SET journal=$2, name=$3, account_number=$4 WHERE id=$1 AND enterprise=$5`
+	_, err := db.Exec(sqlStatement, a.Id, a.Journal, a.Name, a.AccountNumber, a.enterprise)
 
 	return err == nil
 }
@@ -136,8 +137,8 @@ func (a *Account) deleteAccount() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.account WHERE id=$1`
-	_, err := db.Exec(sqlStatement, a.Id)
+	sqlStatement := `DELETE FROM public.account WHERE id=$1 AND enterprise=$2`
+	_, err := db.Exec(sqlStatement, a.Id, a.enterprise)
 
 	if err != nil {
 		log("DB", err.Error())
@@ -146,13 +147,13 @@ func (a *Account) deleteAccount() bool {
 	return err == nil
 }
 
-func getAccountIdByAccountNumber(journal int16, accountNumber int32) int32 {
-	if journal <= 0 || accountNumber <= 0 {
+func getAccountIdByAccountNumber(journal int16, accountNumber int32, enterpriseId int32) int32 {
+	if journal <= 0 || accountNumber <= 0 || enterpriseId <= 0 {
 		return 0
 	}
 
-	sqlStatement := `SELECT id FROM account WHERE account_number=$2 AND journal=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, journal, accountNumber)
+	sqlStatement := `SELECT id FROM account WHERE account_number=$2 AND journal=$1 AND enterprise=$3 LIMIT 1`
+	row := db.QueryRow(sqlStatement, journal, accountNumber, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -168,11 +169,11 @@ type AccountLocate struct {
 	Name string `json:"name"`
 }
 
-func locateAccountForCustomer() []AccountLocate {
-	s := getSettingsRecord()
+func locateAccountForCustomer(enterpriseId int32) []AccountLocate {
+	s := getSettingsRecordById(enterpriseId)
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, s.CustomerJournal)
+	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
+	rows, err := db.Query(sqlStatement, s.CustomerJournal, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return accounts
@@ -192,11 +193,11 @@ func locateAccountForCustomer() []AccountLocate {
 	return accounts
 }
 
-func locateAccountForSupplier() []AccountLocate {
-	s := getSettingsRecord()
+func locateAccountForSupplier(enterpriseId int32) []AccountLocate {
+	s := getSettingsRecordById(enterpriseId)
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, s.SupplierJournal)
+	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
+	rows, err := db.Query(sqlStatement, s.SupplierJournal, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return accounts
@@ -216,10 +217,10 @@ func locateAccountForSupplier() []AccountLocate {
 	return accounts
 }
 
-func locateAccountForBanks() []AccountLocate {
+func locateAccountForBanks(enterpriseId int32) []AccountLocate {
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' AND enterprise=$1 ORDER BY account_number ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return accounts

@@ -5,21 +5,22 @@ import (
 )
 
 type Warehouse struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
+	enterprise int32
 }
 
-func getWarehouses() []Warehouse {
+func getWarehouses(enterpriseId int32) []Warehouse {
 	var warehouses []Warehouse = make([]Warehouse, 0)
-	sqlStatement := `SELECT * FROM public.warehouse ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.warehouse WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return warehouses
 	}
 	for rows.Next() {
 		w := Warehouse{}
-		rows.Scan(&w.Id, &w.Name)
+		rows.Scan(&w.Id, &w.Name, &w.enterprise)
 		warehouses = append(warehouses, w)
 	}
 
@@ -35,8 +36,8 @@ func (w *Warehouse) insertWarehouse() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.warehouse(id, name) VALUES ($1, $2)`
-	res, err := db.Exec(sqlStatement, w.Id, w.Name)
+	sqlStatement := `INSERT INTO public.warehouse(id, name, enterprise) VALUES ($1, $2, $3)`
+	res, err := db.Exec(sqlStatement, w.Id, w.Name, w.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -51,8 +52,8 @@ func (w *Warehouse) updateWarehouse() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.warehouse SET name=$2 WHERE id = $1`
-	res, err := db.Exec(sqlStatement, w.Id, w.Name)
+	sqlStatement := `UPDATE public.warehouse SET name=$2 WHERE id=$1 AND enterprise=$3`
+	res, err := db.Exec(sqlStatement, w.Id, w.Name, w.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -67,8 +68,8 @@ func (w *Warehouse) deleteWarehouse() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM warehouse WHERE id = $1`
-	res, err := db.Exec(sqlStatement, w.Id)
+	sqlStatement := `DELETE FROM warehouse WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, w.Id, w.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -78,10 +79,10 @@ func (w *Warehouse) deleteWarehouse() bool {
 	return rows > 0
 }
 
-func findWarehouseByName(languageName string) []NameString {
+func findWarehouseByName(languageName string, enterpriseId int32) []NameString {
 	var warehouses []NameString = make([]NameString, 0)
-	sqlStatement := `SELECT id,name FROM public.warehouse WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
+	sqlStatement := `SELECT id,name FROM public.warehouse WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return warehouses
@@ -95,9 +96,9 @@ func findWarehouseByName(languageName string) []NameString {
 	return warehouses
 }
 
-func getNameWarehouse(id string) string {
-	sqlStatement := `SELECT name FROM public.warehouse WHERE id = $1`
-	row := db.QueryRow(sqlStatement, id)
+func getNameWarehouse(id string, enterpriseId int32) string {
+	sqlStatement := `SELECT name FROM public.warehouse WHERE id=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, id, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ""
@@ -109,9 +110,9 @@ func getNameWarehouse(id string) string {
 
 // Regenerates the stock of the product for all the products in the database.
 // This "stock" field is the sum of the stock in all the warehouses.
-func regenerateProductStock() bool {
-	sqlStatement := `UPDATE product SET stock = CASE WHEN (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) IS NULL THEN 0 ELSE (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) END`
-	_, err := db.Exec(sqlStatement)
+func regenerateProductStock(enterpriseId int32) bool {
+	sqlStatement := `UPDATE product SET stock = CASE WHEN (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) IS NULL THEN 0 ELSE (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) END WHERE enterprise=$1`
+	_, err := db.Exec(sqlStatement, enterpriseId)
 
 	if err != nil {
 		log("DB", err.Error())

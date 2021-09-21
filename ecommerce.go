@@ -4,44 +4,48 @@ package main
 // This code chooses from PrestaShop or other e-commerce integrations set up in the settings.
 // The app will call this generic piece of code, and it will call the corresponding e-commerce integration. In future e-commerce integrations, add the calls here to add more code to the app.
 
-func ecommerceControllerImportFromEcommerce() {
-	s := getSettingsRecord()
+type ECommerce struct {
+	Enterprise int32
+}
+
+func (e *ECommerce) ecommerceControllerImportFromEcommerce() {
+	s := getSettingsRecordById(e.Enterprise)
 
 	switch s.Ecommerce {
 	case "P":
-		importFromPrestaShop()
+		importFromPrestaShop(e.Enterprise)
 	case "W":
-		importFromWooCommerce()
+		importFromWooCommerce(e.Enterprise)
 	case "S":
-		importFromShopify()
+		importFromShopify(e.Enterprise)
 	}
 }
 
-func ecommerceControllerUpdateTrackingNumber(salesOrderId int32, trackingNumber string) bool {
-	s := getSettingsRecord()
+func ecommerceControllerUpdateTrackingNumber(salesOrderId int64, trackingNumber string, enterpriseId int32) bool {
+	s := getSettingsRecordById(enterpriseId)
 
 	switch s.Ecommerce {
 	case "P":
-		return updateTrackingNumberPrestaShopOrder(salesOrderId, trackingNumber)
+		return updateTrackingNumberPrestaShopOrder(salesOrderId, trackingNumber, enterpriseId)
 	case "W":
-		return updateTrackingNumberWooCommerceOrder(salesOrderId, trackingNumber)
+		return updateTrackingNumberWooCommerceOrder(salesOrderId, trackingNumber, enterpriseId)
 	case "S":
-		return updateTrackingNumberShopifyOrder(salesOrderId, trackingNumber)
+		return updateTrackingNumberShopifyOrder(salesOrderId, trackingNumber, enterpriseId)
 	}
 
 	return false
 }
 
-func ecommerceControllerupdateStatusPaymentAccepted(salesOrderId int32) bool {
-	s := getSettingsRecord()
+func ecommerceControllerupdateStatusPaymentAccepted(salesOrderId int64, enterpriseId int32) bool {
+	s := getSettingsRecordById(enterpriseId)
 
 	switch s.Ecommerce {
 	case "P":
-		return updateStatusPaymentAcceptedPrestaShop(salesOrderId)
+		return updateStatusPaymentAcceptedPrestaShop(salesOrderId, enterpriseId)
 	case "W":
-		return updateStatusPaymentAcceptedWooCommerce(salesOrderId)
+		return updateStatusPaymentAcceptedWooCommerce(salesOrderId, enterpriseId)
 	case "S":
-		return updateStatusPaymentAcceptedShopify(salesOrderId)
+		return updateStatusPaymentAcceptedShopify(salesOrderId, enterpriseId)
 	}
 
 	return false

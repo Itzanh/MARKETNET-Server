@@ -40,7 +40,7 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = consumeToken(token[0])
+	ok, enterpriseId := consumeToken(token[0])
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -48,19 +48,19 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 
 	switch report[0] {
 	case "SALES_ORDER":
-		w.Write(reportSalesOrder(id, forcePrint))
+		w.Write(reportSalesOrder(id, forcePrint, enterpriseId))
 	case "SALES_INVOICE":
-		w.Write(reportSalesInvoice(id, forcePrint))
+		w.Write(reportSalesInvoice(id, forcePrint, enterpriseId))
 	case "SALES_DELIVERY_NOTE":
-		w.Write(reportSalesDeliveryNote(id, forcePrint))
+		w.Write(reportSalesDeliveryNote(id, forcePrint, enterpriseId))
 	case "PURCHASE_ORDER":
-		w.Write(reportPurchaseOrder(id, forcePrint))
+		w.Write(reportPurchaseOrder(id, forcePrint, enterpriseId))
 	case "BOX_CONTENT":
-		w.Write(reportBoxContent(id, forcePrint))
+		w.Write(reportBoxContent(id, forcePrint, enterpriseId))
 	case "PALLET_CONTENT":
-		w.Write(reportPalletContent(id, forcePrint))
+		w.Write(reportPalletContent(id, forcePrint, enterpriseId))
 	case "CARRIER_PALLET":
-		w.Write(reportCarrierPallet(id, forcePrint))
+		w.Write(reportCarrierPallet(id, forcePrint, enterpriseId))
 	}
 
 }
@@ -73,18 +73,18 @@ func getLogo() []byte {
 	return content
 }
 
-func reportSalesOrder(id int, forcePrint bool) []byte {
-	s := getSalesOrderRow(int32(id))
+func reportSalesOrder(id int, forcePrint bool, enterpriseId int32) []byte {
+	s := getSalesOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethod)
-	customer := getNameCustomer(s.Customer)
+	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
+	customer := getNameCustomer(s.Customer, enterpriseId)
 	address := getAddressRow(s.BillingAddress)
 	stateName := ""
 	if address.State != nil {
-		stateName = getNameState(*address.State)
+		stateName = getNameState(*address.State, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country)
-	details := getSalesOrderDetail(s.Id)
+	countryName := getNameCountry(address.Country, enterpriseId)
+	details := getSalesOrderDetail(s.Id, enterpriseId)
 
 	content, err := ioutil.ReadFile("./reports/sales_order.html")
 	if err != nil {
@@ -125,7 +125,7 @@ func reportSalesOrder(id int, forcePrint bool) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product)
+		product := getNameProduct(details[i].Product, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -141,18 +141,18 @@ func reportSalesOrder(id int, forcePrint bool) []byte {
 	return []byte(html)
 }
 
-func reportSalesInvoice(id int, forcePrint bool) []byte {
-	i := getSalesInvoiceRow(int32(id))
+func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
+	i := getSalesInvoiceRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(i.PaymentMethod)
-	customer := getNameCustomer(i.Customer)
+	paymentMethod := getNamePaymentMethod(i.PaymentMethod, enterpriseId)
+	customer := getNameCustomer(i.Customer, enterpriseId)
 	address := getAddressRow(i.BillingAddress)
 	stateName := ""
 	if address.State != nil {
-		stateName = getNameState(*address.State)
+		stateName = getNameState(*address.State, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country)
-	details := getSalesOrderDetail(i.Id)
+	countryName := getNameCountry(address.Country, enterpriseId)
+	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
 	content, err := ioutil.ReadFile("./reports/sales_invoice.html")
 	if err != nil {
@@ -191,7 +191,7 @@ func reportSalesInvoice(id int, forcePrint bool) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product)
+		product := getNameProduct(details[i].Product, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -207,18 +207,18 @@ func reportSalesInvoice(id int, forcePrint bool) []byte {
 	return []byte(html)
 }
 
-func reportSalesDeliveryNote(id int, forcePrint bool) []byte {
-	n := getSalesDeliveryNoteRow(int32(id))
+func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte {
+	n := getSalesDeliveryNoteRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(n.PaymentMethod)
-	customer := getNameCustomer(n.Customer)
+	paymentMethod := getNamePaymentMethod(n.PaymentMethod, enterpriseId)
+	customer := getNameCustomer(n.Customer, enterpriseId)
 	address := getAddressRow(n.ShippingAddress)
 	stateName := ""
 	if address.State != nil {
-		stateName = getNameState(*address.State)
+		stateName = getNameState(*address.State, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country)
-	details := getSalesOrderDetail(n.Id)
+	countryName := getNameCountry(address.Country, enterpriseId)
+	details := getWarehouseMovementBySalesDeliveryNote(n.Id, enterpriseId)
 
 	content, err := ioutil.ReadFile("./reports/sales_delivery_note.html")
 	if err != nil {
@@ -257,7 +257,7 @@ func reportSalesDeliveryNote(id int, forcePrint bool) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product)
+		product := getNameProduct(details[i].Product, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -273,18 +273,18 @@ func reportSalesDeliveryNote(id int, forcePrint bool) []byte {
 	return []byte(html)
 }
 
-func reportPurchaseOrder(id int, forcePrint bool) []byte {
-	s := getPurchaseOrderRow(int32(id))
+func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
+	s := getPurchaseOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethod)
-	supplier := getNameSupplier(s.Supplier)
+	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
+	supplier := getNameSupplier(s.Supplier, enterpriseId)
 	address := getAddressRow(s.BillingAddress)
 	stateName := ""
 	if address.State != nil {
-		stateName = getNameState(*address.State)
+		stateName = getNameState(*address.State, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country)
-	details := getSalesOrderDetail(s.Id)
+	countryName := getNameCountry(address.Country, enterpriseId)
+	details := getPurchaseOrderDetail(s.Id, enterpriseId)
 
 	content, err := ioutil.ReadFile("./reports/purchase_order.html")
 	if err != nil {
@@ -325,7 +325,7 @@ func reportPurchaseOrder(id int, forcePrint bool) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product)
+		product := getNameProduct(details[i].Product, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -341,8 +341,8 @@ func reportPurchaseOrder(id int, forcePrint bool) []byte {
 	return []byte(html)
 }
 
-func reportBoxContent(id int, forcePrint bool) []byte {
-	p := getPackagingRow(int32(id))
+func reportBoxContent(id int, forcePrint bool, enterpriseId int32) []byte {
+	p := getPackagingRow(int64(id))
 	_package := getPackagesRow(p.Package)
 
 	content, err := ioutil.ReadFile("./reports/box_content.html")
@@ -360,7 +360,7 @@ func reportBoxContent(id int, forcePrint bool) []byte {
 		html = strings.Replace(html, "$$script$$", "", 1)
 	}
 
-	details := getSalesOrderDetailPackaged(p.Id)
+	details := getSalesOrderDetailPackaged(p.Id, enterpriseId)
 
 	detailHtmlTemplate := html[strings.Index(html, "&&detail&&")+len("&&detail&&") : strings.Index(html, "&&--detail--&&")]
 	detailsHtml := ""
@@ -381,7 +381,7 @@ func reportBoxContent(id int, forcePrint bool) []byte {
 	return []byte(html)
 }
 
-func reportPalletContent(id int, forcePrint bool) []byte {
+func reportPalletContent(id int, forcePrint bool, enterpriseId int32) []byte {
 	p := getPalletsRow(int32(id))
 
 	if p.Id <= 0 {
@@ -394,7 +394,7 @@ func reportPalletContent(id int, forcePrint bool) []byte {
 	}
 
 	html := string(content)
-	packaging := getPackaging(p.SalesOrder)
+	packaging := getPackaging(p.SalesOrder, enterpriseId)
 	boxHtmlTemplate := html[strings.Index(html, "&&box&&")+len("&&box&&") : strings.Index(html, "&&--box--&&")]
 	boxHtml := ""
 	detailHtmlTemplate := html[strings.Index(html, "&&detail&&")+len("&&detail&&") : strings.Index(html, "&&--detail--&&")]
@@ -410,7 +410,7 @@ func reportPalletContent(id int, forcePrint bool) []byte {
 		detailHtml = strings.Replace(detailHtml, "$$box_name$$", _package.Name+" ("+fmt.Sprintf("%dx%dx%d", int(_package.Width), int(_package.Height), int(_package.Depth))+")", 1)
 		detailHtml = strings.Replace(detailHtml, "$$box_weight$$", fmt.Sprintf("%.2f", packaging[i].Weight), 1)
 
-		details := getSalesOrderDetailPackaged(packaging[i].Id)
+		details := getSalesOrderDetailPackaged(packaging[i].Id, enterpriseId)
 
 		boxDetailsHtml := ""
 		for i := 0; i < len(details); i++ {
@@ -439,17 +439,17 @@ func reportPalletContent(id int, forcePrint bool) []byte {
 	return []byte(html)
 }
 
-func reportCarrierPallet(id int, forcePrint bool) []byte {
-	s := getSalesOrderRow(int32(id))
+func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
+	s := getSalesOrderRow(int64(id))
 
-	customer := getNameCustomer(s.Customer)
+	customer := getNameCustomer(s.Customer, enterpriseId)
 	address := getAddressRow(s.BillingAddress)
 	stateName := ""
 	if address.State != nil {
-		stateName = getNameState(*address.State)
+		stateName = getNameState(*address.State, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country)
-	pallets := getSalesOrderPallets(s.Id).Pallets
+	countryName := getNameCountry(address.Country, enterpriseId)
+	pallets := getSalesOrderPallets(s.Id, enterpriseId).Pallets
 
 	content, err := ioutil.ReadFile("./reports/carrier_pallet.html")
 	if err != nil {

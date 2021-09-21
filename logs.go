@@ -2,11 +2,15 @@ package main
 
 import (
 	"time"
+
+	"github.com/go-errors/errors"
 )
 
 func log(title string, info string) bool {
-	sqlStatement := `INSERT INTO public.logs(title, info) VALUES ($1, $2)`
-	_, err := db.Exec(sqlStatement, title, info)
+	errTrc := errors.Errorf(info)
+	stackTrace := errTrc.ErrorStack()
+	sqlStatement := `INSERT INTO public.logs(title, info, stacktrace) VALUES ($1, $2, $3)`
+	_, err := db.Exec(sqlStatement, title, info, stackTrace)
 	return err == nil
 }
 

@@ -5,43 +5,44 @@ import (
 )
 
 type PurchaseInvoiceDetail struct {
-	Id          int32   `json:"id"`
-	Invoice     int32   `json:"invoice"`
+	Id          int64   `json:"id"`
+	Invoice     int64   `json:"invoice"`
 	Product     int32   `json:"product"`
 	Price       float32 `json:"price"`
 	Quantity    int32   `json:"quantity"`
 	VatPercent  float32 `json:"vatPercent"`
 	TotalAmount float32 `json:"totalAmount"`
-	OrderDetail *int32  `json:"orderDetail"`
+	OrderDetail *int64  `json:"orderDetail"`
 	ProductName string  `json:"productName"`
+	enterprise  int32
 }
 
-func getPurchaseInvoiceDetail(invoiceId int32) []PurchaseInvoiceDetail {
+func getPurchaseInvoiceDetail(invoiceId int64, enterpriseId int32) []PurchaseInvoiceDetail {
 	var details []PurchaseInvoiceDetail = make([]PurchaseInvoiceDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_invoice_details.product) FROM purchase_invoice_details WHERE invoice=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, invoiceId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_invoice_details.product) FROM purchase_invoice_details WHERE invoice=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, invoiceId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return details
 	}
 	for rows.Next() {
 		d := PurchaseInvoiceDetail{}
-		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.ProductName)
+		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.ProductName)
 		details = append(details, d)
 	}
 
 	return details
 }
 
-func getPurchaseInvoiceDetailRow(detailId int32) PurchaseInvoiceDetail {
-	sqlStatement := `SELECT * FROM purchase_invoice_details WHERE id = $1 ORDER BY id ASC`
+func getPurchaseInvoiceDetailRow(detailId int64) PurchaseInvoiceDetail {
+	sqlStatement := `SELECT * FROM purchase_invoice_details WHERE id=$1 ORDER BY id ASC`
 	row := db.QueryRow(sqlStatement, detailId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return PurchaseInvoiceDetail{}
 	}
 	d := PurchaseInvoiceDetail{}
-	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail)
+	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise)
 
 	return d
 }
@@ -68,12 +69,18 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		///
 	}
 
-	sqlStatement := `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail)
+	sqlStatement := `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return false
+	}
+
 	ok := addTotalProductsPurchaseInvoice(s.Invoice, s.Price*float32(s.Quantity), s.VatPercent)
 	if !ok {
 		if beginTransaction {
@@ -100,7 +107,6 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		///
 	}
 
-	rows, _ := res.RowsAffected()
 	return rows > 0
 }
 
@@ -121,12 +127,18 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	sqlStatement := `DELETE FROM public.purchase_invoice_details WHERE id=$1`
-	res, err := db.Exec(sqlStatement, d.Id)
+	sqlStatement := `DELETE FROM public.purchase_invoice_details WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return false
+	}
+
 	ok := addTotalProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)
 	if !ok {
 		trans.Rollback()
@@ -147,6 +159,5 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 	}
 	///
 
-	rows, _ := res.RowsAffected()
 	return rows > 0
 }

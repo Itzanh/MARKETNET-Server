@@ -6,8 +6,8 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-func sendEmail(destinationAddress string, destinationAddressName string, subject string, innerText string) bool {
-	s := getSettingsRecord()
+func sendEmail(destinationAddress string, destinationAddressName string, subject string, innerText string, enterpriseId int32) bool {
+	s := getSettingsRecordById(enterpriseId)
 
 	if s.Email == "_" {
 		return false
@@ -38,7 +38,7 @@ func (e *EmailInfo) isValid() bool {
 	return !(len(e.DestinationAddress) == 0 || len(e.DestinationAddressName) == 0 || len(e.Subject) == 0 || len(e.ReportId) == 0 || e.ReportDataId <= 0)
 }
 
-func (e *EmailInfo) sendEmail() bool {
+func (e *EmailInfo) sendEmail(enterpriseId int32) bool {
 	if !e.isValid() {
 		return false
 	}
@@ -46,16 +46,16 @@ func (e *EmailInfo) sendEmail() bool {
 	var report []byte
 	switch e.ReportId {
 	case "SALES_ORDER":
-		report = reportSalesOrder(int(e.ReportDataId), false)
+		report = reportSalesOrder(int(e.ReportDataId), false, enterpriseId)
 	case "SALES_INVOICE":
-		report = reportSalesInvoice(int(e.ReportDataId), false)
+		report = reportSalesInvoice(int(e.ReportDataId), false, enterpriseId)
 	case "SALES_DELIVERY_NOTE":
-		report = reportSalesDeliveryNote(int(e.ReportDataId), false)
+		report = reportSalesDeliveryNote(int(e.ReportDataId), false, enterpriseId)
 	case "PURCHASE_ORDER":
-		report = reportPurchaseOrder(int(e.ReportDataId), false)
+		report = reportPurchaseOrder(int(e.ReportDataId), false, enterpriseId)
 	default:
 		return false
 	}
 
-	return sendEmail(e.DestinationAddress, e.DestinationAddressName, e.Subject, string(report))
+	return sendEmail(e.DestinationAddress, e.DestinationAddressName, e.Subject, string(report), enterpriseId)
 }

@@ -9,7 +9,7 @@ func TestSettings(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := getSettingsRecord()
+	s := getSettingsRecordById(1)
 	ok := s.updateSettingsRecord()
 	if !ok {
 		t.Error("Can't update settings")
@@ -24,7 +24,7 @@ func TestGetUser(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	users := getUser()
+	users := getUser(1)
 	if len(users) == 0 || users[0].Id <= 0 {
 		t.Error("Can't scan users")
 		return
@@ -36,7 +36,7 @@ func TestGetUserByUsername(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	user := getUserByUsername("marketnet")
+	user := getUserByUsername(1, "marketnet")
 	if user.Id <= 0 {
 		t.Error("Can't scan user")
 		return
@@ -67,17 +67,18 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 		Password: "go.test.user",
 		Language: "en",
 	}
-	ok := ui.insertUser()
+	ok := ui.insertUser(1)
 	if !ok {
 		t.Error("Insert error, user not inserted")
 		return
 	}
 
 	// update
-	users := getUser()
+	users := getUser(1)
 	user := users[len(users)-1]
 
 	user.Language = "es"
+	user.enterprise = 1
 	ok = user.updateUser()
 	if !ok {
 		t.Error("Update error, user not updated")
@@ -86,10 +87,11 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// attempts incorrect login
 	ul := UserLogin{
-		Username: "gotestuser",
-		Password: "go.user",
+		Username:   "gotestuser",
+		Password:   "go.user",
+		Enterprise: "MARKETNET",
 	}
-	result, _ := ul.login("127.0.0.1")
+	result, _, _ := ul.login("127.0.0.1")
 	if result.Ok {
 		t.Error("Can login with incorrect password!!!")
 		return
@@ -97,10 +99,11 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// attempt correct login
 	ul = UserLogin{
-		Username: "gotestuser",
-		Password: "go.test.user",
+		Username:   "gotestuser",
+		Password:   "go.test.user",
+		Enterprise: "MARKETNET",
 	}
-	result, _ = ul.login("127.0.0.1")
+	result, _, _ = ul.login("127.0.0.1")
 	if !result.Ok {
 		t.Error("Can't login!!!")
 		return
@@ -111,7 +114,7 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 		Id:       user.Id,
 		Password: "go1234testuser",
 	}
-	ok = up.userPassword()
+	ok = up.userPassword(1)
 	if !ok {
 		t.Error("Can't update the user's password")
 		return
@@ -119,10 +122,11 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// attempts incorrect login
 	ul = UserLogin{
-		Username: "gotestuser",
-		Password: "go.user",
+		Username:   "gotestuser",
+		Password:   "go.user",
+		Enterprise: "MARKETNET",
 	}
-	result, _ = ul.login("127.0.0.1")
+	result, _, _ = ul.login("127.0.0.1")
 	if result.Ok {
 		t.Error("Can login with incorrect password!!!")
 		return
@@ -130,16 +134,18 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// attempt correct login
 	ul = UserLogin{
-		Username: "gotestuser",
-		Password: "go1234testuser",
+		Username:   "gotestuser",
+		Password:   "go1234testuser",
+		Enterprise: "MARKETNET",
 	}
-	result, _ = ul.login("127.0.0.1")
+	result, _, _ = ul.login("127.0.0.1")
 	if !result.Ok {
 		t.Error("Can't login!!!")
 		return
 	}
 
 	// deactivate user
+	user.enterprise = 1
 	ok = user.offUser()
 	if !ok {
 		t.Error("Can't deactivate user")
@@ -148,10 +154,11 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// attempts incorrect login
 	ul = UserLogin{
-		Username: "gotestuser",
-		Password: "go1234testuser",
+		Username:   "gotestuser",
+		Password:   "go1234testuser",
+		Enterprise: "MARKETNET",
 	}
-	result, _ = ul.login("127.0.0.1")
+	result, _, _ = ul.login("127.0.0.1")
 	if result.Ok {
 		t.Error("Can login with deactivated user!!!")
 		return
@@ -159,6 +166,7 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// reactivate user
 	ok = user.offUser()
+	user.enterprise = 1
 	if !ok {
 		t.Error("Can't reactivate user")
 		return
@@ -166,16 +174,18 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// attempt correct login
 	ul = UserLogin{
-		Username: "gotestuser",
-		Password: "go1234testuser",
+		Username:   "gotestuser",
+		Password:   "go1234testuser",
+		Enterprise: "MARKETNET",
 	}
-	result, _ = ul.login("127.0.0.1")
+	result, _, _ = ul.login("127.0.0.1")
 	if !result.Ok {
 		t.Error("Can't login!!!")
 		return
 	}
 
 	// delete
+	user.enterprise = 1
 	ok = user.deleteUser()
 	if !ok {
 		t.Error("Delete error, user not deleted")
@@ -190,7 +200,7 @@ func TestGetGroup(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	groups := getGroup()
+	groups := getGroup(1)
 	if len(groups) == 0 || groups[0].Id <= 0 {
 		t.Error("Can't scan groups")
 		return
@@ -203,7 +213,8 @@ func TestGroupInsertUpdateDelete(t *testing.T) {
 	}
 
 	g := Group{
-		Name: "Test",
+		Name:       "Test",
+		enterprise: 1,
 	}
 	ok := g.insertGroup()
 	if !ok {
@@ -211,16 +222,17 @@ func TestGroupInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	groups := getGroup()
+	groups := getGroup(1)
 	g = groups[len(groups)-1]
 	g.Sales = true
+	g.enterprise = 1
 	ok = g.updateGroup()
 	if !ok {
 		t.Error("Update error, group not updated")
 		return
 	}
 
-	groups = getGroup()
+	groups = getGroup(1)
 	g = groups[len(groups)-1]
 	if !g.Sales {
 		t.Error("Update not successful")
@@ -241,9 +253,9 @@ func TestGetUserGroups(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	users := getUser()
+	users := getUser(1)
 	for i := 0; i < len(users); i++ {
-		groups := getUserGroups(users[i].Id)
+		groups := getUserGroups(users[i].Id, 1)
 		for j := 0; j < len(groups.GroupsIn); j++ {
 			if groups.GroupsIn[j].Id <= 0 {
 				t.Error("Can't scan user groups in")
@@ -269,16 +281,17 @@ func TestUserGroupInsertDelete(t *testing.T) {
 		Password: "go.test.user",
 		Language: "en",
 	}
-	ui.insertUser()
-	users := getUser()
+	ui.insertUser(1)
+	users := getUser(1)
 	user := users[len(users)-1]
 
 	// create group
 	g := Group{
-		Name: "Test",
+		Name:       "Test",
+		enterprise: 1,
 	}
 	g.insertGroup()
-	groups := getGroup()
+	groups := getGroup(1)
 	g = groups[len(groups)-1]
 
 	// create user group
@@ -293,7 +306,7 @@ func TestUserGroupInsertDelete(t *testing.T) {
 	}
 
 	// delete user group
-	userGroups := getUserGroups(user.Id)
+	userGroups := getUserGroups(user.Id, 1)
 	if len(userGroups.GroupsIn) == 0 {
 		t.Error("Can't scan user groups")
 		return
@@ -324,19 +337,21 @@ func TestPermissions(t *testing.T) {
 		Password: "go.test.user",
 		Language: "en",
 	}
-	ui.insertUser()
-	users := getUser()
+	ui.insertUser(1)
+	users := getUser(1)
 	user := users[len(users)-1]
 
 	// create groups
 	gSales := Group{
-		Name:  "Test sales",
-		Sales: true,
+		Name:       "Test sales",
+		Sales:      true,
+		enterprise: 1,
 	}
 	gSales.insertGroup()
 	gPurchases := Group{
-		Name:      "Test purchases",
-		Purchases: true,
+		Name:       "Test purchases",
+		Purchases:  true,
+		enterprise: 1,
 	}
 	gPurchases.insertGroup()
 
@@ -361,7 +376,7 @@ func TestPermissions(t *testing.T) {
 	}
 
 	// check permissions
-	permissions := getUserPermissions(user.Id)
+	permissions := getUserPermissions(user.Id, 1)
 	if !permissions.Sales || !permissions.Purchases || permissions.Masters || permissions.Warehouse || permissions.Manufacturing || permissions.Preparation || permissions.Admin || permissions.PrestaShop || permissions.Accounting {
 		t.Error("Permissions not set correctly")
 		return
@@ -402,7 +417,7 @@ func TestGetApiKeys(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	apiKeys := getApiKeys()
+	apiKeys := getApiKeys(1)
 	if len(apiKeys) > 0 && apiKeys[0].Id <= 0 {
 		t.Error("Can't scan API keys")
 		return
@@ -418,6 +433,7 @@ func TestApiKeys(t *testing.T) {
 		Name:        "Test key",
 		UserCreated: 1,
 		User:        1,
+		enterprise:  1,
 	}
 	ok := key.insertApiKey()
 	if !ok {
@@ -425,13 +441,13 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _ = checkApiKey(key.Token)
+	ok, _, _ = checkApiKey(key.Token)
 	if !ok {
 		t.Error("The API key can't get authenticated")
 		return
 	}
 
-	apiKeys := getApiKeys()
+	apiKeys := getApiKeys(1)
 	key = apiKeys[len(apiKeys)-1]
 
 	ok = key.offApiKey()
@@ -440,7 +456,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _ = checkApiKey(key.Token)
+	ok, _, _ = checkApiKey(key.Token)
 	if !ok {
 		t.Error("The API key can be accessed after deactivating")
 		return
@@ -452,7 +468,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _ = checkApiKey(key.Token)
+	ok, _, _ = checkApiKey(key.Token)
 	if !ok {
 		t.Error("The API key can't get authenticated")
 		return

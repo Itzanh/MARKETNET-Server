@@ -11,7 +11,7 @@ func TestGetWarehouses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	w := getWarehouses()
+	w := getWarehouses(1)
 
 	for i := 0; i < len(w); i++ {
 		if len(w[i].Id) == 0 {
@@ -29,8 +29,9 @@ func TestWarehouseInsertUpdateDelete(t *testing.T) {
 	}
 
 	w := Warehouse{
-		Id:   "WA",
-		Name: "Test warehouse",
+		Id:         "WA",
+		Name:       "Test warehouse",
+		enterprise: 1,
 	}
 
 	// insert
@@ -41,7 +42,7 @@ func TestWarehouseInsertUpdateDelete(t *testing.T) {
 	}
 
 	// update
-	warehouses := getWarehouses()
+	warehouses := getWarehouses(1)
 	w = warehouses[len(warehouses)-1]
 
 	w.Name = "Test test"
@@ -52,7 +53,7 @@ func TestWarehouseInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check update
-	warehouses = getWarehouses()
+	warehouses = getWarehouses(1)
 	w = warehouses[len(warehouses)-1]
 
 	if w.Name != "Test test" {
@@ -75,7 +76,7 @@ func TestFindWarehouseByName(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	warehouses := findWarehouseByName("")
+	warehouses := findWarehouseByName("", 1)
 	if len(warehouses) == 0 || len(warehouses[0].Id) == 0 {
 		t.Error("Can't scan warehouses")
 		return
@@ -87,7 +88,7 @@ func TestGetNameWarehouse(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	warehouseName := getNameWarehouse("W1")
+	warehouseName := getNameWarehouse("W1", 1)
 	if warehouseName == "" {
 		t.Error("Can't get the name of the warehouse")
 		return
@@ -99,7 +100,7 @@ func TestRegenerateProductStock(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	ok := regenerateProductStock()
+	ok := regenerateProductStock(1)
 	if !ok {
 		t.Error("There was an error regenerating the stock of the products")
 		return
@@ -115,7 +116,7 @@ func TestGetStocks(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := getStock(1)
+	s := getStock(1, 1)
 
 	for i := 0; i < len(s); i++ {
 		if s[i].Product <= 0 {
@@ -130,7 +131,7 @@ func TestGetStockRow(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := getStockRow(1, "W1")
+	s := getStockRow(1, "W1", 1)
 	if s.Product <= 0 {
 		t.Error("Scan error, customer row with ID 0.")
 		return
@@ -145,8 +146,8 @@ func TestCreateStockRow(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	family := int16(1)
-	manufacturingOrderType := int16(2)
+	family := int32(1)
+	manufacturingOrderType := int32(2)
 	supplier := int32(1)
 
 	p := Product{
@@ -165,6 +166,7 @@ func TestCreateStockRow(t *testing.T) {
 		ManufacturingOrderType: &manufacturingOrderType,
 		Supplier:               &supplier,
 		TrackMinimumStock:      true,
+		enterprise:             1,
 	}
 
 	ok := p.insertProduct()
@@ -173,12 +175,13 @@ func TestCreateStockRow(t *testing.T) {
 		return
 	}
 
-	products := getProduct()
+	products := getProduct(1)
 	p = products[len(products)-1]
 
 	w := Warehouse{
-		Id:   "WA",
-		Name: "Test warehouse",
+		Id:         "WA",
+		Name:       "Test warehouse",
+		enterprise: 1,
 	}
 
 	// insert
@@ -187,10 +190,10 @@ func TestCreateStockRow(t *testing.T) {
 		t.Error("Insert error, warehouse not inserted")
 		return
 	}
-	warehouses := getWarehouses()
+	warehouses := getWarehouses(1)
 	w = warehouses[len(warehouses)-1]
 
-	ok = createStockRow(p.Id, w.Id)
+	ok = createStockRow(p.Id, w.Id, 1)
 	if !ok {
 		t.Error("Can't create stock rows")
 	}
@@ -216,8 +219,8 @@ func TestStock(t *testing.T) {
 	}
 
 	// create
-	family := int16(1)
-	manufacturingOrderType := int16(2)
+	family := int32(1)
+	manufacturingOrderType := int32(2)
 	supplier := int32(1)
 
 	p := Product{
@@ -236,93 +239,93 @@ func TestStock(t *testing.T) {
 		ManufacturingOrderType: &manufacturingOrderType,
 		Supplier:               &supplier,
 		TrackMinimumStock:      true,
+		enterprise:             1,
 	}
 	p.insertProduct()
-	products := getProduct()
+	products := getProduct(1)
 	p = products[len(products)-1]
 
 	w := Warehouse{
-		Id:   "WA",
-		Name: "Test warehouse",
+		Id:         "WA",
+		Name:       "Test warehouse",
+		enterprise: 1,
 	}
 	w.insertWarehouse()
-	warehouses := getWarehouses()
-	w = warehouses[len(warehouses)-1]
 
 	// test stock functionality
 	// quantity pending serving
-	ok := addQuantityPendingServing(p.Id, w.Id, 1)
+	ok := addQuantityPendingServing(p.Id, w.Id, 1, 1)
 	if !ok {
 		t.Error("Adding quantity pending serving has not worked")
 		return
 	}
-	s := getStockRow(p.Id, w.Id)
+	s := getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingServed != 1 {
 		t.Error("Quantity pending serving not updated")
 		return
 	}
-	ok = addQuantityPendingServing(p.Id, w.Id, -1)
+	ok = addQuantityPendingServing(p.Id, w.Id, -1, 1)
 	if !ok {
 		t.Error("Adding quantity pending serving has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingServed != 0 {
 		t.Error("Quantity pending serving not updated")
 		return
 	}
 
 	// quantity pending receiving
-	ok = addQuantityPendingReveiving(p.Id, w.Id, 1)
+	ok = addQuantityPendingReveiving(p.Id, w.Id, 1, 1)
 	if !ok {
 		t.Error("Adding quantity pending receiving has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingReceived != 1 {
 		t.Error("Quantity pending receiving not updated")
 		return
 	}
-	ok = addQuantityPendingReveiving(p.Id, w.Id, -1)
+	ok = addQuantityPendingReveiving(p.Id, w.Id, -1, 1)
 	if !ok {
 		t.Error("Adding quantity pending receiving has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingReceived != 0 {
 		t.Error("Quantity pending receiving not updated")
 		return
 	}
 
 	// quantity pending manufacture
-	ok = addQuantityPendingManufacture(p.Id, w.Id, 1)
+	ok = addQuantityPendingManufacture(p.Id, w.Id, 1, 1)
 	if !ok {
 		t.Error("Adding quantity pending manufacture has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingManufacture != 1 {
 		t.Error("Quantity pending manufacture not updated")
 		return
 	}
-	ok = addQuantityPendingManufacture(p.Id, w.Id, -1)
+	ok = addQuantityPendingManufacture(p.Id, w.Id, -1, 1)
 	if !ok {
 		t.Error("Adding quantity pending manufacture has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingManufacture != 0 {
 		t.Error("Quantity pending manufacture not updated")
 		return
 	}
 
 	// stock
-	ok = addQuantityStock(p.Id, w.Id, 1)
+	ok = addQuantityStock(p.Id, w.Id, 1, 1)
 	if !ok {
 		t.Error("Adding quantity has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 1 {
 		t.Error("Quantity not updated")
 		return
@@ -332,12 +335,12 @@ func TestStock(t *testing.T) {
 		t.Error("Quantity not updated")
 		return
 	}
-	ok = addQuantityStock(p.Id, w.Id, -1)
+	ok = addQuantityStock(p.Id, w.Id, -1, 1)
 	if !ok {
 		t.Error("Adding quantity has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 0 {
 		t.Error("Quantity not updated")
 		return
@@ -349,12 +352,12 @@ func TestStock(t *testing.T) {
 	}
 
 	// set stock
-	ok = setQuantityStock(p.Id, w.Id, 1)
+	ok = setQuantityStock(p.Id, w.Id, 1, 1)
 	if !ok {
 		t.Error("Setting quantity has not worked")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 1 {
 		t.Error("Setting quantity not updated")
 		return
@@ -379,7 +382,7 @@ func TestGetWarehouseMovement(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: 1}
+	q := PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}
 	m := q.getWarehouseMovement()
 
 	if len(m.Movements) == 0 || m.Movements[0].Id <= 0 {
@@ -393,7 +396,7 @@ func TestGetWarehouseMovementByWarehouse(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1}, WarehouseId: "W1"}
+	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}, WarehouseId: "W1"}
 	m := q.getWarehouseMovementByWarehouse()
 
 	if len(m.Movements) == 0 || m.Movements[0].Id <= 0 {
@@ -407,7 +410,7 @@ func TestGetWarehouseMovementBySalesDeliveryNote(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := getWarehouseMovementBySalesDeliveryNote(1)
+	m := getWarehouseMovementBySalesDeliveryNote(1, 1)
 
 	if len(m) == 0 || m[0].Id <= 0 {
 		t.Error("Scan error, warehouse movement with ID 0.")
@@ -420,7 +423,7 @@ func TestGetWarehouseMovementByPurchaseDeliveryNote(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := getWarehouseMovementByPurchaseDeliveryNote(1)
+	m := getWarehouseMovementByPurchaseDeliveryNote(1, 1)
 
 	if len(m) == 0 || m[0].Id <= 0 {
 		t.Error("Scan error, warehouse movement with ID 0.")
@@ -433,7 +436,7 @@ func TestSearchWarehouseMovement(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := WarehouseMovementSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1}, Search: ""}}
+	s := WarehouseMovementSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}, Search: ""}}
 	m := s.searchWarehouseMovement()
 
 	if len(m.Movements) == 0 || m.Movements[0].Id <= 0 {
@@ -463,8 +466,8 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	}
 
 	// create
-	family := int16(1)
-	manufacturingOrderType := int16(2)
+	family := int32(1)
+	manufacturingOrderType := int32(2)
 	supplier := int32(1)
 
 	p := Product{
@@ -483,39 +486,40 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		ManufacturingOrderType: &manufacturingOrderType,
 		Supplier:               &supplier,
 		TrackMinimumStock:      true,
+		enterprise:             1,
 	}
 	p.insertProduct()
-	products := getProduct()
-	p = products[len(products)-1]
 
 	w := Warehouse{
-		Id:   "WA",
-		Name: "Test warehouse",
+		Id:         "WA",
+		Name:       "Test warehouse",
+		enterprise: 1,
 	}
 	w.insertWarehouse()
-	warehouses := getWarehouses()
+	warehouses := getWarehouses(1)
 	w = warehouses[len(warehouses)-1]
 
 	// test warehouse movements
 	// create an input movement
 	wm := WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok := wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s := getStockRow(p.Id, w.Id)
+	s := getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 1 {
-		t.Error("The stock has not been updated")
+		t.Errorf("The stock has not been updated %d", s.Quantity)
 		return
 	}
 	// delete the warehouse movement
-	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, WarehouseId: w.Id}
+	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, WarehouseId: w.Id}
 	movements := q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[len(movements.Movements)-1]
 	ok = wm.deleteWarehouseMovement()
@@ -526,10 +530,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	// create an input and then an output movement
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -537,17 +542,18 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  -1,
-		Type:      "O",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   -1,
+		Type:       "O",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 0 {
 		t.Error("The stock has not been updated")
 		return
@@ -570,6 +576,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		BillingSeries:   "EXP",
 		ShippingAddress: 1,
 		Currency:        1,
+		enterprise:      1,
 	}
 
 	_, noteId := sn.insertSalesDeliveryNotes()
@@ -583,13 +590,14 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		SalesDeliveryNote: &noteId,
 		Price:             9.99,
 		VatPercent:        21,
+		enterprise:        1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != -1 {
 		t.Error("The stock has not been updated")
 		return
@@ -626,6 +634,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		BillingSeries:   "INT",
 		Currency:        1,
 		ShippingAddress: 3,
+		enterprise:      1,
 	}
 
 	_, noteId = pn.insertPurchaseDeliveryNotes()
@@ -639,13 +648,14 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		PurchaseDeliveryNote: &noteId,
 		Price:                9.99,
 		VatPercent:           21,
+		enterprise:           1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != -1 {
 		t.Error("The stock has not been updated")
 		return
@@ -678,10 +688,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// An input gets inserted, later an output, then a regularisation is made, and then an input is added. If this last row (input) gets deleted,
 	// the stock of the product has to be equal to the stock set on the regularization again.
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -689,10 +700,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  -1,
-		Type:      "O",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   -1,
+		Type:       "O",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -700,10 +712,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  5,
-		Type:      "R",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   5,
+		Type:       "R",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -711,17 +724,18 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 6 {
 		t.Error("The stock has not been updated")
 		return
@@ -735,7 +749,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 5 {
 		t.Error("The stock has not been updated")
 		return
@@ -750,7 +764,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		}
 	}
 
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 0 {
 		t.Error("The stock has not been updated")
 		return
@@ -760,10 +774,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// An input gets inserted, later an output, again an input is inserted, then a regularisation is made, and then an input is added. If the last
 	// row before the regularization (input) is deleted, it should not affect the product's quantity, or the dragged stock of the products.
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -771,10 +786,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  -1,
-		Type:      "O",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   -1,
+		Type:       "O",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -782,10 +798,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -793,10 +810,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  5,
-		Type:      "R",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   5,
+		Type:       "R",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -804,17 +822,18 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 6 {
 		t.Error("The stock has not been updated")
 		return
@@ -828,7 +847,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 6 {
 		t.Error("The stock has not been updated")
 		return
@@ -843,7 +862,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		}
 	}
 
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 0 {
 		t.Error("The stock has not been updated")
 		return
@@ -853,10 +872,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// An input gets inserted, later an output, again an input is inserted, then a regularisation is made, and then an input is added. If the
 	// regularization is deleted, the dragged stock of the product should be recalculated.
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -864,10 +884,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  -1,
-		Type:      "O",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   -1,
+		Type:       "O",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -875,10 +896,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -886,10 +908,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  5,
-		Type:      "R",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   5,
+		Type:       "R",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
@@ -897,17 +920,18 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse: w.Id,
-		Product:   p.Id,
-		Quantity:  1,
-		Type:      "I",
+		Warehouse:  w.Id,
+		Product:    p.Id,
+		Quantity:   1,
+		Type:       "I",
+		enterprise: 1,
 	}
 	ok = wm.insertWarehouseMovement()
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
 	}
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 6 {
 		t.Error("The stock has not been updated")
 		return
@@ -921,7 +945,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 2 {
 		t.Error("The stock has not been updated")
 		return
@@ -936,7 +960,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		}
 	}
 
-	s = getStockRow(p.Id, w.Id)
+	s = getStockRow(p.Id, w.Id, 1)
 	if s.Quantity != 0 {
 		t.Error("The stock has not been updated")
 		return

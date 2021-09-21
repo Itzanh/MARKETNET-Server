@@ -3,7 +3,7 @@ package main
 import "strings"
 
 type Carrier struct {
-	Id                      int16   `json:"id"`
+	Id                      int32   `json:"id"`
 	Name                    string  `json:"name"`
 	MaxWeight               float32 `json:"maxWeight"`
 	MaxWidth                float32 `json:"maxWidth"`
@@ -22,26 +22,27 @@ type Carrier struct {
 	SendcloudSecret         string  `json:"sendcloudSecret"`
 	SendcloudShippingMethod int32   `json:"sendcloudShippingMethod"`
 	SendcloudSenderAddress  int64   `json:"sendcloudSenderAddress"`
+	enterprise              int32
 }
 
-func getCariers() []Carrier {
+func getCariers(enterpriseId int32) []Carrier {
 	var carriers []Carrier = make([]Carrier, 0)
-	sqlStatement := `SELECT * FROM public.carrier ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.carrier WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return carriers
 	}
 	for rows.Next() {
 		c := Carrier{}
-		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress)
+		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress, &c.enterprise)
 		carriers = append(carriers, c)
 	}
 
 	return carriers
 }
 
-func getCarierRow(id int16) Carrier {
+func getCarierRow(id int32) Carrier {
 	sqlStatement := `SELECT * FROM public.carrier WHERE id=$1`
 	row := db.QueryRow(sqlStatement, id)
 	if row.Err() != nil {
@@ -50,7 +51,7 @@ func getCarierRow(id int16) Carrier {
 	}
 
 	c := Carrier{}
-	row.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress)
+	row.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress, &c.enterprise)
 
 	return c
 }
@@ -64,8 +65,8 @@ func (c *Carrier) insertCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets, webservice, sendcloud_url, sendcloud_key, sendcloud_secret, sendcloud_shipping_method, sendcloud_sender_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
-	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets, c.Webservice, c.SendcloudUrl, c.SendcloudKey, c.SendcloudSecret, c.SendcloudShippingMethod, c.SendcloudSenderAddress)
+	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets, webservice, sendcloud_url, sendcloud_key, sendcloud_secret, sendcloud_shipping_method, sendcloud_sender_address, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
+	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets, c.Webservice, c.SendcloudUrl, c.SendcloudKey, c.SendcloudSecret, c.SendcloudShippingMethod, c.SendcloudSenderAddress, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -80,8 +81,8 @@ func (c *Carrier) updateCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12, webservice=$13, sendcloud_url=$14, sendcloud_key=$15, sendcloud_secret=$16, sendcloud_shipping_method=$17, sendcloud_sender_address=$18 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets, c.Webservice, c.SendcloudUrl, c.SendcloudKey, c.SendcloudSecret, c.SendcloudShippingMethod, c.SendcloudSenderAddress)
+	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12, webservice=$13, sendcloud_url=$14, sendcloud_key=$15, sendcloud_secret=$16, sendcloud_shipping_method=$17, sendcloud_sender_address=$18 WHERE id=$1 AND enterprise=$19`
+	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets, c.Webservice, c.SendcloudUrl, c.SendcloudKey, c.SendcloudSecret, c.SendcloudShippingMethod, c.SendcloudSenderAddress, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -96,8 +97,8 @@ func (c *Carrier) deleteCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.carrier WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id)
+	sqlStatement := `DELETE FROM public.carrier WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -107,10 +108,10 @@ func (c *Carrier) deleteCarrier() bool {
 	return rows > 0
 }
 
-func findCarrierByName(languageName string) []NameInt16 {
+func findCarrierByName(languageName string, enterpriseId int32) []NameInt16 {
 	var carriers []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.carrier WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName))
+	sqlStatement := `SELECT id,name FROM public.carrier WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return carriers
@@ -124,9 +125,9 @@ func findCarrierByName(languageName string) []NameInt16 {
 	return carriers
 }
 
-func getNameCarrier(id int16) string {
-	sqlStatement := `SELECT name FROM public.carrier WHERE id = $1`
-	row := db.QueryRow(sqlStatement, id)
+func getNameCarrier(id int32, enterpriseId int32) string {
+	sqlStatement := `SELECT name FROM public.carrier WHERE id=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, id, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ""

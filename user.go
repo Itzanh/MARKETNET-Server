@@ -3,11 +3,12 @@ package main
 import (
 	"crypto/sha512"
 	"math/rand"
+	"strings"
 	"time"
 )
 
 type User struct {
-	Id                 int16     `json:"id"`
+	Id                 int32     `json:"id"`
 	Username           string    `json:"username"`
 	FullName           string    `json:"fullName"`
 	Email              string    `json:"email"`
@@ -22,40 +23,41 @@ type User struct {
 	DateLastLogin      time.Time `json:"dateLastLogin"`
 	FailedLoginAttemps int16
 	Language           string `json:"language"`
+	enterprise         int32
 }
 
-func getUser() []User {
+func getUser(enterpriseId int32) []User {
 	var users []User = make([]User, 0)
-	sqlStatement := `SELECT * FROM "user" ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM "user" WHERE config=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return users
 	}
 	for rows.Next() {
 		u := User{}
-		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language)
+		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise)
 		users = append(users, u)
 	}
 
 	return users
 }
 
-func getUserByUsername(username string) User {
-	sqlStatement := `SELECT * FROM "user" WHERE username=$1`
-	row := db.QueryRow(sqlStatement, username)
+func getUserByUsername(enterpriseId int32, username string) User {
+	sqlStatement := `SELECT * FROM "user" WHERE config=$1 AND username=$2`
+	row := db.QueryRow(sqlStatement, enterpriseId, username)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return User{}
 	}
 
 	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language)
+	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise)
 
 	return u
 }
 
-func getUserRow(userId int16) User {
+func getUserRow(userId int32) User {
 	sqlStatement := `SELECT * FROM "user" WHERE id=$1`
 	row := db.QueryRow(sqlStatement, userId)
 	if row.Err() != nil {
@@ -64,7 +66,7 @@ func getUserRow(userId int16) User {
 	}
 
 	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language)
+	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise)
 
 	return u
 }
@@ -106,7 +108,7 @@ func hashPassword(password []byte, iterations int32) []byte {
 	return pwd
 }
 
-func (u *UserInsert) insertUser() bool {
+func (u *UserInsert) insertUser(enterpriseId int32) bool {
 	if !u.isValid() {
 		return false
 	}
@@ -114,8 +116,8 @@ func (u *UserInsert) insertUser() bool {
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
-	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations, lang) VALUES ($1, $2, $3, $4, $5, $6)`
-	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations, u.Language)
+	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations, lang, config) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations, u.Language, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -134,8 +136,8 @@ func (u *User) updateUser() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."user" SET username=$2, full_name=$3, email=$4, dsc=$5, lang=$6 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, u.Id, u.Username, u.FullName, u.Email, u.Description, u.Language)
+	sqlStatement := `UPDATE public."user" SET username=$2, full_name=$3, email=$4, dsc=$5, lang=$6 WHERE id=$1 AND config=$7`
+	res, err := db.Exec(sqlStatement, u.Id, u.Username, u.FullName, u.Email, u.Description, u.Language, u.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -150,8 +152,8 @@ func (u *User) deleteUser() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public."user" WHERE id=$1`
-	res, err := db.Exec(sqlStatement, u.Id)
+	sqlStatement := `DELETE FROM public."user" WHERE id=$1 AND config=$2`
+	res, err := db.Exec(sqlStatement, u.Id, u.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -162,12 +164,12 @@ func (u *User) deleteUser() bool {
 }
 
 type UserPassword struct {
-	Id           int16  `json:"id"`
+	Id           int32  `json:"id"`
 	Password     string `json:"password"`
 	PwdNextLogin bool   `json:"pwdNextLogin"`
 }
 
-func (u *UserPassword) userPassword() bool {
+func (u *UserPassword) userPassword(enterpriseId int32) bool {
 	if u.Id <= 0 || len(u.Password) < 8 {
 		return false
 	}
@@ -175,8 +177,8 @@ func (u *UserPassword) userPassword() bool {
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
-	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, settings.Server.HashIterations, u.PwdNextLogin)
+	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1 AND config=$6`
+	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, settings.Server.HashIterations, u.PwdNextLogin, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -190,8 +192,8 @@ func (u *User) offUser() bool {
 	if u.Id <= 0 {
 		return false
 	}
-	sqlStatement := `UPDATE public."user" SET off = NOT off WHERE id=$1`
-	res, err := db.Exec(sqlStatement, u.Id)
+	sqlStatement := `UPDATE public."user" SET off = NOT off WHERE id=$1 AND config=$2`
+	res, err := db.Exec(sqlStatement, u.Id, u.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -202,9 +204,10 @@ func (u *User) offUser() bool {
 }
 
 type UserLogin struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Token    string `json:"token"`
+	Enterprise string `json:"enterprise"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Token      string `json:"token"`
 }
 
 type UserLoginResult struct {
@@ -214,14 +217,20 @@ type UserLoginResult struct {
 	Language    string       `json:"language"`
 }
 
-func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
+// Result, user id, enterprise id
+func (u *UserLogin) login(ipAddress string) (UserLoginResult, int32, int32) {
 	if len(u.Username) == 0 || len(u.Username) > 50 || len(u.Password) < 8 {
-		return UserLoginResult{Ok: false}, 0
+		return UserLoginResult{Ok: false}, 0, 0
 	}
 
-	user := getUserByUsername(u.Username)
+	enterprise := getSettingsRecordByEnterprise(strings.ToUpper(u.Enterprise))
+	if enterprise.Id <= 0 {
+		return UserLoginResult{Ok: false}, 0, 0
+	}
+
+	user := getUserByUsername(enterprise.Id, u.Username)
 	if user.Id <= 0 || user.Off || user.FailedLoginAttemps >= settings.Server.MaxLoginAttemps {
-		return UserLoginResult{Ok: false}, 0
+		return UserLoginResult{Ok: false}, 0, 0
 	}
 
 	passwd := hashPassword([]byte(user.Salt+u.Password), user.Iterations)
@@ -230,11 +239,11 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int16) {
 		user.setUserFailedLoginAttemps(false)
 		t := LoginToken{User: user.Id, IpAddress: ipAddress}
 		t.insertLoginToken()
-		perm := getUserPermissions(user.Id)
-		return UserLoginResult{Ok: true, Token: t.Name, Permissions: &perm, Language: user.Language}, user.Id
+		perm := getUserPermissions(user.Id, enterprise.Id)
+		return UserLoginResult{Ok: true, Token: t.Name, Permissions: &perm, Language: user.Language}, user.Id, enterprise.Id
 	} else { // the two arrays are different
 		user.setUserFailedLoginAttemps(true)
-		return UserLoginResult{Ok: false}, 0
+		return UserLoginResult{Ok: false}, 0, 0
 	}
 }
 

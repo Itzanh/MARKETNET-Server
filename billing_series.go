@@ -9,19 +9,20 @@ type BillingSerie struct {
 	Name        string `json:"name"`
 	BillingType string `json:"billingType"`
 	Year        int16  `json:"year"`
+	enterprise  int32
 }
 
-func getBillingSeries() []BillingSerie {
+func getBillingSeries(enterpriseId int32) []BillingSerie {
 	var series []BillingSerie = make([]BillingSerie, 0)
-	sqlStatement := `SELECT * FROM public.billing_series ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.billing_series WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return series
 	}
 	for rows.Next() {
 		s := BillingSerie{}
-		rows.Scan(&s.Id, &s.Name, &s.BillingType, &s.Year)
+		rows.Scan(&s.Id, &s.Name, &s.BillingType, &s.Year, &s.enterprise)
 		series = append(series, s)
 	}
 
@@ -37,8 +38,8 @@ func (s *BillingSerie) insertBillingSerie() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.billing_series(id, name, billing_type, year) VALUES ($1, $2, $3, $4)`
-	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.BillingType, s.Year)
+	sqlStatement := `INSERT INTO public.billing_series(id, name, billing_type, year, enterprise) VALUES ($1, $2, $3, $4, $5)`
+	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.BillingType, s.Year, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -53,8 +54,8 @@ func (s *BillingSerie) updateBillingSerie() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.billing_series SET name=$2, billing_type=$3, year=$4 WHERE id = $1`
-	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.BillingType, s.Year)
+	sqlStatement := `UPDATE public.billing_series SET name=$2, billing_type=$3, year=$4 WHERE id=$1 AND enterprise=$5`
+	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.BillingType, s.Year, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -69,8 +70,8 @@ func (s *BillingSerie) deleteBillingSerie() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM billing_series WHERE id = $1`
-	res, err := db.Exec(sqlStatement, s.Id)
+	sqlStatement := `DELETE FROM billing_series WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, s.Id, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -80,9 +81,9 @@ func (s *BillingSerie) deleteBillingSerie() bool {
 	return rows > 0
 }
 
-func getNextSaleOrderNumber(billingSerieId string) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_order.order_number) END AS id FROM sales_order WHERE "billing_series" = $1`
-	row := db.QueryRow(sqlStatement, billingSerieId)
+func getNextSaleOrderNumber(billingSerieId string, enterpriseId int32) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_order.order_number) END AS id FROM sales_order WHERE "billing_series"=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -93,9 +94,9 @@ func getNextSaleOrderNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func getNextSaleInvoiceNumber(billingSerieId string) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_invoice.invoice_number) END AS id FROM sales_invoice WHERE "billing_series" = $1`
-	row := db.QueryRow(sqlStatement, billingSerieId)
+func getNextSaleInvoiceNumber(billingSerieId string, enterpriseId int32) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_invoice.invoice_number) END AS id FROM sales_invoice WHERE "billing_series"=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -106,9 +107,9 @@ func getNextSaleInvoiceNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func getNextSaleDeliveryNoteNumber(billingSerieId string) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_delivery_note.delivery_note_number) END AS id FROM sales_delivery_note WHERE "billing_series" = $1`
-	row := db.QueryRow(sqlStatement, billingSerieId)
+func getNextSaleDeliveryNoteNumber(billingSerieId string, enterpriseId int32) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_delivery_note.delivery_note_number) END AS id FROM sales_delivery_note WHERE "billing_series"=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -119,9 +120,9 @@ func getNextSaleDeliveryNoteNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func getNextPurchaseOrderNumber(billingSerieId string) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_order.order_number) END AS id FROM purchase_order WHERE "billing_series" = $1`
-	row := db.QueryRow(sqlStatement, billingSerieId)
+func getNextPurchaseOrderNumber(billingSerieId string, enterpriseId int32) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_order.order_number) END AS id FROM purchase_order WHERE "billing_series"=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -132,9 +133,9 @@ func getNextPurchaseOrderNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func getNextPurchaseInvoiceNumber(billingSerieId string) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_invoice.invoice_number) END AS id FROM purchase_invoice WHERE "billing_series" = $1`
-	row := db.QueryRow(sqlStatement, billingSerieId)
+func getNextPurchaseInvoiceNumber(billingSerieId string, enterpriseId int32) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_invoice.invoice_number) END AS id FROM purchase_invoice WHERE "billing_series"=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -145,9 +146,9 @@ func getNextPurchaseInvoiceNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func getNextPurchaseDeliveryNoteNumber(billingSerieId string) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_delivery_note.delivery_note_number) END AS id FROM purchase_delivery_note WHERE "billing_series" = $1`
-	row := db.QueryRow(sqlStatement, billingSerieId)
+func getNextPurchaseDeliveryNoteNumber(billingSerieId string, enterpriseId int32) int32 {
+	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_delivery_note.delivery_note_number) END AS id FROM purchase_delivery_note WHERE "billing_series"=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
@@ -158,10 +159,10 @@ func getNextPurchaseDeliveryNoteNumber(billingSerieId string) int32 {
 	return (orderNumber + 1)
 }
 
-func findBillingSerieByName(billingSerieName string) []NameString {
+func findBillingSerieByName(billingSerieName string, enterpriseId int32) []NameString {
 	var billingSeries []NameString = make([]NameString, 0)
-	sqlStatement := `SELECT id,name FROM public.billing_series WHERE UPPER(name) LIKE $1 || '%' ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(billingSerieName))
+	sqlStatement := `SELECT id,name FROM public.billing_series WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(billingSerieName), enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return billingSeries
@@ -175,9 +176,9 @@ func findBillingSerieByName(billingSerieName string) []NameString {
 	return billingSeries
 }
 
-func getNameBillingSerie(id string) string {
-	sqlStatement := `SELECT name FROM public.billing_series WHERE id = $1`
-	row := db.QueryRow(sqlStatement, id)
+func getNameBillingSerie(id string, enterpriseId int32) string {
+	sqlStatement := `SELECT name FROM public.billing_series WHERE id=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, id, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ""

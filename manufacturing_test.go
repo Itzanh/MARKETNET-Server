@@ -12,7 +12,7 @@ func TestGetAllManufacturingOrders(t *testing.T) {
 	}
 
 	q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, OrderTypeId: 0}
-	o := q.getAllManufacturingOrders()
+	o := q.getAllManufacturingOrders(1)
 
 	for i := 0; i < len(o.ManufacturingOrders); i++ {
 		if o.ManufacturingOrders[i].Id <= 0 {
@@ -29,7 +29,7 @@ func TestGetManufacturingOrdersByType(t *testing.T) {
 
 	// search all
 	q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32}, OrderTypeId: 1}
-	o := q.getManufacturingOrdersByType()
+	o := q.getManufacturingOrdersByType(1)
 
 	for i := 0; i < len(o.ManufacturingOrders); i++ {
 		if o.ManufacturingOrders[i].Id <= 0 {
@@ -63,6 +63,7 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		Product:     1,
 		Type:        1,
 		UserCreated: 1,
+		enterprise:  1,
 	}
 	ok := mo.insertManufacturingOrder()
 	if !ok {
@@ -71,20 +72,20 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	q := ManufacturingPaginationQuery{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1}, OrderTypeId: 0}
-	o := q.getAllManufacturingOrders()
+	o := q.getAllManufacturingOrders(1)
 	mo = o.ManufacturingOrders[0]
 
-	ok = toggleManufactuedManufacturingOrder(mo.Id, 1)
+	ok = toggleManufactuedManufacturingOrder(mo.Id, 1, 1)
 	if !ok {
 		t.Error("The manufacturing order can't be toggled")
 		return
 	}
-	ok = manufacturingOrderTagPrinted(mo.Id, 1)
+	ok = manufacturingOrderTagPrinted(mo.Id, 1, 1)
 	if !ok {
 		t.Error("The manufacturing order can't be printed")
 		return
 	}
-	ok = toggleManufactuedManufacturingOrder(mo.Id, 1)
+	ok = toggleManufactuedManufacturingOrder(mo.Id, 1, 1)
 	if !ok {
 		t.Error("The manufacturing order can't be toggled")
 		return
@@ -112,6 +113,7 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -122,19 +124,20 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	d.insertSalesOrderDetail()
 
-	invoiceAllSaleOrder(orderId)
-	ok := manufacturingOrderAllSaleOrder(orderId, 1)
+	invoiceAllSaleOrder(orderId, 1)
+	ok := manufacturingOrderAllSaleOrder(orderId, 1, 1)
 	if !ok {
 		t.Error("Could not manufacturing order all sale order")
 		return
 	}
 
 	// get note from the sale order relations
-	r := getSalesOrderRelations(orderId)
+	r := getSalesOrderRelations(orderId, 1)
 
 	if len(r.ManufacturingOrders) == 0 {
 		t.Error("The manufacturing order has not loaded from the sale order relations")
@@ -154,9 +157,11 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 	r.Invoices[0].deleteSalesInvoice()
 
 	// delete created order
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
+	details[0].enterprise = 1
 	details[0].deleteSalesOrderDetail()
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -175,6 +180,7 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 		ShippingAddress: 1,
 		Description:     "",
 		Notes:           "",
+		enterprise:      1,
 	}
 
 	_, orderId := o.insertSalesOrder()
@@ -185,21 +191,22 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
+		enterprise: 1,
 	}
 
 	d.insertSalesOrderDetail()
-	invoiceAllSaleOrder(orderId)
+	invoiceAllSaleOrder(orderId, 1)
 
-	details := getSalesOrderDetail(orderId)
+	details := getSalesOrderDetail(orderId, 1)
 	odg := OrderDetailGenerate{OrderId: orderId, Selection: []OrderDetailGenerateSelection{{Id: details[0].Id, Quantity: 1}}}
-	ok := odg.manufacturingOrderPartiallySaleOrder(1)
+	ok := odg.manufacturingOrderPartiallySaleOrder(1, 1)
 	if !ok {
 		t.Error("Could not manufacturing order all sale order")
 		return
 	}
 
 	// get note from the sale order relations
-	r := getSalesOrderRelations(orderId)
+	r := getSalesOrderRelations(orderId, 1)
 
 	if len(r.ManufacturingOrders) == 0 {
 		t.Error("The manufacturing order has not loaded from the sale order relations")
@@ -219,8 +226,10 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	r.Invoices[0].deleteSalesInvoice()
 
 	// delete created order
+	details[0].enterprise = 1
 	details[0].deleteSalesOrderDetail()
 	o.Id = orderId
+	o.enterprise = 1
 	o.deleteSalesOrder()
 }
 
@@ -233,7 +242,7 @@ func TestGetManufacturingOrderType(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	mot := getManufacturingOrderType()
+	mot := getManufacturingOrderType(1)
 
 	for i := 0; i < len(mot); i++ {
 		if mot[i].Id <= 0 {
@@ -251,7 +260,8 @@ func TestManufacturingOrderTypeInsertUpdateDelete(t *testing.T) {
 	}
 
 	mot := ManufacturingOrderType{
-		Name: "Test",
+		Name:       "Test",
+		enterprise: 1,
 	}
 
 	// insert
@@ -262,7 +272,7 @@ func TestManufacturingOrderTypeInsertUpdateDelete(t *testing.T) {
 	}
 
 	// update
-	types := getManufacturingOrderType()
+	types := getManufacturingOrderType(1)
 	mot = types[len(types)-1]
 
 	mot.Name = "Test test"
@@ -273,7 +283,7 @@ func TestManufacturingOrderTypeInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check update
-	types = getManufacturingOrderType()
+	types = getManufacturingOrderType(1)
 	mot = types[len(types)-1]
 	if mot.Name != "Test test" {
 		t.Error("Update error, manufacturing order type not successfully updated")

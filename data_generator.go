@@ -13,21 +13,21 @@ const (
 
 // This file is for developmenmt only.
 
-func generateDemoData() {
-	generateCustomers()
-	generateAddresses()
-	generateSaleOrders()
+func generateDemoData(enterpriseId int32) {
+	generateCustomers(enterpriseId)
+	generateAddresses(enterpriseId)
+	generateSaleOrders(enterpriseId)
 	generateInvoiceAllSalesOrders()
 }
 
-func generateCustomers() {
+func generateCustomers(enterpriseId int32) {
 	INT := "INT"
 	EXP := "EXP"
 	IEU := "IEU"
 
-	countries := getCountries()
-	languages := getLanguages()
-	paymentMethods := getPaymentMethods()
+	countries := getCountries(enterpriseId)
+	languages := getLanguages(enterpriseId)
+	paymentMethods := getPaymentMethods(enterpriseId)
 
 	content, err := ioutil.ReadFile("customer_names.txt")
 	if err != nil {
@@ -57,7 +57,7 @@ func generateCustomers() {
 		c.Country = &country.Id
 
 		// state
-		states := getStatesByCountry(*c.Country)
+		states := getStatesByCountry(*c.Country, 1)
 		if len(states) > 0 {
 			c.State = &states[rand.Intn(len(states))].Id
 		}
@@ -99,13 +99,14 @@ func generateCustomers() {
 		// paymet method
 		c.PaymentMethod = &paymentMethods[rand.Intn(len(paymentMethods))].Id
 
+		c.enterprise = 1
 		c.insertCustomer()
 	}
 }
 
-func generateAddresses() {
-	countries := getCountries()
-	q := PaginationQuery{Offset: 0, Limit: 0}
+func generateAddresses(enterpriseId int32) {
+	countries := getCountries(1)
+	q := PaginationQuery{Offset: 0, Limit: 0, Enterprise: 1}
 	customers := q.getCustomers()
 
 	for i := 0; i < len(customers.Customers); i++ {
@@ -143,7 +144,7 @@ func generateAddresses() {
 			a.Country = country.Id
 
 			// state
-			states := getStatesByCountry(a.Country)
+			states := getStatesByCountry(a.Country, 1)
 			if len(states) > 0 {
 				a.State = &states[rand.Intn(len(states))].Id
 			}
@@ -179,22 +180,22 @@ func generateAddresses() {
 			}
 
 			a.PrivateOrBusiness = "_"
-
+			a.enterprise = enterpriseId
 			a.insertAddress()
 		}
 	}
 
 }
 
-func generateSaleOrders() {
-	currencies := getCurrencies()
-	products := getProduct()
+func generateSaleOrders(enterpriseId int32) {
+	currencies := getCurrencies(enterpriseId)
+	products := getProduct(1)
 	q := PaginationQuery{Offset: 0, Limit: 0}
 	customers := q.getCustomers()
 
 	for i := 0; i < len(customers.Customers); i++ {
 		customer := customers.Customers[i]
-		addresses := getCustomerAddresses(customer.Id)
+		addresses := getCustomerAddresses(customer.Id, 1)
 
 		if customer.PaymentMethod == nil || customer.BillingSeries == nil {
 			continue
@@ -210,6 +211,7 @@ func generateSaleOrders() {
 			o.Currency = currencies[rand.Intn(len(currencies))].Id
 			o.BillingAddress = addresses[rand.Intn(len(addresses))].Id
 			o.ShippingAddress = addresses[rand.Intn(len(addresses))].Id
+			o.enterprise = 1
 			ok, id := o.insertSalesOrder()
 
 			if !ok {
@@ -226,6 +228,7 @@ func generateSaleOrders() {
 				d.Price = product.Price
 				d.Quantity = int32(rand.Intn(10) + 1)
 				d.VatPercent = product.VatPercent
+				d.enterprise = 1
 				d.insertSalesOrderDetail()
 			}
 		}
@@ -234,10 +237,10 @@ func generateSaleOrders() {
 
 func generateInvoiceAllSalesOrders() {
 	q := PaginationQuery{Offset: 0, Limit: 100000}
-	o := q.getSalesOrder()
+	o := q.getSalesOrder(1)
 
 	for i := 0; i < len(o.Orders); i++ {
-		invoiceAllSaleOrder(o.Orders[i].Id)
-		deliveryNoteAllSaleOrder(o.Orders[i].Id)
+		invoiceAllSaleOrder(o.Orders[i].Id, 1)
+		deliveryNoteAllSaleOrder(o.Orders[i].Id, 1)
 	}
 }

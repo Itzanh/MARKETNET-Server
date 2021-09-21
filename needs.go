@@ -11,10 +11,10 @@ type Need struct {
 	Quantity     int32   `json:"quantity"`
 }
 
-func getNeeds() []Need {
+func getNeeds(enterpriseId int32) []Need {
 	var needs []Need = make([]Need, 0)
-	sqlStatement := `SELECT product,(SELECT name FROM product WHERE product.id=sales_order_detail.product),(SELECT name FROM suppliers WHERE suppliers.id=(SELECT supplier FROM product WHERE product.id=sales_order_detail.product)),SUM(quantity) FROM sales_order_detail WHERE status='A' GROUP BY product`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT product,(SELECT name FROM product WHERE product.id=sales_order_detail.product),(SELECT name FROM suppliers WHERE suppliers.id=(SELECT supplier FROM product WHERE product.id=sales_order_detail.product)),SUM(quantity) FROM sales_order_detail WHERE status='A' AND enterprise=$1 GROUP BY product`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return needs
@@ -60,7 +60,7 @@ func (n PurchaseNeeds) Less(i, j int) bool {
 	return n[i].supplier.Id < n[j].supplier.Id
 }
 
-func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
+func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32) bool {
 	if len(needs) == 0 {
 		return false
 	}
@@ -74,6 +74,9 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 
 	for i := 0; i < len(needs); i++ {
 		product := getProductRow(needs[i].ProductId)
+		if product.enterprise != enterpriseId {
+			continue
+		}
 		quantityNeeded := getNeedRow(product.Id)
 		if product.Manufacturing || product.Supplier == nil || *product.Supplier <= 0 || needs[i].Quantity <= 0 || quantityNeeded > needs[i].Quantity {
 			trans.Rollback()
@@ -116,8 +119,9 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 			o.ShippingAddress = *supplierNeeds[0].supplier.MainShippingAddress
 			o.PaymentMethod = *supplierNeeds[0].supplier.PaymentMethod
 			o.BillingSeries = *supplierNeeds[0].supplier.BillingSeries
-			o.Warehouse = getPurchaseOrderDefaults().Warehouse
-			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id).Currency
+			o.Warehouse = getPurchaseOrderDefaults(enterpriseId).Warehouse
+			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
+			o.enterprise = enterpriseId
 			ok, orderId := o.insertPurchaseOrder()
 			if !ok || orderId <= 0 {
 				trans.Rollback()
@@ -131,6 +135,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed) bool {
 				d.Price = supplierNeeds[j].product.Price
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
+				d.enterprise = enterpriseId
 				ok, detailId := d.insertPurchaseOrderDetail(false)
 				if !ok {
 					trans.Rollback()

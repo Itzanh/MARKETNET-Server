@@ -16,16 +16,17 @@ type AccountingMovementDetail struct {
 	Type              string    `json:"type"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
 	Note              string    `json:"note"`
 	DocumentName      string    `json:"documentName"`
-	PaymentMethod     int16     `json:"paymentMethod"`
+	PaymentMethod     int32     `json:"paymentMethod"`
 	AccountName       string    `json:"accountName"`
 	AccountNumber     int32     `json:"accountNumber"`
 	PaymentMethodName string    `json:"paymentMethodName"`
+	enterprise        int32
 }
 
-func getAccountingMovementDetail(movementId int64) []AccountingMovementDetail {
+func getAccountingMovementDetail(movementId int64, enterpriseId int32) []AccountingMovementDetail {
 	accountingMovementDetail := make([]AccountingMovementDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=accounting_movement_detail.account),(SELECT account_number FROM account WHERE account.id=accounting_movement_detail.account),(SELECT name FROM payment_method WHERE payment_method.id=accounting_movement_detail.payment_method) FROM public.accounting_movement_detail WHERE movement=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, movementId)
+	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=accounting_movement_detail.account),(SELECT account_number FROM account WHERE account.id=accounting_movement_detail.account),(SELECT name FROM payment_method WHERE payment_method.id=accounting_movement_detail.payment_method) FROM public.accounting_movement_detail WHERE movement=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, movementId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return accountingMovementDetail
@@ -33,7 +34,7 @@ func getAccountingMovementDetail(movementId int64) []AccountingMovementDetail {
 
 	for rows.Next() {
 		a := AccountingMovementDetail{}
-		rows.Scan(&a.Id, &a.Movement, &a.Journal, &a.Account, &a.DateCreated, &a.Credit, &a.Debit, &a.Type, &a.Note, &a.DocumentName, &a.PaymentMethod, &a.AccountName, &a.AccountNumber, &a.PaymentMethodName)
+		rows.Scan(&a.Id, &a.Movement, &a.Journal, &a.Account, &a.DateCreated, &a.Credit, &a.Debit, &a.Type, &a.Note, &a.DocumentName, &a.PaymentMethod, &a.enterprise, &a.AccountName, &a.AccountNumber, &a.PaymentMethodName)
 		accountingMovementDetail = append(accountingMovementDetail, a)
 	}
 
@@ -49,7 +50,7 @@ func getAccountingMovementDetailRow(detailtId int64) AccountingMovementDetail {
 	}
 
 	a := AccountingMovementDetail{}
-	row.Scan(&a.Id, &a.Movement, &a.Journal, &a.Account, &a.DateCreated, &a.Credit, &a.Debit, &a.Type, &a.Note, &a.DocumentName, &a.PaymentMethod, &a.AccountNumber)
+	row.Scan(&a.Id, &a.Movement, &a.Journal, &a.Account, &a.DateCreated, &a.Credit, &a.Debit, &a.Type, &a.Note, &a.DocumentName, &a.PaymentMethod, &a.enterprise, &a.AccountNumber)
 
 	return a
 }
@@ -70,7 +71,7 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 	}
 	///
 
-	a.Account = getAccountIdByAccountNumber(a.Journal, a.AccountNumber)
+	a.Account = getAccountIdByAccountNumber(a.Journal, a.AccountNumber, a.enterprise)
 	if a.Account <= 0 {
 		trans.Rollback()
 		return false
@@ -80,8 +81,8 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 	a.Credit = float32(math.Round(float64(a.Credit)*100) / 100)
 	a.Debit = float32(math.Round(float64(a.Debit)*100) / 100)
 
-	sqlStatement := `INSERT INTO public.accounting_movement_detail(movement, journal, account, credit, debit, type, note, document_name, payment_method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
-	row := db.QueryRow(sqlStatement, a.Movement, a.Journal, a.Account, a.Credit, a.Debit, a.Type, a.Note, a.DocumentName, a.PaymentMethod)
+	sqlStatement := `INSERT INTO public.accounting_movement_detail(movement, journal, account, credit, debit, type, note, document_name, payment_method, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
+	row := db.QueryRow(sqlStatement, a.Movement, a.Journal, a.Account, a.Credit, a.Debit, a.Type, a.Note, a.DocumentName, a.PaymentMethod, a.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
@@ -122,8 +123,8 @@ func (a *AccountingMovementDetail) deleteAccountingMovementDetail() bool {
 	}
 
 	accountingMovementDetailInMemory := getAccountingMovementDetailRow(a.Id)
-	settings := getSettingsRecord()
-	if accountingMovementDetailInMemory.Id <= 0 || (settings.LimitAccountingDate != nil && accountingMovementDetailInMemory.DateCreated.Before(*settings.LimitAccountingDate)) {
+	settings := getSettingsRecordById(a.enterprise)
+	if accountingMovementDetailInMemory.Id <= 0 || accountingMovementDetailInMemory.enterprise != a.enterprise || (settings.LimitAccountingDate != nil && accountingMovementDetailInMemory.DateCreated.Before(*settings.LimitAccountingDate)) {
 		return false
 	}
 
@@ -140,8 +141,8 @@ func (a *AccountingMovementDetail) deleteAccountingMovementDetail() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.accounting_movement_detail WHERE id=$1`
-	_, err = db.Exec(sqlStatement, a.Id)
+	sqlStatement := `DELETE FROM public.accounting_movement_detail WHERE id=$1 AND enterprise=$2`
+	_, err = db.Exec(sqlStatement, a.Id, a.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()

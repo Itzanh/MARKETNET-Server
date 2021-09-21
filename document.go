@@ -15,6 +15,7 @@ import (
 type DocumentAccessToken struct {
 	Uuid        string    `json:"token"`
 	DateCreated time.Time `json:"dateCreated"`
+	Enterprise  int32
 }
 
 var documentAccessTokens []DocumentAccessToken = make([]DocumentAccessToken, 0)
@@ -26,37 +27,44 @@ type Document struct {
 	DateCreated          time.Time `json:"dateCreated"`
 	DateUpdated          time.Time `json:"dateUpdated"`
 	Size                 int32     `json:"size"`
-	Container            int16     `json:"container"`
+	Container            int32     `json:"container"`
 	Description          string    `json:"description"`
-	SalesOrder           *int32    `json:"salesOrder"`
-	SalesInvoice         *int32    `json:"salesInvoice"`
-	SalesDeliveryNote    *int32    `json:"salesDeliveryNote"`
-	Shipping             *int32    `json:"shipping"`
-	PurchaseOrder        *int32    `json:"purchaseOrder"`
-	PurchaseInvoice      *int32    `json:"purchaseInvoice"`
-	PurchaseDeliveryNote *int32    `json:"purchaseDeliveryNote"`
+	SalesOrder           *int64    `json:"salesOrder"`
+	SalesInvoice         *int64    `json:"salesInvoice"`
+	SalesDeliveryNote    *int64    `json:"salesDeliveryNote"`
+	Shipping             *int64    `json:"shipping"`
+	PurchaseOrder        *int64    `json:"purchaseOrder"`
+	PurchaseInvoice      *int64    `json:"purchaseInvoice"`
+	PurchaseDeliveryNote *int64    `json:"purchaseDeliveryNote"`
 	MimeType             string    `json:"mimeType"`
+	enterprise           int32
 }
 
-func getDocuments() []Document {
+func getDocuments(enterpriseId int32) []Document {
 	var document []Document = make([]Document, 0)
-	sqlStatement := `SELECT * FROM document ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM document WHERE enterprise=$1 ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return document
 	}
 	for rows.Next() {
 		d := Document{}
-		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType)
+		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
 		document = append(document, d)
 	}
 
 	return document
 }
 
-func (d *Document) getDocumentsRelations() []Document {
+func (d *Document) getDocumentsRelations(enterpriseId int32) []Document {
 	var document []Document = make([]Document, 0)
+
+	docDB := getDocumentRowById(d.Id)
+	if docDB.enterprise != enterpriseId {
+		return document
+	}
+
 	var rows *sql.Rows
 	var err error
 	if d.SalesOrder != nil {
@@ -89,7 +97,7 @@ func (d *Document) getDocumentsRelations() []Document {
 	}
 	for rows.Next() {
 		d := Document{}
-		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType)
+		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
 		document = append(document, d)
 	}
 
@@ -105,7 +113,7 @@ func getDocumentRow(uuid string) Document {
 	}
 
 	d := Document{}
-	row.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType)
+	row.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
 
 	return d
 }
@@ -134,8 +142,8 @@ func (d *Document) insertDocument() bool {
 	}
 
 	d.Uuid = uuid.New().String()
-	sqlStatement := `INSERT INTO public.document(name, uuid, container, dsc, sales_order, sales_invoice, sales_delivery_note, shipping, purchase_order, purchase_invoice, purchase_delivery_note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-	res, err := db.Exec(sqlStatement, d.Name, d.Uuid, d.Container, d.Description, d.SalesOrder, d.SalesInvoice, d.SalesDeliveryNote, d.Shipping, d.PurchaseOrder, d.PurchaseInvoice, d.PurchaseDeliveryNote)
+	sqlStatement := `INSERT INTO public.document(name, uuid, container, dsc, sales_order, sales_invoice, sales_delivery_note, shipping, purchase_order, purchase_invoice, purchase_delivery_note, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	res, err := db.Exec(sqlStatement, d.Name, d.Uuid, d.Container, d.Description, d.SalesOrder, d.SalesInvoice, d.SalesDeliveryNote, d.Shipping, d.PurchaseOrder, d.PurchaseInvoice, d.PurchaseDeliveryNote, d.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -151,7 +159,7 @@ func (d *Document) deleteDocument() bool {
 	}
 
 	inMemoryDocument := getDocumentRowById(d.Id)
-	if inMemoryDocument.Id <= 0 {
+	if inMemoryDocument.Id <= 0 || d.enterprise != inMemoryDocument.enterprise {
 		return false
 	}
 	container := getDocumentContainerRow(inMemoryDocument.Container)
@@ -206,7 +214,7 @@ func handleDocument(w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadDocument(token string, uuid string) ([]byte, int) {
-	ok := consumeToken(token)
+	ok, _ := consumeToken(token)
 	if !ok {
 		return nil, http.StatusUnauthorized
 	}
@@ -227,7 +235,7 @@ func downloadDocument(token string, uuid string) ([]byte, int) {
 }
 
 func uploadDocument(token string, uuid string, document []byte) int {
-	ok := consumeToken(token)
+	ok, _ := consumeToken(token)
 	if !ok {
 		return http.StatusUnauthorized
 	}
@@ -273,10 +281,11 @@ func uploadDocument(token string, uuid string, document []byte) int {
 	return http.StatusOK
 }
 
-func grantDocumentAccessToken() DocumentAccessToken {
+func grantDocumentAccessToken(enterpriseId int32) DocumentAccessToken {
 	t := DocumentAccessToken{}
 	t.Uuid = uuid.New().String()
 	t.DateCreated = time.Now()
+	t.Enterprise = enterpriseId
 	documentAccessTokens = append(documentAccessTokens, t)
 	return t
 }
@@ -292,12 +301,12 @@ func cleanDocumentTokens() {
 	}
 }
 
-func consumeToken(token string) bool {
+func consumeToken(token string) (bool, int32) {
 	for i := 0; i < len(documentAccessTokens); i++ {
 		if time.Until(documentAccessTokens[i].DateCreated).Seconds() <= 60 { // the token has not expired yet
 			documentAccessTokens = append(documentAccessTokens[:i], documentAccessTokens[i+1:]...) // delete the token
-			return true
+			return true, documentAccessTokens[i].Enterprise
 		}
 	}
-	return false // the token was not found or is expired, let the cleaning function delete it
+	return false, 0 // the token was not found or is expired, let the cleaning function delete it
 }

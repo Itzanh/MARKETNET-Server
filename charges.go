@@ -14,12 +14,13 @@ type Charges struct {
 	Amount                         float32   `json:"amount"`
 	Concept                        string    `json:"concept"`
 	CollectionOperation            int32     `json:"collectionOperation"`
+	enterprise                     int32
 }
 
-func getCharges(collectionOperation int32) []Charges {
+func getCharges(collectionOperation int32, enterpriseId int32) []Charges {
 	charges := make([]Charges, 0)
-	sqlStatement := `SELECT * FROM public.charges WHERE collection_operation=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, collectionOperation)
+	sqlStatement := `SELECT * FROM public.charges WHERE collection_operation=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, collectionOperation, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return charges
@@ -27,7 +28,7 @@ func getCharges(collectionOperation int32) []Charges {
 
 	for rows.Next() {
 		c := Charges{}
-		rows.Scan(&c.Id, &c.AccountingMovement, &c.AccountingMovementDetailDebit, &c.AccountingMovementDetailCredit, &c.Account, &c.DateCreated, &c.Amount, &c.Concept, &c.CollectionOperation)
+		rows.Scan(&c.Id, &c.AccountingMovement, &c.AccountingMovementDetailDebit, &c.AccountingMovementDetailCredit, &c.Account, &c.DateCreated, &c.Amount, &c.Concept, &c.CollectionOperation, &c.enterprise)
 		charges = append(charges, c)
 	}
 	return charges
@@ -42,7 +43,7 @@ func getChargesRow(chargesId int32) Charges {
 	}
 
 	c := Charges{}
-	row.Scan(&c.Id, &c.AccountingMovement, &c.AccountingMovementDetailDebit, &c.AccountingMovementDetailCredit, &c.Account, &c.DateCreated, &c.Amount, &c.Concept, &c.CollectionOperation)
+	row.Scan(&c.Id, &c.AccountingMovement, &c.AccountingMovementDetailDebit, &c.AccountingMovementDetailCredit, &c.Account, &c.DateCreated, &c.Amount, &c.Concept, &c.CollectionOperation, &c.enterprise)
 
 	return c
 }
@@ -66,7 +67,7 @@ func (c *Charges) insertCharges() bool {
 
 	// get data from collection operation
 	co := getColletionOperationRow(c.CollectionOperation)
-	if co.Id <= 0 || co.Bank == nil || co.Pending <= 0 {
+	if co.Id <= 0 || co.enterprise != c.enterprise || co.Bank == nil || co.Pending <= 0 {
 		trans.Rollback()
 		return false
 	}
@@ -91,6 +92,7 @@ func (c *Charges) insertCharges() bool {
 	m := AccountingMovement{}
 	m.Type = "N"
 	m.BillingSerie = am.BillingSerie
+	m.enterprise = c.enterprise
 	ok = m.insertAccountingMovement()
 	if !ok {
 		trans.Rollback()
@@ -107,6 +109,7 @@ func (c *Charges) insertCharges() bool {
 	dInc.Debit = c.Amount
 	dInc.Type = "N"
 	dInc.PaymentMethod = co.PaymentMethod
+	dInc.enterprise = c.enterprise
 	ok = dInc.insertAccountingMovementDetail()
 	if !ok {
 		trans.Rollback()
@@ -128,6 +131,7 @@ func (c *Charges) insertCharges() bool {
 	dCust.Type = "N"
 	dCust.DocumentName = dCustDebit.DocumentName
 	dCust.PaymentMethod = co.PaymentMethod
+	dCust.enterprise = c.enterprise
 	ok = dCust.insertAccountingMovementDetail()
 	if !ok {
 		trans.Rollback()
@@ -136,8 +140,8 @@ func (c *Charges) insertCharges() bool {
 	c.AccountingMovementDetailCredit = dCust.Id
 
 	// insert row
-	sqlStatement := `INSERT INTO public.charges(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, collection_operation) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err = db.Exec(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.CollectionOperation)
+	sqlStatement := `INSERT INTO public.charges(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, collection_operation, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err = db.Exec(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.CollectionOperation, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -163,7 +167,7 @@ func (c *Charges) deleteCharges() bool {
 	///
 
 	inMemoryCharge := getChargesRow(c.Id)
-	if inMemoryCharge.Id <= 0 {
+	if inMemoryCharge.Id <= 0 || inMemoryCharge.enterprise != c.enterprise {
 		trans.Rollback()
 		return false
 	}
@@ -174,8 +178,8 @@ func (c *Charges) deleteCharges() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.charges WHERE id=$1`
-	_, err = db.Exec(sqlStatement, c.Id)
+	sqlStatement := `DELETE FROM public.charges WHERE id=$1 AND enterprise=$2`
+	_, err = db.Exec(sqlStatement, c.Id, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()

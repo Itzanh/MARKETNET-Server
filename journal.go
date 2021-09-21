@@ -1,15 +1,16 @@
 package main
 
 type Journal struct {
-	Id   int16  `json:"id"`
-	Name string `json:"name"`
-	Type string `json:"type"` // S = Sale, P = Purchase, B = Bank, C = Cash, G = General
+	Id         int16  `json:"id"`
+	Name       string `json:"name"`
+	Type       string `json:"type"` // S = Sale, P = Purchase, B = Bank, C = Cash, G = General
+	enterprise int32
 }
 
-func getJournals() []Journal {
+func getJournals(enterpriseId int32) []Journal {
 	journals := make([]Journal, 0)
-	sqlStatement := `SELECT * FROM public.journal ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement)
+	sqlStatement := `SELECT * FROM public.journal WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return journals
@@ -17,7 +18,7 @@ func getJournals() []Journal {
 
 	for rows.Next() {
 		j := Journal{}
-		rows.Scan(&j.Id, &j.Name, &j.Type)
+		rows.Scan(&j.Id, &j.Name, &j.Type, &j.enterprise)
 		journals = append(journals, j)
 	}
 
@@ -33,8 +34,8 @@ func (j *Journal) insertJournal() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.journal(id, name, type) VALUES ($1, $2, $3)`
-	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type)
+	sqlStatement := `INSERT INTO public.journal(id, name, type, enterprise) VALUES ($1, $2, $3, $4)`
+	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type, j.enterprise)
 
 	if err != nil {
 		log("DB", err.Error())
@@ -48,8 +49,8 @@ func (j *Journal) updateJournal() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.journal SET name=$2, type=$3 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type)
+	sqlStatement := `UPDATE public.journal SET name=$2, type=$3 WHERE id=$1 AND enterprise=$4`
+	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type, j.enterprise)
 
 	if err != nil {
 		log("DB", err.Error())
@@ -63,8 +64,8 @@ func (j *Journal) deleteJournal() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.journal WHERE id=$1`
-	_, err := db.Exec(sqlStatement, j.Id)
+	sqlStatement := `DELETE FROM public.journal WHERE id=$1 AND enterprise=$2`
+	_, err := db.Exec(sqlStatement, j.Id, j.enterprise)
 
 	if err != nil {
 		log("DB", err.Error())

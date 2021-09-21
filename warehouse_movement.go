@@ -12,23 +12,24 @@ type WarehouseMovement struct {
 	Quantity              int32     `json:"quantity"`
 	DateCreated           time.Time `json:"dateCreated"`
 	Type                  string    `json:"type"` // O = Out, I = In, R = Inventory regularization
-	SalesOrder            *int32    `json:"salesOrder"`
-	SalesOrderDetail      *int32    `json:"salesOrderDetail"`
-	SalesInvoice          *int32    `json:"salesInvoice"`
-	SalesInvoiceDetail    *int32    `json:"salesInvoiceDetail"`
-	SalesDeliveryNote     *int32    `json:"salesDeliveryNote"`
+	SalesOrder            *int64    `json:"salesOrder"`
+	SalesOrderDetail      *int64    `json:"salesOrderDetail"`
+	SalesInvoice          *int64    `json:"salesInvoice"`
+	SalesInvoiceDetail    *int64    `json:"salesInvoiceDetail"`
+	SalesDeliveryNote     *int64    `json:"salesDeliveryNote"`
 	Description           string    `json:"description"`
-	PurchaseOrder         *int32    `json:"purchaseOrder"`
-	PurchaseOrderDetail   *int32    `json:"purchaseOrderDetail"`
-	PurchaseInvoice       *int32    `json:"purchaseInvoice"`
-	PurchaseInvoiceDetail *int32    `json:"purchaseInvoiceDetail"`
-	PurchaseDeliveryNote  *int32    `json:"purchaseDeliveryNote"`
+	PurchaseOrder         *int64    `json:"purchaseOrder"`
+	PurchaseOrderDetail   *int64    `json:"purchaseOrderDetail"`
+	PurchaseInvoice       *int64    `json:"purchaseInvoice"`
+	PurchaseInvoiceDetail *int64    `json:"purchaseInvoiceDetail"`
+	PurchaseDeliveryNote  *int64    `json:"purchaseDeliveryNote"`
 	DraggedStock          int32     `json:"draggedStock"`
 	ProductName           string    `json:"productName"`
 	Price                 float32   `json:"price"`
 	VatPercent            float32   `json:"vatPercent"`
 	TotalAmount           float32   `json:"totalAmount"`
 	WarehouseName         string    `json:"warehouseName"`
+	enterprise            int32
 }
 
 type WarehouseMovements struct {
@@ -43,20 +44,20 @@ func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
 	}
 
 	wm.Movements = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement ORDER BY id DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM public.warehouse_movement WHERE enterprise=$3 ORDER BY id DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return wm
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		wm.Movements = append(wm.Movements, m)
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, q.Enterprise)
 	row.Scan(&wm.Rows)
 
 	return wm
@@ -74,20 +75,20 @@ func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() Warehou
 		return wm
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE warehouse=$1 ORDER BY id DESC OFFSET $2 LIMIT $3`
-	rows, err := db.Query(sqlStatement, w.WarehouseId, w.Offset, w.Limit)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM public.warehouse_movement WHERE warehouse=$1 AND enterprise=$4 ORDER BY id DESC OFFSET $2 LIMIT $3`
+	rows, err := db.Query(sqlStatement, w.WarehouseId, w.Offset, w.Limit, w.Enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return wm
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		wm.Movements = append(wm.Movements, m)
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement WHERE warehouse=$1`
-	row := db.QueryRow(sqlStatement, w.WarehouseId)
+	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement WHERE warehouse=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, w.WarehouseId, w.Enterprise)
 	if row.Err() != nil {
 		return wm
 	}
@@ -105,47 +106,47 @@ func getWarehouseMovementRow(movementId int64) WarehouseMovement {
 	}
 
 	m := WarehouseMovement{}
-	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount)
+	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise)
 
 	return m
 }
 
-func getWarehouseMovementBySalesDeliveryNote(noteId int32) []WarehouseMovement {
+func getWarehouseMovementBySalesDeliveryNote(noteId int64, enterpriseId int32) []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
 	if noteId <= 0 {
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE sales_delivery_note=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, noteId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM public.warehouse_movement WHERE sales_delivery_note=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, noteId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
 	return warehouseMovements
 }
 
-func getWarehouseMovementByPurchaseDeliveryNote(noteId int32) []WarehouseMovement {
+func getWarehouseMovementByPurchaseDeliveryNote(noteId int64, enterpriseId int32) []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
 	if noteId <= 0 {
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM public.warehouse_movement WHERE purchase_delivery_note=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, noteId)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM public.warehouse_movement WHERE purchase_delivery_note=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, noteId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return warehouseMovements
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -165,7 +166,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 	}
 
 	wm.Movements = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT warehouse_movement.*,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse) FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
+	sqlStatement := `SELECT warehouse_movement.*,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM warehouse_movement INNER JOIN product ON product.id=warehouse_movement.product WHERE product.name ILIKE $1`
 	parameters := make([]interface{}, 0)
 	parameters = append(parameters, "%"+w.Search+"%")
 	if w.DateStart != nil {
@@ -176,6 +177,8 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(parameters)+1)
 		parameters = append(parameters, w.DateEnd)
 	}
+	sqlStatement += ` AND warehouse_movement.enterprise = $` + strconv.Itoa(len(parameters)+1)
+	parameters = append(parameters, w.Enterprise)
 	sqlStatement += ` ORDER BY warehouse_movement.id DESC OFFSET $` + strconv.Itoa(len(parameters)+1) + ` LIMIT $` + strconv.Itoa(len(parameters)+2)
 	parameters = append(parameters, w.Offset)
 	parameters = append(parameters, w.Limit)
@@ -186,7 +189,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 	}
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		wm.Movements = append(wm.Movements, m)
 	}
 
@@ -201,6 +204,8 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(parameters)+1)
 		parameters = append(parameters, w.DateEnd)
 	}
+	sqlStatement += ` AND warehouse_movement.enterprise = $` + strconv.Itoa(len(parameters)+1)
+	parameters = append(parameters, w.Enterprise)
 	row := db.QueryRow(sqlStatement, parameters...)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
@@ -241,14 +246,20 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 
 	// insert the movement
-	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
-	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount)
+	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
+	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return false
+	}
+
 	// update the product quantity
-	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock)
+	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock, m.enterprise)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -292,7 +303,6 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	///
 
-	rows, _ := res.RowsAffected()
 	return rows > 0
 }
 
@@ -318,7 +328,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 
 	inMemoryMovement := getWarehouseMovementRow(m.Id)
-	if inMemoryMovement.Id <= 0 {
+	if inMemoryMovement.Id <= 0 || inMemoryMovement.enterprise != m.enterprise {
 		return false
 	}
 
@@ -330,10 +340,15 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	///
 
 	// delete the warehouse movement
-	sqlStatement := `DELETE FROM public.warehouse_movement WHERE id=$1`
-	res, err := db.Exec(sqlStatement, m.Id)
+	sqlStatement := `DELETE FROM public.warehouse_movement WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, m.Id, m.enterprise)
 	if err != nil {
 		log("DB", err.Error())
+		return false
+	}
+
+	rowsCount, _ := res.RowsAffected()
+	if rowsCount == 0 {
 		return false
 	}
 
@@ -377,7 +392,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 
 	// update the product quantity
-	ok := setQuantityStock(inMemoryMovement.Product, inMemoryMovement.Warehouse, draggedStock)
+	ok := setQuantityStock(inMemoryMovement.Product, inMemoryMovement.Warehouse, draggedStock, m.enterprise)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -421,11 +436,10 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	///
 
-	rowsCount, _ := res.RowsAffected()
 	return rowsCount > 0
 }
 
-func regenerateDraggedStock(warehouseId string) bool {
+func regenerateDraggedStock(warehouseId string, enterpriseId int32) bool {
 	if len(warehouseId) == 0 || len(warehouseId) > 2 {
 		return false
 	}
@@ -438,8 +452,8 @@ func regenerateDraggedStock(warehouseId string) bool {
 	///
 
 	// select the list with the products with warehouse movements
-	sqlStatement := `SELECT product FROM warehouse_movement WHERE warehouse=$1 GROUP BY product`
-	rowsProducts, err := db.Query(sqlStatement, warehouseId)
+	sqlStatement := `SELECT product FROM warehouse_movement WHERE warehouse=$1 AND enterprise=$2 GROUP BY product`
+	rowsProducts, err := db.Query(sqlStatement, warehouseId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()

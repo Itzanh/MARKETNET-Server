@@ -14,12 +14,13 @@ type Payment struct {
 	Amount                         float32   `json:"amount"`
 	Concept                        string    `json:"concept"`
 	PaymentTransaction             int32     `json:"paymentTransaction"`
+	enterprise                     int32
 }
 
-func getPayments(paymentTransaction int32) []Payment {
+func getPayments(paymentTransaction int32, enterpriseId int32) []Payment {
 	payments := make([]Payment, 0)
-	sqlStatement := `SELECT * FROM public.payments WHERE payment_transaction=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, paymentTransaction)
+	sqlStatement := `SELECT * FROM public.payments WHERE payment_transaction=$1 AND enterprise=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, paymentTransaction, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return payments
@@ -27,7 +28,7 @@ func getPayments(paymentTransaction int32) []Payment {
 
 	for rows.Next() {
 		p := Payment{}
-		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetailDebit, &p.AccountingMovementDetailCredit, &p.Account, &p.DateCreated, &p.Amount, &p.Concept, &p.PaymentTransaction)
+		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetailDebit, &p.AccountingMovementDetailCredit, &p.Account, &p.DateCreated, &p.Amount, &p.Concept, &p.PaymentTransaction, &p.enterprise)
 		payments = append(payments, p)
 	}
 	return payments
@@ -42,7 +43,7 @@ func getPaymentsRow(chargesId int32) Payment {
 	}
 
 	p := Payment{}
-	row.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetailDebit, &p.AccountingMovementDetailCredit, &p.Account, &p.DateCreated, &p.Amount, &p.Concept, &p.PaymentTransaction)
+	row.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetailDebit, &p.AccountingMovementDetailCredit, &p.Account, &p.DateCreated, &p.Amount, &p.Concept, &p.PaymentTransaction, &p.enterprise)
 
 	return p
 }
@@ -66,7 +67,7 @@ func (c *Payment) insertPayment() bool {
 
 	// get data from payment transaction
 	pt := getPaymentTransactionRow(c.PaymentTransaction)
-	if pt.Id <= 0 || pt.Bank == nil || pt.Pending <= 0 {
+	if pt.Id <= 0 || pt.Bank == nil || pt.enterprise != c.enterprise || pt.Pending <= 0 {
 		trans.Rollback()
 		return false
 	}
@@ -91,6 +92,7 @@ func (c *Payment) insertPayment() bool {
 	m := AccountingMovement{}
 	m.Type = "N"
 	m.BillingSerie = am.BillingSerie
+	m.enterprise = c.enterprise
 	ok = m.insertAccountingMovement()
 	if !ok {
 		trans.Rollback()
@@ -107,6 +109,7 @@ func (c *Payment) insertPayment() bool {
 	dInc.Credit = c.Amount
 	dInc.Type = "N"
 	dInc.PaymentMethod = pt.PaymentMethod
+	dInc.enterprise = c.enterprise
 	ok = dInc.insertAccountingMovementDetail()
 	if !ok {
 		trans.Rollback()
@@ -128,6 +131,7 @@ func (c *Payment) insertPayment() bool {
 	Supp.Type = "N"
 	Supp.DocumentName = dSuppDebit.DocumentName
 	Supp.PaymentMethod = pt.PaymentMethod
+	Supp.enterprise = c.enterprise
 	ok = Supp.insertAccountingMovementDetail()
 	if !ok {
 		trans.Rollback()
@@ -136,8 +140,8 @@ func (c *Payment) insertPayment() bool {
 	c.AccountingMovementDetailCredit = Supp.Id
 
 	// insert row
-	sqlStatement := `INSERT INTO public.payments(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, payment_transaction) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err = db.Exec(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.PaymentTransaction)
+	sqlStatement := `INSERT INTO public.payments(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, payment_transaction, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err = db.Exec(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.PaymentTransaction, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -163,7 +167,7 @@ func (c *Payment) deletePayment() bool {
 	///
 
 	inMemoryPayment := getPaymentsRow(c.Id)
-	if inMemoryPayment.Id <= 0 {
+	if inMemoryPayment.Id <= 0 || inMemoryPayment.enterprise != c.enterprise {
 		trans.Rollback()
 		return false
 	}
@@ -174,8 +178,8 @@ func (c *Payment) deletePayment() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.payments WHERE id=$1`
-	_, err = db.Exec(sqlStatement, c.Id)
+	sqlStatement := `DELETE FROM public.payments WHERE id=$1 AND enterprise=$2`
+	_, err = db.Exec(sqlStatement, c.Id, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
