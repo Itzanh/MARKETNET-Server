@@ -25,13 +25,13 @@ type DatabaseSettings struct {
 
 // Basic info for the app.
 type ServerSettings struct {
-	Port                 uint16                   `json:"port"`
-	HashIterations       int32                    `json:"hashIterations"`
-	TokenExpirationHours int16                    `json:"tokenExpirationHours"`
-	MaxLoginAttemps      int16                    `json:"maxLoginAttemps"`
-	CronClearLogs        string                   `json:"cronClearLogs"`
-	TLS                  ServerSettingsTLS        `json:"tls"`
-	Activation           ServerSettingsActivation `json:"activation"`
+	Port                 uint16                              `json:"port"`
+	HashIterations       int32                               `json:"hashIterations"`
+	TokenExpirationHours int16                               `json:"tokenExpirationHours"`
+	MaxLoginAttemps      int16                               `json:"maxLoginAttemps"`
+	CronClearLogs        string                              `json:"cronClearLogs"`
+	TLS                  ServerSettingsTLS                   `json:"tls"`
+	Activation           map[string]ServerSettingsActivation `json:"activation"`
 }
 
 // SSL settings for the web server.
@@ -131,18 +131,6 @@ type Settings struct {
 	EnterpriseKey                   string     `json:"enterpriseKey"`
 }
 
-func getSettingsRecord() Settings {
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE id=1`
-	row := db.QueryRow(sqlStatement)
-	if row.Err() != nil {
-		return Settings{}
-	}
-
-	var s Settings
-	row.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.DefaultWarehouseName)
-	return s
-}
-
 func getSettingsRecordById(id int32) Settings {
 	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE id=$1`
 	row := db.QueryRow(sqlStatement, id)
@@ -219,16 +207,24 @@ func (s *Settings) updateSettingsRecord() bool {
 	}
 
 	// licensing
-	if s.MaxConnections == 0 {
-		s.MaxConnections = int32(licenseMaxConnections)
+	// not in the license map
+	_, ok := licenseMaxConnections[s.Id]
+	if !ok {
+		return false
+	}
+	// don't let to set more connections than the allowed in the license
+	if s.MaxConnections <= 0 {
+		s.MaxConnections = int32(licenseMaxConnections[s.Id])
 	} else {
-		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(licenseMaxConnections)))
+		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(licenseMaxConnections[s.Id])))
 	}
 
+	// limit accounting date
 	if s.LimitAccountingDate != nil && (*s.LimitAccountingDate).After(time.Now()) {
 		return false
 	}
 
+	// connection log
 	if !s.ConnectionLog {
 		s.FilterConnections = false
 	}

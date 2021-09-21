@@ -18,46 +18,105 @@ const (
 )
 
 // The maximum limit of concurrent connections limited by the adquired license.
-var licenseMaxConnections int16
+// key: int32: enterpriseId
+// value: int16: maximum number of connections
+var licenseMaxConnections map[int32]int16 = make(map[int32]int16)
 
 // Attempt product activation by license code. If the activation fails, the server will shut down.
 // This function will be called in a new thread when the server is started.
 func activate() {
-	// The license code must be a valid UUID
-	_, err := uuid.Parse(settings.Server.Activation.LicenseCode)
-	if err != nil {
-		fmt.Println("The license code in the config file is not a valid UUID.")
+	// The license list can't be empty
+	if len(settings.Server.Activation) == 0 {
+		fmt.Println("There are no license codes in the config file.")
 		fmt.Println("The application could not be activated by license and will shut down")
 		os.Exit(2)
 	}
 
-	// If both the chance and the secret is null, the product can't be activated
-	if settings.Server.Activation.Chance == nil && (settings.Server.Activation.Secret == nil || settings.Server.Activation.InstallId == nil) {
-		fmt.Println("There is no chance or secret in the config file")
-		fmt.Println("The application could not be activated by license and will shut down")
-		os.Exit(2)
+	// There can't be duplicated license codes
+	licenseCodes := make([]string, 0)
+	for _, activation := range settings.Server.Activation {
+		for i := 0; i < len(licenseCodes); i++ {
+			if licenseCodes[i] == activation.LicenseCode {
+				fmt.Println("There can't be duplicated license codes in the config file.")
+				fmt.Println("The application could not be activated by license and will shut down")
+				os.Exit(2)
+			}
+		}
+
+		licenseCodes = append(licenseCodes, activation.LicenseCode)
 	}
 
-	// If there is a chance, activate the license of the product.
-	if settings.Server.Activation.Chance != nil {
-		if !takeActivationChance() {
+	// The enterprises that does not appear on the activation map must have 0 connections
+	settingsRecords := getSettingsRecords()
+	for enterpriseKey := range settings.Server.Activation {
+		s := getSettingsRecordByEnterprise(enterpriseKey)
+		if s.Id <= 0 {
+			fmt.Println("Could not find enterprise with name " + enterpriseKey + ".")
 			fmt.Println("The application could not be activated by license and will shut down")
 			os.Exit(2)
 		}
+
+		// Remove the enterprises that are in the activation map from the array
+		for i := 0; i < len(settingsRecords); i++ {
+			if settingsRecords[i].Id == s.Id {
+				settingsRecords = append(settingsRecords[:i], settingsRecords[i+1:]...)
+			}
+		}
+	}
+	// The remaining enterprises in the array are not in the activation map, set 0 as the maximum connections.
+	for i := 0; i < len(settingsRecords); i++ {
+		s := getSettingsRecordById(settingsRecords[i].Id)
+		if s.MaxConnections != 0 {
+			s.MaxConnections = 0
+			s.updateSettingsRecord()
+		}
 	}
 
-	// If there is an activation secret, check if it's correct
-	if settings.Server.Activation.Secret != nil && settings.Server.Activation.InstallId != nil {
-		if !checkActivation() {
-			fmt.Println("This product is not activated")
+	// Check the activation for each license of each enterprise
+	for enterpriseKey, activation := range settings.Server.Activation {
+		s := getSettingsRecordByEnterprise(enterpriseKey)
+		if s.Id <= 0 {
+			fmt.Println("Could not find enterprise with name " + enterpriseKey + ".")
 			fmt.Println("The application could not be activated by license and will shut down")
 			os.Exit(2)
 		}
-	} else {
-		// Can't continue
-		fmt.Println("There must be a secret and a installation ID in the config file to check the activation this product.")
-		fmt.Println("The application could not be activated by license and will shut down")
-		os.Exit(2)
+
+		// The license code must be a valid UUID
+		_, err := uuid.Parse(activation.LicenseCode)
+		if err != nil {
+			fmt.Println("The license code in the config file is not a valid UUID.")
+			fmt.Println("The application could not be activated by license and will shut down")
+			os.Exit(2)
+		}
+
+		// If both the chance and the secret is null, the product can't be activated
+		if activation.Chance == nil && (activation.Secret == nil || activation.InstallId == nil) {
+			fmt.Println("There is no chance or secret in the config file")
+			fmt.Println("The application could not be activated by license and will shut down")
+			os.Exit(2)
+		}
+
+		// If there is a chance, activate the license of the product.
+		if activation.Chance != nil {
+			if !takeActivationChance(enterpriseKey, activation.LicenseCode, *activation.Chance) {
+				fmt.Println("The application could not be activated by license and will shut down")
+				os.Exit(2)
+			}
+		}
+
+		// If there is an activation secret, check if it's correct
+		if activation.Secret != nil && activation.InstallId != nil {
+			if !checkActivation(enterpriseKey, s.Id, activation.LicenseCode, *activation.Secret, *activation.InstallId) {
+				fmt.Println("This product is not activated")
+				fmt.Println("The application could not be activated by license and will shut down")
+				os.Exit(2)
+			}
+		} else {
+			// Can't continue
+			fmt.Println("There must be a secret and a installation ID in the config file to check the activation this product.")
+			fmt.Println("The application could not be activated by license and will shut down")
+			os.Exit(2)
+		}
 	}
 }
 
@@ -68,11 +127,11 @@ type TakeChanceActivation struct {
 }
 
 // Change the secret by a secret code
-func takeActivationChance() bool {
+func takeActivationChance(enterpriseKey string, licenseCode string, chance string) bool {
 	// Generate a random installation ID for this server. This code gets generated by the client for every activation.
 	takeActivationChance := TakeChanceActivation{
-		LicenseCode: settings.Server.Activation.LicenseCode,
-		Chance:      *settings.Server.Activation.Chance,
+		LicenseCode: licenseCode,
+		Chance:      chance,
 		InstallId:   uuid.New().String(),
 	}
 	data, _ := json.Marshal(takeActivationChance)
@@ -90,9 +149,10 @@ func takeActivationChance() bool {
 	}
 	secret := string(response)
 	if len(secret) == 30 {
-		settings.Server.Activation.Chance = nil
-		settings.Server.Activation.Secret = &secret
-		settings.Server.Activation.InstallId = &takeActivationChance.InstallId
+		activation := settings.Server.Activation[enterpriseKey]
+		activation.Chance = nil
+		activation.Secret = &secret
+		activation.InstallId = &takeActivationChance.InstallId
 		ok := settings.setBackendSettings()
 
 		if !ok {
@@ -117,11 +177,11 @@ type ServerActivationResult struct {
 	MaxConnections int16 `json:"maxConnections"`
 }
 
-func checkActivation() bool {
+func checkActivation(enterpriseKey string, enterpriseId int32, licenseCode string, secret string, installId string) bool {
 	a := ServerActivation{
-		LicenseCode: settings.Server.Activation.LicenseCode,
-		Secret:      *settings.Server.Activation.Secret,
-		InstallId:   *settings.Server.Activation.InstallId,
+		LicenseCode: licenseCode,
+		Secret:      secret,
+		InstallId:   installId,
 	}
 	data, _ := json.Marshal(a)
 	resp, err := http.Post(ACTIVATE_URL, "application/json", bytes.NewBuffer(data))
@@ -140,27 +200,28 @@ func checkActivation() bool {
 	json.Unmarshal(response, &result)
 
 	if result.Ok { // Successfully activated
-		setLicenseMaxConnectionsLimit(result.MaxConnections)
+		setLicenseMaxConnectionsLimit(result.MaxConnections, enterpriseId)
 		return true
 	} else {
 		// The license code is incorrect or (probably) the license code has been used in another marketnet installation so the secret or install id has changed.
 		// Remove the activation data from the settings and prevent the server from starting.
-		settings.Server.Activation.Chance = nil
-		settings.Server.Activation.Secret = nil
-		settings.Server.Activation.InstallId = nil
+		activation := settings.Server.Activation[enterpriseKey]
+		activation.Chance = nil
+		activation.Secret = nil
+		activation.InstallId = nil
 		settings.setBackendSettings()
 		return false
 	}
 }
 
 // Changes done here must algo be done in the updateSettingsRecord function in settings.go.
-func setLicenseMaxConnectionsLimit(maxConnections int16) {
-	licenseMaxConnections = maxConnections
-	s := getSettingsRecord()
+func setLicenseMaxConnectionsLimit(maxConnections int16, enterpriseId int32) {
+	licenseMaxConnections[enterpriseId] = maxConnections
+	s := getSettingsRecordById(enterpriseId)
 	if s.MaxConnections == 0 {
-		s.MaxConnections = int32(licenseMaxConnections)
+		s.MaxConnections = int32(maxConnections)
 	} else {
-		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(licenseMaxConnections)))
+		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(maxConnections)))
 	}
 	s.updateSettingsRecord()
 }

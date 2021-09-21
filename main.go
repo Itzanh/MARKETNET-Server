@@ -122,11 +122,6 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer ws.Close()
-	s := getSettingsRecord()
-	if s.MaxConnections > 0 && len(connections) >= int(s.MaxConnections) {
-		ws.Close()
-		return
-	}
 
 	// AUTHENTICATION
 	ok, userId, permissions, enterpriseId := authentication(ws, r.RemoteAddr)
@@ -135,6 +130,11 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 	}
 	okFilter := userConnection(userId, r.RemoteAddr, enterpriseId)
 	if !okFilter {
+		return
+	}
+	s := getSettingsRecordById(enterpriseId)
+	if len(getConnections(enterpriseId)) >= int(s.MaxConnections) {
+		ws.Close()
 		return
 	}
 	// END AUTHENTICATION

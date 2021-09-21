@@ -3,7 +3,7 @@
         "host": "localhost",
         "port": 5432,
         "user": "marketnet",
-        "password": "** PASTE POSTGRESQL PASSWORD HERE **",
+        "password": "-.qu@.5vaqBE6GH",
         "dbname": "marketnet"
     },
     "server": {
@@ -18,10 +18,12 @@
             "keyPath": "./certificates/privkey.pem"
         },
         "activation": {
-            "licenseCode": "** PASTE LICENSE CODE HERE **",
-            "chance": "** PASTE ACTIVATION CHANCE HERE **",
-            "secret": null,
-            "installId": null
+            "MARKETNET": {
+                "licenseCode": "** PASTE LICENSE CODE HERE **",
+                "chance": "** PASTE ACTIVATION CHANCE HERE **",
+                "secret": null,
+                "installId": null
+            }
         }
     }
 }

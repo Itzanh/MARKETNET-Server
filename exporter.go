@@ -455,6 +455,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 	case "config":
 		var settings Settings
 		json.Unmarshal(jsonData, &settings)
+		settings.Id = enterpriseId
 		ok = settings.updateSettingsRecord()
 		if !ok {
 			trans.Rollback()
