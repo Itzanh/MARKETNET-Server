@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"math"
-	"strconv"
 	"time"
+
+	"github.com/robfig/cron/v3"
 )
 
 // Basic, static, server settings such as the DB password or the port.
@@ -196,16 +197,6 @@ func (s *Settings) updateSettingsRecord() bool {
 		}
 	}
 
-	// demo/cloud mode
-	// don't allow more connections than the limit specified on the parameters
-	if getParameterValue("--max-connections") != "" {
-		maxConnecions := getParameterValue("--max-connections")
-		maxConn, err := strconv.Atoi(maxConnecions)
-		if err == nil {
-			s.MaxConnections = int32(maxConn)
-		}
-	}
-
 	// licensing
 	// not in the license map
 	_, ok := licenseMaxConnections[s.Id]
@@ -227,6 +218,30 @@ func (s *Settings) updateSettingsRecord() bool {
 	// connection log
 	if !s.ConnectionLog {
 		s.FilterConnections = false
+	}
+
+	// check crons
+	if s.Currency != "_" {
+		_, err := cron.ParseStandard(s.CronCurrency)
+		if err != nil {
+			return false
+		}
+	}
+	if s.Ecommerce != "_" {
+		_, err := cron.ParseStandard(s.CronPrestaShop)
+		if err != nil {
+			return false
+		}
+	}
+	_, err := cron.ParseStandard(s.CronClearLabels)
+	if err != nil {
+		return false
+	}
+
+	// ¿has the cron changed?
+	settingsInMemory := getSettingsRecordById(s.Id)
+	if settingsInMemory.CronClearLabels != s.CronClearLabels || settingsInMemory.Currency != s.Currency || settingsInMemory.CronCurrency != s.CronCurrency || settingsInMemory.Ecommerce != s.Ecommerce || settingsInMemory.CronPrestaShop != s.CronPrestaShop {
+		refreshRunningCrons(settingsInMemory, *s)
 	}
 
 	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, enable_api_key=$37, cron_clear_labels=$38, limit_accounting_date=$39, woocommerce_url=$40, woocommerce_consumer_key=$41, woocommerce_consumer_secret=$42, woocommerce_export_serie=$43, woocommerce_intracommunity_serie=$44, woocommerce_interior_serie=$45, woocommerce_default_payment_method=$46, connection_log=$47, filter_connections=$48, shopify_url=$49, shopify_token=$50, shopify_export_serie=$51, shopify_intracommunity_serie=$52, shopify_interior_serie=$53, shopify_default_payment_method=$54, shopify_shop_location_id=$55 WHERE id=$56`
@@ -258,4 +273,51 @@ func (s Settings) censorSettings() ClientSettings {
 	c.DateFormat = s.DateFormat
 	c.Ecommerce = s.Ecommerce
 	return c
+}
+
+type EnterpriseCronInfo struct {
+	CronClearLabels cron.EntryID
+	CronCurrency    *cron.EntryID
+	CronPrestaShop  *cron.EntryID
+}
+
+func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
+	enterpriseCronInfo := runningCrons[oldSettings.Id]
+
+	if oldSettings.CronClearLabels != newSettings.CronClearLabels {
+		c.Remove(enterpriseCronInfo.CronClearLabels)
+		cronId, err := c.AddFunc(newSettings.CronClearLabels, func() {
+			deleteAllShippingTags(oldSettings.Id)
+		})
+		if err != nil {
+			enterpriseCronInfo.CronClearLabels = cronId
+		}
+	}
+	if oldSettings.Currency != newSettings.Currency || oldSettings.CronCurrency != newSettings.CronCurrency {
+		if enterpriseCronInfo.CronCurrency != nil {
+			c.Remove(*enterpriseCronInfo.CronCurrency)
+		}
+		if newSettings.Currency != "_" {
+			cronId, err := c.AddFunc(newSettings.CronCurrency, func() {
+				updateCurrencyExchange(oldSettings.Id)
+			})
+			if err != nil {
+				enterpriseCronInfo.CronCurrency = &cronId
+			}
+		}
+	}
+	if oldSettings.Ecommerce != newSettings.Ecommerce || oldSettings.CronPrestaShop != newSettings.CronPrestaShop {
+		if enterpriseCronInfo.CronPrestaShop != nil {
+			c.Remove(*enterpriseCronInfo.CronPrestaShop)
+		}
+		if newSettings.Ecommerce != "_" {
+			e := ECommerce{Enterprise: oldSettings.Id}
+			cronId, err := c.AddFunc(newSettings.CronPrestaShop, e.ecommerceControllerImportFromEcommerce)
+			if err != nil {
+				enterpriseCronInfo.CronPrestaShop = &cronId
+			}
+		}
+	}
+
+	runningCrons[oldSettings.Id] = enterpriseCronInfo
 }

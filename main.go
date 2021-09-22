@@ -28,6 +28,12 @@ var db *sql.DB
 // List of all the concurrent websocket connections to the server.
 var connections []Connection
 
+// Global cron instance
+var c *cron.Cron
+
+// List of all cron IDs. Key= Enterprise Id, Value= Array of objects with cron IDs.
+var runningCrons map[int32]EnterpriseCronInfo = make(map[int32]EnterpriseCronInfo)
+
 func main() {
 	// read settings
 	var ok bool
@@ -84,21 +90,32 @@ func main() {
 
 	// crons
 	go cleanDocumentTokens()
-	c := cron.New()
+	c = cron.New()
 	for i := 0; i < len(settingsRecords); i++ {
 		var enterpriseId int32 = settingsRecords[i].Id
+		enterpriseCronInfo := EnterpriseCronInfo{}
 		if settingsRecords[i].Currency != "_" {
-			c.AddFunc(settingsRecords[i].CronCurrency, func() {
+			cronId, err := c.AddFunc(settingsRecords[i].CronCurrency, func() {
 				updateCurrencyExchange(enterpriseId)
 			})
+			if err != nil {
+				enterpriseCronInfo.CronCurrency = &cronId
+			}
 		}
-		if settingsRecords[i].Ecommerce == "P" {
+		if settingsRecords[i].Ecommerce != "_" {
 			e := ECommerce{Enterprise: settingsRecords[i].Id}
-			c.AddFunc(settingsRecords[i].CronPrestaShop, e.ecommerceControllerImportFromEcommerce)
+			cronId, err := c.AddFunc(settingsRecords[i].CronPrestaShop, e.ecommerceControllerImportFromEcommerce)
+			if err != nil {
+				enterpriseCronInfo.CronPrestaShop = &cronId
+			}
 		}
-		c.AddFunc(settingsRecords[i].CronClearLabels, func() {
+		cronId, err := c.AddFunc(settingsRecords[i].CronClearLabels, func() {
 			deleteAllShippingTags(enterpriseId)
 		})
+		if err != nil {
+			enterpriseCronInfo.CronClearLabels = cronId
+		}
+		runningCrons[enterpriseId] = enterpriseCronInfo
 	}
 	c.AddFunc(settings.Server.CronClearLogs, clearLogs)
 	c.Start()
@@ -2431,13 +2448,4 @@ func isParameterPresent(parameter string) bool {
 		}
 	}
 	return false
-}
-
-func getParameterValue(parameter string) string {
-	for i := 1; i < len(os.Args); i++ {
-		if len(os.Args[i]) > len(parameter) && os.Args[i][:len(parameter)] == parameter {
-			return strings.Split(os.Args[i], "=")[1]
-		}
-	}
-	return ""
 }

@@ -65,11 +65,8 @@ func activate() {
 	}
 	// The remaining enterprises in the array are not in the activation map, set 0 as the maximum connections.
 	for i := 0; i < len(settingsRecords); i++ {
-		s := getSettingsRecordById(settingsRecords[i].Id)
-		if s.MaxConnections != 0 {
-			s.MaxConnections = 0
-			s.updateSettingsRecord()
-		}
+		sqlStatement := `UPDATE config SET max_connections=0 WHERE id=$1`
+		db.Exec(sqlStatement, settingsRecords[i].Id)
 	}
 
 	// Check the activation for each license of each enterprise
@@ -223,5 +220,6 @@ func setLicenseMaxConnectionsLimit(maxConnections int16, enterpriseId int32) {
 	} else {
 		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(maxConnections)))
 	}
-	s.updateSettingsRecord()
+	sqlStatement := `UPDATE config SET max_connections=$2 WHERE id=$1`
+	db.Exec(sqlStatement, enterpriseId, s.MaxConnections)
 }
