@@ -314,6 +314,8 @@ func (s *SaleOrder) deleteSalesOrder() bool {
 	///
 
 	d := getSalesOrderDetail(s.Id, s.enterprise)
+
+	// prevent the order to be deleted if there is an invoice or a delivery note
 	for i := 0; i < len(d); i++ {
 		if d[i].QuantityInvoiced > 0 || d[i].QuantityDeliveryNote > 0 {
 			trans.Rollback()
@@ -321,6 +323,36 @@ func (s *SaleOrder) deleteSalesOrder() bool {
 		}
 	}
 
+	// delete sales order detail packaged
+	sqlStatement := `DELETE FROM sales_order_detail_packaged WHERE order_detail = $1 AND enterprise = $2`
+	for i := 0; i < len(d); i++ {
+		_, err := db.Exec(sqlStatement, d[i].Id, s.enterprise)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+	}
+
+	// delete packaging
+	sqlStatement = `DELETE FROM packaging WHERE sales_order = $1 AND enterprise = $2`
+	_, err := db.Exec(sqlStatement, s.Id, s.enterprise)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	// delete pallets
+	sqlStatement = `DELETE FROM pallets WHERE sales_order = $1 AND enterprise = $2`
+	_, err = db.Exec(sqlStatement, s.Id, s.enterprise)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	// delete details
 	for i := 0; i < len(d); i++ {
 		d[i].enterprise = s.enterprise
 		ok := d[i].deleteSalesOrderDetail()
@@ -330,7 +362,8 @@ func (s *SaleOrder) deleteSalesOrder() bool {
 		}
 	}
 
-	sqlStatement := `DELETE FROM public.sales_order WHERE id=$1 AND enterprise=$2`
+	// delete sale order
+	sqlStatement = `DELETE FROM public.sales_order WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, s.Id, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())

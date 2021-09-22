@@ -19,10 +19,10 @@
         },
         "activation": {
             "MARKETNET": {
-                "licenseCode": "** PASTE LICENSE CODE HERE **",
-                "chance": "** PASTE ACTIVATION CHANCE HERE **",
-                "secret": null,
-                "installId": null
+                "licenseCode": "51be72b7-b0fe-4d97-9203-9f9b0eb74e3b",
+                "chance": null,
+                "secret": "ka7ImX6Gsnyqfq7ezvaIdXEXNipp5v",
+                "installId": "97d8d829-82c0-4a6c-82ed-0bde3ad9f54f"
             }
         }
     }
