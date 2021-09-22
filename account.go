@@ -219,7 +219,7 @@ func locateAccountForSupplier(enterpriseId int32) []AccountLocate {
 
 func locateAccountForBanks(enterpriseId int32) []AccountLocate {
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' AND enterprise=$1 ORDER BY account_number ASC`
+	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' AND account.enterprise=$1 ORDER BY account_number ASC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())

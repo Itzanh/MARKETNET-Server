@@ -10,6 +10,7 @@ func TestSettings(t *testing.T) {
 	}
 
 	s := getSettingsRecordById(1)
+	licenseMaxConnections[1] = int16(s.MaxConnections)
 	ok := s.updateSettingsRecord()
 	if !ok {
 		t.Error("Can't update settings")
