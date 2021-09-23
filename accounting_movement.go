@@ -619,7 +619,7 @@ func getAccountingMovementSaleInvoices(movementId int64) []SalesInvoice {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.CustomerName)
+			&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.CustomerName)
 		invoices = append(invoices, i)
 	}
 

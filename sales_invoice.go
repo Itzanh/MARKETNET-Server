@@ -28,6 +28,7 @@ type SalesInvoice struct {
 	InvoiceNumber      int32     `json:"invoiceNumber"`
 	InvoiceName        string    `json:"invoiceName"`
 	AccountingMovement *int64    `json:"accountingMovement"`
+	SimplifiedInvoice  bool      `json:"simplifiedInvoice"`
 	CustomerName       string    `json:"customerName"`
 	enterprise         int32
 }
@@ -54,7 +55,7 @@ func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.CustomerName)
+			&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.CustomerName)
 		si.Invoices = append(si.Invoices, i)
 	}
 
@@ -114,7 +115,7 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.CustomerName)
+			&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.CustomerName)
 		si.Invoices = append(si.Invoices, i)
 	}
 
@@ -162,7 +163,7 @@ func getSalesInvoiceRow(invoiceId int64) SalesInvoice {
 	i := SalesInvoice{}
 	row.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-		&i.AccountingMovement, &i.enterprise)
+		&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice)
 
 	return i
 }
@@ -176,16 +177,39 @@ func (i *SalesInvoice) insertSalesInvoice() (bool, int64) {
 		return false, 0
 	}
 
+	// get invoice name
 	i.InvoiceNumber = getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
 	if i.InvoiceNumber <= 0 {
 		return false, 0
 	}
-	i.CurrencyChange = getCurrencyExchange(i.Currency)
 	now := time.Now()
 	i.InvoiceName = i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
 
-	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`
-	row := db.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise)
+	// get currency exchange
+	i.CurrencyChange = getCurrencyExchange(i.Currency)
+
+	// simplified invoice
+	address := getAddressRow(i.BillingAddress)
+	if address.Id <= 0 {
+		return false, 0
+	}
+	country := getCountryRow(address.Country, i.enterprise)
+	if country.Id <= 0 {
+		return false, 0
+	}
+	if country.Zone == "E" { // Export
+		i.SimplifiedInvoice = false
+	} else {
+		customer := getCustomerRow(i.Customer)
+		if country.Zone == "N" { // National
+			i.SimplifiedInvoice = len(customer.TaxId) == 0
+		} else { // European Union
+			i.SimplifiedInvoice = len(customer.TaxId) == 0 && len(customer.VatNumber) == 0
+		}
+	}
+
+	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise, simplified_invoice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`
+	row := db.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise, i.SimplifiedInvoice)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false, 0
