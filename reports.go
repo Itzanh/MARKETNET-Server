@@ -86,12 +86,9 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	countryName := getNameCountry(address.Country, enterpriseId)
 	details := getSalesOrderDetail(s.Id, enterpriseId)
 
-	content, err := ioutil.ReadFile("./reports/sales_order.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "SALES_ORDER")
 
-	html := string(content)
+	html := template.Html
 
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
@@ -154,12 +151,9 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	countryName := getNameCountry(address.Country, enterpriseId)
 	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
-	content, err := ioutil.ReadFile("./reports/sales_invoice.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "SALES_INVOICE")
 
-	html := string(content)
+	html := template.Html
 
 	html = strings.Replace(html, "$$invoice_number$$", i.InvoiceName, 1)
 	html = strings.Replace(html, "$$invoice_date$$", i.DateCreated.Format("2006-01-02 15:04:05"), 1)
@@ -220,12 +214,9 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 	countryName := getNameCountry(address.Country, enterpriseId)
 	details := getWarehouseMovementBySalesDeliveryNote(n.Id, enterpriseId)
 
-	content, err := ioutil.ReadFile("./reports/sales_delivery_note.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "SALES_DELIVERY_NOTE")
 
-	html := string(content)
+	html := template.Html
 
 	html = strings.Replace(html, "$$note_number$$", n.DeliveryNoteName, 1)
 	html = strings.Replace(html, "$$note_date$$", n.DateCreated.Format("2006-01-02 15:04:05"), 1)
@@ -286,12 +277,9 @@ func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	countryName := getNameCountry(address.Country, enterpriseId)
 	details := getPurchaseOrderDetail(s.Id, enterpriseId)
 
-	content, err := ioutil.ReadFile("./reports/purchase_order.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "PURCHASE_ORDER")
 
-	html := string(content)
+	html := template.Html
 
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
@@ -345,12 +333,9 @@ func reportBoxContent(id int, forcePrint bool, enterpriseId int32) []byte {
 	p := getPackagingRow(int64(id))
 	_package := getPackagesRow(p.Package)
 
-	content, err := ioutil.ReadFile("./reports/box_content.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "BOX_CONTENT")
 
-	html := string(content)
+	html := template.Html
 
 	html = strings.Replace(html, "$$box_name$$", _package.Name+" ("+fmt.Sprintf("%dx%dx%d", int(_package.Width), int(_package.Height), int(_package.Depth))+")", 1)
 	html = strings.Replace(html, "$$box_weight$$", fmt.Sprintf("%.2f", p.Weight), 1)
@@ -388,12 +373,9 @@ func reportPalletContent(id int, forcePrint bool, enterpriseId int32) []byte {
 		return nil
 	}
 
-	content, err := ioutil.ReadFile("./reports/pallet_content.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "PALLET_CONTENT")
 
-	html := string(content)
+	html := template.Html
 	packaging := getPackaging(p.SalesOrder, enterpriseId)
 	boxHtmlTemplate := html[strings.Index(html, "&&box&&")+len("&&box&&") : strings.Index(html, "&&--box--&&")]
 	boxHtml := ""
@@ -451,12 +433,9 @@ func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 	countryName := getNameCountry(address.Country, enterpriseId)
 	pallets := getSalesOrderPallets(s.Id, enterpriseId).Pallets
 
-	content, err := ioutil.ReadFile("./reports/carrier_pallet.html")
-	if err != nil {
-		return nil
-	}
+	template := getReportTemplate(enterpriseId, "CARRIER_PALLET")
 
-	html := string(content)
+	html := template.Html
 
 	html = strings.Replace(html, "$$order_customer_name$$", customer, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)

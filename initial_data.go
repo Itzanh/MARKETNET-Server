@@ -22,6 +22,7 @@ func initialData(enterpriseId int32) {
 	initialUser(enterpriseId)
 	initialGroup(enterpriseId)
 	initialUserGroup()
+	initialReportTemplate(enterpriseId)
 }
 
 func initialPaymentData(enterpriseId int32) {
@@ -361,4 +362,54 @@ func initialUserGroup() {
 
 		fmt.Println("INITIAL DATA: Added the admin user to the admin group")
 	}
+}
+
+func initialReportTemplate(enterpriseId int32) {
+	templates := getReportTemplates(enterpriseId)
+
+	if len(templates) > 0 {
+		return
+	}
+
+	content, err := ioutil.ReadFile("./reports/sales_order.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "SALES_ORDER", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/sales_invoice.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "SALES_INVOICE", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/sales_delivery_note.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "SALES_DELIVERY_NOTE", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/purchase_order.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "PURCHASE_ORDER", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/box_content.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "BOX_CONTENT", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/pallet_content.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "PALLET_CONTENT", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/carrier_pallet.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "CARRIER_PALLET", Html: string(content)}.insertReportTemplate()
 }

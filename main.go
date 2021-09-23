@@ -62,14 +62,14 @@ func main() {
 	// initial data
 	settingsRecords := getSettingsRecords()
 	for i := 0; i < len(settingsRecords); i++ {
-		initialData(int32(i))
+		initialData(settingsRecords[i].Id)
 	}
 	if isParameterPresent("--install-only") {
 		return
 	}
 	if isParameterPresent("--generate-demo-data") {
 		for i := 0; i < len(settingsRecords); i++ {
-			generateDemoData(int32(i))
+			generateDemoData(settingsRecords[i].Id)
 		}
 	}
 
@@ -123,8 +123,6 @@ func main() {
 
 	// activation
 	go activate()
-
-	importFromWooCommerce(1)
 
 	// idle wait to prevent the main thread from exiting
 	var wg = &sync.WaitGroup{}
@@ -509,6 +507,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getConnectionFilters(enterpriseId))
+	case "REPORT_TEMPLATE":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getReportTemplates(enterpriseId))
 	default:
 		found = false
 	}
@@ -1371,6 +1374,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &filter)
 		filter.enterprise = enterpriseId
 		ok = filter.updateConnectionFilter()
+	case "REPORT_TEMPLATE":
+		if !permissions.Admin {
+			return
+		}
+		var template ReportTemplate
+		json.Unmarshal(message, &template)
+		template.enterprise = enterpriseId
+		ok = template.updateReportTemplate()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)

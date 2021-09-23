@@ -304,8 +304,9 @@ func cleanDocumentTokens() {
 func consumeToken(token string) (bool, int32) {
 	for i := 0; i < len(documentAccessTokens); i++ {
 		if time.Until(documentAccessTokens[i].DateCreated).Seconds() <= 60 { // the token has not expired yet
+			enterpriseId := documentAccessTokens[i].Enterprise
 			documentAccessTokens = append(documentAccessTokens[:i], documentAccessTokens[i+1:]...) // delete the token
-			return true, documentAccessTokens[i].Enterprise
+			return true, enterpriseId
 		}
 	}
 	return false, 0 // the token was not found or is expired, let the cleaning function delete it
