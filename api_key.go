@@ -99,5 +99,5 @@ func checkApiKey(token string) (bool, int32, int32) {
 	var enterpriseId int32
 	row.Scan(&userId, &enterpriseId)
 
-	return true, userId, 0
+	return true, userId, enterpriseId
 }

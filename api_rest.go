@@ -49,6 +49,17 @@ func addHttpHandlerFuncions() {
 	http.HandleFunc("/api/shippings", apiShipping)
 	// stock
 	http.HandleFunc("/api/stock", apiStock)
+	// accounting
+	http.HandleFunc("/api/journal", apiJournal)
+	http.HandleFunc("/api/account", apiAccount)
+	http.HandleFunc("/api/accounting_movement", apiAccountingMovement)
+	http.HandleFunc("/api/accounting_movement_detail", apiAccountingMovementDetail)
+	http.HandleFunc("/api/collection_operation", apiCollectionOperation)
+	http.HandleFunc("/api/charges", apiCharges)
+	http.HandleFunc("/api/payment_transaction", apiPaymentTransaction)
+	http.HandleFunc("/api/payment", apiPayments)
+	http.HandleFunc("/api/post_sale_invoice", apiPostSaleInvoices)
+	http.HandleFunc("/api/post_purchase_invoice", apiPostPurchaseInvoices)
 }
 
 func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
@@ -1964,4 +1975,667 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNotAcceptable)
+}
+
+func apiJournal(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		data, _ := json.Marshal(getJournals(enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		var journal Journal
+		json.Unmarshal(body, &journal)
+		journal.enterprise = enterpriseId
+		ok = journal.insertJournal()
+	case "PUT":
+		var journal Journal
+		json.Unmarshal(body, &journal)
+		journal.enterprise = enterpriseId
+		ok = journal.updateJournal()
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var journal Journal
+		journal.Id = int16(id)
+		journal.enterprise = enterpriseId
+		ok = journal.deleteJournal()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiAccount(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		data, _ := json.Marshal(getAccounts(enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var account Account
+			json.Unmarshal(body, &account)
+			account.enterprise = enterpriseId
+			ok = account.insertAccount()
+		} else if string(body[0]) == "[" {
+			var account []Account
+			json.Unmarshal(body, &account)
+			for i := 0; i < len(account); i++ {
+				account[i].enterprise = enterpriseId
+				ok = account[i].insertAccount()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		var account Account
+		json.Unmarshal(body, &account)
+		account.enterprise = enterpriseId
+		ok = account.updateAccount()
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var account Account
+		account.Id = int32(id)
+		account.enterprise = enterpriseId
+		ok = account.deleteAccount()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		data, _ := json.Marshal(getAccountingMovement(enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var accountingMovement AccountingMovement
+			json.Unmarshal(body, &accountingMovement)
+			accountingMovement.enterprise = enterpriseId
+			ok = accountingMovement.insertAccountingMovement()
+		} else if string(body[0]) == "[" {
+			var accountingMovement []AccountingMovement
+			json.Unmarshal(body, &accountingMovement)
+			for i := 0; i < len(accountingMovement); i++ {
+				accountingMovement[i].enterprise = enterpriseId
+				ok = accountingMovement[i].insertAccountingMovement()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var accountingMovement AccountingMovement
+		accountingMovement.Id = int64(id)
+		accountingMovement.enterprise = enterpriseId
+		ok = accountingMovement.deleteAccountingMovement()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getAccountingMovementDetail(int64(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var accountingMovementDetail AccountingMovementDetail
+			json.Unmarshal(body, &accountingMovementDetail)
+			accountingMovementDetail.enterprise = enterpriseId
+			ok = accountingMovementDetail.insertAccountingMovementDetail()
+		} else if string(body[0]) == "[" {
+			var accountingMovementDetail []AccountingMovementDetail
+			json.Unmarshal(body, &accountingMovementDetail)
+			for i := 0; i < len(accountingMovementDetail); i++ {
+				accountingMovementDetail[i].enterprise = enterpriseId
+				ok = accountingMovementDetail[i].insertAccountingMovementDetail()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var accountingMovementDetail AccountingMovementDetail
+		accountingMovementDetail.Id = int64(id)
+		accountingMovementDetail.enterprise = enterpriseId
+		ok = accountingMovementDetail.deleteAccountingMovementDetail()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getColletionOperations(int64(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var collectionOperation CollectionOperation
+			json.Unmarshal(body, &collectionOperation)
+			collectionOperation.enterprise = enterpriseId
+			ok = collectionOperation.insertCollectionOperation()
+		} else if string(body[0]) == "[" {
+			var collectionOperation []CollectionOperation
+			json.Unmarshal(body, &collectionOperation)
+			for i := 0; i < len(collectionOperation); i++ {
+				collectionOperation[i].enterprise = enterpriseId
+				ok = collectionOperation[i].insertCollectionOperation()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var collectionOperation CollectionOperation
+		collectionOperation.Id = int32(id)
+		collectionOperation.enterprise = enterpriseId
+		ok = collectionOperation.deleteCollectionOperation()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiCharges(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getCharges(int32(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var charges Charges
+			json.Unmarshal(body, &charges)
+			charges.enterprise = enterpriseId
+			ok = charges.insertCharges()
+		} else if string(body[0]) == "[" {
+			var charges []Charges
+			json.Unmarshal(body, &charges)
+			for i := 0; i < len(charges); i++ {
+				charges[i].enterprise = enterpriseId
+				ok = charges[i].insertCharges()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var charges Charges
+		charges.Id = int32(id)
+		charges.enterprise = enterpriseId
+		ok = charges.deleteCharges()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getPaymentTransactions(int64(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var paymentTransaction PaymentTransaction
+			json.Unmarshal(body, &paymentTransaction)
+			paymentTransaction.enterprise = enterpriseId
+			ok = paymentTransaction.insertPaymentTransaction()
+		} else if string(body[0]) == "[" {
+			var paymentTransaction []PaymentTransaction
+			json.Unmarshal(body, &paymentTransaction)
+			for i := 0; i < len(paymentTransaction); i++ {
+				paymentTransaction[i].enterprise = enterpriseId
+				ok = paymentTransaction[i].insertPaymentTransaction()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var paymentTransaction PaymentTransaction
+		paymentTransaction.Id = int32(id)
+		paymentTransaction.enterprise = enterpriseId
+		ok = paymentTransaction.deletePaymentTransaction()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiPayments(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getPayments(int32(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var Paymenp Payment
+			json.Unmarshal(body, &Paymenp)
+			Paymenp.enterprise = enterpriseId
+			ok = Paymenp.insertPayment()
+		} else if string(body[0]) == "[" {
+			var payment []Payment
+			json.Unmarshal(body, &payment)
+			for i := 0; i < len(payment); i++ {
+				payment[i].enterprise = enterpriseId
+				ok = payment[i].insertPayment()
+				if !ok {
+					w.WriteHeader(http.StatusNotAcceptable)
+					return
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var payment Payment
+		payment.Id = int32(id)
+		payment.enterprise = enterpriseId
+		ok = payment.deletePayment()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		var orderSearch OrderSearch
+		json.Unmarshal(body, &orderSearch)
+		orderSearch.Enterprise = enterpriseId
+		orderSearch.NotPosted = true
+		data, _ := json.Marshal(orderSearch.searchSalesInvoices())
+		w.Write(data)
+		return
+	case "POST":
+		var invoiceIds []int64
+		json.Unmarshal(body, &invoiceIds)
+		result := salesPostInvoices(invoiceIds, enterpriseId)
+		resp, _ := json.Marshal(result)
+		w.Write(resp)
+		return
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusNotAcceptable)
+
+}
+
+func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// token
+	token, ok := r.URL.Query()["token"]
+	if !ok || len(token[0]) != 36 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	ok, userId, enterpriseId := checkApiKey(token[0])
+	if !ok || userId <= 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		var orderSearch OrderSearch
+		json.Unmarshal(body, &orderSearch)
+		orderSearch.Enterprise = enterpriseId
+		orderSearch.NotPosted = true
+		data, _ := json.Marshal(orderSearch.searchPurchaseInvoice())
+		w.Write(data)
+		return
+	case "POST":
+		var invoiceIds []int64
+		json.Unmarshal(body, &invoiceIds)
+		result := purchasePostInvoices(invoiceIds, enterpriseId)
+		resp, _ := json.Marshal(result)
+		w.Write(resp)
+		return
+	case "PUT":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	case "DELETE":
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusNotAcceptable)
+
 }
