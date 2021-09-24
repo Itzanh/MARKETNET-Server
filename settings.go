@@ -104,11 +104,11 @@ type Settings struct {
 	PrestashopStatusShipped         int32      `json:"prestashopStatusShipped"`
 	MinimumStockSalesPeriods        int16      `json:"minimumStockSalesPeriods"`
 	MinimumStockSalesDays           int16      `json:"minimumStockSalesDays"`
-	CustomerJournal                 *int16     `json:"customerJournal"`
-	SalesJournal                    *int16     `json:"salesJournal"`
+	CustomerJournal                 *int32     `json:"customerJournal"`
+	SalesJournal                    *int32     `json:"salesJournal"`
 	SalesAccount                    *int32     `json:"salesAccount"`
-	SupplierJournal                 *int16     `json:"supplierJournal"`
-	PurchaseJournal                 *int16     `json:"purchaseJournal"`
+	SupplierJournal                 *int32     `json:"supplierJournal"`
+	PurchaseJournal                 *int32     `json:"purchaseJournal"`
 	PurchaseAccount                 *int32     `json:"purchaseAccount"`
 	EnableApiKey                    bool       `json:"enableApiKey"`
 	CronClearLabels                 string     `json:"cronClearLabels"`

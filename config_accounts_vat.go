@@ -5,9 +5,9 @@ type ConfigAccountsVat struct {
 	AccountSale           int32   `json:"accountSale"`
 	AccountPurchase       int32   `json:"accountPurchase"`
 	AccountSaleNumber     int32   `json:"accountSaleNumber"`
-	JournalSale           int16   `json:"journalSale"`
+	JournalSale           int32   `json:"journalSale"`
 	AccountPurchaseNumber int32   `json:"accountPurchaseNumber"`
-	JournalPurchase       int16   `json:"journalPurchase"`
+	JournalPurchase       int32   `json:"journalPurchase"`
 	enterprise            int32
 }
 
@@ -29,7 +29,8 @@ func getConfigAccountsVat(enterpriseId int32) []ConfigAccountsVat {
 	return configAccountsVat
 }
 
-func getConfigAccountsVatSaleRow(vatPercent float32, enterpriseId int32) (int16, int32) {
+// Journal, Account
+func getConfigAccountsVatSaleRow(vatPercent float32, enterpriseId int32) (int32, int32) {
 	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_sale) FROM config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
 	row := db.QueryRow(sqlStatement, vatPercent, enterpriseId)
 	if row.Err() != nil {
@@ -37,13 +38,14 @@ func getConfigAccountsVatSaleRow(vatPercent float32, enterpriseId int32) (int16,
 		return 0, 0
 	}
 
-	var journal int16
+	var journal int32
 	var accountNumber int32
 	row.Scan(&journal, &accountNumber)
 	return journal, accountNumber
 }
 
-func getConfigAccountsVatPurchaseRow(vatPercent float32, enterpriseId int32) (int16, int32) {
+// Journal, Account
+func getConfigAccountsVatPurchaseRow(vatPercent float32, enterpriseId int32) (int32, int32) {
 	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_purchase),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_purchase) FROM config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
 	row := db.QueryRow(sqlStatement, vatPercent, enterpriseId)
 	if row.Err() != nil {
@@ -51,7 +53,7 @@ func getConfigAccountsVatPurchaseRow(vatPercent float32, enterpriseId int32) (in
 		return 0, 0
 	}
 
-	var journal int16
+	var journal int32
 	var accountNumber int32
 	row.Scan(&journal, &accountNumber)
 	return journal, accountNumber

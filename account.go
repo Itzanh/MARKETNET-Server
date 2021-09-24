@@ -7,7 +7,7 @@ import (
 
 type Account struct {
 	Id            int32   `json:"id"`
-	Journal       int16   `json:"journal"`
+	Journal       int32   `json:"journal"`
 	Name          string  `json:"name"`
 	Credit        float32 `json:"credit"`
 	Debit         float32 `json:"debit"`
@@ -147,7 +147,7 @@ func (a *Account) deleteAccount() bool {
 	return err == nil
 }
 
-func getAccountIdByAccountNumber(journal int16, accountNumber int32, enterpriseId int32) int32 {
+func getAccountIdByAccountNumber(journal int32, accountNumber int32, enterpriseId int32) int32 {
 	if journal <= 0 || accountNumber <= 0 || enterpriseId <= 0 {
 		return 0
 	}

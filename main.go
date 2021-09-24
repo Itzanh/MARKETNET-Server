@@ -1695,7 +1695,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		var journal Journal
-		journal.Id = int16(id)
+		journal.Id = int32(id)
 		journal.enterprise = enterpriseId
 		ok = journal.deleteJournal()
 	case "ACCOUNT":

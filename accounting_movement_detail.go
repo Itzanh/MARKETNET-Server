@@ -8,7 +8,7 @@ import (
 type AccountingMovementDetail struct {
 	Id                int64     `json:"id"`
 	Movement          int64     `json:"movement"`
-	Journal           int16     `json:"journal"`
+	Journal           int32     `json:"journal"`
 	Account           int32     `json:"account"`
 	DateCreated       time.Time `json:"dateCreated"`
 	Credit            float32   `json:"credit"`

@@ -2021,7 +2021,7 @@ func apiJournal(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var journal Journal
-		journal.Id = int16(id)
+		journal.Id = int32(id)
 		journal.enterprise = enterpriseId
 		ok = journal.deleteJournal()
 	}
