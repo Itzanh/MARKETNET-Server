@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/websocket v1.4.2 // direct
 	github.com/grokify/html-strip-tags-go v0.0.1 // direct
 	github.com/lib/pq v1.10.0 // direct
+	github.com/mrjones/oauth v0.0.0-20190623134757-126b35219450 // indirect
 	github.com/robfig/cron/v3 v3.0.0 // direct
 	github.com/sendgrid/rest v2.6.4+incompatible // indirect
 	github.com/sendgrid/sendgrid-go v3.10.0+incompatible // indirect

@@ -67,17 +67,13 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -139,17 +135,13 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -214,17 +206,13 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -282,17 +270,13 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -352,17 +336,13 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -420,17 +400,13 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -490,17 +466,13 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -560,17 +532,13 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -625,17 +593,13 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -695,17 +659,13 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -760,17 +720,13 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -833,17 +789,13 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -903,17 +855,13 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -973,17 +921,13 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1029,17 +973,13 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1085,17 +1025,13 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1141,17 +1077,13 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1197,17 +1129,13 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1270,17 +1198,13 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1326,17 +1250,13 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1377,17 +1297,13 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1433,17 +1349,13 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1489,17 +1401,13 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1545,17 +1453,13 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1600,17 +1504,13 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1656,17 +1556,13 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1712,17 +1608,13 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1780,17 +1672,13 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, userId, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1834,17 +1722,13 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1890,17 +1774,13 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1946,17 +1826,13 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1982,17 +1858,13 @@ func apiJournal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2037,17 +1909,13 @@ func apiAccount(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2108,17 +1976,13 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2177,17 +2041,13 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2251,17 +2111,13 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2325,17 +2181,13 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2399,17 +2251,13 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2473,17 +2321,13 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2547,17 +2391,13 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2596,17 +2436,13 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
-	// token
-	token, ok := r.URL.Query()["token"]
-	if !ok || len(token[0]) != 36 {
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	ok, userId, enterpriseId := checkApiKey(token[0])
-	if !ok || userId <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {

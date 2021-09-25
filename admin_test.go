@@ -435,6 +435,7 @@ func TestApiKeys(t *testing.T) {
 		UserCreated: 1,
 		User:        1,
 		enterprise:  1,
+		Auth:        "P",
 	}
 	ok := key.insertApiKey()
 	if !ok {
@@ -442,7 +443,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _, _ = checkApiKey(key.Token)
+	ok, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
 	if !ok {
 		t.Error("The API key can't get authenticated")
 		return
@@ -457,7 +458,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _, _ = checkApiKey(key.Token)
+	ok, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
 	if !ok {
 		t.Error("The API key can be accessed after deactivating")
 		return
@@ -469,7 +470,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _, _ = checkApiKey(key.Token)
+	ok, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
 	if !ok {
 		t.Error("The API key can't get authenticated")
 		return
