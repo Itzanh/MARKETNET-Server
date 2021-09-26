@@ -19,14 +19,16 @@ type ApiKey struct {
 	User              int32     `json:"user"`
 	Token             *string   `json:"token"`
 	Auth              string    `json:"auth"` // P = Parameter, H = Header, B = Basic Auth, R = Bearer
-	BasicAuthUser     string    `json:"basicAuthUser"`
-	BasicAuthPassword string    `json:"basicAuthPassword"`
+	BasicAuthUser     *string   `json:"basicAuthUser"`
+	BasicAuthPassword *string   `json:"basicAuthPassword"`
+	UserCreatedName   string    `json:"userCreatedName"`
+	UserName          string    `json:"userName"`
 	enterprise        int32
 }
 
 func getApiKeys(enterpriseId int32) []ApiKey {
 	keys := make([]ApiKey, 0)
-	sqlStatement := `SELECT * FROM public.api_key WHERE enterprise=$1 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT username FROM "user" WHERE "user".id=api_key.user_created),(SELECT username FROM "user" WHERE "user".id=api_key."user") FROM public.api_key WHERE enterprise=$1 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -34,7 +36,7 @@ func getApiKeys(enterpriseId int32) []ApiKey {
 	}
 	for rows.Next() {
 		a := ApiKey{}
-		rows.Scan(&a.Id, &a.Name, &a.DateCreated, &a.UserCreated, &a.Off, &a.User, &a.Token, &a.enterprise, &a.Auth, &a.BasicAuthUser, &a.BasicAuthPassword)
+		rows.Scan(&a.Id, &a.Name, &a.DateCreated, &a.UserCreated, &a.Off, &a.User, &a.Token, &a.enterprise, &a.Auth, &a.BasicAuthUser, &a.BasicAuthPassword, &a.UserCreatedName, &a.UserName)
 		keys = append(keys, a)
 	}
 
@@ -54,8 +56,10 @@ func (a *ApiKey) insertApiKey() bool {
 		uuid := uuid.New().String()
 		a.Token = &uuid
 	} else if a.Auth == "B" {
-		a.BasicAuthUser = generateRandomString(20)
-		a.BasicAuthPassword = generateRandomString(20)
+		basicAuthUser := generateRandomString(20)
+		a.BasicAuthUser = &basicAuthUser
+		basicAuthPassword := generateRandomString(20)
+		a.BasicAuthPassword = &basicAuthPassword
 	}
 	sqlStatement := `INSERT INTO public.api_key(name, user_created, "user", token, enterprise, auth, basic_auth_user, basic_auth_password) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	_, err := db.Exec(sqlStatement, a.Name, a.UserCreated, a.User, a.Token, a.enterprise, a.Auth, a.BasicAuthUser, a.BasicAuthPassword)
