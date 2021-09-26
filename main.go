@@ -2089,6 +2089,9 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(generateShippingFromSaleOrder(int64(id), enterpriseId))
 	case "TOGGLE_SHIPPING_SENT":
+		if !permissions.Preparation {
+			return
+		}
 		id, err := strconv.Atoi(message)
 		if err != nil {
 			return
@@ -2108,15 +2111,32 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		data, _ = json.Marshal(getSalesDeliveryNoteRelations(int64(id), enterpriseId))
 	case "USER_PWD":
+		if !permissions.Admin {
+			return
+		}
 		var userPassword UserPassword
 		json.Unmarshal([]byte(message), &userPassword)
 		data, _ = json.Marshal(userPassword.userPassword(enterpriseId))
+	case "USER_AUTO_PWD":
+		// every user can use this
+		var userPassword UserAutoPassword
+		json.Unmarshal([]byte(message), &userPassword)
+		data, _ = json.Marshal(userPassword.userAutoPassword(enterpriseId, userId))
+	case "GET_CURRENT_USER":
+		// every user can use this
+		data, _ = json.Marshal(getUserRow(userId))
 	case "USER_OFF":
+		if !permissions.Admin {
+			return
+		}
 		var user User
 		json.Unmarshal([]byte(message), &user)
-		user.enterprise = 1
+		user.enterprise = enterpriseId
 		data, _ = json.Marshal(user.offUser())
 	case "PURCHASE_NEEDS":
+		if !permissions.Purchases {
+			return
+		}
 		var needs []PurchaseNeed
 		json.Unmarshal([]byte(message), &needs)
 		data, _ = json.Marshal(generatePurchaseOrdersFromNeeds(needs, enterpriseId))

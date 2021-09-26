@@ -188,6 +188,41 @@ func (u *UserPassword) userPassword(enterpriseId int32) bool {
 	return rows > 0
 }
 
+type UserAutoPassword struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// Function used by the user to change its own password.
+func (u *UserAutoPassword) userAutoPassword(enterpriseId int32, userId int32) bool {
+	if len(u.NewPassword) < 8 || u.CurrentPassword == u.NewPassword {
+		return false
+	}
+
+	user := getUserRow(userId)
+	if user.Id <= 0 {
+		return false
+	}
+	oldPasswd := hashPassword([]byte(user.Salt+u.CurrentPassword), user.Iterations)
+
+	if !comparePasswords(oldPasswd, user.Pwd) {
+		return false
+	}
+
+	salt := generateSalt()
+	passwd := hashPassword([]byte(salt+u.NewPassword), settings.Server.HashIterations)
+
+	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1 AND config=$6`
+	res, err := db.Exec(sqlStatement, userId, passwd, salt, settings.Server.HashIterations, false, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}
+
 func (u *User) offUser() bool {
 	if u.Id <= 0 {
 		return false
