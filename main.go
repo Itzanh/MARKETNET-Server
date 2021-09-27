@@ -118,6 +118,7 @@ func main() {
 		runningCrons[enterpriseId] = enterpriseCronInfo
 	}
 	c.AddFunc(settings.Server.CronClearLogs, clearLogs)
+	c.AddFunc("@every 1m", resetMaxRequestsPerEnterprise)
 	c.Start()
 	c.Run()
 

@@ -12,6 +12,7 @@
         "tokenExpirationHours": 48,
         "maxLoginAttemps": 3,
         "cronClearLogs": "@monthly",
+        "maxRequestsPerMinuteEnterprise": 120,
         "tls": {
             "useTLS": false,
             "crtPath": "./certificates/fullchain.pem",

@@ -9,6 +9,13 @@ import (
 	"strconv"
 )
 
+// Requests made from an enterprise in the last minute
+// Key: enterprise ID
+// Value: requests made
+//
+// Reset every 60 seconds by a cron
+var requestsPerMinuteEnterprise map[int32]int32 = make(map[int32]int32)
+
 // If the REST API on the ERP is enabled, this funcion is called and adds the events listeners for the ERP's REST API to function.
 func addHttpHandlerFuncions() {
 	// sales

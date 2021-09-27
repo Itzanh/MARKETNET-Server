@@ -26,13 +26,14 @@ type DatabaseSettings struct {
 
 // Basic info for the app.
 type ServerSettings struct {
-	Port                 uint16                              `json:"port"`
-	HashIterations       int32                               `json:"hashIterations"`
-	TokenExpirationHours int16                               `json:"tokenExpirationHours"`
-	MaxLoginAttemps      int16                               `json:"maxLoginAttemps"`
-	CronClearLogs        string                              `json:"cronClearLogs"`
-	TLS                  ServerSettingsTLS                   `json:"tls"`
-	Activation           map[string]ServerSettingsActivation `json:"activation"`
+	Port                           uint16                              `json:"port"`
+	HashIterations                 int32                               `json:"hashIterations"`
+	TokenExpirationHours           int16                               `json:"tokenExpirationHours"`
+	MaxLoginAttemps                int16                               `json:"maxLoginAttemps"`
+	CronClearLogs                  string                              `json:"cronClearLogs"`
+	MaxRequestsPerMinuteEnterprise int32                               `json:"maxRequestsPerMinuteEnterprise"`
+	TLS                            ServerSettingsTLS                   `json:"tls"`
+	Activation                     map[string]ServerSettingsActivation `json:"activation"`
 }
 
 // SSL settings for the web server.

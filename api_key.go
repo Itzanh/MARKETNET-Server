@@ -122,7 +122,7 @@ func checkApiKey(r *http.Request) (bool, int32, int32) {
 	if len(token) == 36 {
 		ok, userId, enterpriseId := checkApiKeyByTokenAuthType(token, "H")
 		if ok && userId > 0 {
-			return true, userId, enterpriseId
+			return checkMaxRequestsPerEnterprise(enterpriseId), userId, enterpriseId
 		}
 	}
 
@@ -135,13 +135,13 @@ func checkApiKey(r *http.Request) (bool, int32, int32) {
 		if len(usernamePassword) == 2 && len(usernamePassword[0]) == 20 && len(usernamePassword[1]) == 20 {
 			ok, userId, enterpriseId := checkApiKeyByBasicAuthType(usernamePassword[0], usernamePassword[1])
 			if ok && userId > 0 {
-				return true, userId, enterpriseId
+				return checkMaxRequestsPerEnterprise(enterpriseId), userId, enterpriseId
 			}
 		}
 	} else if len(basicAuth) == 2 && basicAuth[0] == "Bearer" {
 		ok, userId, enterpriseId := checkApiKeyByTokenAuthType(basicAuth[1], "R")
 		if ok && userId > 0 {
-			return true, userId, enterpriseId
+			return checkMaxRequestsPerEnterprise(enterpriseId), userId, enterpriseId
 		}
 	}
 
@@ -150,12 +150,30 @@ func checkApiKey(r *http.Request) (bool, int32, int32) {
 	if ok && len(tokenParam) > 0 && len(tokenParam[0]) == 36 {
 		ok, userId, enterpriseId := checkApiKeyByTokenAuthType(tokenParam[0], "P")
 		if ok && userId > 0 {
-			return true, userId, enterpriseId
+			return checkMaxRequestsPerEnterprise(enterpriseId), userId, enterpriseId
 		}
 	}
 
 	// Givig up...
 	return false, 0, 0
+}
+
+func checkMaxRequestsPerEnterprise(enterpriseId int32) bool {
+	requestsMade, ok := requestsPerMinuteEnterprise[enterpriseId]
+	if !ok {
+		requestsPerMinuteEnterprise[enterpriseId] = 1
+		return true
+	}
+	if requestsMade >= settings.Server.MaxRequestsPerMinuteEnterprise {
+		return false
+	} else {
+		requestsPerMinuteEnterprise[enterpriseId] = requestsPerMinuteEnterprise[enterpriseId] + 1
+		return true
+	}
+}
+
+func resetMaxRequestsPerEnterprise() {
+	requestsPerMinuteEnterprise = make(map[int32]int32)
 }
 
 // checks if the api key exists.
