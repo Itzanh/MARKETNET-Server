@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha1"
 	"crypto/sha512"
 	"math/rand"
 	"strings"
@@ -195,7 +196,12 @@ type UserAutoPassword struct {
 
 // Function used by the user to change its own password.
 func (u *UserAutoPassword) userAutoPassword(enterpriseId int32, userId int32) bool {
-	if len(u.NewPassword) < 8 || u.CurrentPassword == u.NewPassword {
+	if u.CurrentPassword == u.NewPassword {
+		return false
+	}
+
+	passwordEvaluation := evaluatePasswordSecureCloud(enterpriseId, u.NewPassword)
+	if (!passwordEvaluation.PasswordComplexity) || passwordEvaluation.PasswordInBlacklist || passwordEvaluation.PasswordHashInBlacklist {
 		return false
 	}
 
@@ -221,6 +227,65 @@ func (u *UserAutoPassword) userAutoPassword(enterpriseId int32, userId int32) bo
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+func checkForPasswordComplexity(enterpriseId int32, password string) bool {
+	enterprise := getSettingsRecordById(enterpriseId)
+
+	if len(password) < int(enterprise.PasswordMinimumLength) {
+		return false
+	}
+
+	const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	const NUMBERS = "0123456789"
+	const UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const LOWERCASE = "abcdefghijklmnopqrstuvwxyz"
+	const ALL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+
+	if enterprise.PasswordMinumumComplexity == "A" {
+		if !characterSetFound(password, ALPHA) {
+			return false
+		}
+	} else if enterprise.PasswordMinumumComplexity == "B" {
+		if (!characterSetFound(password, ALPHA)) || (!characterSetFound(password, NUMBERS)) {
+			return false
+		}
+	} else if enterprise.PasswordMinumumComplexity == "C" {
+		if (!characterSetFound(password, UPPERCASE)) || (!characterSetFound(password, LOWERCASE)) || (!characterSetFound(password, NUMBERS)) {
+			return false
+		}
+	} else if enterprise.PasswordMinumumComplexity == "D" {
+		if (!characterSetFound(password, UPPERCASE)) || (!characterSetFound(password, LOWERCASE)) || (!characterSetFound(password, NUMBERS)) || (!characterSetNotFound(password, ALL)) {
+			return false
+		}
+	} else {
+		return false
+	}
+	return true
+}
+
+func characterSetFound(input string, characterSet string) bool {
+	var characterSetFound = false
+	for i := 0; i < len(characterSet); i++ {
+		if strings.Contains(input, string(characterSet[i])) {
+			characterSetFound = true
+			break
+		}
+	}
+
+	return characterSetFound
+}
+
+func characterSetNotFound(input string, characterSet string) bool {
+	var characterSetFound = true
+	for i := 0; i < len(characterSet); i++ {
+		if !strings.Contains(input, string(characterSet[i])) {
+			characterSetFound = false
+			break
+		}
+	}
+
+	return characterSetFound
 }
 
 func (u *User) offUser() bool {
@@ -316,3 +381,104 @@ func (u *User) setUserFailedLoginAttemps(addOrReset bool) bool {
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
+
+type SecureCloudResult struct {
+	PasswordComplexity      bool `json:"passwordComplexity"`
+	PasswordInBlacklist     bool `json:"passwordInBlacklist"`
+	PasswordHashInBlacklist bool `json:"passwordHashInBlacklist"`
+}
+
+func evaluatePasswordSecureCloud(enterpriseId int32, password string) SecureCloudResult {
+	result := SecureCloudResult{}
+	result.PasswordComplexity = checkForPasswordComplexity(enterpriseId, password)
+	result.PasswordInBlacklist = searchPasswordInBlackList(password)
+	result.PasswordHashInBlacklist = searchPasswordHashInBlackList(password)
+	return result
+}
+
+func searchPasswordInBlackList(password string) bool {
+	sqlStatement := `SELECT COUNT(pwd) FROM public.pwd_blacklist WHERE pwd=$1`
+	row := db.QueryRow(sqlStatement, password)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var rowsFound int32
+	row.Scan(&rowsFound)
+	return rowsFound > 0
+}
+
+func searchPasswordHashInBlackList(password string) bool {
+	hasher := sha1.New()
+	var pwd []byte = []byte(password)
+
+	hasher.Write(pwd)
+	pwd = hasher.Sum(nil)
+
+	sqlStatement := `SELECT COUNT(hash) FROM public.pwd_sha1_blacklist WHERE hash=$1`
+	row := db.QueryRow(sqlStatement, pwd)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var rowsFound int32
+	row.Scan(&rowsFound)
+	return rowsFound > 0
+}
+
+/*func insertPwdBlacklist() {
+	file, err := os.Open("C:\\Users\\Itzan\\Desktop\\rockyou.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	sqlStatement := `INSERT INTO public.pwd_blacklist(pwd) VALUES ($1)`
+	var password string
+	for scanner.Scan() {
+		password = scanner.Text()
+
+		db.Exec(sqlStatement, password)
+	}
+}*/
+
+/*func insertPwdBlacklistHash() {
+	file, err := os.Open("C:\\Users\\Itzan\\Desktop\\pwned-passwords-sha1-ordered-by-count-v7.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	sqlStatement := `INSERT INTO public.pwd_sha1_blacklist(hash) VALUES ($1)`
+	var password string
+	var hash []byte
+	var inserted int32 = 0
+	for scanner.Scan() {
+		password = scanner.Text()[:40]
+		hash, _ = hex.DecodeString(password)
+		db.Exec(sqlStatement, hash)
+		inserted = inserted + 1
+		if inserted >= 100000 {
+			return
+		}
+	}
+}*/
+
+/*func insertPwdBlacklistHash() {
+	hasher := sha1.New()
+	pass := "miblacklist"
+
+	hasher.Write([]byte(pass))
+	hash := hasher.Sum(nil)
+
+	sqlStatement := `INSERT INTO public.pwd_sha1_blacklist(hash) VALUES ($1)`
+	db.Exec(sqlStatement, hash)
+}*/

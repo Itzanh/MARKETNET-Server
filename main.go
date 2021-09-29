@@ -2341,6 +2341,8 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		importFromShopify(enterpriseId)
+	case "EVALUATE_PASSWORD_SECURE_CLOUD":
+		data, _ = json.Marshal(evaluatePasswordSecureCloud(enterpriseId, message))
 	}
 	ws.WriteMessage(mt, data)
 }
