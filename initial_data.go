@@ -91,6 +91,18 @@ func initialCurrenciesData(enterpriseId int32) {
 	}
 }
 
+type CountryInitialData struct {
+	Id          int32   `json:"id"`
+	Name        string  `json:"name"`
+	Iso2        string  `json:"iso2"`
+	Iso3        string  `json:"iso3"`
+	UNCode      int16   `json:"unCode"`
+	Zone        string  `json:"zone"` // N = National, U = European Union, E = Export
+	PhonePrefix int16   `json:"phonePrefix"`
+	Language    *string `json:"language"`
+	Currency    *string `json:"currency"`
+}
+
 func initialCountriesData(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM country WHERE enterprise=$1`
 	row := db.QueryRow(sqlStatement, enterpriseId)
@@ -103,14 +115,44 @@ func initialCountriesData(enterpriseId int32) {
 			return
 		}
 
-		var country []Country
+		var country []CountryInitialData
 		json.Unmarshal(content, &country)
 		for i := 0; i < len(country); i++ {
-			country[i].enterprise = enterpriseId
-			country[i].insertCountry()
+			c := Country{
+				Name:        country[i].Name,
+				Iso2:        country[i].Iso2,
+				Iso3:        country[i].Iso3,
+				UNCode:      country[i].UNCode,
+				Zone:        country[i].Zone,
+				PhonePrefix: country[i].PhonePrefix,
+				enterprise:  enterpriseId,
+			}
+
+			if country[i].Language != nil {
+				sqlStatement := `SELECT id FROM language WHERE iso_2=$1 AND enterprise=$2`
+				row := db.QueryRow(sqlStatement, country[i].Language, enterpriseId)
+
+				row.Scan(&c.Language)
+			}
+
+			if country[i].Currency != nil {
+				sqlStatement := `SELECT id FROM currency WHERE iso_code=$1 AND enterprise=$2`
+				row := db.QueryRow(sqlStatement, country[i].Currency, enterpriseId)
+
+				row.Scan(&c.Currency)
+			}
+
+			c.insertCountry()
 		}
 		fmt.Println("INITIAL DATA: Generated countries data")
 	}
+}
+
+type StateInitialData struct {
+	Id      int32  `json:"id"`
+	Country string `json:"country"`
+	Name    string `json:"name"`
+	IsoCode string `json:"isoCode"`
 }
 
 func initialStatesData(enterpriseId int32) {
@@ -125,11 +167,24 @@ func initialStatesData(enterpriseId int32) {
 			return
 		}
 
-		var state []State
-		json.Unmarshal(content, &state)
-		for i := 0; i < len(state); i++ {
-			state[i].enterprise = enterpriseId
-			state[i].insertState()
+		var states []StateInitialData
+		json.Unmarshal(content, &states)
+
+		sqlStatement := `SELECT id FROM country WHERE iso_2=$1 AND enterprise=$2`
+
+		for i := 0; i < len(states); i++ {
+			row := db.QueryRow(sqlStatement, states[i].Country, enterpriseId)
+
+			var countryId int32
+			row.Scan(&countryId)
+
+			state := State{
+				Name:       states[i].Name,
+				IsoCode:    states[i].IsoCode,
+				Country:    countryId,
+				enterprise: enterpriseId,
+			}
+			state.insertState()
 		}
 		fmt.Println("INITIAL DATA: Generated states data")
 	}

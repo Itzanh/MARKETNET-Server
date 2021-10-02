@@ -90,6 +90,9 @@ func main() {
 	http.HandleFunc("/document", handleDocument)
 	http.HandleFunc("/report", generateReport)
 	http.HandleFunc("/export", handleExport)
+	if isParameterPresent("--saas") {
+		http.HandleFunc("/saas", handleEnterprise)
+	}
 
 	addHttpHandlerFuncions()
 	if settings.Server.TLS.UseTLS {

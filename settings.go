@@ -33,6 +33,7 @@ type ServerSettings struct {
 	MaxLoginAttemps                int16                               `json:"maxLoginAttemps"`
 	CronClearLogs                  string                              `json:"cronClearLogs"`
 	MaxRequestsPerMinuteEnterprise int32                               `json:"maxRequestsPerMinuteEnterprise"`
+	SaaSAccessToken                string                              `json:"SaaSAccessToken"`
 	TLS                            ServerSettingsTLS                   `json:"tls"`
 	Activation                     map[string]ServerSettingsActivation `json:"activation"`
 }
@@ -351,14 +352,15 @@ func addEnterpriseFromParameters() bool {
 	if !ok {
 		return false
 	}
-	if len(enterpriseKey) == 0 || len(enterpriseName) == 0 || len(userPassword) < 8 || len(licenseCode) == 0 || len(licenseChance) == 0 {
-		return false
-	}
 
 	return createNewEnterprise(enterpriseName, enterpriseDesc, enterpriseKey, licenseCode, licenseChance, userPassword)
 }
 
 func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpriseKey string, licenseCode string, licenseChance string, userPassword string) bool {
+	if len(enterpriseKey) == 0 || len(enterpriseName) == 0 || len(userPassword) < 8 || len(licenseCode) == 0 || len(licenseChance) == 0 {
+		return false
+	}
+
 	ok, enterpriseId := initialConfigCreateEnterprise(enterpriseName, enterpriseDesc, strings.ToUpper(enterpriseKey))
 	if !ok || enterpriseId <= 0 {
 		return false
