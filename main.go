@@ -73,6 +73,16 @@ func main() {
 		}
 	}
 
+	// add a new enterprise by command line
+	if isParameterPresent("--add-enterprise") {
+		ok := addEnterpriseFromParameters()
+		if ok {
+			os.Exit(0)
+		} else {
+			os.Exit(3)
+		}
+	}
+
 	// listen to requests
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
@@ -2482,4 +2492,14 @@ func isParameterPresent(parameter string) bool {
 		}
 	}
 	return false
+}
+
+func getParameterValue(parameter string) (string, bool) {
+	for i := 1; i < len(os.Args); i++ {
+		parameterValue := strings.Split(os.Args[i], "=")
+		if len(parameterValue) == 2 && parameterValue[0] == parameter {
+			return parameterValue[1], true
+		}
+	}
+	return "", false
 }

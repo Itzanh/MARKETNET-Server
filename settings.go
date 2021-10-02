@@ -205,7 +205,7 @@ func (s *Settings) updateSettingsRecord() bool {
 	// not in the license map
 	_, ok := licenseMaxConnections[s.Id]
 	if !ok {
-		return false
+		s.MaxConnections = 0
 	}
 	// don't let to set more connections than the allowed in the license
 	if s.MaxConnections <= 0 {
@@ -324,4 +324,107 @@ func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
 	}
 
 	runningCrons[oldSettings.Id] = enterpriseCronInfo
+}
+
+func addEnterpriseFromParameters() bool {
+	enterpriseKey, ok := getParameterValue("enterprise_key")
+	if !ok {
+		return false
+	}
+	enterpriseName, ok := getParameterValue("enterprise_name")
+	if !ok {
+		return false
+	}
+	enterpriseDesc, ok := getParameterValue("enterprise_desc")
+	if !ok {
+		return false
+	}
+	userPassword, ok := getParameterValue("user_password")
+	if !ok {
+		return false
+	}
+	licenseCode, ok := getParameterValue("license_code")
+	if !ok {
+		return false
+	}
+	licenseChance, ok := getParameterValue("license_chance")
+	if !ok {
+		return false
+	}
+	if len(enterpriseKey) == 0 || len(enterpriseName) == 0 || len(userPassword) < 8 || len(licenseCode) == 0 || len(licenseChance) == 0 {
+		return false
+	}
+
+	return createNewEnterprise(enterpriseName, enterpriseDesc, enterpriseKey, licenseCode, licenseChance, userPassword)
+}
+
+func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpriseKey string, licenseCode string, licenseChance string, userPassword string) bool {
+	ok, enterpriseId := initialConfigCreateEnterprise(enterpriseName, enterpriseDesc, strings.ToUpper(enterpriseKey))
+	if !ok || enterpriseId <= 0 {
+		return false
+	}
+
+	initialData(enterpriseId)
+
+	sqlStatement := `UPDATE config SET default_warehouse=$1 WHERE id=$2`
+	db.Exec(sqlStatement, "W1", enterpriseId)
+
+	config := getSettingsRecordById(enterpriseId)
+	prestaShopExportSerie := "EXP"
+	prestaShopIntracommunitySerie := "IEU"
+	prestaShopInteriorSerie := "INT"
+	config.PrestaShopExportSerie = &prestaShopExportSerie
+	config.PrestaShopIntracommunitySerie = &prestaShopIntracommunitySerie
+	config.PrestaShopInteriorSerie = &prestaShopInteriorSerie
+	config.PrestashopStatusPaymentAccepted = 2
+	config.PrestashopStatusShipped = 4
+	if !config.updateSettingsRecord() {
+		return false
+	}
+
+	activation := ServerSettingsActivation{
+		LicenseCode: licenseCode,
+		Chance:      &licenseChance,
+	}
+	settings.Server.Activation[enterpriseKey] = activation
+	settings.setBackendSettings()
+	if !activation.activateEnterprise(enterpriseId) {
+		return false
+	}
+
+	insert := UserInsert{
+		Username: "marketnet",
+		FullName: "MARKETNET ADMINISTRATOR",
+		Password: userPassword,
+		Language: "en",
+	}
+	if !insert.insertUser(enterpriseId) {
+		return false
+	}
+
+	group := Group{
+		Name:          "Administrators",
+		Sales:         true,
+		Purchases:     true,
+		Masters:       true,
+		Warehouse:     true,
+		Manufacturing: true,
+		Preparation:   true,
+		Admin:         true,
+		PrestaShop:    true,
+		Accounting:    true,
+		enterprise:    enterpriseId,
+	}
+	if !group.insertGroup() {
+		return false
+	}
+
+	users := getUser(enterpriseId)
+	user := users[len(users)-1]
+
+	ug := UserGroup{
+		User:  user.Id,
+		Group: group.Id,
+	}
+	return ug.insertUserGroup()
 }

@@ -18,6 +18,32 @@ func TestSettings(t *testing.T) {
 	}
 }
 
+func TestSettingsKey(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	s := getSettingsRecordByEnterprise("MARKETNET")
+	licenseMaxConnections[1] = int16(s.MaxConnections)
+	ok := s.updateSettingsRecord()
+	if !ok {
+		t.Error("Can't update settings")
+		return
+	}
+}
+
+func TestSettingsAll(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	s := getSettingsRecords()
+	if len(s) == 0 || s[0].Id <= 0 {
+		t.Error("Can't scan")
+		return
+	}
+}
+
 // ===== USERS
 
 func TestGetUser(t *testing.T) {

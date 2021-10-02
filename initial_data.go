@@ -26,8 +26,8 @@ func initialData(enterpriseId int32) {
 }
 
 func initialPaymentData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM payment_method`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM payment_method WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -48,8 +48,8 @@ func initialPaymentData(enterpriseId int32) {
 }
 
 func initialLanguageData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM language`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM language WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -70,8 +70,8 @@ func initialLanguageData(enterpriseId int32) {
 }
 
 func initialCurrenciesData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM currency`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM currency WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -92,8 +92,8 @@ func initialCurrenciesData(enterpriseId int32) {
 }
 
 func initialCountriesData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM country`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM country WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -114,8 +114,8 @@ func initialCountriesData(enterpriseId int32) {
 }
 
 func initialStatesData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM state`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM state WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -136,8 +136,8 @@ func initialStatesData(enterpriseId int32) {
 }
 
 func initialColorData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM color`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM color WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -158,8 +158,8 @@ func initialColorData(enterpriseId int32) {
 }
 
 func initialIncotermData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM incoterm`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM incoterm WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -180,8 +180,8 @@ func initialIncotermData(enterpriseId int32) {
 }
 
 func initialWarehouseData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM warehouse`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM warehouse WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -202,8 +202,8 @@ func initialWarehouseData(enterpriseId int32) {
 }
 
 func initiaBillingSeriesData(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM billing_series`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM billing_series WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -224,8 +224,8 @@ func initiaBillingSeriesData(enterpriseId int32) {
 }
 
 func initialJournals(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM journal`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM journal WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -247,8 +247,8 @@ func initialJournals(enterpriseId int32) {
 }
 
 func initialAccount(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM account`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM account WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -270,8 +270,8 @@ func initialAccount(enterpriseId int32) {
 }
 
 func initialConfig(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM config WHERE id=1`
-	row := db.QueryRow(sqlStatement)
+	sqlStatement := `SELECT COUNT(*) FROM config WHERE id=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	var rows int32
 	row.Scan(&rows)
 
@@ -299,14 +299,37 @@ func initialConfig(enterpriseId int32) {
 			}
 		}
 
-		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)`
-		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, config.CustomerJournal, config.SalesJournal, salesAccount, config.SupplierJournal, config.PurchaseJournal, purchaseAccount)
+		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account, enterprise_key) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)`
+		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, config.CustomerJournal, config.SalesJournal, salesAccount, config.SupplierJournal, config.PurchaseJournal, purchaseAccount, config.EnterpriseKey)
 		if err != nil {
 			fmt.Println(err)
 		}
 
 		fmt.Println("INITIAL DATA: Generated config data")
 	}
+}
+
+func initialConfigCreateEnterprise(enterpriseName string, enterpriseDescription string, enterpriseKey string) (bool, int32) {
+	content, err := ioutil.ReadFile("./initial_data/config.json")
+	if err != nil {
+		return false, 0
+	}
+
+	var config Settings
+	json.Unmarshal(content, &config)
+
+	var salesAccount *int32
+	var purchaseAccount *int32
+
+	sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account, enterprise_key) VALUES (3, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33) RETURNING id`
+	row := db.QueryRow(sqlStatement, config.DefaultVatPercent, nil, config.DateFormat, enterpriseName, enterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, nil, nil, nil, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, nil, nil, salesAccount, nil, nil, purchaseAccount, enterpriseKey)
+	if row.Err() != nil {
+		fmt.Println(row.Err())
+	}
+
+	var enterpriseId int32
+	row.Scan(&enterpriseId)
+	return true, enterpriseId
 }
 
 func initialUser(enterpriseId int32) {
