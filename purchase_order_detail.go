@@ -61,6 +61,11 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		return false, 0
 	}
 
+	p := getProductRow(s.Product)
+	if p.Id <= 0 || p.Off {
+		return false, 0
+	}
+
 	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
 
 	///

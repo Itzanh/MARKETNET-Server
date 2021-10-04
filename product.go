@@ -173,10 +173,10 @@ func (p *Product) deleteProduct() bool {
 	return rows > 0
 }
 
-func findProductByName(languageName string, enterpriseId int32) []NameInt32 {
+func findProductByName(productName string, enterpriseId int32) []NameInt32 {
 	var products []NameInt32 = make([]NameInt32, 0)
-	sqlStatement := `SELECT id,name FROM public.product WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
+	sqlStatement := `SELECT id,name FROM public.product WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 AND off=false ORDER BY id ASC LIMIT 10`
+	rows, err := db.Query(sqlStatement, strings.ToUpper(productName), enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return products
@@ -468,7 +468,7 @@ func calculateMinimumStock(enterpriseId int32) bool {
 	}
 	///
 
-	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true AND enterprise=$1`
+	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true AND enterprise=$1 AND off=false`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -510,7 +510,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 	s := getSettingsRecordById(enterpriseId)
 	var generadedPurchaseOrders map[int32]PurchaseOrder = make(map[int32]PurchaseOrder) // Key: supplier ID, Value: generated purchase order
 
-	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2) AND product.enterprise=$1`
+	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2) AND product.enterprise=$1 AND off=false`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -615,24 +615,24 @@ func (q *ProductLocateQuery) locateProduct(enterpriseId int32) []ProductLocate {
 	sqlStatement := ``
 	parameters := make([]interface{}, 0)
 	if q.Value == "" {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 ORDER BY id ASC`
+		sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 AND off=false ORDER BY id ASC`
 		parameters = append(parameters, enterpriseId)
 	} else if q.Mode == 0 {
 		id, err := strconv.Atoi(q.Value)
 		if err != nil {
-			sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 ORDER BY id ASC`
+			sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 AND off=false ORDER BY id ASC`
 			parameters = append(parameters, enterpriseId)
 		} else {
-			sqlStatement = `SELECT id,name,reference FROM product WHERE id=$1 AND enterprise=$2`
+			sqlStatement = `SELECT id,name,reference FROM product WHERE id=$1 AND enterprise=$2 AND off=false`
 			parameters = append(parameters, id)
 			parameters = append(parameters, enterpriseId)
 		}
 	} else if q.Mode == 1 {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE name ILIKE $1 AND enterprise=$2 ORDER BY id ASC`
+		sqlStatement = `SELECT id,name,reference FROM product WHERE name ILIKE $1 AND enterprise=$2 AND off=false ORDER BY id ASC`
 		parameters = append(parameters, "%"+q.Value+"%")
 		parameters = append(parameters, enterpriseId)
 	} else if q.Mode == 2 {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE reference ILIKE $1 AND enterprise=$2 ORDER BY id ASC`
+		sqlStatement = `SELECT id,name,reference FROM product WHERE reference ILIKE $1 AND enterprise=$2 AND off=false ORDER BY id ASC`
 		parameters = append(parameters, "%"+q.Value+"%")
 		parameters = append(parameters, enterpriseId)
 	}

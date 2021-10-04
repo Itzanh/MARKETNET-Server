@@ -102,6 +102,11 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 		return false
 	}
 
+	p := getProductRow(s.Product)
+	if p.Id <= 0 || p.Off {
+		return false
+	}
+
 	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
 	s.Status = "_"
 
