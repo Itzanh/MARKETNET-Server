@@ -106,6 +106,13 @@ func (p *Product) insertProduct() bool {
 		return false
 	}
 
+	// Check that the format for EAN13 barcodes is correct
+	if len(p.BarCode) == 13 {
+		if !checkEan13(p.BarCode) {
+			return false
+		}
+	}
+
 	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) RETURNING id`
 	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId, p.enterprise)
 	if row.Err() != nil {
@@ -123,6 +130,13 @@ func (p *Product) insertProduct() bool {
 func (p *Product) updateProduct() bool {
 	if p.Id <= 0 || !p.isValid() {
 		return false
+	}
+
+	// Check that the format for EAN13 barcodes is correct
+	if len(p.BarCode) == 13 {
+		if !checkEan13(p.BarCode) {
+			return false
+		}
 	}
 
 	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21 WHERE id=$1 AND enterprise=$22`
@@ -343,6 +357,50 @@ func (p *Product) generateBarcode(enterpriseId int32) bool {
 
 	p.BarCode = barcode + strconv.Itoa(10-(checkCode%10))
 	return true
+}
+
+// Check if the bar code is a valid EAN13 product code. (Check the verification digit)
+func checkEan13(barcode string) bool {
+	// barcode must be a number
+	_, err := strconv.Atoi(barcode)
+	if err != nil {
+		return false
+	}
+
+	// get the first 12 digits (remove the 13 character, which is the control digit), and reverse the string
+	barcode12 := barcode[0:12]
+	barcode12 = Reverse(barcode12)
+
+	// add the numbers in the odd positions
+	var controlNumber uint16
+	for i := 0; i < len(barcode12); i += 2 {
+		digit, _ := strconv.Atoi(string(barcode12[i]))
+		controlNumber += uint16(digit)
+	}
+
+	// multiply by 3
+	controlNumber *= 3
+
+	// add the numbers in the pair positions
+	for i := 1; i < len(barcode12); i += 2 {
+		digit, _ := strconv.Atoi(string(barcode12[i]))
+		controlNumber += uint16(digit)
+	}
+
+	// immediately higher ten
+	var controlDigit uint16 = (10 - (controlNumber % 10)) % 10
+
+	// check the control digits are the same
+	inputControlDigit, _ := strconv.Atoi(string(barcode[12]))
+	return controlDigit == uint16(inputControlDigit)
+}
+
+func Reverse(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
 }
 
 type ProductImage struct {

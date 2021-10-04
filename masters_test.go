@@ -951,6 +951,16 @@ func TestLocateProduct(t *testing.T) {
 	}
 }
 
+func TestCheckEan13(t *testing.T) {
+	if !checkEan13("1234567890418") {
+		t.Error("The EAN13 should be OK")
+	}
+
+	if checkEan13("1234567890417") {
+		t.Error("The EAN13 should not be OK")
+	}
+}
+
 // ===== COUNTRY
 
 /* GET */
