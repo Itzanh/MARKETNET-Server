@@ -32,15 +32,16 @@ func (t *ManufacturingOrderType) insertManufacturingOrderType() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.manufacturing_order_type(name, enterprise) VALUES ($1, $2)`
-	res, err := db.Exec(sqlStatement, t.Name, t.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement := `INSERT INTO public.manufacturing_order_type(name, enterprise) VALUES ($1, $2) RETURNING id`
+	row := db.QueryRow(sqlStatement, t.Name, t.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	row.Scan(&t.Id)
+
+	return t.Id > 0
 }
 
 func (t *ManufacturingOrderType) updateManufacturingOrderType() bool {

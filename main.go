@@ -2356,6 +2356,13 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		importFromShopify(enterpriseId)
 	case "EVALUATE_PASSWORD_SECURE_CLOUD":
 		data, _ = json.Marshal(evaluatePasswordSecureCloud(enterpriseId, message))
+	case "PRODUCT_GENERATOR":
+		if !permissions.Manufacturing {
+			return
+		}
+		var productGenerator ProductGenerator
+		json.Unmarshal([]byte(message), &productGenerator)
+		data, _ = json.Marshal(productGenerator.productGenerator(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }

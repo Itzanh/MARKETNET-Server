@@ -649,3 +649,93 @@ func (q *ProductLocateQuery) locateProduct(enterpriseId int32) []ProductLocate {
 
 	return products
 }
+
+/* PRODUCT GENERATOR */
+
+type ProductGenerator struct {
+	Products                   []ProductGenerate `json:"products"`
+	ManufacturingOrderTypeMode int16             `json:"manufacturingOrderTypeMode"` // 0 = No manufacturing, 1 = Create a manufacturing order type with the same name, 2 = Use the manufacturing order name
+	ManufacturingOrderTypeName *string           `json:"manufacturingOrderTypeName"`
+}
+
+type ProductGenerate struct {
+	Name            string  `json:"name"`
+	Reference       string  `json:"reference"`
+	GenerateBarCode bool    `json:"generateBarCode"`
+	BarCode         string  `json:"barCode"`
+	Weight          float32 `json:"weight"`
+	Width           float32 `json:"width"`
+	Height          float32 `json:"height"`
+	Depth           float32 `json:"depth"`
+	Price           float32 `json:"price"`
+	Manufacturing   bool    `json:"manufacturing"`
+	InitialStock    int32   `json:"initialStock"`
+}
+
+func (g *ProductGenerator) productGenerator(enterpriseId int32) bool {
+	var manufacturingOrderTypeId int32
+	if g.ManufacturingOrderTypeMode == 2 {
+		if g.ManufacturingOrderTypeName == nil {
+			return false
+		}
+
+		mot := ManufacturingOrderType{
+			Name:       *g.ManufacturingOrderTypeName,
+			enterprise: enterpriseId,
+		}
+		mot.insertManufacturingOrderType()
+		manufacturingOrderTypeId = mot.Id
+	}
+
+	for i := 0; i < len(g.Products); i++ {
+		product := g.Products[i]
+
+		p := Product{
+			Name:          product.Name,
+			Reference:     product.Reference,
+			BarCode:       product.BarCode,
+			Weight:        product.Weight,
+			Width:         product.Width,
+			Height:        product.Height,
+			Depth:         product.Depth,
+			Price:         product.Price,
+			Manufacturing: product.Manufacturing,
+			enterprise:    enterpriseId,
+		}
+
+		if product.Manufacturing && g.ManufacturingOrderTypeMode == 1 {
+			mot := ManufacturingOrderType{
+				Name:       product.Name,
+				enterprise: enterpriseId,
+			}
+			mot.insertManufacturingOrderType()
+			p.ManufacturingOrderType = &mot.Id
+		} else if product.Manufacturing && g.ManufacturingOrderTypeMode == 2 {
+			p.ManufacturingOrderType = &manufacturingOrderTypeId
+		}
+
+		ok := p.insertProduct()
+		if !ok {
+			return false
+		}
+
+		if product.GenerateBarCode {
+			p := getProductRow(p.Id)
+			p.generateBarcode(enterpriseId)
+			p.updateProduct()
+		}
+
+		if product.InitialStock != 0 {
+			s := getSettingsRecordById(enterpriseId)
+			wm := WarehouseMovement{
+				Warehouse:  s.DefaultWarehouse,
+				Product:    p.Id,
+				Quantity:   product.InitialStock,
+				Type:       "R",
+				enterprise: enterpriseId,
+			}
+			wm.insertWarehouseMovement()
+		}
+	}
+	return true
+}
