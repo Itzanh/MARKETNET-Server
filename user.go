@@ -9,22 +9,24 @@ import (
 )
 
 type User struct {
-	Id                 int32     `json:"id"`
-	Username           string    `json:"username"`
-	FullName           string    `json:"fullName"`
-	Email              string    `json:"email"`
-	DateCreated        time.Time `json:"dateCreated"`
-	DateLastPwd        time.Time `json:"dateLastPwd"`
-	PwdNextLogin       bool      `json:"pwdNextLogin"`
-	Off                bool      `json:"off"`
-	Pwd                []byte
-	Salt               string
-	Iterations         int32     `json:"iterations"`
-	Description        string    `json:"description"`
-	DateLastLogin      time.Time `json:"dateLastLogin"`
-	FailedLoginAttemps int16
-	Language           string `json:"language"`
-	enterprise         int32
+	Id                        int32     `json:"id"`
+	Username                  string    `json:"username"`
+	FullName                  string    `json:"fullName"`
+	Email                     string    `json:"email"`
+	DateCreated               time.Time `json:"dateCreated"`
+	DateLastPwd               time.Time `json:"dateLastPwd"`
+	PwdNextLogin              bool      `json:"pwdNextLogin"`
+	Off                       bool      `json:"off"`
+	Pwd                       []byte
+	Salt                      string
+	Iterations                int32     `json:"iterations"`
+	Description               string    `json:"description"`
+	DateLastLogin             time.Time `json:"dateLastLogin"`
+	FailedLoginAttemps        int16
+	Language                  string `json:"language"`
+	enterprise                int32
+	UsesGoogleAuthenticator   bool `json:"usesGoogleAuthenticator"`
+	googleAuthenticatorSecret string
 }
 
 func getUser(enterpriseId int32) []User {
@@ -37,7 +39,7 @@ func getUser(enterpriseId int32) []User {
 	}
 	for rows.Next() {
 		u := User{}
-		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise)
+		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)
 		users = append(users, u)
 	}
 
@@ -53,7 +55,7 @@ func getUserByUsername(enterpriseId int32, username string) User {
 	}
 
 	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise)
+	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)
 
 	return u
 }
@@ -67,7 +69,7 @@ func getUserRow(userId int32) User {
 	}
 
 	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise)
+	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)
 
 	return u
 }
@@ -311,10 +313,11 @@ type UserLogin struct {
 }
 
 type UserLoginResult struct {
-	Ok          bool         `json:"ok"`
-	Token       string       `json:"token"`
-	Permissions *Permissions `json:"permissions"`
-	Language    string       `json:"language"`
+	Ok                  bool         `json:"ok"`
+	Token               string       `json:"token"`
+	Permissions         *Permissions `json:"permissions"`
+	Language            string       `json:"language"`
+	GoogleAuthenticator bool         `json:"googleAuthenticator"`
 }
 
 // Result, user id, enterprise id

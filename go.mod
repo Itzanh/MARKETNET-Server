@@ -4,6 +4,8 @@ go 1.13
 
 require (
 	github.com/dghubble/oauth1 v0.7.0 // indirect
+	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
+	github.com/disintegration/imaging v1.6.2
 	github.com/go-errors/errors v1.4.0 // indirect
 	github.com/google/uuid v1.2.0 // direct
 	github.com/gorilla/websocket v1.4.2 // direct

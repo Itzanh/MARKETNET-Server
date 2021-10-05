@@ -227,11 +227,40 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int32, *Permis
 			result, userId, enterpriseId = userLogin.login(remoteAddr)
 		}
 
-		// Return result to client (Ok + Token)
-		data, _ := json.Marshal(result)
-		ws.WriteMessage(mt, data)
-		if result.Ok {
-			return true, userId, result.Permissions, enterpriseId
+		// Google Authenticator
+		user := getUserRow(userId)
+		if len(userLogin.Token) == 0 && user.UsesGoogleAuthenticator {
+			data, _ := json.Marshal(UserLoginResult{Ok: true, GoogleAuthenticator: true})
+			ws.WriteMessage(mt, data)
+
+			// Receive message
+			_, message, err := ws.ReadMessage()
+			if err != nil {
+				return false, 0, nil, 0
+			}
+
+			ok := authenticateUserInGoogleAuthenticator(userId, enterpriseId, string(message))
+			if !ok {
+				data, _ := json.Marshal(UserLoginResult{GoogleAuthenticator: true})
+				ws.WriteMessage(mt, data)
+				return false, 0, nil, 0
+			} else {
+				// Return result to client (Ok + Token)
+				data, _ := json.Marshal(result)
+				ws.WriteMessage(mt, data)
+				if result.Ok {
+					return true, userId, result.Permissions, enterpriseId
+				}
+			}
+		} else {
+
+			// Return result to client (Ok + Token)
+			data, _ := json.Marshal(result)
+			ws.WriteMessage(mt, data)
+			if result.Ok {
+				return true, userId, result.Permissions, enterpriseId
+			}
+
 		}
 	}
 	// END AUTHENTICATION
@@ -2363,6 +2392,24 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var productGenerator ProductGenerator
 		json.Unmarshal([]byte(message), &productGenerator)
 		data, _ = json.Marshal(productGenerator.productGenerator(enterpriseId))
+	case "REGISTER_USER_IN_GOOGLE_AUTHENTICATOR":
+		if !permissions.Admin {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(registerUserInGoogleAuthenticator(int32(id), enterpriseId))
+	case "REMOVE_USER_IN_GOOGLE_AUTHENTICATOR":
+		if !permissions.Admin {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(removeUserFromGoogleAuthenticator(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
