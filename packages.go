@@ -3,10 +3,10 @@ package main
 type Packages struct {
 	Id         int32   `json:"id"`
 	Name       string  `json:"name"`
-	Weight     float32 `json:"weight"`
-	Width      float32 `json:"width"`
-	Height     float32 `json:"height"`
-	Depth      float32 `json:"depth"`
+	Weight     float64 `json:"weight"`
+	Width      float64 `json:"width"`
+	Height     float64 `json:"height"`
+	Depth      float64 `json:"depth"`
 	Product    int32   `json:"product"`
 	enterprise int32
 }

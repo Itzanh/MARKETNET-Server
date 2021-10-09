@@ -448,14 +448,14 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	if details[0].TotalAmount != (details[0].Price*float32(details[0].Quantity))*(1+(details[0].VatPercent/100)) {
+	if details[0].TotalAmount != (details[0].Price*float64(details[0].Quantity))*(1+(details[0].VatPercent/100)) {
 		t.Error("Incorrect total amount creating sale order detail")
 		return
 	}
 
 	// check that the sale order has been updated correctly
 	inMemoryOrder := getSalesOrderRow(orderId)
-	if inMemoryOrder.TotalProducts != float32(details[0].Quantity)*details[0].Price || inMemoryOrder.TotalAmount != details[0].TotalAmount {
+	if inMemoryOrder.TotalProducts != float64(details[0].Quantity)*details[0].Price || inMemoryOrder.TotalAmount != details[0].TotalAmount {
 		t.Error("The sale order totals has not been updated")
 		return
 	}
@@ -487,14 +487,14 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// check the total amount is correct
-	if details[0].TotalAmount != (details[0].Price*float32(details[0].Quantity))*(1+(details[0].VatPercent/100)) {
+	if details[0].TotalAmount != (details[0].Price*float64(details[0].Quantity))*(1+(details[0].VatPercent/100)) {
 		t.Error("Incorrect total amount updating sale order detail")
 		return
 	}
 
 	// check that the sale order has been updated correctly
 	inMemoryOrder = getSalesOrderRow(orderId)
-	if inMemoryOrder.TotalProducts != float32(details[0].Quantity)*details[0].Price || inMemoryOrder.TotalAmount != details[0].TotalAmount {
+	if inMemoryOrder.TotalProducts != float64(details[0].Quantity)*details[0].Price || inMemoryOrder.TotalAmount != details[0].TotalAmount {
 		t.Error("The sale order totals has not been updated")
 		return
 	}
@@ -948,7 +948,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	// check if the totals are the same
 	details := getSalesInvoiceDetail(invoiceId, 1)
 	invoice := getSalesInvoiceRow(invoiceId)
-	if invoice.TotalAmount != details[0].TotalAmount || invoice.TotalProducts != float32(details[0].Quantity)*details[0].Price {
+	if invoice.TotalAmount != details[0].TotalAmount || invoice.TotalProducts != float64(details[0].Quantity)*details[0].Price {
 		t.Error("The totals of the invoice are not updated correctly")
 		return
 	}

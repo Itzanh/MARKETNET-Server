@@ -9,8 +9,8 @@ import (
 type AccountingMovement struct {
 	Id               int64     `json:"id"`
 	DateCreated      time.Time `json:"dateCreated"`
-	AmountDebit      float32   `json:"amountDebit"`
-	AmountCredit     float32   `json:"amountCredit"`
+	AmountDebit      float64   `json:"amountDebit"`
+	AmountCredit     float64   `json:"amountCredit"`
 	FiscalYear       int16     `json:"fiscalYear"`
 	Type             string    `json:"type"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
 	BillingSerie     string    `json:"billingSerie"`
@@ -174,7 +174,7 @@ func (a *AccountingMovement) deleteAccountingMovement() bool {
 
 // Will add or take out credit and debit (if given a negative amount)
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (a *AccountingMovement) addCreditAndDebit(credit float32, debit float32) bool {
+func (a *AccountingMovement) addCreditAndDebit(credit float64, debit float64) bool {
 	if a.Id <= 0 {
 		return false
 	}
@@ -353,9 +353,9 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32) []PostInvoiceResu
 				journal, accountNumber := getConfigAccountsVatSaleRow(details[0].VatPercent, enterpriseId)
 
 				// we have an array with all the same vat percent
-				var credit float32
+				var credit float64
 				for j := 0; j < len(details); j++ {
-					credit += details[j].TotalAmount - (details[j].Price * float32(details[j].Quantity))
+					credit += details[j].TotalAmount - (details[j].Price * float64(details[j].Quantity))
 				}
 
 				dVat := AccountingMovementDetail{}
@@ -559,9 +559,9 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32) []PostInvoiceR
 				journal, accountNumber := getConfigAccountsVatPurchaseRow(details[0].VatPercent, enterpriseId)
 
 				// we have an array with all the same vat percent
-				var debit float32
+				var debit float64
 				for j := 0; j < len(details); j++ {
-					debit += details[j].TotalAmount - (details[j].Price * float32(details[j].Quantity))
+					debit += details[j].TotalAmount - (details[j].Price * float64(details[j].Quantity))
 				}
 
 				dVat := AccountingMovementDetail{}

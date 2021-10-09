@@ -153,7 +153,7 @@ func TestCreateStockRow(t *testing.T) {
 	p := Product{
 		Name:                   "Glass Office Desk",
 		Reference:              "OF-DSK",
-		BarCode:                "1234067891234",
+		BarCode:                "1234067891236",
 		ControlStock:           true,
 		Weight:                 30,
 		Family:                 &family,
@@ -226,7 +226,7 @@ func TestStock(t *testing.T) {
 	p := Product{
 		Name:                   "Glass Office Desk",
 		Reference:              "OF-DSK",
-		BarCode:                "1234067891234",
+		BarCode:                "1234067891236",
 		ControlStock:           true,
 		Weight:                 30,
 		Family:                 &family,
@@ -473,7 +473,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	p := Product{
 		Name:                   "Glass Office Desk",
 		Reference:              "OF-DSK",
-		BarCode:                "1234067891234",
+		BarCode:                "1234067891236",
 		ControlStock:           true,
 		Weight:                 30,
 		Family:                 &family,
@@ -606,7 +606,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	movements = q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[len(movements.Movements)-1]
 	sn = getSalesDeliveryNoteRow(sn.Id)
-	if sn.TotalAmount != wm.TotalAmount || sn.TotalProducts != float32(abs(wm.Quantity))*wm.Price {
+	if sn.TotalAmount != wm.TotalAmount || sn.TotalProducts != float64(abs(wm.Quantity))*wm.Price {
 		t.Error("The totals in the sale delivery note has not updated successfully")
 		return
 	}
@@ -664,7 +664,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	movements = q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[len(movements.Movements)-1]
 	pn = getPurchaseDeliveryNoteRow(pn.Id)
-	if pn.TotalAmount != wm.TotalAmount || pn.TotalProducts != float32(abs(wm.Quantity))*wm.Price {
+	if pn.TotalAmount != wm.TotalAmount || pn.TotalProducts != float64(abs(wm.Quantity))*wm.Price {
 		t.Error("The totals in the purchase delivery note has not updated successfully")
 		return
 	}

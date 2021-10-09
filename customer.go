@@ -226,7 +226,7 @@ type ContactDefauls struct {
 	BillingSeriesName       *string  `json:"billingSeriesName"`
 	Currency                *int32   `json:"currency"`
 	CurrencyName            *string  `json:"currencyName"`
-	CurrencyChange          *float32 `json:"currencyChange"`
+	CurrencyChange          *float64 `json:"currencyChange"`
 }
 
 func getCustomerDefaults(customerId int32, enterpriseId int32) ContactDefauls {

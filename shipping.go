@@ -19,7 +19,7 @@ type Shipping struct {
 	ShippingNumber    string     `json:"shippingNumber"`
 	TrackingNumber    string     `json:"trackingNumber"`
 	Carrier           int32      `json:"carrier"`
-	Weight            float32    `json:"weight"`
+	Weight            float64    `json:"weight"`
 	PackagesNumber    int16      `json:"packagesNumber"`
 	CustomerName      string     `json:"customerName"`
 	SaleOrderName     string     `json:"saleOrderName"`
@@ -302,7 +302,7 @@ func associatePackagingToShipping(packagingId int64, shippingId int64) bool {
 		return false
 	}
 
-	var weight float32
+	var weight float64
 	row.Scan(&weight)
 
 	sqlStatement = `UPDATE public.shipping SET weight=$2, packages_number=packages_number+1 WHERE id=$1`

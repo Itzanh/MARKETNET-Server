@@ -7,7 +7,7 @@ type Packaging struct {
 	Package         int32                      `json:"package"`
 	PackageName     string                     `json:"packageName"`
 	SalesOrder      int64                      `json:"salesOrder"`
-	Weight          float32                    `json:"weight"`
+	Weight          float64                    `json:"weight"`
 	Shipping        *int64                     `json:"shipping"`
 	DetailsPackaged []SalesOrderDetailPackaged `json:"detailsPackaged"`
 	Pallet          *int32                     `json:"pallet"`
@@ -163,7 +163,7 @@ func (p *Packaging) deletePackaging(enterpriseId int32) bool {
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addWeightPackaging(packagingId int64, weight float32) bool {
+func addWeightPackaging(packagingId int64, weight float64) bool {
 	sqlStatement := `UPDATE packaging SET weight = weight + $2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, packagingId, weight)
 	rows, _ := res.RowsAffected()

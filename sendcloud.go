@@ -31,12 +31,12 @@ type Parcel struct {
 	Quantity                int8           `json:"quantity"`
 	OrderNumber             *string        `json:"order_number"`
 	ParcelItems             []ParcelItem   `json:"parcel_items"`
-	Weight                  *float32       `json:"weight"`
-	TotalOrderValue         *float32       `json:"total_order_value"`
+	Weight                  *float64       `json:"weight"`
+	TotalOrderValue         *float64       `json:"total_order_value"`
 	TotalOrderValueCurrency *string        `json:"total_order_value_currency"` // currency ISO-3
-	Length                  *float32       `json:"length"`
-	Width                   *float32       `json:"width"`
-	Height                  *float32       `json:"height"`
+	Length                  *float64       `json:"length"`
+	Width                   *float64       `json:"width"`
+	Height                  *float64       `json:"height"`
 	Shipment                ParcelShipment `json:"shipment"`
 	RequestLabel            bool           `json:"request_label"`
 }
@@ -44,8 +44,8 @@ type Parcel struct {
 type ParcelItem struct {
 	Description   string  `json:"description"`
 	Quantity      int8    `json:"quantity"`
-	Weight        float32 `json:"weight"`
-	Value         float32 `json:"value"`
+	Weight        float64 `json:"weight"`
+	Value         float64 `json:"value"`
 	HSCode        string  `json:"hs_code"`
 	OriginCountry *string `json:"origin_country"`
 }
@@ -132,7 +132,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 		details := getSalesOrderDetailPackaged(packaging[i].Id, enterpriseId)
 		for j := 0; j < len(details); j++ {
 			pi.Quantity += int8(details[j].Quantity)
-			pi.Value += getSalesOrderDetailRow(details[j].OrderDetail).Price * float32(details[j].Quantity)
+			pi.Value += getSalesOrderDetailRow(details[j].OrderDetail).Price * float64(details[j].Quantity)
 		}
 
 		p.ParcelItems = append(p.ParcelItems, pi)

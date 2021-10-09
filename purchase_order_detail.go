@@ -9,10 +9,10 @@ type PurchaseOrderDetail struct {
 	Id                       int64   `json:"id"`
 	Order                    int64   `json:"order"`
 	Product                  int32   `json:"product"`
-	Price                    float32 `json:"price"`
+	Price                    float64 `json:"price"`
 	Quantity                 int32   `json:"quantity"`
-	VatPercent               float32 `json:"vatPercent"`
-	TotalAmount              float32 `json:"totalAmount"`
+	VatPercent               float64 `json:"vatPercent"`
+	TotalAmount              float64 `json:"totalAmount"`
 	QuantityInvoiced         int32   `json:"quantityInvoiced"`
 	QuantityDeliveryNote     int32   `json:"quantityDeliveryNote"`
 	QuantityPendingPackaging int32   `json:"quantityPendingPackaging"`
@@ -66,7 +66,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		return false, 0
 	}
 
-	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
+	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 
 	///
 	var trans *sql.Tx
@@ -95,7 +95,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		return false, 0
 	}
 
-	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float32(s.Quantity), s.VatPercent)
+	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent)
 	if !ok {
 		if beginTrans {
 			trans.Rollback()
@@ -234,7 +234,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	ok := addTotalProductsPurchaseOrder(detailInMemory.Order, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)
+	ok := addTotalProductsPurchaseOrder(detailInMemory.Order, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -411,7 +411,7 @@ type PurchaseSalesOrderDetail struct {
 	DateCreated  time.Time `json:"dateCreated"`
 	CustomerName string    `json:"customerName"`
 	Quantity     int32     `json:"quantity"`
-	TotalAmount  float32   `json:"totalAmount"`
+	TotalAmount  float64   `json:"totalAmount"`
 }
 
 func getSalesOrderDetailsFromPurchaseOrderDetail(detailId int64, enterpriseId int32) []PurchaseSalesOrderDetail {

@@ -15,7 +15,7 @@ type Currency struct {
 	Sign         string    `json:"sign"`
 	IsoCode      string    `json:"isoCode"`
 	IsoNum       int16     `json:"isoNum"`
-	Change       float32   `json:"change"`
+	Change       float64   `json:"change"`
 	ExchangeDate time.Time `json:"exchangeDate"`
 	enterprise   int32
 }
@@ -89,14 +89,14 @@ func (c *Currency) deleteCurrency() bool {
 	return rows > 0
 }
 
-func getCurrencyExchange(currencyId int32) float32 {
+func getCurrencyExchange(currencyId int32) float64 {
 	sqlStatement := `SELECT exchange FROM public.currency WHERE id=$1`
 	row := db.QueryRow(sqlStatement, currencyId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return 0
 	}
-	var change float32
+	var change float64
 	row.Scan(&change)
 	return change
 }

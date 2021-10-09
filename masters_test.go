@@ -654,7 +654,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 	p := Product{
 		Name:                   "Glass Office Desk",
 		Reference:              "OF-DSK",
-		BarCode:                "1234067891234",
+		BarCode:                "1234067891236",
 		ControlStock:           true,
 		Weight:                 30,
 		Family:                 &family,
@@ -793,7 +793,7 @@ func TestGenerateBarcode(t *testing.T) {
 	p := Product{
 		Name:                   "Glass Office Desk",
 		Reference:              "OF-DSK",
-		BarCode:                "",
+		BarCode:                "1234067891236",
 		ControlStock:           true,
 		Weight:                 30,
 		Family:                 &family,

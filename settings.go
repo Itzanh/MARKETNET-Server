@@ -76,7 +76,7 @@ func (s *BackendSettings) setBackendSettings() bool {
 // Advanced settings stored in the database. Configurable by final users.
 type Settings struct {
 	Id                              int32      `json:"id"`
-	DefaultVatPercent               float32    `json:"defaultVatPercent"`
+	DefaultVatPercent               float64    `json:"defaultVatPercent"`
 	DefaultWarehouse                string     `json:"defaultWarehouse"`
 	DefaultWarehouseName            string     `json:"defaultWarehouseName"`
 	DateFormat                      string     `json:"dateFormat"`
@@ -98,10 +98,10 @@ type Settings struct {
 	SendGridKey                     string     `json:"sendGridKey"`
 	EmailFrom                       string     `json:"emailFrom"`
 	NameFrom                        string     `json:"nameFrom"`
-	PalletWeight                    float32    `json:"palletWeight"`
-	PalletWidth                     float32    `json:"palletWidth"`
-	PalletHeight                    float32    `json:"palletHeight"`
-	PalletDepth                     float32    `json:"palletDepth"`
+	PalletWeight                    float64    `json:"palletWeight"`
+	PalletWidth                     float64    `json:"palletWidth"`
+	PalletHeight                    float64    `json:"palletHeight"`
+	PalletDepth                     float64    `json:"palletDepth"`
 	MaxConnections                  int32      `json:"maxConnections"`
 	PrestashopStatusPaymentAccepted int32      `json:"prestashopStatusPaymentAccepted"`
 	PrestashopStatusShipped         int32      `json:"prestashopStatusShipped"`
@@ -263,7 +263,7 @@ func (s *Settings) updateSettingsRecord() bool {
 // Don't allow every client to get the secret data, like API keys.
 // This object holds the config that every client has to know, and the "Settings" object contains admin information.
 type ClientSettings struct {
-	DefaultVatPercent    float32 `json:"defaultVatPercent"`
+	DefaultVatPercent    float64 `json:"defaultVatPercent"`
 	DefaultWarehouse     string  `json:"defaultWarehouse"`
 	DefaultWarehouseName string  `json:"defaultWarehouseName"`
 	DateFormat           string  `json:"dateFormat"`

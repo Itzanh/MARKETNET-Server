@@ -786,7 +786,7 @@ func copyPsCurrencies(enterpriseId int32) {
 			}
 
 			var name string
-			var conversionRate float32
+			var conversionRate float64
 			var symbol string
 			var numericIsoCode int32
 			row.Scan(&name, &conversionRate, &symbol, &numericIsoCode)
@@ -1164,10 +1164,10 @@ func copyPsCarriers(enterpriseId int32) {
 		var id int32
 		var name string
 		var url string
-		var max_width float32
-		var max_height float32
-		var max_depth float32
-		var max_weight float32
+		var max_width float64
+		var max_height float64
+		var max_depth float64
+		var max_weight float64
 		rows.Scan(&id, &name, &url, &max_width, &max_height, &max_depth, &max_weight)
 
 		// ¿does the row exist?
@@ -1203,7 +1203,7 @@ func copyPsProducts(enterpriseId int32) {
 		var name string
 		var ean13 string
 		var reference string
-		var price float32
+		var price float64
 		var dateAdd time.Time
 		var description string
 		rows.Scan(&ps_productId, &name, &ean13, &reference, &price, &dateAdd, &description)
@@ -1258,7 +1258,7 @@ func copyPsProducts(enterpriseId int32) {
 				var combinationReference string
 				var combinationEan13 string
 				var productOptionValues []int32
-				var combinationPrice float32
+				var combinationPrice float64
 				rows.Scan(&combinationId, &combinationReference, &combinationEan13, pq.Array(&productOptionValues), &combinationPrice)
 
 				// does the product exist?
@@ -1330,8 +1330,8 @@ func copyPsOrders(enterpriseId int32) {
 		var idAddressDelivery int32
 		var idAddressInvoice int32
 		var module string
-		var totalDiscountsTaxExcl float32
-		var totalShippingTaxExcl float32
+		var totalDiscountsTaxExcl float64
+		var totalShippingTaxExcl float64
 		var taxIncluded bool
 		rows.Scan(&orderId, &reference, &idCarrier, &idLang, &idCustomer, &idCurrency, &idAddressDelivery, &idAddressInvoice, &module, &totalDiscountsTaxExcl, &totalShippingTaxExcl, &taxIncluded)
 
@@ -1485,9 +1485,9 @@ func copyPsOrderDetails(enterpriseId int32) {
 		var productId int32
 		var productAttributeId int32
 		var ProductQuantity int32
-		var productPrice float32
+		var productPrice float64
 		var taxIncluded bool
-		var vatPercent float32
+		var vatPercent float64
 		rows.Scan(&detailId, &orderId, &productId, &productAttributeId, &ProductQuantity, &productPrice, &taxIncluded, &vatPercent)
 
 		sqlStatement := `SELECT COUNT(id) FROM sales_order_detail WHERE ps_id=$1 AND enterprise=$2`

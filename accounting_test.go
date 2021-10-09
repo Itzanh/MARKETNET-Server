@@ -333,7 +333,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	var isCustomerAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
 		if movementDetails[i].Journal == 430 {
-			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float32(math.Round(float64(invoiceTotalAmount)*100)/100) {
+			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
 				t.Error("The detail for the customer was not created successfully")
 				return
 			}
@@ -350,7 +350,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	var isSalesAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
 		if movementDetails[i].Journal == 700 {
-			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float32(math.Round(float64(invoiceTotalProducts)*100)/100) {
+			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float64(math.Round(float64(invoiceTotalProducts)*100)/100) {
 				t.Error("The detail for the sales was not created successfully")
 				return
 			}
@@ -367,7 +367,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	var isVatAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
 		if movementDetails[i].Journal == 477 {
-			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float32(math.Round(float64(invoiceTotalVat)*100)/100) {
+			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float64(math.Round(float64(invoiceTotalVat)*100)/100) {
 				t.Error("The detail for the vat was not created successfully")
 				return
 			}
@@ -441,7 +441,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	isCustomerAccountPresent = false
 	for i := 0; i < len(newMovementDetails); i++ {
 		if newMovementDetails[i].Journal == 430 {
-			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != float32(math.Round(float64(invoiceTotalAmount)*100)/100) {
+			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
 				t.Error("The detail for the customer was not created successfully")
 				return
 			}
@@ -457,7 +457,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	var isBankAccountPresent bool = false
 	for i := 0; i < len(newMovementDetails); i++ {
 		if newMovementDetails[i].Journal == 570 {
-			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != float32(math.Round(float64(invoiceTotalAmount)*100)/100) {
+			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
 				t.Error("The detail for the bank was not created successfully")
 				return
 			}
@@ -562,7 +562,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	var isSupplierAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
 		if movementDetails[i].Journal == 400 {
-			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float32(math.Round(float64(invoiceTotalAmount)*100)/100) {
+			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
 				t.Error("The detail for the supplier was not created successfully")
 				return
 			}
@@ -579,7 +579,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	var isPurchaseAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
 		if movementDetails[i].Journal == 600 {
-			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float32(math.Round(float64(invoiceTotalProducts)*100)/100) {
+			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float64(math.Round(float64(invoiceTotalProducts)*100)/100) {
 				t.Error("The detail for the purchase was not created successfully")
 				return
 			}
@@ -596,7 +596,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	var isVatAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
 		if movementDetails[i].Journal == 472 {
-			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float32(math.Round(float64(invoiceTotalVat)*100)/100) {
+			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float64(math.Round(float64(invoiceTotalVat)*100)/100) {
 				t.Error("The detail for the vat was not created successfully")
 				return
 			}
@@ -670,7 +670,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	isSupplierAccountPresent = false
 	for i := 0; i < len(newMovementDetails); i++ {
 		if newMovementDetails[i].Journal == 400 {
-			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != float32(math.Round(float64(invoiceTotalAmount)*100)/100) {
+			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
 				t.Error("The detail for the supplier was not created successfully")
 				return
 			}
@@ -686,7 +686,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	var isBankAccountPresent bool = false
 	for i := 0; i < len(newMovementDetails); i++ {
 		if newMovementDetails[i].Journal == 570 {
-			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != float32(math.Round(float64(invoiceTotalAmount)*100)/100) {
+			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
 				t.Error("The detail for the bank was not created successfully")
 				return
 			}

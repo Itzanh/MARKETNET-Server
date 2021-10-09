@@ -17,20 +17,20 @@ type SaleOrder struct {
 	PaymentMethod      int32      `json:"paymentMethod"`
 	BillingSeries      string     `json:"billingSeries"`
 	Currency           int32      `json:"currency"`
-	CurrencyChange     float32    `json:"currencyChange"`
+	CurrencyChange     float64    `json:"currencyChange"`
 	BillingAddress     int32      `json:"billingAddress"`
 	ShippingAddress    int32      `json:"shippingAddress"`
 	LinesNumber        int16      `json:"linesNumber"`
 	InvoicedLines      int16      `json:"invoicedLines"`
 	DeliveryNoteLines  int16      `json:"deliveryNoteLines"`
-	TotalProducts      float32    `json:"totalProducts"`
-	DiscountPercent    float32    `json:"discountPercent"`
-	FixDiscount        float32    `json:"fixDiscount"`
-	ShippingPrice      float32    `json:"shippingPrice"`
-	ShippingDiscount   float32    `json:"shippingDiscount"`
-	TotalWithDiscount  float32    `json:"totalWithDiscount"`
-	VatAmount          float32    `json:"vatAmount"`
-	TotalAmount        float32    `json:"totalAmount"`
+	TotalProducts      float64    `json:"totalProducts"`
+	DiscountPercent    float64    `json:"discountPercent"`
+	FixDiscount        float64    `json:"fixDiscount"`
+	ShippingPrice      float64    `json:"shippingPrice"`
+	ShippingDiscount   float64    `json:"shippingDiscount"`
+	TotalWithDiscount  float64    `json:"totalWithDiscount"`
+	VatAmount          float64    `json:"vatAmount"`
+	TotalAmount        float64    `json:"totalAmount"`
 	Description        string     `json:"description"`
 	Notes              string     `json:"notes"`
 	Off                bool       `json:"off"`
@@ -384,7 +384,7 @@ func (s *SaleOrder) deleteSalesOrder() bool {
 
 // Adds a total amount to the order total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsSalesOrder(orderId int64, totalAmount float32, vatPercent float32) bool {
+func addTotalProductsSalesOrder(orderId int64, totalAmount float64, vatPercent float64) bool {
 	sqlStatement := `UPDATE sales_order SET total_products = total_products + $2, vat_amount = vat_amount + $3 WHERE id = $1`
 	_, err := db.Exec(sqlStatement, orderId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
@@ -397,7 +397,7 @@ func addTotalProductsSalesOrder(orderId int64, totalAmount float32, vatPercent f
 
 // Adds the discounts to the fix discount of the order. This function will substract if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addDiscountsSalesOrder(orderId int64, amountTaxExcluded float32) bool {
+func addDiscountsSalesOrder(orderId int64, amountTaxExcluded float64) bool {
 	sqlStatement := `UPDATE sales_order SET fix_discount=fix_discount+$2 WHERE id = $1`
 	_, err := db.Exec(sqlStatement, orderId, amountTaxExcluded)
 	if err != nil {

@@ -142,7 +142,7 @@ type SYVariantDB struct {
 	ProductId int64   `json:"product_id"`
 	Id        int64   `json:"id"`
 	Title     string  `json:"title"`
-	Price     float32 `json:"price"`
+	Price     float64 `json:"price"`
 	Sku       string  `json:"sku"`
 	Option1   string  `json:"option1"`
 	Option2   *string `json:"option2"`
@@ -765,7 +765,7 @@ func copySyProducts(enterpriseId int32) {
 				p.Name = title
 				p.Description = bodyHtml
 				p.Price = variants[0].Price
-				p.Weight = float32(variants[0].Grams / 1000)
+				p.Weight = float64(variants[0].Grams / 1000)
 				if len(variants[0].Sku) > 0 {
 					p.BarCode = variants[0].Sku
 				} else {
@@ -792,7 +792,7 @@ func copySyProducts(enterpriseId int32) {
 					}
 					p.Description = bodyHtml
 					p.Price = variants[i].Price
-					p.Weight = float32(variants[i].Grams / 1000)
+					p.Weight = float64(variants[i].Grams / 1000)
 					if len(variants[i].Sku) > 0 {
 						p.BarCode = variants[i].Sku
 					} else {
@@ -828,7 +828,7 @@ func copySyProducts(enterpriseId int32) {
 				p.Name = title
 				p.Description = bodyHtml
 				p.Price = variants[0].Price
-				p.Weight = float32(variants[0].Grams / 1000)
+				p.Weight = float64(variants[0].Grams / 1000)
 				if len(variants[0].Sku) > 0 {
 					p.BarCode = variants[0].Sku
 				} else {
@@ -863,7 +863,7 @@ func copySyProducts(enterpriseId int32) {
 						}
 						p.Description = bodyHtml
 						p.Price = variants[i].Price
-						p.Weight = float32(variants[i].Grams / 1000)
+						p.Weight = float64(variants[i].Grams / 1000)
 						if len(variants[i].Sku) > 0 {
 							p.BarCode = variants[i].Sku
 						} else {
@@ -888,7 +888,7 @@ func copySyProducts(enterpriseId int32) {
 						}
 						p.Description = bodyHtml
 						p.Price = variants[i].Price
-						p.Weight = float32(variants[i].Grams / 1000)
+						p.Weight = float64(variants[i].Grams / 1000)
 						if len(variants[i].Sku) > 0 {
 							p.BarCode = variants[i].Sku
 						} else {
@@ -948,7 +948,7 @@ func copySyDraftOrders(enterpriseId int32) {
 		var billingAddressCity string
 		var billingAddressZip string
 		var billingAddressCountryCode string
-		var totalTax float32
+		var totalTax float64
 		var customerId int64
 		row.Scan(&id, &currency, &taxExempt, &name, &shippingAddress1, &shippingAddress2, &shippingAddressCity, &shippingAddressZip, &shippingAddressCountryCode, &billingAddress1, &billingAddress2, &billingAddressCity, &billingAddressZip, &billingAddressCountryCode, &totalTax, &customerId)
 
@@ -1055,7 +1055,7 @@ func copySyDraftOrders(enterpriseId int32) {
 				var productId int64
 				var quantity int32
 				var taxable bool
-				var price float32
+				var price float64
 				rows.Scan(&id, &variantId, &productId, &quantity, &taxable, &price)
 
 				sqlStatement := `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
@@ -1143,7 +1143,7 @@ func copySyDraftOrders(enterpriseId int32) {
 				var productId int64
 				var quantity int32
 				var taxable bool
-				var price float32
+				var price float64
 				rows.Scan(&id, &variantId, &productId, &quantity, &taxable, &price)
 
 				var salesOrderDetailId int64
@@ -1230,8 +1230,8 @@ func copySyOrders(enterpriseId int32) {
 
 		var id int64
 		var currency string
-		var currentTotalDiscounts float32
-		var totalShippingPriceSetAmount float32
+		var currentTotalDiscounts float64
+		var totalShippingPriceSetAmount float64
 		var totalShippingPriceSetCurrencyCode string
 		var taxExempt bool
 		var name string
@@ -1245,7 +1245,7 @@ func copySyOrders(enterpriseId int32) {
 		var billingAddressCity string
 		var billingAddressZip string
 		var billingAddressCountryCode string
-		var totalTax float32
+		var totalTax float64
 		var customerId int64
 		var gateway string
 		row.Scan(&id, &currency, &currentTotalDiscounts, &totalShippingPriceSetAmount, &totalShippingPriceSetCurrencyCode, &taxExempt, &name, &shippingAddress1, &shippingAddress2, &shippingAddressCity, &shippingAddressZip, &shippingAddressCountryCode, &billingAddress1, &billingAddress2, &billingAddressCity, &billingAddressZip, &billingAddressCountryCode, &totalTax, &customerId, &gateway)
@@ -1399,7 +1399,7 @@ func copySyOrders(enterpriseId int32) {
 				var productId int64
 				var quantity int32
 				var taxable bool
-				var price float32
+				var price float64
 				rows.Scan(&id, &variantId, &productId, &quantity, &taxable, &price)
 
 				sqlStatement = `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`

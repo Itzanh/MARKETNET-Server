@@ -13,9 +13,9 @@ type PaymentTransaction struct {
 	Status                   string    `json:"status"` // P = Pending, C = Paid, U = Unpaid
 	DateCreated              time.Time `json:"dateCreated"`
 	DateExpiration           time.Time `json:"dateExpiration"`
-	Total                    float32   `json:"total"`
-	Paid                     float32   `json:"paid"`
-	Pending                  float32   `json:"pending"`
+	Total                    float64   `json:"total"`
+	Paid                     float64   `json:"paid"`
+	Pending                  float64   `json:"pending"`
 	DocumentName             string    `json:"documentName"`
 	PaymentMethod            int32     `json:"paymentMethod"`
 	BankName                 string    `json:"bankName"`
@@ -99,7 +99,7 @@ func (c *PaymentTransaction) insertPaymentTransaction() bool {
 
 // Adds or substracts the paid quantity on the payment transaction
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (c *PaymentTransaction) addQuantityCharges(charges float32) bool {
+func (c *PaymentTransaction) addQuantityCharges(charges float64) bool {
 	sqlStatement := `UPDATE public.payment_transaction SET paid=paid+$2, pending=pending-$2, status=(CASE WHEN pending-$2=0 THEN 'C' ELSE 'P' END) WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, charges)
 	rows, _ := res.RowsAffected()

@@ -80,7 +80,7 @@ type WCProduct struct {
 	Description      string              `json:"description"`
 	ShortDescription string              `json:"short_description"`
 	Sku              string              `json:"sku"`
-	Price            float32             `json:"price"`
+	Price            float64             `json:"price"`
 	Weight           string              `json:"weight"`
 	Dimensions       WCPRoductDimensions `json:"dimensions"`
 	Images           []WCProductImage    `json:"images"`
@@ -100,7 +100,7 @@ type WCProductImage struct {
 type WCProductVariation struct {
 	Id         int32                         `json:"id"`
 	Sku        string                        `json:"sku"`
-	Price      float32                       `json:"price"`
+	Price      float64                       `json:"price"`
 	Weight     string                        `json:"weight"`
 	Dimensions WCPRoductDimensions           `json:"dimensions"`
 	Attributes []WCProductVariationAttribute `json:"attributes"`
@@ -133,7 +133,7 @@ type WCOrderDetail struct {
 	VariationId int32   `json:"variation_id"`
 	Quantity    int32   `json:"quantity"`
 	TotalTax    string  `json:"total_tax"`
-	Price       float32 `json:"price"`
+	Price       float64 `json:"price"`
 }
 
 func (j *WcJsonDateTime) UnmarshalJSON(b []byte) error {
@@ -788,7 +788,7 @@ func copyWcProducts(enterpriseId int32) {
 		var description string
 		var shortDescription string
 		var sku string
-		var price float32
+		var price float64
 		var weight string
 		var dimensionsLength string
 		var dimensionsWidth string
@@ -813,19 +813,19 @@ func copyWcProducts(enterpriseId int32) {
 				p.Price = price
 				f_weight, err := strconv.ParseFloat(weight, 32)
 				if err == nil {
-					p.Weight = float32(f_weight)
+					p.Weight = float64(f_weight)
 				}
 				f_length, err := strconv.ParseFloat(dimensionsLength, 32)
 				if err == nil {
-					p.Depth = float32(f_length)
+					p.Depth = float64(f_length)
 				}
 				f_width, err := strconv.ParseFloat(dimensionsWidth, 32)
 				if err == nil {
-					p.Width = float32(f_width)
+					p.Width = float64(f_width)
 				}
 				f_height, err := strconv.ParseFloat(dimensionsHeight, 32)
 				if err == nil {
-					p.Height = float32(f_height)
+					p.Height = float64(f_height)
 				}
 				p.VatPercent = s.DefaultVatPercent
 				p.wooCommerceId = id
@@ -850,7 +850,7 @@ func copyWcProducts(enterpriseId int32) {
 
 					var v_id int32
 					var v_sku string
-					var v_price float32
+					var v_price float64
 					var v_weight string
 					var v_dimensionsLength string
 					var v_dimensionsWidth string
@@ -873,19 +873,19 @@ func copyWcProducts(enterpriseId int32) {
 					p.Price = v_price
 					f_weight, err := strconv.ParseFloat(v_weight, 32)
 					if err == nil {
-						p.Weight = float32(f_weight)
+						p.Weight = float64(f_weight)
 					}
 					f_length, err := strconv.ParseFloat(v_dimensionsLength, 32)
 					if err == nil {
-						p.Depth = float32(f_length)
+						p.Depth = float64(f_length)
 					}
 					f_width, err := strconv.ParseFloat(v_dimensionsWidth, 32)
 					if err == nil {
-						p.Width = float32(f_width)
+						p.Width = float64(f_width)
 					}
 					f_height, err := strconv.ParseFloat(v_dimensionsHeight, 32)
 					if err == nil {
-						p.Height = float32(f_height)
+						p.Height = float64(f_height)
 					}
 					p.VatPercent = s.DefaultVatPercent
 					p.wooCommerceId = id
@@ -924,19 +924,19 @@ func copyWcProducts(enterpriseId int32) {
 				p.Price = price
 				f_weight, err := strconv.ParseFloat(weight, 32)
 				if err == nil {
-					p.Weight = float32(f_weight)
+					p.Weight = float64(f_weight)
 				}
 				f_length, err := strconv.ParseFloat(dimensionsLength, 32)
 				if err == nil {
-					p.Depth = float32(f_length)
+					p.Depth = float64(f_length)
 				}
 				f_width, err := strconv.ParseFloat(dimensionsWidth, 32)
 				if err == nil {
-					p.Width = float32(f_width)
+					p.Width = float64(f_width)
 				}
 				f_height, err := strconv.ParseFloat(dimensionsHeight, 32)
 				if err == nil {
-					p.Height = float32(f_height)
+					p.Height = float64(f_height)
 				}
 				p.updateProduct()
 			} else { // if len(variations) == 0 {
@@ -959,7 +959,7 @@ func copyWcProducts(enterpriseId int32) {
 
 					var v_id int32
 					var v_sku string
-					var v_price float32
+					var v_price float64
 					var v_weight string
 					var v_dimensionsLength string
 					var v_dimensionsWidth string
@@ -977,19 +977,19 @@ func copyWcProducts(enterpriseId int32) {
 					p.Price = v_price
 					f_weight, err := strconv.ParseFloat(v_weight, 32)
 					if err == nil {
-						p.Weight = float32(f_weight)
+						p.Weight = float64(f_weight)
 					}
 					f_length, err := strconv.ParseFloat(v_dimensionsLength, 32)
 					if err == nil {
-						p.Depth = float32(f_length)
+						p.Depth = float64(f_length)
 					}
 					f_width, err := strconv.ParseFloat(v_dimensionsWidth, 32)
 					if err == nil {
-						p.Width = float32(f_width)
+						p.Width = float64(f_width)
 					}
 					f_height, err := strconv.ParseFloat(v_dimensionsHeight, 32)
 					if err == nil {
-						p.Height = float32(f_height)
+						p.Height = float64(f_height)
 					}
 					p.updateProduct()
 				} // for
@@ -1012,10 +1012,10 @@ func copyWcOrders(enterpriseId int32) {
 		var status string
 		var currency string
 		var dateCreated time.Time
-		var discountTax float32
-		var shippingTotal float32
-		var shippingTax float32
-		var totalTax float32
+		var discountTax float64
+		var shippingTotal float64
+		var shippingTax float64
+		var totalTax float64
 		var customerId int32
 		var orderKey string
 		var billingAddress1 string
@@ -1264,8 +1264,8 @@ func copyWcOrders(enterpriseId int32) {
 			var productId int32
 			var variationId int32
 			var quantity int32
-			var totalTax float32
-			var price float32
+			var totalTax float64
+			var price float64
 			rows.Scan(&id, &productId, &variationId, &quantity, &totalTax, &price)
 
 			// get the product
@@ -1273,7 +1273,7 @@ func copyWcOrders(enterpriseId int32) {
 			row = db.QueryRow(sqlStatement, productId, variationId, enterpriseId)
 
 			var product int32
-			var vatPercent float32
+			var vatPercent float64
 			row.Scan(&product, &vatPercent)
 
 			if product <= 0 {

@@ -11,7 +11,7 @@ type Payment struct {
 	AccountingMovementDetailCredit int64     `json:"accountingMovementDetailCredit"`
 	Account                        int32     `json:"account"`
 	DateCreated                    time.Time `json:"dateCreated"`
-	Amount                         float32   `json:"amount"`
+	Amount                         float64   `json:"amount"`
 	Concept                        string    `json:"concept"`
 	PaymentTransaction             int32     `json:"paymentTransaction"`
 	enterprise                     int32

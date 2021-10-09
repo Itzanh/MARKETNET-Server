@@ -25,9 +25,9 @@ type WarehouseMovement struct {
 	PurchaseDeliveryNote  *int64    `json:"purchaseDeliveryNote"`
 	DraggedStock          int32     `json:"draggedStock"`
 	ProductName           string    `json:"productName"`
-	Price                 float32   `json:"price"`
-	VatPercent            float32   `json:"vatPercent"`
-	TotalAmount           float32   `json:"totalAmount"`
+	Price                 float64   `json:"price"`
+	VatPercent            float64   `json:"vatPercent"`
+	TotalAmount           float64   `json:"totalAmount"`
 	WarehouseName         string    `json:"warehouseName"`
 	enterprise            int32
 }
@@ -225,7 +225,7 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 		return false
 	}
 
-	m.TotalAmount = absf((m.Price * float32(m.Quantity)) * (1 + (m.VatPercent / 100)))
+	m.TotalAmount = absf((m.Price * float64(m.Quantity)) * (1 + (m.VatPercent / 100)))
 
 	///
 	trans, transErr := db.Begin()
@@ -281,7 +281,7 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	// sales delivery note price
 	if m.SalesDeliveryNote != nil {
-		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float32(m.Quantity)), m.VatPercent)
+		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -289,7 +289,7 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	// purchase delivery note price
 	if m.PurchaseDeliveryNote != nil {
-		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float32(m.Quantity)), m.VatPercent)
+		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -315,7 +315,7 @@ func abs(x int32) int32 {
 }
 
 // Abs returns the absolute value of x.
-func absf(x float32) float32 {
+func absf(x float64) float64 {
 	if x < 0 {
 		return -x
 	}
@@ -414,7 +414,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	// sales delivery note price
 	if inMemoryMovement.SalesDeliveryNote != nil {
-		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float32(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
+		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -422,7 +422,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	// purchase delivery note price
 	if inMemoryMovement.PurchaseDeliveryNote != nil {
-		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float32(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
+		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
 		if !ok {
 			trans.Rollback()
 			return false

@@ -1,7 +1,7 @@
 package main
 
 type ConfigAccountsVat struct {
-	VatPercent            float32 `json:"vatPercent"`
+	VatPercent            float64 `json:"vatPercent"`
 	AccountSale           int32   `json:"accountSale"`
 	AccountPurchase       int32   `json:"accountPurchase"`
 	AccountSaleNumber     int32   `json:"accountSaleNumber"`
@@ -30,7 +30,7 @@ func getConfigAccountsVat(enterpriseId int32) []ConfigAccountsVat {
 }
 
 // Journal, Account
-func getConfigAccountsVatSaleRow(vatPercent float32, enterpriseId int32) (int32, int32) {
+func getConfigAccountsVatSaleRow(vatPercent float64, enterpriseId int32) (int32, int32) {
 	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_sale) FROM config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
 	row := db.QueryRow(sqlStatement, vatPercent, enterpriseId)
 	if row.Err() != nil {
@@ -45,7 +45,7 @@ func getConfigAccountsVatSaleRow(vatPercent float32, enterpriseId int32) (int32,
 }
 
 // Journal, Account
-func getConfigAccountsVatPurchaseRow(vatPercent float32, enterpriseId int32) (int32, int32) {
+func getConfigAccountsVatPurchaseRow(vatPercent float64, enterpriseId int32) (int32, int32) {
 	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_purchase),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_purchase) FROM config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
 	row := db.QueryRow(sqlStatement, vatPercent, enterpriseId)
 	if row.Err() != nil {

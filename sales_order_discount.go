@@ -4,8 +4,8 @@ type SalesOrderDiscount struct {
 	Id               int32   `json:"id"`
 	Order            int64   `json:"order"`
 	Name             string  `json:"name"`
-	ValueTaxIncluded float32 `json:"valueTaxIncluded"`
-	ValueTaxExcluded float32 `json:"valueTaxExcluded"`
+	ValueTaxIncluded float64 `json:"valueTaxIncluded"`
+	ValueTaxExcluded float64 `json:"valueTaxExcluded"`
 	enterprise       int32
 }
 

@@ -8,10 +8,10 @@ type SalesOrderDetail struct {
 	Id                       int64   `json:"id"`
 	Order                    int64   `json:"order"`
 	Product                  int32   `json:"product"`
-	Price                    float32 `json:"price"`
+	Price                    float64 `json:"price"`
 	Quantity                 int32   `json:"quantity"`
-	VatPercent               float32 `json:"vatPercent"`
-	TotalAmount              float32 `json:"totalAmount"`
+	VatPercent               float64 `json:"vatPercent"`
+	TotalAmount              float64 `json:"totalAmount"`
 	QuantityInvoiced         int32   `json:"quantityInvoiced"`
 	QuantityDeliveryNote     int32   `json:"quantityDeliveryNote"`
 	Status                   string  `json:"status"` // _ = Waiting for payment, A = Waiting for purchase order, B = Purchase order pending, C = Waiting for manufacturing orders, D = Manufacturing orders pending, E = Sent to preparation, F = Awaiting for shipping, G = Shipped, H = Receiced by the customer
@@ -107,7 +107,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 		return false
 	}
 
-	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
+	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 	s.Status = "_"
 
 	///
@@ -124,7 +124,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	ok := addTotalProductsSalesOrder(s.Order, s.Price*float32(s.Quantity), s.VatPercent)
+	ok := addTotalProductsSalesOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -171,7 +171,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
 		return false
 	}
 
-	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
+	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5,total_amount=$6,sy_id=$7 WHERE id=$1 AND enterprise=$8`
 	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.shopifyId, s.enterprise)
 	rows, _ := res.RowsAffected()
@@ -192,13 +192,13 @@ func (s *SalesOrderDetail) updateSalesOrderDetail() bool {
 	}
 
 	// take out the old value
-	ok := addTotalProductsSalesOrder(inMemoryDetail.Order, -(inMemoryDetail.Price * float32(inMemoryDetail.Quantity)), inMemoryDetail.VatPercent)
+	ok := addTotalProductsSalesOrder(inMemoryDetail.Order, -(inMemoryDetail.Price * float64(inMemoryDetail.Quantity)), inMemoryDetail.VatPercent)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 	// add the new value
-	ok = addTotalProductsSalesOrder(s.Order, s.Price*float32(s.Quantity), s.VatPercent)
+	ok = addTotalProductsSalesOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -252,7 +252,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail() bool {
 		return false
 	}
 
-	ok := addTotalProductsSalesOrder(detailInMemory.Order, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)
+	ok := addTotalProductsSalesOrder(detailInMemory.Order, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -526,7 +526,7 @@ type SalePurchasesOrderDetail struct {
 	DateCreated  time.Time `json:"dateCreated"`
 	SupplierName string    `json:"supplierName"`
 	Quantity     int32     `json:"quantity"`
-	TotalAmount  float32   `json:"totalAmount"`
+	TotalAmount  float64   `json:"totalAmount"`
 }
 
 func getPurchasesOrderDetailsFromSaleOrderDetail(detailId int32, enterpriseId int32) []SalePurchasesOrderDetail {

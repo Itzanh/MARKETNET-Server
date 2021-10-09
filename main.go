@@ -1466,7 +1466,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		var configAccountsVat ConfigAccountsVat
-		configAccountsVat.VatPercent = float32(id)
+		configAccountsVat.VatPercent = float64(id)
 		configAccountsVat.enterprise = enterpriseId
 		ok = configAccountsVat.deleteConfigAccountsVat()
 	case "CONNECTION_FILTER_USER":

@@ -12,18 +12,18 @@ type Product struct {
 	Reference               string    `json:"reference"`
 	BarCode                 string    `json:"barCode"`
 	ControlStock            bool      `json:"controlStock"`
-	Weight                  float32   `json:"weight"`
+	Weight                  float64   `json:"weight"`
 	Family                  *int32    `json:"family"`
-	Width                   float32   `json:"width"`
-	Height                  float32   `json:"height"`
-	Depth                   float32   `json:"depth"`
+	Width                   float64   `json:"width"`
+	Height                  float64   `json:"height"`
+	Depth                   float64   `json:"depth"`
 	Off                     bool      `json:"off"`
 	Stock                   int32     `json:"stock"`
-	VatPercent              float32   `json:"vatPercent"`
+	VatPercent              float64   `json:"vatPercent"`
 	DateCreated             time.Time `json:"dateCreated"`
 	Description             string    `json:"description"`
 	Color                   *int32    `json:"color"`
-	Price                   float32   `json:"price"`
+	Price                   float64   `json:"price"`
 	Manufacturing           bool      `json:"manufacturing"`
 	ManufacturingOrderType  *int32    `json:"manufacturingOrderType"`
 	Supplier                *int32    `json:"supplier"`
@@ -217,8 +217,8 @@ func getNameProduct(id int32, enterpriseId int32) string {
 }
 
 type OrderDetailDefaults struct {
-	Price      float32 `json:"price"`
-	VatPercent float32 `json:"vatPercent"`
+	Price      float64 `json:"price"`
+	VatPercent float64 `json:"vatPercent"`
 }
 
 func getOrderDetailDefaults(productId int32, enterpriseId int32) OrderDetailDefaults {
@@ -721,11 +721,11 @@ type ProductGenerate struct {
 	Reference       string  `json:"reference"`
 	GenerateBarCode bool    `json:"generateBarCode"`
 	BarCode         string  `json:"barCode"`
-	Weight          float32 `json:"weight"`
-	Width           float32 `json:"width"`
-	Height          float32 `json:"height"`
-	Depth           float32 `json:"depth"`
-	Price           float32 `json:"price"`
+	Weight          float64 `json:"weight"`
+	Width           float64 `json:"width"`
+	Height          float64 `json:"height"`
+	Depth           float64 `json:"depth"`
+	Price           float64 `json:"price"`
 	Manufacturing   bool    `json:"manufacturing"`
 	InitialStock    int32   `json:"initialStock"`
 }

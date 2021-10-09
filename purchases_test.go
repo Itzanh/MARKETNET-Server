@@ -246,7 +246,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 	order := getPurchaseOrderRow(orderId)
 	detail := getPurchaseOrderDetailRow(detailId)
 
-	if order.TotalAmount != detail.TotalAmount || order.TotalProducts != detail.Price*float32(detail.Quantity) {
+	if order.TotalAmount != detail.TotalAmount || order.TotalProducts != detail.Price*float64(detail.Quantity) {
 		t.Error("Purchase order totals not updated succlessfully")
 		return
 	}
@@ -671,7 +671,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	// check the totals
 	invoice := getPurchaseInvoiceRow(invoiceId)
 	details := getPurchaseInvoiceDetail(invoiceId, 1)
-	if invoice.TotalAmount != details[0].TotalAmount || invoice.TotalProducts != float32(details[0].Quantity)*details[0].Price {
+	if invoice.TotalAmount != details[0].TotalAmount || invoice.TotalProducts != float64(details[0].Quantity)*details[0].Price {
 		t.Error("The total of the invoice has not been updated successfully")
 		return
 	}

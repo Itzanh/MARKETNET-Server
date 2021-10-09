@@ -9,9 +9,9 @@ type Account struct {
 	Id            int32   `json:"id"`
 	Journal       int32   `json:"journal"`
 	Name          string  `json:"name"`
-	Credit        float32 `json:"credit"`
-	Debit         float32 `json:"debit"`
-	Balance       float32 `json:"balance"`
+	Credit        float64 `json:"credit"`
+	Debit         float64 `json:"debit"`
+	Balance       float64 `json:"balance"`
 	AccountNumber int32   `json:"accountNumber"`
 	enterprise    int32
 }
@@ -242,7 +242,7 @@ func locateAccountForBanks(enterpriseId int32) []AccountLocate {
 
 // Will add or take out credit and debit (if given a negative amount)
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (a *Account) addCreditAndDebit(credit float32, debit float32) bool {
+func (a *Account) addCreditAndDebit(credit float64, debit float64) bool {
 	if a.Id <= 0 {
 		return false
 	}

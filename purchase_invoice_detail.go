@@ -8,10 +8,10 @@ type PurchaseInvoiceDetail struct {
 	Id          int64   `json:"id"`
 	Invoice     int64   `json:"invoice"`
 	Product     int32   `json:"product"`
-	Price       float32 `json:"price"`
+	Price       float64 `json:"price"`
 	Quantity    int32   `json:"quantity"`
-	VatPercent  float32 `json:"vatPercent"`
-	TotalAmount float32 `json:"totalAmount"`
+	VatPercent  float64 `json:"vatPercent"`
+	TotalAmount float64 `json:"totalAmount"`
 	OrderDetail *int64  `json:"orderDetail"`
 	ProductName string  `json:"productName"`
 	enterprise  int32
@@ -56,7 +56,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		return false
 	}
 
-	s.TotalAmount = (s.Price * float32(s.Quantity)) * (1 + (s.VatPercent / 100))
+	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 
 	var trans *sql.Tx
 	if beginTransaction {
@@ -81,7 +81,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		return false
 	}
 
-	ok := addTotalProductsPurchaseInvoice(s.Invoice, s.Price*float32(s.Quantity), s.VatPercent)
+	ok := addTotalProductsPurchaseInvoice(s.Invoice, s.Price*float64(s.Quantity), s.VatPercent)
 	if !ok {
 		if beginTransaction {
 			trans.Rollback()
@@ -139,7 +139,7 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 		return false
 	}
 
-	ok := addTotalProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float32(detailInMemory.Quantity)), detailInMemory.VatPercent)
+	ok := addTotalProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
 	if !ok {
 		trans.Rollback()
 		return false

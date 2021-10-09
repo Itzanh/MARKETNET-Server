@@ -15,19 +15,19 @@ type PurchaseDeliveryNote struct {
 	PaymentMethod      int32     `json:"paymentMethod"`
 	BillingSeries      string    `json:"billingSeries"`
 	ShippingAddress    int32     `json:"shippingAddress"`
-	TotalProducts      float32   `json:"totalProducts"`
-	DiscountPercent    float32   `json:"discountPercent"`
-	FixDiscount        float32   `json:"fixDiscount"`
-	ShippingPrice      float32   `json:"shippingPrice"`
-	ShippingDiscount   float32   `json:"shippingDiscount"`
-	TotalWithDiscount  float32   `json:"totalWithDiscount"`
-	TotalVat           float32   `json:"totalVat"`
-	TotalAmount        float32   `json:"totalAmount"`
+	TotalProducts      float64   `json:"totalProducts"`
+	DiscountPercent    float64   `json:"discountPercent"`
+	FixDiscount        float64   `json:"fixDiscount"`
+	ShippingPrice      float64   `json:"shippingPrice"`
+	ShippingDiscount   float64   `json:"shippingDiscount"`
+	TotalWithDiscount  float64   `json:"totalWithDiscount"`
+	TotalVat           float64   `json:"totalVat"`
+	TotalAmount        float64   `json:"totalAmount"`
 	LinesNumber        int16     `json:"linesNumber"`
 	DeliveryNoteNumber int32     `json:"deliveryNoteNumber"`
 	DeliveryNoteName   string    `json:"deliveryNoteName"`
 	Currency           int32     `json:"currency"`
-	CurrencyChange     float32   `json:"currencyChange"`
+	CurrencyChange     float64   `json:"currencyChange"`
 	SupplierName       string    `json:"supplierName"`
 	enterprise         int32
 }
@@ -329,7 +329,7 @@ func getPurchaseDeliveryNoteOrders(noteId int32, enterpriseId int32) []PurchaseO
 
 // Adds a total amount to the delivery note total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsPurchaseDeliveryNote(noteId int64, totalAmount float32, vatPercent float32) bool {
+func addTotalProductsPurchaseDeliveryNote(noteId int64, totalAmount float64, vatPercent float64) bool {
 	sqlStatement := `UPDATE purchase_delivery_note SET total_products=total_products+$2,total_vat=total_vat+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {

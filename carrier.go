@@ -5,10 +5,10 @@ import "strings"
 type Carrier struct {
 	Id                      int32   `json:"id"`
 	Name                    string  `json:"name"`
-	MaxWeight               float32 `json:"maxWeight"`
-	MaxWidth                float32 `json:"maxWidth"`
-	MaxHeight               float32 `json:"maxHeight"`
-	MaxDepth                float32 `json:"maxDepth"`
+	MaxWeight               float64 `json:"maxWeight"`
+	MaxWidth                float64 `json:"maxWidth"`
+	MaxHeight               float64 `json:"maxHeight"`
+	MaxDepth                float64 `json:"maxDepth"`
 	MaxPackages             int16   `json:"maxPackages"`
 	Phone                   string  `json:"phone"`
 	Email                   string  `json:"email"`

@@ -11,8 +11,8 @@ type AccountingMovementDetail struct {
 	Journal           int32     `json:"journal"`
 	Account           int32     `json:"account"`
 	DateCreated       time.Time `json:"dateCreated"`
-	Credit            float32   `json:"credit"`
-	Debit             float32   `json:"debit"`
+	Credit            float64   `json:"credit"`
+	Debit             float64   `json:"debit"`
 	Type              string    `json:"type"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
 	Note              string    `json:"note"`
 	DocumentName      string    `json:"documentName"`
@@ -78,8 +78,8 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 	}
 
 	// Round float to 2 decimal places (round to nearest)
-	a.Credit = float32(math.Round(float64(a.Credit)*100) / 100)
-	a.Debit = float32(math.Round(float64(a.Debit)*100) / 100)
+	a.Credit = float64(math.Round(float64(a.Credit)*100) / 100)
+	a.Debit = float64(math.Round(float64(a.Debit)*100) / 100)
 
 	sqlStatement := `INSERT INTO public.accounting_movement_detail(movement, journal, account, credit, debit, type, note, document_name, payment_method, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.Movement, a.Journal, a.Account, a.Credit, a.Debit, a.Type, a.Note, a.DocumentName, a.PaymentMethod, a.enterprise)
