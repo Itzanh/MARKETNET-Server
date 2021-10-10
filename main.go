@@ -2410,6 +2410,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(removeUserFromGoogleAuthenticator(int32(id), enterpriseId))
+	case "TOGGLE_SIMPLIFIED_INVOICE_SALES_INVOICE":
+		if !permissions.Sales {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(toggleSimplifiedInvoiceSalesInvoice(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }

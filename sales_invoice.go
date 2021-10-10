@@ -261,6 +261,19 @@ func (i *SalesInvoice) deleteSalesInvoice() bool {
 	return rows > 0
 }
 
+func toggleSimplifiedInvoiceSalesInvoice(invoiceId int32, enterpriseId int32) bool {
+	sqlStatement := `UPDATE sales_invoice SET simplified_invoice = NOT simplified_invoice WHERE id=$1 AND enterprise=$2`
+	res, err := db.Exec(sqlStatement, invoiceId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+
+}
+
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64) bool {
