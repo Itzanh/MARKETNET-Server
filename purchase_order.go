@@ -332,7 +332,7 @@ func getPurchaseOrderInvoices(orderId int64, enterpriseId int32) []PurchaseInvoi
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise)
+			&i.AccountingMovement, &i.Amending, &i.AmendedInvoice, &i.enterprise)
 		invoices = append(invoices, i)
 	}
 

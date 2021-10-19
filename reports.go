@@ -185,7 +185,7 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product, enterpriseId)
+		product := getNameProduct(*details[i].Product, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)

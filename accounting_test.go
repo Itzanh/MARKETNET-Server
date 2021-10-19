@@ -272,6 +272,9 @@ func TestSalesPostInvoices(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
+	var product int32 = 4
+	var product2 int32 = 1
+
 	// insert invoice and details
 	i := SalesInvoice{
 		Customer:       1,
@@ -284,7 +287,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	_, invoiceId := i.insertSalesInvoice()
 	d := SalesInvoiceDetail{
 		Invoice:    invoiceId,
-		Product:    4,
+		Product:    &product,
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
@@ -293,7 +296,7 @@ func TestSalesPostInvoices(t *testing.T) {
 	d.insertSalesInvoiceDetail(true)
 	d = SalesInvoiceDetail{
 		Invoice:    invoiceId,
-		Product:    1,
+		Product:    &product2,
 		Price:      4.99,
 		Quantity:   1,
 		VatPercent: 21,
@@ -501,6 +504,9 @@ func TestPurchasePostInvoices(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
+	var product int32 = 4
+	var product2 int32 = 1
+
 	// insert invoice and details
 	i := PurchaseInvoice{
 		Supplier:       1,
@@ -513,7 +519,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	_, invoiceId := i.insertPurchaseInvoice()
 	d := PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
-		Product:    4,
+		Product:    &product,
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
@@ -522,7 +528,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	d.insertPurchaseInvoiceDetail(true)
 	d = PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
-		Product:    1,
+		Product:    &product2,
 		Price:      4.99,
 		Quantity:   1,
 		VatPercent: 21,

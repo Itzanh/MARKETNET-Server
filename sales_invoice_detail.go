@@ -7,13 +7,14 @@ import (
 type SalesInvoiceDetail struct {
 	Id          int64   `json:"id"`
 	Invoice     int64   `json:"invoice"`
-	Product     int32   `json:"product"`
+	Product     *int32  `json:"product"`
 	Price       float64 `json:"price"`
 	Quantity    int32   `json:"quantity"`
 	VatPercent  float64 `json:"vatPercent"`
 	TotalAmount float64 `json:"totalAmount"`
 	OrderDetail *int64  `json:"orderDetail"`
 	ProductName string  `json:"productName"`
+	Description string  `json:"description"`
 	enterprise  int32
 }
 
@@ -27,7 +28,7 @@ func getSalesInvoiceDetail(invoiceId int64, enterpriseId int32) []SalesInvoiceDe
 	}
 	for rows.Next() {
 		d := SalesInvoiceDetail{}
-		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.ProductName)
+		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -42,13 +43,13 @@ func getSalesInvoiceDetailRow(detailId int64) SalesInvoiceDetail {
 		return SalesInvoiceDetail{}
 	}
 	d := SalesInvoiceDetail{}
-	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise)
+	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description)
 
 	return d
 }
 
 func (d *SalesInvoiceDetail) isValid() bool {
-	return !(d.Invoice <= 0 || d.Product <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
+	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || (d.Product != nil && *d.Product <= 0) || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
 func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) bool {
@@ -69,8 +70,8 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) boo
 		///
 	}
 
-	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise)
+	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
 	if err != nil {
 		log("DB", err.Error())
 		return false

@@ -641,6 +641,8 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
+	var product int32 = 3
+
 	i := PurchaseInvoice{
 		Supplier:       1,
 		PaymentMethod:  1,
@@ -654,7 +656,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 
 	d := PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
-		Product:    3,
+		Product:    &product,
 		Price:      15,
 		Quantity:   3,
 		VatPercent: 21,

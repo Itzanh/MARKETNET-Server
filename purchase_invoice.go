@@ -29,6 +29,8 @@ type PurchaseInvoice struct {
 	InvoiceName        string    `json:"invoiceName"`
 	AccountingMovement *int64    `json:"accountingMovement"`
 	SupplierName       string    `json:"supplierName"`
+	Amending           bool      `json:"amending"`
+	AmendedInvoice     *int64    `json:"amendedInvoice"`
 	enterprise         int32
 }
 
@@ -44,7 +46,7 @@ func getPurchaseInvoices(enterpriseId int32) []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.SupplierName)
+			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -86,7 +88,7 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.SupplierName)
+			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -104,7 +106,7 @@ func getPurchaseInvoiceRow(invoiceId int64) PurchaseInvoice {
 	i := PurchaseInvoice{}
 	row.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-		&i.AccountingMovement, &i.enterprise)
+		&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice)
 
 	return i
 }
@@ -181,6 +183,62 @@ func (i *PurchaseInvoice) deletePurchaseInvoice() bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+func makeAmendingPurchaseInvoice(invoiceId int64, enterpriseId int32, quantity float64, description string) bool {
+	i := getPurchaseInvoiceRow(invoiceId)
+	if i.Id <= 0 || i.enterprise != enterpriseId {
+		return false
+	}
+
+	// we can't make an amending invoice the same day as the original invoice
+	now := time.Now()
+	if i.DateCreated.Year() == now.Year() && i.DateCreated.YearDay() == now.YearDay() {
+		return false
+	}
+	// we can't make an amending invoice with a greater amount that the original invoice
+	if quantity <= 0 || quantity > i.TotalAmount {
+		return false
+	}
+
+	settings := getSettingsRecordById(enterpriseId)
+
+	// get invoice name
+	invoiceNumber := getNextPurchaseInvoiceNumber(i.BillingSeries, i.enterprise)
+	if i.InvoiceNumber <= 0 {
+		return false
+	}
+	invoiceName := i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
+
+	var detailAmount float64
+	var vatPercent float64
+	// VAT excluded invoice, when amending the invoice, we are not returning any tax money
+	if i.VatAmount == 0 {
+		detailAmount = quantity
+		vatPercent = 0
+	} else { // Invoice with VAT, we return the quantity without the tax to the customer, and then we add the tax percent, so the total of the invoice is the amount we want to return (in taxes and to the customer)
+		detailAmount = quantity / (1 + (settings.DefaultVatPercent / 100))
+		vatPercent = settings.DefaultVatPercent
+	}
+	var vatAmount float64 = (quantity / 100) * vatPercent
+
+	sqlStatement := `INSERT INTO public.purchase_invoice(supplier, payment_method, billing_series, currency, currency_change, billing_address, enterprise, amending, amended_invoice, invoice_number, invoice_name, total_products, total_with_discount, vat_amount, total_amount, discount_percent, fix_discount, shipping_price, shipping_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, 0, 0, 0) RETURNING id`
+	row := db.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, enterpriseId, true, i.Id, invoiceNumber, invoiceName, -detailAmount, -detailAmount, -vatAmount, -quantity)
+
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var amendingInvoiceId int64
+	row.Scan(&amendingInvoiceId)
+
+	sqlStatement = `INSERT INTO public.purchase_invoice_details(invoice, description, price, quantity, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	_, err := db.Exec(sqlStatement, amendingInvoiceId, description, -detailAmount, 1, vatPercent, -quantity, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+	}
+	return err == nil
 }
 
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
@@ -261,7 +319,7 @@ func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32) bool {
 		invoiceDetail.Invoice = invoiceId
 		invoiceDetail.OrderDetail = &orderDetail.Id
 		invoiceDetail.Price = orderDetail.Price
-		invoiceDetail.Product = orderDetail.Product
+		invoiceDetail.Product = &orderDetail.Product
 		invoiceDetail.Quantity = orderDetail.Quantity
 		invoiceDetail.TotalAmount = orderDetail.TotalAmount
 		invoiceDetail.VatPercent = orderDetail.VatPercent
@@ -328,7 +386,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 		invoiceDetail.Invoice = invoiceId
 		invoiceDetail.OrderDetail = &orderDetail.Id
 		invoiceDetail.Price = orderDetail.Price
-		invoiceDetail.Product = orderDetail.Product
+		invoiceDetail.Product = &orderDetail.Product
 		invoiceDetail.Quantity = invoiceInfo.Selection[i].Quantity
 		invoiceDetail.TotalAmount = orderDetail.TotalAmount
 		invoiceDetail.VatPercent = orderDetail.VatPercent

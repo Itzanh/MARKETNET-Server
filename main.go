@@ -2418,7 +2418,21 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(toggleSimplifiedInvoiceSalesInvoice(int32(id), enterpriseId))
+		data, _ = json.Marshal(toggleSimplifiedInvoiceSalesInvoice(int64(id), enterpriseId))
+	case "MAKE_AMENDING_SALE_INVOICE":
+		if !permissions.Sales {
+			return
+		}
+		var makeAmendingInvoice MakeAmendingInvoice
+		json.Unmarshal([]byte(message), &makeAmendingInvoice)
+		data, _ = json.Marshal(makeAmendingSaleInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description))
+	case "MAKE_AMENDING_PURCHASE_INVOICE":
+		if !permissions.Sales {
+			return
+		}
+		var makeAmendingInvoice MakeAmendingInvoice
+		json.Unmarshal([]byte(message), &makeAmendingInvoice)
+		data, _ = json.Marshal(makeAmendingPurchaseInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description))
 	}
 	ws.WriteMessage(mt, data)
 }
