@@ -850,6 +850,7 @@ func TestGetSalesInvoiceRelations(t *testing.T) {
 
 	var checkOrders int8 = 0        // 0 = Not checked, 1 = OK, 2 = Error
 	var checkDeliveryNotes int8 = 0 // 0 = Not checked, 1 = OK, 2 = Error
+	var checkInvoices int8 = 0      // 0 = Not checked, 1 = OK, 2 = Error
 
 	for i := 0; i < len(o.Invoices); i++ {
 		r := getSalesInvoiceRelations(o.Invoices[i].Id, 1)
@@ -870,12 +871,20 @@ func TestGetSalesInvoiceRelations(t *testing.T) {
 			}
 		}
 
-		if checkOrders != 0 || checkDeliveryNotes != 0 {
+		if checkInvoices == 0 && len(r.Invoices) > 0 {
+			if r.Invoices[0].Id <= 0 {
+				checkInvoices = 2
+			} else {
+				checkInvoices = 1
+			}
+		}
+
+		if checkOrders != 0 || checkDeliveryNotes != 0 || checkInvoices != 0 {
 			break
 		}
 	}
 
-	if checkOrders == 2 || checkDeliveryNotes == 2 {
+	if checkOrders == 2 || checkDeliveryNotes == 2 || checkInvoices == 2 {
 		t.Errorf("Error scanning sale order relations checkOrders %q checkShippings %q", checkOrders, checkDeliveryNotes)
 	}
 }

@@ -302,6 +302,12 @@ func (q *PaginationQuery) isValid() bool {
 	return !(q.Offset < 0 || q.Limit <= 0)
 }
 
+type OperationResult struct {
+	Id        int64  `json:"id"`
+	Code      uint16 `json:"code"`
+	ExtraData string `json:"extraData"`
+}
+
 func instructionGet(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32) {
 	var found bool = true
 	var data []byte
@@ -807,6 +813,24 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getConnectionFilterUser(int32(id), enterpriseId))
+	case "ADDRESS_ROW":
+		if !permissions.Masters {
+			return
+		}
+		address := getAddressRow(int32(id))
+		if address.enterprise != enterpriseId {
+			return
+		}
+		data, _ = json.Marshal(address)
+	case "ACCOUNTING_MOVEMENT_ROW":
+		if !permissions.Accounting {
+			return
+		}
+		address := getAccountingMovementRow(int64(id))
+		if address.enterprise != enterpriseId {
+			return
+		}
+		data, _ = json.Marshal(address)
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -815,12 +839,38 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	var ok bool
 
 	if permissions.Masters {
+		var found bool
+		var operationResult OperationResult
 		switch command {
 		case "ADDRESS":
 			var address Address
 			json.Unmarshal(message, &address)
 			address.enterprise = enterpriseId
-			ok = address.insertAddress()
+			operationResult = address.insertAddress()
+			found = true
+		case "CUSTOMER":
+			var customer Customer
+			json.Unmarshal(message, &customer)
+			customer.enterprise = enterpriseId
+			operationResult = customer.insertCustomer()
+			found = true
+		case "SUPPLIER":
+			var supplier Supplier
+			json.Unmarshal(message, &supplier)
+			supplier.enterprise = enterpriseId
+			operationResult = supplier.insertSupplier()
+			found = true
+		}
+
+		if found {
+			data, _ := json.Marshal(operationResult)
+			ws.WriteMessage(mt, data)
+			return
+		}
+	}
+
+	if permissions.Masters {
+		switch command {
 		case "BILLING_SERIE":
 			var serie BillingSerie
 			json.Unmarshal(message, &serie)
@@ -851,11 +901,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			json.Unmarshal(message, &state)
 			state.enterprise = enterpriseId
 			ok = state.insertState()
-		case "CUSTOMER":
-			var customer Customer
-			json.Unmarshal(message, &customer)
-			customer.enterprise = enterpriseId
-			ok, _ = customer.insertCustomer()
 		case "PRODUCT":
 			var product Product
 			json.Unmarshal(message, &product)
@@ -891,11 +936,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			json.Unmarshal(message, &shipping)
 			shipping.enterprise = enterpriseId
 			ok, _ = shipping.insertShipping()
-		case "SUPPLIER":
-			var supplier Supplier
-			json.Unmarshal(message, &supplier)
-			supplier.enterprise = enterpriseId
-			ok = supplier.insertSupplier()
 		case "DOCUMENT_CONTAINER":
 			var documentContainer DocumentContainer
 			json.Unmarshal(message, &documentContainer)
@@ -2006,6 +2046,26 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 		var supplierLocateQuery SupplierLocateQuery
 		json.Unmarshal([]byte(message), &supplierLocateQuery)
 		data, _ = json.Marshal(supplierLocateQuery.locateSuppliers(enterpriseId))
+	case "CURRENCIES":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateCurrency(enterpriseId))
+	case "CARRIER":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateCarriers(enterpriseId))
+	case "PAYMENT_METHOD":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locatePaymentMethods(enterpriseId))
+	case "BILLING_SERIE":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateBillingSeries(enterpriseId))
 	default:
 		found = false
 	}
@@ -2260,7 +2320,12 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(getProductRow(int32(id)))
+		p := getProductRow(int32(id))
+		if p.enterprise != enterpriseId {
+			data = []byte("false")
+			break
+		}
+		data, _ = json.Marshal(p)
 	case "PRODUCT_EAN13":
 		id, err := strconv.Atoi(message)
 		if err != nil {

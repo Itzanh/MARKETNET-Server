@@ -136,3 +136,25 @@ func getNameCarrier(id int32, enterpriseId int32) string {
 	row.Scan(&name)
 	return name
 }
+
+type LocateCarrier struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func locateCarriers(enterpriseId int32) []LocateCarrier {
+	var carriers []LocateCarrier = make([]LocateCarrier, 0)
+	sqlStatement := `SELECT id,name FROM public.carrier WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return carriers
+	}
+	for rows.Next() {
+		c := LocateCarrier{}
+		rows.Scan(&c.Id, &c.Name)
+		carriers = append(carriers, c)
+	}
+
+	return carriers
+}

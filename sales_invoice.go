@@ -517,12 +517,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 type SalesInvoiceRelations struct {
 	Orders        []SaleOrder         `json:"orders"`
 	DeliveryNotes []SalesDeliveryNote `json:"notes"`
+	Invoices      []SalesInvoice      `json:"invoices"`
 }
 
 func getSalesInvoiceRelations(invoiceId int64, enterpriseId int32) SalesInvoiceRelations {
 	return SalesInvoiceRelations{
 		Orders:        getSalesInvoiceOrders(invoiceId, enterpriseId),
 		DeliveryNotes: getSalesInvoiceDeliveryNotes(invoiceId, enterpriseId),
+		Invoices:      getSalesInvoiceAmendingAmendedInvoices(invoiceId, enterpriseId),
 	}
 }
 
@@ -561,4 +563,34 @@ func getSalesInvoiceDeliveryNotes(invoiceId int64, enterpriseId int32) []SalesDe
 	}
 
 	return notes
+}
+
+func getSalesInvoiceAmendingAmendedInvoices(invoiceId int64, enterpriseId int32) []SalesInvoice {
+	invoices := make([]SalesInvoice, 0)
+
+	i := getSalesInvoiceRow(invoiceId)
+	if i.enterprise != enterpriseId {
+		return invoices
+	}
+
+	if i.Amending && i.AmendedInvoice != nil {
+		invoices = append(invoices, getSalesInvoiceRow(*i.AmendedInvoice))
+	}
+
+	sqlStatement := `SELECT * FROM sales_invoice WHERE amended_invoice=$1`
+	rows, err := db.Query(sqlStatement, i.Id)
+	if err != nil {
+		log("DB", err.Error())
+		return invoices
+	}
+
+	for rows.Next() {
+		inv := SalesInvoice{}
+		rows.Scan(&inv.Id, &inv.Customer, &inv.DateCreated, &inv.PaymentMethod, &inv.BillingSeries, &inv.Currency, &inv.CurrencyChange, &inv.BillingAddress, &inv.TotalProducts,
+			&inv.DiscountPercent, &inv.FixDiscount, &inv.ShippingPrice, &inv.ShippingDiscount, &inv.TotalWithDiscount, &inv.VatAmount, &inv.TotalAmount, &inv.LinesNumber, &inv.InvoiceNumber, &inv.InvoiceName,
+			&inv.AccountingMovement, &inv.enterprise, &inv.SimplifiedInvoice, &inv.Amending, &inv.AmendedInvoice)
+		invoices = append(invoices, inv)
+	}
+
+	return invoices
 }

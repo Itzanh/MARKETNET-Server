@@ -99,16 +99,18 @@ func (a *Address) isValid() bool {
 	return !((a.Customer == nil && a.Supplier == nil) || (a.Customer != nil && *a.Customer <= 0) || (a.Supplier != nil && *a.Supplier <= 0) || len(a.Address) == 0 || len(a.Address) > 200 || len(a.Address2) > 200 || len(a.City) == 0 || len(a.City) > 100 || a.Country <= 0 || (a.PrivateOrBusiness != "P" && a.PrivateOrBusiness != "B" && a.PrivateOrBusiness != "_") || len(a.Notes) > 1000 || len(a.ZipCode) > 12)
 }
 
-func (a *Address) insertAddress() bool {
+// 1 = Invalid
+// 2 = Database error
+func (a *Address) insertAddress() OperationResult {
 	if !a.isValid() {
-		return false
+		return OperationResult{Code: 1}
 	}
 
 	sqlStatement := `INSERT INTO address(customer, address, address_2, city, state, country, private_business, notes, supplier, ps_id, zip_code, sy_id, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`
 	row := db.QueryRow(sqlStatement, a.Customer, a.Address, a.Address2, a.City, a.State, a.Country, a.PrivateOrBusiness, a.Notes, a.Supplier, a.prestaShopId, a.ZipCode, a.shopifyId, a.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
-		return false
+		return OperationResult{Code: 2}
 	}
 
 	var addressId int32
@@ -138,7 +140,7 @@ func (a *Address) insertAddress() bool {
 	}
 
 	a.Id = addressId
-	return true
+	return OperationResult{Id: int64(addressId)}
 }
 
 func (a *Address) updateAddress() bool {

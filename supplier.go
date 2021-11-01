@@ -81,9 +81,11 @@ func (s *Supplier) isValid() bool {
 	return !(len(s.Name) == 0 || len(s.Name) > 303 || len(s.Tradename) == 0 || len(s.Tradename) > 150 || len(s.FiscalName) == 0 || len(s.FiscalName) > 150 || len(s.TaxId) > 25 || len(s.VatNumber) > 25 || len(s.Phone) > 25 || len(s.Email) > 100)
 }
 
-func (s *Supplier) insertSupplier() bool {
+// 1 = Invalid
+// 2 = Database error
+func (s *Supplier) insertSupplier() OperationResult {
 	if !s.isValid() {
-		return false
+		return OperationResult{Code: 1}
 	}
 
 	// prevent error in the biling serie
@@ -96,15 +98,17 @@ func (s *Supplier) insertSupplier() bool {
 		s.setSupplierAccount()
 	}
 
-	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, account, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
-	res, err := db.Exec(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries, s.Account, s.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		return false
+	sqlStatement := `INSERT INTO public.suppliers(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, account, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`
+	row := db.QueryRow(sqlStatement, s.Name, s.Tradename, s.FiscalName, s.TaxId, s.VatNumber, s.Phone, s.Email, s.MainAddress, s.Country, s.State, s.MainShippingAddress, s.MainBillingAddress, s.Language, s.PaymentMethod, s.BillingSeries, s.Account, s.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OperationResult{Code: 2}
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	var supplierId int32
+	row.Scan(&supplierId)
+
+	return OperationResult{Id: int64(supplierId)}
 }
 
 func (s *Supplier) updateSupplier() bool {
@@ -284,7 +288,7 @@ func (q *SupplierLocateQuery) locateSuppliers(enterpriseId int32) []SupplierLoca
 		}
 	} else if q.Mode == 1 {
 		sqlStatement = `SELECT id,name FROM public.suppliers WHERE name ILIKE $1 AND enterprise=$2 ORDER BY id ASC`
-		parameters = append(parameters, "%"+q.Value+"%", enterpriseId)
+		parameters = append(parameters, "%"+q.Value+"%")
 		parameters = append(parameters, enterpriseId)
 	}
 	rows, err := db.Query(sqlStatement, parameters...)

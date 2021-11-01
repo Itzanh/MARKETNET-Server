@@ -754,13 +754,13 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 			var customer Customer
 			json.Unmarshal(body, &customer)
 			customer.enterprise = enterpriseId
-			ok, _ = customer.insertCustomer()
+			ok = customer.insertCustomer().Id > 0
 		} else if string(body[0]) == "[" {
 			var customers []Customer
 			json.Unmarshal(body, &customers)
 			for i := 0; i < len(customers); i++ {
 				customers[i].enterprise = enterpriseId
-				ok, _ = customers[i].insertCustomer()
+				ok = customers[i].insertCustomer().Id > 0
 				if !ok {
 					break
 				}
@@ -820,13 +820,13 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 			var supplier Supplier
 			json.Unmarshal(body, &supplier)
 			supplier.enterprise = enterpriseId
-			ok = supplier.insertSupplier()
+			ok = supplier.insertSupplier().Id > 0
 		} else if string(body[0]) == "[" {
 			var suppliers []Supplier
 			json.Unmarshal(body, &suppliers)
 			for i := 0; i < len(suppliers); i++ {
 				suppliers[i].enterprise = enterpriseId
-				ok = suppliers[i].insertSupplier()
+				ok = suppliers[i].insertSupplier().Id > 0
 				if !ok {
 					break
 				}
@@ -1163,13 +1163,13 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 			var address Address
 			json.Unmarshal(body, &address)
 			address.enterprise = enterpriseId
-			ok = address.insertAddress()
+			ok = address.insertAddress().Id > 0
 		} else if string(body[0]) == "[" {
 			var addresses []Address
 			json.Unmarshal(body, &addresses)
 			for i := 0; i < len(addresses); i++ {
 				addresses[i].enterprise = enterpriseId
-				ok = addresses[i].insertAddress()
+				ok = addresses[i].insertAddress().Id > 0
 				if !ok {
 					break
 				}

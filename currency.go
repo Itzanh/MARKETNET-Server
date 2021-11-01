@@ -130,6 +130,28 @@ func getNameCurrency(id int32, enterpriseId int32) string {
 	return name
 }
 
+type LocateCurrency struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func locateCurrency(enterpriseId int32) []LocateCurrency {
+	var currencies []LocateCurrency = make([]LocateCurrency, 0)
+	sqlStatement := `SELECT id,name FROM public.currency WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return currencies
+	}
+	for rows.Next() {
+		c := LocateCurrency{}
+		rows.Scan(&c.Id, &c.Name)
+		currencies = append(currencies, c)
+	}
+
+	return currencies
+}
+
 func updateCurrencyExchange(enterpriseId int32) {
 	if getSettingsRecordById(enterpriseId).Currency != "E" {
 		return

@@ -480,7 +480,7 @@ func getSalesOrderInvoices(orderId int64, enterpriseId int32) []SalesInvoice {
 func getSalesOrderManufacturingOrders(orderId int64, enterpriseId int32) []ManufacturingOrder {
 	// MANUFACTURING ORDERS
 	var manufacturingOrders []ManufacturingOrder = make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE "order"=$1 AND enterprise=$2 ORDER BY date_created DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type) FROM public.manufacturing_order WHERE "order"=$1 AND enterprise=$2 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -488,7 +488,7 @@ func getSalesOrderManufacturingOrders(orderId int64, enterpriseId int32) []Manuf
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.TypeName)
 		manufacturingOrders = append(manufacturingOrders, o)
 	}
 

@@ -125,3 +125,25 @@ func getNamePaymentMethod(id int32, enterpriseId int32) string {
 	row.Scan(&name)
 	return name
 }
+
+type LocatePaymentMethod struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func locatePaymentMethods(enterpriseId int32) []LocatePaymentMethod {
+	var paymentMethod []LocatePaymentMethod = make([]LocatePaymentMethod, 0)
+	sqlStatement := `SELECT id,name FROM public.payment_method WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return paymentMethod
+	}
+	for rows.Next() {
+		p := LocatePaymentMethod{}
+		rows.Scan(&p.Id, &p.Name)
+		paymentMethod = append(paymentMethod, p)
+	}
+
+	return paymentMethod
+}

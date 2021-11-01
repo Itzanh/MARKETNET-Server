@@ -187,3 +187,25 @@ func getNameBillingSerie(id string, enterpriseId int32) string {
 	row.Scan(&name)
 	return name
 }
+
+type LocateBillingSerie struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func locateBillingSeries(enterpriseId int32) []LocateBillingSerie {
+	var series []LocateBillingSerie = make([]LocateBillingSerie, 0)
+	sqlStatement := `SELECT id,name FROM public.billing_series WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return series
+	}
+	for rows.Next() {
+		s := LocateBillingSerie{}
+		rows.Scan(&s.Id, &s.Name)
+		series = append(series, s)
+	}
+
+	return series
+}

@@ -115,9 +115,11 @@ func (c *Customer) isValid() bool {
 	return !(len(c.Name) == 0 || len(c.Name) > 303 || len(c.Tradename) == 0 || len(c.Tradename) > 150 || len(c.FiscalName) == 0 || len(c.FiscalName) > 150 || len(c.TaxId) > 25 || len(c.VatNumber) > 25 || len(c.Phone) > 25 || len(c.Email) > 100)
 }
 
-func (c *Customer) insertCustomer() (bool, int32) {
+// 1 = Invalid
+// 2 = Database error
+func (c *Customer) insertCustomer() OperationResult {
 	if !c.isValid() {
-		return false, 0
+		return OperationResult{Code: 1}
 	}
 
 	// prevent error in the biling serie
@@ -134,13 +136,13 @@ func (c *Customer) insertCustomer() (bool, int32) {
 	row := db.QueryRow(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.prestaShopId, c.Account, c.wooCommerceId, c.shopifyId, c.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
-		return false, 0
+		return OperationResult{Code: 2}
 	}
 
 	var customerId int32
 	row.Scan(&customerId)
 
-	return customerId > 0, customerId
+	return OperationResult{Id: int64(customerId)}
 }
 
 func (c *Customer) updateCustomer() bool {

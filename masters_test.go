@@ -110,12 +110,13 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok, customerId := c.insertCustomer()
+	res := c.insertCustomer()
+	ok, customerId := res.Id > 0, res.Id
 	if !ok {
 		t.Error("Insert error, customer not inserted")
 		return
 	}
-	c.Id = customerId
+	c.Id = int32(customerId)
 
 	c.TaxId = "ABCDEF1234"
 	ok = c.updateCustomer()
@@ -214,14 +215,15 @@ func TestSetCustomerAccount(t *testing.T) {
 	}
 
 	// insert
-	ok, customerId := c.insertCustomer()
+	res := c.insertCustomer()
+	ok, customerId := res.Id > 0, res.Id
 	if !ok {
 		t.Error("Insert error, customer not inserted")
 		return
 	}
 
 	// update
-	c.Id = customerId
+	c.Id = int32(customerId)
 
 	c.setCustomerAccount()
 
@@ -391,7 +393,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok := c.insertSupplier()
+	ok := c.insertSupplier().Id > 0
 	if !ok {
 		t.Error("Insert error, supplier not inserted")
 		return
@@ -496,7 +498,7 @@ func TestSetSupplierAccount(t *testing.T) {
 	}
 
 	// insert
-	ok := s.insertSupplier()
+	ok := s.insertSupplier().Id > 0
 	if !ok {
 		t.Error("Insert error, supplier not inserted")
 		return
@@ -1412,7 +1414,7 @@ func TestAddressInsertUpdateDelete(t *testing.T) {
 		enterprise:        1,
 	}
 
-	ok := a.insertAddress()
+	ok := a.insertAddress().Id > 0
 	if !ok {
 		t.Error("Insert error, can't insert address")
 		return
@@ -1507,6 +1509,18 @@ func TestGetCarierRow(t *testing.T) {
 	}
 }
 
+func TestLocateCarriers(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	carriers := locateCarriers(1)
+	if len(carriers) == 0 || carriers[0].Id <= 0 {
+		t.Error("Can't scan carriers")
+		return
+	}
+}
+
 /* INSERT - UPDATE - DELETE */
 
 func TestCarrierInsertUpdateDelete(t *testing.T) {
@@ -1591,6 +1605,18 @@ func TestGetBillingSeries(t *testing.T) {
 	}
 
 	billingSeries := getBillingSeries(1)
+	if len(billingSeries) == 0 || len(billingSeries[0].Id) == 0 {
+		t.Error("Can't scan billing series")
+		return
+	}
+}
+
+func TestLocateBillingSeries(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	billingSeries := locateBillingSeries(1)
 	if len(billingSeries) == 0 || len(billingSeries[0].Id) == 0 {
 		t.Error("Can't scan billing series")
 		return
@@ -1730,6 +1756,18 @@ func TestGetCurrencies(t *testing.T) {
 	}
 }
 
+func TestLocateCurrency(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	currencies := locateCurrency(1)
+	if len(currencies) == 0 || currencies[0].Id <= 0 {
+		t.Error("Can't scan currencies")
+		return
+	}
+}
+
 /* INSERT - UPDATE - DELETE */
 
 func TestCurrenciesInsertUpdateDelete(t *testing.T) {
@@ -1838,6 +1876,18 @@ func TestGetPaymentMethodRow(t *testing.T) {
 	carrier := getPaymentMethodRow(1)
 	if carrier.Id <= 0 {
 		t.Error("Can't scan payment method row")
+		return
+	}
+}
+
+func TestLocatePaymentMethods(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	paymentMethods := locatePaymentMethods(1)
+	if len(paymentMethods) == 0 || paymentMethods[0].Id <= 0 {
+		t.Error("Can't scan payment methods")
 		return
 	}
 }

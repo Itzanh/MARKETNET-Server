@@ -405,11 +405,15 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 }
 
 type PurchaseInvoiceRelations struct {
-	Orders []PurchaseOrder `json:"orders"`
+	Orders   []PurchaseOrder   `json:"orders"`
+	Invoices []PurchaseInvoice `json:"invoices"`
 }
 
 func getPurchaseInvoiceRelations(invoiceId int64, enterpriseId int32) PurchaseInvoiceRelations {
-	return PurchaseInvoiceRelations{Orders: getPurchaseInvoiceOrders(invoiceId, enterpriseId)}
+	return PurchaseInvoiceRelations{
+		Orders:   getPurchaseInvoiceOrders(invoiceId, enterpriseId),
+		Invoices: getPurchaseInvoiceAmendingAmendedInvoices(invoiceId, enterpriseId),
+	}
 }
 
 func getPurchaseInvoiceOrders(orderId int64, enterpriseId int32) []PurchaseOrder {
@@ -429,4 +433,34 @@ func getPurchaseInvoiceOrders(orderId int64, enterpriseId int32) []PurchaseOrder
 	}
 
 	return orders
+}
+
+func getPurchaseInvoiceAmendingAmendedInvoices(invoiceId int64, enterpriseId int32) []PurchaseInvoice {
+	invoices := make([]PurchaseInvoice, 0)
+
+	i := getPurchaseInvoiceRow(invoiceId)
+	if i.enterprise != enterpriseId {
+		return invoices
+	}
+
+	if i.Amending && i.AmendedInvoice != nil {
+		invoices = append(invoices, getPurchaseInvoiceRow(*i.AmendedInvoice))
+	}
+
+	sqlStatement := `SELECT * FROM purchase_invoice WHERE amended_invoice=$1`
+	rows, err := db.Query(sqlStatement, i.Id)
+	if err != nil {
+		log("DB", err.Error())
+		return invoices
+	}
+
+	for rows.Next() {
+		inv := PurchaseInvoice{}
+		rows.Scan(&inv.Id, &inv.Supplier, &inv.DateCreated, &inv.PaymentMethod, &inv.BillingSeries, &inv.Currency, &inv.CurrencyChange, &inv.BillingAddress, &inv.TotalProducts,
+			&inv.DiscountPercent, &inv.FixDiscount, &inv.ShippingPrice, &inv.ShippingDiscount, &inv.TotalWithDiscount, &inv.VatAmount, &inv.TotalAmount, &inv.LinesNumber, &inv.InvoiceNumber, &inv.InvoiceName,
+			&inv.AccountingMovement, &inv.enterprise, &inv.Amending, &inv.AmendedInvoice)
+		invoices = append(invoices, inv)
+	}
+
+	return invoices
 }

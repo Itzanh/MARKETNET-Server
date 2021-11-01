@@ -413,7 +413,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &address)
 		for i := 0; i < len(address); i++ {
 			address[i].enterprise = enterpriseId
-			ok = address[i].insertAddress()
+			ok = address[i].insertAddress().Id > 0
 			if !ok {
 				trans.Rollback()
 				return false
@@ -488,7 +488,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &customer)
 		for i := 0; i < len(customer); i++ {
 			customer[i].enterprise = enterpriseId
-			ok, _ = customer[i].insertCustomer()
+			ok = customer[i].insertCustomer().Id > 0
 			if !ok {
 				trans.Rollback()
 				return false
@@ -698,7 +698,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &supplier)
 		for i := 0; i < len(supplier); i++ {
 			supplier[i].enterprise = enterpriseId
-			ok = supplier[i].insertSupplier()
+			ok = supplier[i].insertSupplier().Id > 0
 			if !ok {
 				trans.Rollback()
 				return false

@@ -521,7 +521,8 @@ func copySyCustomers(enterpriseId int32) {
 			}
 
 			c.enterprise = enterpriseId
-			ok, customerId := c.insertCustomer()
+			res := c.insertCustomer()
+			ok, customerId := res.Id > 0, int32(res.Id)
 			if !ok {
 				continue
 			}
