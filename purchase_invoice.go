@@ -152,6 +152,18 @@ func (i *PurchaseInvoice) deletePurchaseInvoice() bool {
 	}
 	///
 
+	// INVOICE DELETION POLICY
+	s := getSettingsRecordById(i.enterprise)
+	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
+		return false
+	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
+		invoice := getPurchaseInvoiceRow(i.Id)
+		invoiceNumber := getNextPurchaseInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
+		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
+			return false
+		}
+	}
+
 	inMemoryInvoice := getPurchaseInvoiceRow(i.Id)
 	if inMemoryInvoice.enterprise != i.enterprise {
 		return false

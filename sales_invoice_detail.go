@@ -118,6 +118,18 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 	}
 	///
 
+	// INVOICE DELETION POLICY
+	s := getSettingsRecordById(d.enterprise)
+	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
+		return false
+	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
+		i := getSalesInvoiceRow(d.Invoice)
+		invoiceNumber := getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
+		if invoiceNumber <= 0 || i.InvoiceNumber != (invoiceNumber-1) {
+			return false
+		}
+	}
+
 	detailInMemory := getSalesInvoiceDetailRow(d.Id)
 	if detailInMemory.Id <= 0 {
 		trans.Rollback()

@@ -227,6 +227,18 @@ func (i *SalesInvoice) deleteSalesInvoice() bool {
 		return false
 	}
 
+	// INVOICE DELETION POLICY
+	s := getSettingsRecordById(i.enterprise)
+	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
+		return false
+	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
+		invoice := getSalesInvoiceRow(i.Id)
+		invoiceNumber := getNextSaleInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
+		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
+			return false
+		}
+	}
+
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
