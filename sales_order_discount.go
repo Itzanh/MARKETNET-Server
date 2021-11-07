@@ -35,7 +35,7 @@ func getSalesOrderDiscountsRow(discountId int32) SalesOrderDiscount {
 	}
 
 	d := SalesOrderDiscount{}
-	row.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded)
+	row.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise)
 
 	return d
 }
