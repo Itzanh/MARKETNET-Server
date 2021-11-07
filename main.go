@@ -516,6 +516,20 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getPendingColletionOperations(enterpriseId))
+	case "SEARCH_COLLECTION_OPERATIONS":
+		if !permissions.Accounting {
+			return
+		}
+		var collectionOperationSearch CollectionOperationPaymentTransactionSearch
+		json.Unmarshal([]byte(message), &collectionOperationSearch)
+		data, _ = json.Marshal(searchCollectionOperations(collectionOperationSearch, enterpriseId))
+	case "SEARCH_PAYMENT_TRANSACTIONS":
+		if !permissions.Accounting {
+			return
+		}
+		var collectionOperationSearch CollectionOperationPaymentTransactionSearch
+		json.Unmarshal([]byte(message), &collectionOperationSearch)
+		data, _ = json.Marshal(searchPaymentTransactions(collectionOperationSearch, enterpriseId))
 	case "PENDING_PAYMENT_TRANSACTIONS":
 		if !permissions.Accounting {
 			return

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"time"
 )
 
@@ -21,12 +22,13 @@ type PaymentTransaction struct {
 	BankName                 string    `json:"bankName"`
 	PaymentMethodName        string    `json:"paymentMethodName"`
 	AccountName              string    `json:"accountName"`
+	SupplierName             *string   `json:"supplierName"`
 	enterprise               int32
 }
 
 func getPendingPaymentTransaction(enterpriseId int32) []PaymentTransaction {
 	var paymentTransaction []PaymentTransaction = make([]PaymentTransaction, 0)
-	sqlStatement := `SELECT payment_transaction.*,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account) FROM public.payment_transaction WHERE status='P' AND enterprise=$1 ORDER BY id DESC`
+	sqlStatement := `SELECT payment_transaction.*,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account),suppliers.name FROM public.payment_transaction FULL JOIN purchase_invoice ON purchase_invoice.accounting_movement=payment_transaction.accounting_movement FULL JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE status='P' AND payment_transaction.enterprise=$1 ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -34,7 +36,58 @@ func getPendingPaymentTransaction(enterpriseId int32) []PaymentTransaction {
 	}
 	for rows.Next() {
 		p := PaymentTransaction{}
-		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName)
+		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName, &p.SupplierName)
+		paymentTransaction = append(paymentTransaction, p)
+	}
+
+	return paymentTransaction
+}
+
+func searchPaymentTransactions(search CollectionOperationPaymentTransactionSearch, enterpriseId int32) []PaymentTransaction {
+	if search.isDefault() {
+		return getPendingPaymentTransaction(enterpriseId)
+	}
+
+	var paymentTransaction []PaymentTransaction = make([]PaymentTransaction, 0)
+	sqlStatement := `SELECT payment_transaction.*,(SELECT name FROM account WHERE account.id=payment_transaction.bank),(SELECT name FROM payment_method WHERE payment_method.id=payment_transaction.payment_method),(SELECT name FROM account WHERE account.id=payment_transaction.account),suppliers.name FROM public.payment_transaction FULL JOIN purchase_invoice ON purchase_invoice.accounting_movement=payment_transaction.accounting_movement FULL JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE payment_transaction.enterprise=$1`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, enterpriseId)
+
+	if search.Mode != 0 {
+		sqlStatement += ` AND payment_transaction.status=$2`
+		if search.Mode == 1 {
+			interfaces = append(interfaces, "P") // Pending
+		} else if search.Mode == 2 {
+			interfaces = append(interfaces, "C") // Paid
+		} else if search.Mode == 3 {
+			interfaces = append(interfaces, "U") // Unpaid
+		}
+	}
+
+	if search.StartDate != nil {
+		sqlStatement += ` AND payment_transaction.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, search.StartDate)
+	}
+
+	if search.EndDate != nil {
+		sqlStatement += ` AND payment_transaction.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, search.EndDate)
+	}
+
+	if len(search.Search) > 0 {
+		sqlStatement += ` AND suppliers.name ILIKE $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, "%"+search.Search+"%")
+	}
+
+	sqlStatement += ` ORDER BY payment_transaction.id DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
+	if err != nil {
+		log("DB", err.Error())
+		return paymentTransaction
+	}
+	for rows.Next() {
+		p := PaymentTransaction{}
+		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName, &p.SupplierName)
 		paymentTransaction = append(paymentTransaction, p)
 	}
 

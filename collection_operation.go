@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 type CollectionOperation struct {
 	Id                       int32     `json:"id"`
@@ -19,12 +22,24 @@ type CollectionOperation struct {
 	BankName                 string    `json:"bankName"`
 	PaymentMethodName        string    `json:"paymentMethodName"`
 	AccountName              string    `json:"accountName"`
+	CustomerName             *string   `json:"customerName"`
 	enterprise               int32
+}
+
+type CollectionOperationPaymentTransactionSearch struct {
+	Mode      uint8      `json:"mode"` // 0 = All, 1 = Pending, 2 = Paid, 3 = Unpaid
+	StartDate *time.Time `json:"startDate"`
+	EndDate   *time.Time `json:"endDate"`
+	Search    string     `json:"search"` // Customer / supplier name
+}
+
+func (search *CollectionOperationPaymentTransactionSearch) isDefault() bool {
+	return search.Mode == 1 && search.StartDate == nil && search.EndDate == nil && len(search.Search) == 0
 }
 
 func getPendingColletionOperations(enterpriseId int32) []CollectionOperation {
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
-	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE status='P' AND enterprise=$1 ORDER BY id DESC`
+	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account),customer.name FROM public.collection_operation FULL JOIN sales_invoice ON sales_invoice.accounting_movement=collection_operation.accounting_movement FULL JOIN customer ON customer.id=sales_invoice.customer WHERE status='P' AND collection_operation.enterprise=$1 ORDER BY collection_operation.id DESC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -32,7 +47,58 @@ func getPendingColletionOperations(enterpriseId int32) []CollectionOperation {
 	}
 	for rows.Next() {
 		o := CollectionOperation{}
-		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName)
+		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName, &o.CustomerName)
+		collectionOperation = append(collectionOperation, o)
+	}
+
+	return collectionOperation
+}
+
+func searchCollectionOperations(search CollectionOperationPaymentTransactionSearch, enterpriseId int32) []CollectionOperation {
+	if search.isDefault() {
+		return getPendingColletionOperations(enterpriseId)
+	}
+
+	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
+	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account),customer.name FROM public.collection_operation FULL JOIN sales_invoice ON sales_invoice.accounting_movement=collection_operation.accounting_movement FULL JOIN customer ON customer.id=sales_invoice.customer WHERE collection_operation.enterprise=$1`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, enterpriseId)
+
+	if search.Mode != 0 {
+		sqlStatement += ` AND collection_operation.status=$2`
+		if search.Mode == 1 {
+			interfaces = append(interfaces, "P") // Pending
+		} else if search.Mode == 2 {
+			interfaces = append(interfaces, "C") // Paid
+		} else if search.Mode == 3 {
+			interfaces = append(interfaces, "U") // Unpaid
+		}
+	}
+
+	if search.StartDate != nil {
+		sqlStatement += ` AND collection_operation.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, search.StartDate)
+	}
+
+	if search.EndDate != nil {
+		sqlStatement += ` AND collection_operation.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, search.EndDate)
+	}
+
+	if len(search.Search) > 0 {
+		sqlStatement += ` AND customer.name ILIKE $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, "%"+search.Search+"%")
+	}
+
+	sqlStatement += ` ORDER BY collection_operation.id DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
+	if err != nil {
+		log("DB", err.Error())
+		return collectionOperation
+	}
+	for rows.Next() {
+		o := CollectionOperation{}
+		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName, &o.CustomerName)
 		collectionOperation = append(collectionOperation, o)
 	}
 

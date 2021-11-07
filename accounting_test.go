@@ -263,7 +263,101 @@ func TestAccountingMovementInsertDelete(t *testing.T) {
 
 // ===== COLLECTION OPERATION
 
+func TestGetPendingColletionOperations(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	collectionOperation := getPendingColletionOperations(1)
+	if len(collectionOperation) > 0 && collectionOperation[0].Id == 0 {
+		t.Errorf("Can't scan collection operations")
+	}
+}
+
+func TestSearchCollectionOperations(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	search := CollectionOperationPaymentTransactionSearch{
+		Mode:      0,
+		StartDate: nil,
+		EndDate:   nil,
+		Search:    "",
+	}
+
+	collectionOperation := searchCollectionOperations(search, 1)
+	if len(collectionOperation) > 0 && collectionOperation[0].Id == 0 {
+		t.Errorf("Can't scan collection operations")
+	}
+}
+
+func TestGetColletionOperationRow(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	var id int32 = 1
+
+	collectionOperations := getPendingColletionOperations(1)
+	if len(collectionOperations) > 0 && collectionOperations[0].Id > 0 {
+		id = collectionOperations[0].Id
+	}
+
+	collectionOperation := getColletionOperationRow(id)
+	if collectionOperation.Id == 0 {
+		t.Errorf("Can't scan collection operations")
+	}
+}
+
 // ===== PAYMENT OPERATION
+
+func TestGetPendingPaymentTransaction(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	paymentTransaction := getPendingPaymentTransaction(1)
+	if len(paymentTransaction) > 0 && paymentTransaction[0].Id == 0 {
+		t.Errorf("Can't scan payment transactions")
+	}
+}
+
+func TestSearchPaymentTransactions(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	search := CollectionOperationPaymentTransactionSearch{
+		Mode:      0,
+		StartDate: nil,
+		EndDate:   nil,
+		Search:    "",
+	}
+
+	paymentTransaction := searchPaymentTransactions(search, 1)
+	if len(paymentTransaction) > 0 && paymentTransaction[0].Id == 0 {
+		t.Errorf("Can't scan payment transactions")
+	}
+}
+
+func TestGetPaymentTransactionRow(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	var id int32 = 1
+
+	paymentTransactions := getPendingPaymentTransaction(1)
+	if len(paymentTransactions) > 0 && paymentTransactions[0].Id > 0 {
+		id = paymentTransactions[0].Id
+	}
+
+	paymentTransaction := getPaymentTransactionRow(id)
+	if paymentTransaction.Id == 0 {
+		t.Errorf("Can't scan collection operations")
+	}
+}
 
 // ===== POST SALE INVOICES
 
