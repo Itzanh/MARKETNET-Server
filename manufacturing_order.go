@@ -29,6 +29,9 @@ type ManufacturingOrder struct {
 	UserCreatedName      string     `json:"userCreatedName"`
 	UserManufacturedName *string    `json:"userManufacturedName"`
 	UserTagPrintedName   *string    `json:"userTagPrintedName"`
+	Warehouse            string     `json:"warehouse"`
+	WarehouseMovement    *int64     `json:"warehouseMovement"`
+	QuantityManufactured int32      `json:"quantityManufactured"`
 	enterprise           int32
 }
 
@@ -61,7 +64,7 @@ func (q *PaginationQuery) getAllManufacturingOrders(enterpriseId int32) Manufact
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
@@ -87,7 +90,7 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
@@ -111,7 +114,7 @@ func getManufacturingOrderRow(manufacturingOrderId int64) ManufacturingOrder {
 	}
 
 	o := ManufacturingOrder{}
-	row.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise)
+	row.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured)
 
 	return o
 }
@@ -132,18 +135,38 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 	}
 	///
 
+	// generate uuid
 	o.Uuid = uuid.New().String()
+
+	// get type if it's not specified
 	if o.Type <= 0 {
 		product := getProductRow(o.Product)
 		if product.Id <= 0 || !product.Manufacturing || product.ManufacturingOrderType == nil {
+			trans.Rollback()
 			return false
 		}
 		o.Type = *product.ManufacturingOrderType
 	}
-	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	res, err := db.Exec(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise)
+
+	// get quantity manufactured from the type if it's not specified
+	mType := getManufacturingOrderTypeRow(o.Type)
+	if mType.Id <= 0 || mType.enterprise != o.enterprise {
+		trans.Rollback()
+		return false
+	}
+	o.QuantityManufactured = mType.QuantityManufactured
+
+	// set the warehouse
+	if len(o.Warehouse) == 0 {
+		s := getSettingsRecordById(o.enterprise)
+		o.Warehouse = s.DefaultWarehouse
+	}
+
+	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise, warehouse, quantity_manufactured) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	res, err := db.Exec(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise, o.Warehouse, o.QuantityManufactured)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -157,17 +180,19 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 		_, err = db.Exec(sqlStatement, o.OrderDetail)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
 			return false
 		}
 		ok := setSalesOrderState(*o.Order)
 		if !ok {
+			trans.Rollback()
 			return false
 		}
 	}
 
-	s := getSettingsRecordById(o.enterprise)
-	ok := addQuantityPendingManufacture(o.Product, s.DefaultWarehouse, 1, o.enterprise)
+	ok := addQuantityPendingManufacture(o.Product, o.Warehouse, 1, o.enterprise)
 	if !ok {
+		trans.Rollback()
 		return false
 	}
 
@@ -225,8 +250,7 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 		}
 	}
 
-	s := getSettingsRecordById(o.enterprise)
-	ok := addQuantityPendingManufacture(inMemoryManufacturingOrder.Product, s.DefaultWarehouse, -1, inMemoryManufacturingOrder.enterprise)
+	ok := addQuantityPendingManufacture(inMemoryManufacturingOrder.Product, inMemoryManufacturingOrder.Warehouse, -1, inMemoryManufacturingOrder.enterprise)
 	if !ok {
 		return false
 	}
@@ -308,6 +332,57 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 		}
 	}
 
+	// Create / delete warehouse movement
+	if inMemoryManufacturingOrder.Manufactured {
+		movement := WarehouseMovement{
+			Warehouse:  inMemoryManufacturingOrder.Warehouse,
+			Product:    inMemoryManufacturingOrder.Product,
+			Quantity:   inMemoryManufacturingOrder.QuantityManufactured,
+			Type:       "I", // Input
+			enterprise: enterpriseId,
+		}
+		ok := movement.insertWarehouseMovement()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+
+		sqlStatement := `UPDATE public.manufacturing_order SET warehouse_movement=$2 WHERE id=$1`
+		_, err := db.Exec(sqlStatement, inMemoryManufacturingOrder.Id, movement.Id)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		ok = addQuantityPendingManufacture(inMemoryManufacturingOrder.Product, inMemoryManufacturingOrder.Warehouse, -1, inMemoryManufacturingOrder.enterprise)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	} else {
+		sqlStatement := `UPDATE public.manufacturing_order SET warehouse_movement=NULL WHERE id=$1`
+		_, err := db.Exec(sqlStatement, inMemoryManufacturingOrder.Id)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		movement := getWarehouseMovementRow(*inMemoryManufacturingOrder.WarehouseMovement)
+		ok := movement.deleteWarehouseMovement()
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+
+		ok = addQuantityPendingManufacture(inMemoryManufacturingOrder.Product, inMemoryManufacturingOrder.Warehouse, 1, inMemoryManufacturingOrder.enterprise)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
 	///
 	transErr = trans.Commit()
 	return transErr == nil
@@ -342,6 +417,7 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 			o.Order = &saleOrder.Id
 			o.UserCreated = userId
 			o.enterprise = enterpriseId
+			o.Warehouse = saleOrder.Warehouse
 			ok := o.insertManufacturingOrder()
 			if !ok {
 				trans.Rollback()
@@ -389,6 +465,7 @@ func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder(userI
 		o.Order = &saleOrder.Id
 		o.UserCreated = userId
 		o.enterprise = enterpriseId
+		o.Warehouse = saleOrder.Warehouse
 		ok := o.insertManufacturingOrder()
 		if !ok {
 			trans.Rollback()

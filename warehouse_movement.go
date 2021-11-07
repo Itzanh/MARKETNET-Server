@@ -246,17 +246,21 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 
 	// insert the movement
-	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
-	res, err := db.Exec(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`
+	row := db.QueryRow(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
+	var warehouseMovementId int64
+	row.Scan(&warehouseMovementId)
+
+	if warehouseMovementId <= 0 {
 		return false
 	}
+
+	m.Id = warehouseMovementId
 
 	// update the product quantity
 	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock, m.enterprise)
@@ -297,13 +301,9 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		return false
-	}
+	err := trans.Commit()
+	return err == nil
 	///
-
-	return rows > 0
 }
 
 // Abs returns the absolute value of x.
