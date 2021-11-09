@@ -323,6 +323,24 @@ func getProductWarehouseMovement(productId int32, enterpriseId int32) []Warehous
 	return warehouseMovements
 }
 
+// Get the manufacturing orders with the product specified.
+func getProductManufacturingOrders(productId int32, enterpriseId int32) []ManufacturingOrder {
+	manufacturingOrders := make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE product=$1 AND enterprise=$2 ORDER BY date_created DESC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return manufacturingOrders
+	}
+	for rows.Next() {
+		o := ManufacturingOrder{}
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
+		manufacturingOrders = append(manufacturingOrders, o)
+	}
+
+	return manufacturingOrders
+}
+
 func (p *Product) generateBarcode(enterpriseId int32) bool {
 	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE enterprise=$1 AND SUBSTRING(barcode,0,5)=$2 ORDER BY barcode DESC LIMIT 1`
 	row := db.QueryRow(sqlStatement, enterpriseId, getSettingsRecordById(enterpriseId).BarcodePrefix)

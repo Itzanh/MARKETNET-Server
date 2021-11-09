@@ -705,6 +705,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		data, _ = json.Marshal(getProductPurchaseOrderDetails(int32(id), enterpriseId))
 	case "PRODUCT_WAREHOUSE_MOVEMENT":
 		data, _ = json.Marshal(getProductWarehouseMovement(int32(id), enterpriseId))
+	case "PRODUCT_MANUFACTURING_ORDERS":
+		data, _ = json.Marshal(getProductManufacturingOrders(int32(id), enterpriseId))
 	case "SALES_ORDER_ROW":
 		if !permissions.Sales {
 			return

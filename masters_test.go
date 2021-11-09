@@ -781,6 +781,18 @@ func TestProductRelations(t *testing.T) {
 			}
 		}
 	}
+
+	for i := 0; i < len(products); i++ {
+		saleOrders := getProductManufacturingOrders(products[i].Id, 1)
+		if len(saleOrders) > 0 {
+			if saleOrders[0].Id <= 0 {
+				t.Error("Manufacturing orders with ID 0 on product.")
+				return
+			} else {
+				break
+			}
+		}
+	}
 }
 
 func TestGenerateBarcode(t *testing.T) {
