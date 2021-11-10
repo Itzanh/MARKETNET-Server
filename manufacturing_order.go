@@ -298,7 +298,26 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 	if inMemoryManufacturingOrder.OrderDetail != nil && *inMemoryManufacturingOrder.OrderDetail > 0 {
 		var status string
 		if inMemoryManufacturingOrder.Manufactured {
-			status = "E"
+			// are all the manufacturing orders manufactured?
+
+			sqlStatement := `SELECT COUNT(id) FROM public.manufacturing_order WHERE order_detail = $1 AND manufactured`
+			row := db.QueryRow(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
+			if row.Err() != nil {
+				log("DB", row.Err().Error())
+				trans.Rollback()
+				return false
+			}
+
+			var manufacturedOrders int32
+			row.Scan(&manufacturedOrders)
+
+			orderDetail := getSalesOrderDetailRow(*inMemoryManufacturingOrder.OrderDetail)
+
+			if manufacturedOrders >= orderDetail.Quantity {
+				status = "E"
+			} else {
+				status = "D"
+			}
 		} else {
 			status = "D"
 		}
@@ -411,17 +430,29 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 	for i := 0; i < len(orderDetails); i++ {
 		if orderDetails[i].Status == "C" {
 			orderDetail := orderDetails[i]
-			o := ManufacturingOrder{}
-			o.Product = orderDetail.Product
-			o.OrderDetail = &orderDetail.Id
-			o.Order = &saleOrder.Id
-			o.UserCreated = userId
-			o.enterprise = enterpriseId
-			o.Warehouse = saleOrder.Warehouse
-			ok := o.insertManufacturingOrder()
-			if !ok {
-				trans.Rollback()
-				return false
+
+			product := getProductRow(orderDetail.Product)
+			if product.Id <= 0 || !product.Manufacturing || product.ManufacturingOrderType == nil || *product.ManufacturingOrderType == 0 {
+				break
+			}
+			manufacturingOrderType := getManufacturingOrderTypeRow(*product.ManufacturingOrderType)
+			if manufacturingOrderType.Id <= 0 || manufacturingOrderType.QuantityManufactured <= 0 {
+				break
+			}
+
+			for j := 0; j < int(orderDetail.Quantity); j += int(manufacturingOrderType.QuantityManufactured) {
+				o := ManufacturingOrder{}
+				o.Product = orderDetail.Product
+				o.OrderDetail = &orderDetail.Id
+				o.Order = &saleOrder.Id
+				o.UserCreated = userId
+				o.enterprise = enterpriseId
+				o.Warehouse = saleOrder.Warehouse
+				ok := o.insertManufacturingOrder()
+				if !ok {
+					trans.Rollback()
+					return false
+				}
 			}
 		}
 	}
