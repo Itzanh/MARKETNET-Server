@@ -284,8 +284,15 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 	}
 	///
 
+	settings := getSettingsRecordById(enterpriseId)
+
 	inMemoryManufacturingOrder := getManufacturingOrderRow(orderid)
 	if inMemoryManufacturingOrder.enterprise != enterpriseId {
+		return false
+	}
+
+	// validation
+	if inMemoryManufacturingOrder.Manufactured && inMemoryManufacturingOrder.DateManufactured != nil && int64(time.Since(*inMemoryManufacturingOrder.DateManufactured).Seconds()) > int64(settings.UndoManufacturingOrderSeconds) {
 		return false
 	}
 
