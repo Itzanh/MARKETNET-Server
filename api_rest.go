@@ -75,7 +75,7 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -100,13 +100,13 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 			var saleOrder SaleOrder
 			json.Unmarshal(body, &saleOrder)
 			saleOrder.enterprise = enterpriseId
-			ok, _ = saleOrder.insertSalesOrder()
+			ok, _ = saleOrder.insertSalesOrder(userId)
 		} else if string(body[0]) == "[" {
 			var saleOrders []SaleOrder
 			json.Unmarshal(body, &saleOrders)
 			for i := 0; i < len(saleOrders); i++ {
 				saleOrders[i].enterprise = enterpriseId
-				ok, _ = saleOrders[i].insertSalesOrder()
+				ok, _ = saleOrders[i].insertSalesOrder(userId)
 				if !ok {
 					break
 				}
@@ -118,7 +118,7 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		var saleOrder SaleOrder
 		json.Unmarshal(body, &saleOrder)
 		saleOrder.enterprise = enterpriseId
-		ok = saleOrder.updateSalesOrder()
+		ok = saleOrder.updateSalesOrder(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -128,7 +128,7 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		var saleOrder SaleOrder
 		saleOrder.Id = int64(id)
 		saleOrder.enterprise = enterpriseId
-		ok = saleOrder.deleteSalesOrder()
+		ok = saleOrder.deleteSalesOrder(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -143,7 +143,7 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -171,13 +171,13 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 			var saleOrderDetail SalesOrderDetail
 			json.Unmarshal(body, &saleOrderDetail)
 			saleOrderDetail.enterprise = enterpriseId
-			ok = saleOrderDetail.insertSalesOrderDetail()
+			ok = saleOrderDetail.insertSalesOrderDetail(userId)
 		} else if string(body[0]) == "[" {
 			var saleOrderDetails []SalesOrderDetail
 			json.Unmarshal(body, &saleOrderDetails)
 			for i := 0; i < len(saleOrderDetails); i++ {
 				saleOrderDetails[i].enterprise = enterpriseId
-				ok = saleOrderDetails[i].insertSalesOrderDetail()
+				ok = saleOrderDetails[i].insertSalesOrderDetail(userId)
 				if !ok {
 					break
 				}
@@ -189,7 +189,7 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		var salesOrderDetail SalesOrderDetail
 		json.Unmarshal(body, &salesOrderDetail)
 		salesOrderDetail.enterprise = enterpriseId
-		ok = salesOrderDetail.updateSalesOrderDetail()
+		ok = salesOrderDetail.updateSalesOrderDetail(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -199,7 +199,7 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		var saleOrderDetail SalesOrderDetail
 		saleOrderDetail.Id = int64(id)
 		saleOrderDetail.enterprise = enterpriseId
-		ok = saleOrderDetail.deleteSalesOrderDetail()
+		ok = saleOrderDetail.deleteSalesOrderDetail(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -214,7 +214,7 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -231,7 +231,7 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getSalesInvoices())
 		w.Write(data)
 		return
@@ -240,13 +240,13 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 			var saleInvoice SalesInvoice
 			json.Unmarshal(body, &saleInvoice)
 			saleInvoice.enterprise = enterpriseId
-			ok, _ = saleInvoice.insertSalesInvoice()
+			ok, _ = saleInvoice.insertSalesInvoice(userId)
 		} else if string(body[0]) == "[" {
 			var saleInvoices []SalesInvoice
 			json.Unmarshal(body, &saleInvoices)
 			for i := 0; i < len(saleInvoices); i++ {
 				saleInvoices[i].enterprise = enterpriseId
-				ok, _ = saleInvoices[i].insertSalesInvoice()
+				ok, _ = saleInvoices[i].insertSalesInvoice(userId)
 				if !ok {
 					break
 				}
@@ -263,7 +263,7 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		var salesInvoice SalesInvoice
 		salesInvoice.Id = int64(id)
 		salesInvoice.enterprise = enterpriseId
-		ok = salesInvoice.deleteSalesInvoice()
+		ok = salesInvoice.deleteSalesInvoice(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -278,7 +278,7 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -306,13 +306,13 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 			var salesInvoiceDetail SalesInvoiceDetail
 			json.Unmarshal(body, &salesInvoiceDetail)
 			salesInvoiceDetail.enterprise = enterpriseId
-			ok = salesInvoiceDetail.insertSalesInvoiceDetail(true)
+			ok = salesInvoiceDetail.insertSalesInvoiceDetail(true, userId)
 		} else if string(body[0]) == "[" {
 			var salesInvoiceDetails []SalesInvoiceDetail
 			json.Unmarshal(body, &salesInvoiceDetails)
 			for i := 0; i < len(salesInvoiceDetails); i++ {
 				salesInvoiceDetails[i].enterprise = enterpriseId
-				ok = salesInvoiceDetails[i].insertSalesInvoiceDetail(true)
+				ok = salesInvoiceDetails[i].insertSalesInvoiceDetail(true, userId)
 				if !ok {
 					break
 				}
@@ -329,7 +329,7 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 		var salesInvoiceDetail SalesInvoiceDetail
 		salesInvoiceDetail.Id = int64(id)
 		salesInvoiceDetail.enterprise = enterpriseId
-		ok = salesInvoiceDetail.deleteSalesInvoiceDetail()
+		ok = salesInvoiceDetail.deleteSalesInvoiceDetail(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -344,7 +344,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -361,7 +361,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getSalesDeliveryNotes())
 		w.Write(data)
 		return
@@ -370,13 +370,13 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 			var salesDeliveryNote SalesDeliveryNote
 			json.Unmarshal(body, &salesDeliveryNote)
 			salesDeliveryNote.enterprise = enterpriseId
-			ok, _ = salesDeliveryNote.insertSalesDeliveryNotes()
+			ok, _ = salesDeliveryNote.insertSalesDeliveryNotes(userId)
 		} else if string(body[0]) == "[" {
 			var salesDeliveryNotes []SalesDeliveryNote
 			json.Unmarshal(body, &salesDeliveryNotes)
 			for i := 0; i < len(salesDeliveryNotes); i++ {
 				salesDeliveryNotes[i].enterprise = enterpriseId
-				ok, _ = salesDeliveryNotes[i].insertSalesDeliveryNotes()
+				ok, _ = salesDeliveryNotes[i].insertSalesDeliveryNotes(userId)
 				if !ok {
 					break
 				}
@@ -393,7 +393,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		var salesDeliveryNote SalesDeliveryNote
 		salesDeliveryNote.Id = int64(id)
 		salesDeliveryNote.enterprise = enterpriseId
-		ok = salesDeliveryNote.deleteSalesDeliveryNotes()
+		ok = salesDeliveryNote.deleteSalesDeliveryNotes(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -408,7 +408,7 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -431,13 +431,13 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 			var purchaseOrder PurchaseOrder
 			json.Unmarshal(body, &purchaseOrder)
 			purchaseOrder.enterprise = enterpriseId
-			ok, _ = purchaseOrder.insertPurchaseOrder()
+			ok, _ = purchaseOrder.insertPurchaseOrder(userId)
 		} else if string(body[0]) == "[" {
 			var purchaseOrders []PurchaseOrder
 			json.Unmarshal(body, &purchaseOrders)
 			for i := 0; i < len(purchaseOrders); i++ {
 				purchaseOrders[i].enterprise = enterpriseId
-				ok, _ = purchaseOrders[i].insertPurchaseOrder()
+				ok, _ = purchaseOrders[i].insertPurchaseOrder(userId)
 				if !ok {
 					break
 				}
@@ -449,7 +449,7 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		var purchaseOrder PurchaseOrder
 		json.Unmarshal(body, &purchaseOrder)
 		purchaseOrder.enterprise = enterpriseId
-		ok = purchaseOrder.updatePurchaseOrder()
+		ok = purchaseOrder.updatePurchaseOrder(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -459,7 +459,7 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		var purchaseOrder PurchaseOrder
 		purchaseOrder.Id = int64(id)
 		purchaseOrder.enterprise = enterpriseId
-		ok = purchaseOrder.deletePurchaseOrder()
+		ok = purchaseOrder.deletePurchaseOrder(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -474,7 +474,7 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -502,13 +502,13 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 			var purchaseOrderDetail PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetail)
 			purchaseOrderDetail.enterprise = enterpriseId
-			ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
+			ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true, userId)
 		} else if string(body[0]) == "[" {
 			var purchaseOrderDetails []PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetails)
 			for i := 0; i < len(purchaseOrderDetails); i++ {
 				purchaseOrderDetails[i].enterprise = enterpriseId
-				ok, _ = purchaseOrderDetails[i].insertPurchaseOrderDetail(true)
+				ok, _ = purchaseOrderDetails[i].insertPurchaseOrderDetail(true, userId)
 				if !ok {
 					break
 				}
@@ -525,7 +525,7 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		var purchaseOrderDetail PurchaseOrderDetail
 		purchaseOrderDetail.Id = int64(id)
 		purchaseOrderDetail.enterprise = enterpriseId
-		ok = purchaseOrderDetail.deletePurchaseOrderDetail()
+		ok = purchaseOrderDetail.deletePurchaseOrderDetail(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -540,7 +540,7 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -563,13 +563,13 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 			var purchaseInvoice PurchaseInvoice
 			json.Unmarshal(body, &purchaseInvoice)
 			purchaseInvoice.enterprise = enterpriseId
-			ok, _ = purchaseInvoice.insertPurchaseInvoice()
+			ok, _ = purchaseInvoice.insertPurchaseInvoice(userId)
 		} else if string(body[0]) == "[" {
 			var purchaseInvoices []PurchaseInvoice
 			json.Unmarshal(body, &purchaseInvoices)
 			for i := 0; i < len(purchaseInvoices); i++ {
 				purchaseInvoices[i].enterprise = enterpriseId
-				ok, _ = purchaseInvoices[i].insertPurchaseInvoice()
+				ok, _ = purchaseInvoices[i].insertPurchaseInvoice(userId)
 				if !ok {
 					break
 				}
@@ -586,7 +586,7 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		var purchaseInvoice PurchaseInvoice
 		purchaseInvoice.Id = int64(id)
 		purchaseInvoice.enterprise = enterpriseId
-		ok = purchaseInvoice.deletePurchaseInvoice()
+		ok = purchaseInvoice.deletePurchaseInvoice(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -601,7 +601,7 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -629,13 +629,13 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 			var purchaseInvoiceDetail PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetail)
 			purchaseInvoiceDetail.enterprise = enterpriseId
-			ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
+			ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true, userId)
 		} else if string(body[0]) == "[" {
 			var purchaseInvoiceDetails []PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetails)
 			for i := 0; i < len(purchaseInvoiceDetails); i++ {
 				purchaseInvoiceDetails[i].enterprise = enterpriseId
-				ok = purchaseInvoiceDetails[i].insertPurchaseInvoiceDetail(true)
+				ok = purchaseInvoiceDetails[i].insertPurchaseInvoiceDetail(true, userId)
 				if !ok {
 					break
 				}
@@ -652,7 +652,7 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
 		purchaseInvoiceDetail.Id = int64(id)
 		purchaseInvoiceDetail.enterprise = enterpriseId
-		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail()
+		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -667,7 +667,7 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -690,13 +690,13 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 			var purchaseDeliveryNote PurchaseDeliveryNote
 			json.Unmarshal(body, &purchaseDeliveryNote)
 			purchaseDeliveryNote.enterprise = enterpriseId
-			ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes()
+			ok, _ = purchaseDeliveryNote.insertPurchaseDeliveryNotes(userId)
 		} else if string(body[0]) == "[" {
 			var purchaseDeliveryNotes []PurchaseDeliveryNote
 			json.Unmarshal(body, &purchaseDeliveryNotes)
 			for i := 0; i < len(purchaseDeliveryNotes); i++ {
 				purchaseDeliveryNotes[i].enterprise = enterpriseId
-				ok, _ = purchaseDeliveryNotes[i].insertPurchaseDeliveryNotes()
+				ok, _ = purchaseDeliveryNotes[i].insertPurchaseDeliveryNotes(userId)
 				if !ok {
 					break
 				}
@@ -713,7 +713,7 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		var purchaseDeliveryNote PurchaseDeliveryNote
 		purchaseDeliveryNote.Id = int64(id)
 		purchaseDeliveryNote.enterprise = enterpriseId
-		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes()
+		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -728,7 +728,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -745,7 +745,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getCustomers())
 		w.Write(data)
 		return
@@ -754,13 +754,13 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 			var customer Customer
 			json.Unmarshal(body, &customer)
 			customer.enterprise = enterpriseId
-			ok = customer.insertCustomer().Id > 0
+			ok = customer.insertCustomer(userId).Id > 0
 		} else if string(body[0]) == "[" {
 			var customers []Customer
 			json.Unmarshal(body, &customers)
 			for i := 0; i < len(customers); i++ {
 				customers[i].enterprise = enterpriseId
-				ok = customers[i].insertCustomer().Id > 0
+				ok = customers[i].insertCustomer(userId).Id > 0
 				if !ok {
 					break
 				}
@@ -772,7 +772,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		var customer Customer
 		json.Unmarshal(body, &customer)
 		customer.enterprise = enterpriseId
-		ok = customer.updateCustomer()
+		ok = customer.updateCustomer(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -782,7 +782,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		var customer Customer
 		customer.Id = int32(id)
 		customer.enterprise = enterpriseId
-		ok = customer.deleteCustomer()
+		ok = customer.deleteCustomer(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -797,7 +797,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -820,13 +820,13 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 			var supplier Supplier
 			json.Unmarshal(body, &supplier)
 			supplier.enterprise = enterpriseId
-			ok = supplier.insertSupplier().Id > 0
+			ok = supplier.insertSupplier(userId).Id > 0
 		} else if string(body[0]) == "[" {
 			var suppliers []Supplier
 			json.Unmarshal(body, &suppliers)
 			for i := 0; i < len(suppliers); i++ {
 				suppliers[i].enterprise = enterpriseId
-				ok = suppliers[i].insertSupplier().Id > 0
+				ok = suppliers[i].insertSupplier(userId).Id > 0
 				if !ok {
 					break
 				}
@@ -838,7 +838,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		var supplier Supplier
 		json.Unmarshal(body, &supplier)
 		supplier.enterprise = enterpriseId
-		ok = supplier.updateSupplier()
+		ok = supplier.updateSupplier(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -848,7 +848,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		var supplier Supplier
 		supplier.Id = int32(id)
 		supplier.enterprise = enterpriseId
-		ok = supplier.deleteSupplier()
+		ok = supplier.deleteSupplier(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -863,7 +863,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -886,13 +886,13 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 			var product Product
 			json.Unmarshal(body, &product)
 			product.enterprise = enterpriseId
-			ok = product.insertProduct()
+			ok = product.insertProduct(userId)
 		} else if string(body[0]) == "[" {
 			var products []Product
 			json.Unmarshal(body, &products)
 			for i := 0; i < len(products); i++ {
 				products[i].enterprise = enterpriseId
-				ok = products[i].insertProduct()
+				ok = products[i].insertProduct(userId)
 				if !ok {
 					break
 				}
@@ -904,7 +904,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		var product Product
 		json.Unmarshal(body, &product)
 		product.enterprise = enterpriseId
-		ok = product.updateProduct()
+		ok = product.updateProduct(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -914,7 +914,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		var product Product
 		product.Id = int32(id)
 		product.enterprise = enterpriseId
-		ok = product.deleteProduct()
+		ok = product.deleteProduct(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1137,7 +1137,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1154,7 +1154,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getAddresses())
 		w.Write(data)
 		return
@@ -1163,13 +1163,13 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 			var address Address
 			json.Unmarshal(body, &address)
 			address.enterprise = enterpriseId
-			ok = address.insertAddress().Id > 0
+			ok = address.insertAddress(userId).Id > 0
 		} else if string(body[0]) == "[" {
 			var addresses []Address
 			json.Unmarshal(body, &addresses)
 			for i := 0; i < len(addresses); i++ {
 				addresses[i].enterprise = enterpriseId
-				ok = addresses[i].insertAddress().Id > 0
+				ok = addresses[i].insertAddress(userId).Id > 0
 				if !ok {
 					break
 				}
@@ -1616,7 +1616,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1633,7 +1633,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ := json.Marshal(paginationQuery.getWarehouseMovement())
 		w.Write(data)
 		return
@@ -1642,13 +1642,13 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 			var warehouseMovement WarehouseMovement
 			json.Unmarshal(body, &warehouseMovement)
 			warehouseMovement.enterprise = enterpriseId
-			ok = warehouseMovement.insertWarehouseMovement()
+			ok = warehouseMovement.insertWarehouseMovement(userId)
 		} else if string(body[0]) == "[" {
 			var warehouseMovements []WarehouseMovement
 			json.Unmarshal(body, &warehouseMovements)
 			for i := 0; i < len(warehouseMovements); i++ {
 				warehouseMovements[i].enterprise = enterpriseId
-				ok = warehouseMovements[i].insertWarehouseMovement()
+				ok = warehouseMovements[i].insertWarehouseMovement(userId)
 				if !ok {
 					break
 				}
@@ -1665,7 +1665,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		var warehouseMovement WarehouseMovement
 		warehouseMovement.Id = int64(id)
 		warehouseMovement.enterprise = enterpriseId
-		ok = warehouseMovement.deleteWarehouseMovement()
+		ok = warehouseMovement.deleteWarehouseMovement(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1705,7 +1705,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(body, &manufacturingOrder)
 		manufacturingOrder.UserCreated = userId
 		manufacturingOrder.enterprise = enterpriseId
-		ok = manufacturingOrder.insertManufacturingOrder()
+		ok = manufacturingOrder.insertManufacturingOrder(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -1715,7 +1715,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		var manufacturingOrder ManufacturingOrder
 		manufacturingOrder.Id = int64(id)
 		manufacturingOrder.enterprise = enterpriseId
-		ok = manufacturingOrder.deleteManufacturingOrder()
+		ok = manufacturingOrder.deleteManufacturingOrder(enterpriseId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1782,7 +1782,7 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1804,12 +1804,12 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 		var shipping Shipping
 		json.Unmarshal(body, &shipping)
 		shipping.enterprise = enterpriseId
-		ok, _ = shipping.insertShipping()
+		ok, _ = shipping.insertShipping(userId)
 	case "PUT":
 		var shipping Shipping
 		json.Unmarshal(body, &shipping)
 		shipping.enterprise = enterpriseId
-		ok = shipping.updateShipping()
+		ok = shipping.updateShipping(userId)
 	case "DELETE":
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
@@ -1819,7 +1819,7 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 		var shipping Shipping
 		shipping.Id = int64(id)
 		shipping.enterprise = enterpriseId
-		ok = shipping.deleteShipping()
+		ok = shipping.deleteShipping(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1984,7 +1984,7 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2006,13 +2006,13 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 			var accountingMovement AccountingMovement
 			json.Unmarshal(body, &accountingMovement)
 			accountingMovement.enterprise = enterpriseId
-			ok = accountingMovement.insertAccountingMovement()
+			ok = accountingMovement.insertAccountingMovement(userId)
 		} else if string(body[0]) == "[" {
 			var accountingMovement []AccountingMovement
 			json.Unmarshal(body, &accountingMovement)
 			for i := 0; i < len(accountingMovement); i++ {
 				accountingMovement[i].enterprise = enterpriseId
-				ok = accountingMovement[i].insertAccountingMovement()
+				ok = accountingMovement[i].insertAccountingMovement(userId)
 				if !ok {
 					w.WriteHeader(http.StatusNotAcceptable)
 					return
@@ -2034,7 +2034,7 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 		var accountingMovement AccountingMovement
 		accountingMovement.Id = int64(id)
 		accountingMovement.enterprise = enterpriseId
-		ok = accountingMovement.deleteAccountingMovement()
+		ok = accountingMovement.deleteAccountingMovement(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2049,7 +2049,7 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2076,13 +2076,13 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 			var accountingMovementDetail AccountingMovementDetail
 			json.Unmarshal(body, &accountingMovementDetail)
 			accountingMovementDetail.enterprise = enterpriseId
-			ok = accountingMovementDetail.insertAccountingMovementDetail()
+			ok = accountingMovementDetail.insertAccountingMovementDetail(userId)
 		} else if string(body[0]) == "[" {
 			var accountingMovementDetail []AccountingMovementDetail
 			json.Unmarshal(body, &accountingMovementDetail)
 			for i := 0; i < len(accountingMovementDetail); i++ {
 				accountingMovementDetail[i].enterprise = enterpriseId
-				ok = accountingMovementDetail[i].insertAccountingMovementDetail()
+				ok = accountingMovementDetail[i].insertAccountingMovementDetail(userId)
 				if !ok {
 					w.WriteHeader(http.StatusNotAcceptable)
 					return
@@ -2104,7 +2104,7 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 		var accountingMovementDetail AccountingMovementDetail
 		accountingMovementDetail.Id = int64(id)
 		accountingMovementDetail.enterprise = enterpriseId
-		ok = accountingMovementDetail.deleteAccountingMovementDetail()
+		ok = accountingMovementDetail.deleteAccountingMovementDetail(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2119,7 +2119,7 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2146,13 +2146,13 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 			var collectionOperation CollectionOperation
 			json.Unmarshal(body, &collectionOperation)
 			collectionOperation.enterprise = enterpriseId
-			ok = collectionOperation.insertCollectionOperation()
+			ok = collectionOperation.insertCollectionOperation(userId)
 		} else if string(body[0]) == "[" {
 			var collectionOperation []CollectionOperation
 			json.Unmarshal(body, &collectionOperation)
 			for i := 0; i < len(collectionOperation); i++ {
 				collectionOperation[i].enterprise = enterpriseId
-				ok = collectionOperation[i].insertCollectionOperation()
+				ok = collectionOperation[i].insertCollectionOperation(userId)
 				if !ok {
 					w.WriteHeader(http.StatusNotAcceptable)
 					return
@@ -2174,7 +2174,7 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 		var collectionOperation CollectionOperation
 		collectionOperation.Id = int32(id)
 		collectionOperation.enterprise = enterpriseId
-		ok = collectionOperation.deleteCollectionOperation()
+		ok = collectionOperation.deleteCollectionOperation(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2189,7 +2189,7 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2216,13 +2216,13 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 			var charges Charges
 			json.Unmarshal(body, &charges)
 			charges.enterprise = enterpriseId
-			ok = charges.insertCharges()
+			ok = charges.insertCharges(userId)
 		} else if string(body[0]) == "[" {
 			var charges []Charges
 			json.Unmarshal(body, &charges)
 			for i := 0; i < len(charges); i++ {
 				charges[i].enterprise = enterpriseId
-				ok = charges[i].insertCharges()
+				ok = charges[i].insertCharges(userId)
 				if !ok {
 					w.WriteHeader(http.StatusNotAcceptable)
 					return
@@ -2244,7 +2244,7 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 		var charges Charges
 		charges.Id = int32(id)
 		charges.enterprise = enterpriseId
-		ok = charges.deleteCharges()
+		ok = charges.deleteCharges(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2259,7 +2259,7 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2286,13 +2286,13 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 			var paymentTransaction PaymentTransaction
 			json.Unmarshal(body, &paymentTransaction)
 			paymentTransaction.enterprise = enterpriseId
-			ok = paymentTransaction.insertPaymentTransaction()
+			ok = paymentTransaction.insertPaymentTransaction(userId)
 		} else if string(body[0]) == "[" {
 			var paymentTransaction []PaymentTransaction
 			json.Unmarshal(body, &paymentTransaction)
 			for i := 0; i < len(paymentTransaction); i++ {
 				paymentTransaction[i].enterprise = enterpriseId
-				ok = paymentTransaction[i].insertPaymentTransaction()
+				ok = paymentTransaction[i].insertPaymentTransaction(userId)
 				if !ok {
 					w.WriteHeader(http.StatusNotAcceptable)
 					return
@@ -2314,7 +2314,7 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 		var paymentTransaction PaymentTransaction
 		paymentTransaction.Id = int32(id)
 		paymentTransaction.enterprise = enterpriseId
-		ok = paymentTransaction.deletePaymentTransaction()
+		ok = paymentTransaction.deletePaymentTransaction(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2329,7 +2329,7 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2356,13 +2356,13 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 			var Paymenp Payment
 			json.Unmarshal(body, &Paymenp)
 			Paymenp.enterprise = enterpriseId
-			ok = Paymenp.insertPayment()
+			ok = Paymenp.insertPayment(userId)
 		} else if string(body[0]) == "[" {
 			var payment []Payment
 			json.Unmarshal(body, &payment)
 			for i := 0; i < len(payment); i++ {
 				payment[i].enterprise = enterpriseId
-				ok = payment[i].insertPayment()
+				ok = payment[i].insertPayment(userId)
 				if !ok {
 					w.WriteHeader(http.StatusNotAcceptable)
 					return
@@ -2384,7 +2384,7 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 		var payment Payment
 		payment.Id = int32(id)
 		payment.enterprise = enterpriseId
-		ok = payment.deletePayment()
+		ok = payment.deletePayment(userId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2399,7 +2399,7 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2415,7 +2415,7 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var orderSearch OrderSearch
 		json.Unmarshal(body, &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		orderSearch.NotPosted = true
 		data, _ := json.Marshal(orderSearch.searchSalesInvoices())
 		w.Write(data)
@@ -2423,7 +2423,7 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		var invoiceIds []int64
 		json.Unmarshal(body, &invoiceIds)
-		result := salesPostInvoices(invoiceIds, enterpriseId)
+		result := salesPostInvoices(invoiceIds, enterpriseId, userId)
 		resp, _ := json.Marshal(result)
 		w.Write(resp)
 		return
@@ -2444,7 +2444,7 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2460,7 +2460,7 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		var orderSearch OrderSearch
 		json.Unmarshal(body, &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		orderSearch.NotPosted = true
 		data, _ := json.Marshal(orderSearch.searchPurchaseInvoice())
 		w.Write(data)
@@ -2468,7 +2468,7 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		var invoiceIds []int64
 		json.Unmarshal(body, &invoiceIds)
-		result := purchasePostInvoices(invoiceIds, enterpriseId)
+		result := purchasePostInvoices(invoiceIds, enterpriseId, userId)
 		resp, _ := json.Marshal(result)
 		w.Write(resp)
 		return

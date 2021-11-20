@@ -274,9 +274,9 @@ func commandProcessor(instruction string, command string, message []byte, mt int
 	case "INSERT":
 		instructionInsert(command, message, mt, ws, permissions, userId, enterpriseId)
 	case "UPDATE":
-		instructionUpdate(command, message, mt, ws, permissions, enterpriseId)
+		instructionUpdate(command, message, mt, ws, permissions, enterpriseId, userId)
 	case "DELETE":
-		instructionDelete(command, string(message), mt, ws, permissions, enterpriseId)
+		instructionDelete(command, string(message), mt, ws, permissions, enterpriseId, userId)
 	case "NAME":
 		instructionName(command, string(message), mt, ws, enterpriseId)
 	case "GETNAME":
@@ -293,7 +293,7 @@ func commandProcessor(instruction string, command string, message []byte, mt int
 }
 
 type PaginationQuery struct {
-	Enterprise int32
+	enterprise int32
 	Offset     int64 `json:"offset"`
 	Limit      int64 `json:"limit"`
 }
@@ -317,7 +317,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		case "ADDRESS":
 			var paginationQuery PaginationQuery
 			json.Unmarshal([]byte(message), &paginationQuery)
-			paginationQuery.Enterprise = enterpriseId
+			paginationQuery.enterprise = enterpriseId
 			data, _ = json.Marshal(paginationQuery.getAddresses())
 		case "PRODUCT":
 			data, _ = json.Marshal(getProduct(enterpriseId))
@@ -338,7 +338,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		case "CUSTOMER":
 			var paginationQuery PaginationQuery
 			json.Unmarshal([]byte(message), &paginationQuery)
-			paginationQuery.Enterprise = enterpriseId
+			paginationQuery.enterprise = enterpriseId
 			data, _ = json.Marshal(paginationQuery.getCustomers())
 		case "COLOR":
 			data, _ = json.Marshal(getColor(enterpriseId))
@@ -401,7 +401,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal([]byte(message), &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ = json.Marshal(paginationQuery.getSalesInvoices())
 	case "MANUFACTURING_ORDER_TYPE":
 		if (!permissions.Manufacturing) && (!permissions.Masters) {
@@ -414,7 +414,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal([]byte(message), &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ = json.Marshal(paginationQuery.getWarehouseMovement())
 	case "WAREHOUSE_WAREHOUSE_MOVEMENTS":
 		if !permissions.Warehouse {
@@ -422,7 +422,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		var warehouseMovementByWarehouse WarehouseMovementByWarehouse
 		json.Unmarshal([]byte(message), &warehouseMovementByWarehouse)
-		warehouseMovementByWarehouse.Enterprise = enterpriseId
+		warehouseMovementByWarehouse.enterprise = enterpriseId
 		data, _ = json.Marshal(warehouseMovementByWarehouse.getWarehouseMovementByWarehouse())
 	case "SALES_DELIVERY_NOTES":
 		if !permissions.Sales {
@@ -430,7 +430,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal([]byte(message), &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ = json.Marshal(paginationQuery.getSalesDeliveryNotes())
 	case "SHIPPINGS":
 		if !permissions.Preparation {
@@ -563,7 +563,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal([]byte(message), &paginationQuery)
-		paginationQuery.Enterprise = enterpriseId
+		paginationQuery.enterprise = enterpriseId
 		data, _ = json.Marshal(paginationQuery.getConnectionLogs())
 	case "CONNECTION_FILTERS":
 		if !permissions.Admin {
@@ -575,6 +575,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getReportTemplates(enterpriseId))
+	case "REGISTER_TRANSACTIONAL_LOG":
+		var query TransactionalLogQuery
+		json.Unmarshal([]byte(message), &query)
+		query.enterpriseId = enterpriseId
+		data, _ = json.Marshal(query.getRegisterTransactionalLogs())
 	default:
 		found = false
 	}
@@ -862,19 +867,19 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			var address Address
 			json.Unmarshal(message, &address)
 			address.enterprise = enterpriseId
-			operationResult = address.insertAddress()
+			operationResult = address.insertAddress(userId)
 			found = true
 		case "CUSTOMER":
 			var customer Customer
 			json.Unmarshal(message, &customer)
 			customer.enterprise = enterpriseId
-			operationResult = customer.insertCustomer()
+			operationResult = customer.insertCustomer(userId)
 			found = true
 		case "SUPPLIER":
 			var supplier Supplier
 			json.Unmarshal(message, &supplier)
 			supplier.enterprise = enterpriseId
-			operationResult = supplier.insertSupplier()
+			operationResult = supplier.insertSupplier(userId)
 			found = true
 		}
 
@@ -921,7 +926,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			var product Product
 			json.Unmarshal(message, &product)
 			product.enterprise = enterpriseId
-			ok = product.insertProduct()
+			ok = product.insertProduct(userId)
 		case "PRODUCT_FAMILY":
 			var productFamily ProductFamily
 			json.Unmarshal(message, &productFamily)
@@ -951,7 +956,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			var shipping Shipping
 			json.Unmarshal(message, &shipping)
 			shipping.enterprise = enterpriseId
-			ok, _ = shipping.insertShipping()
+			ok, _ = shipping.insertShipping(userId)
 		case "DOCUMENT_CONTAINER":
 			var documentContainer DocumentContainer
 			json.Unmarshal(message, &documentContainer)
@@ -974,7 +979,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrder SaleOrder
 		json.Unmarshal([]byte(message), &saleOrder)
 		saleOrder.enterprise = enterpriseId
-		ok, orderId := saleOrder.insertSalesOrder()
+		ok, orderId := saleOrder.insertSalesOrder(userId)
 		if !ok {
 			returnData, _ = json.Marshal(nil)
 		} else {
@@ -988,7 +993,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var saleInvoice SalesInvoice
 		json.Unmarshal(message, &saleInvoice)
 		saleInvoice.enterprise = enterpriseId
-		ok, invoiceId := saleInvoice.insertSalesInvoice()
+		ok, invoiceId := saleInvoice.insertSalesInvoice(userId)
 		if !ok {
 			returnData, _ = json.Marshal(nil)
 		} else {
@@ -1002,7 +1007,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var salesDeliveryNote SalesDeliveryNote
 		json.Unmarshal(message, &salesDeliveryNote)
 		salesDeliveryNote.enterprise = enterpriseId
-		ok, nodeId := salesDeliveryNote.insertSalesDeliveryNotes()
+		ok, nodeId := salesDeliveryNote.insertSalesDeliveryNotes(userId)
 		if !ok {
 			returnData, _ = json.Marshal(nil)
 		} else {
@@ -1016,7 +1021,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseOrder PurchaseOrder
 		json.Unmarshal(message, &purchaseOrder)
 		purchaseOrder.enterprise = enterpriseId
-		ok, orderId := purchaseOrder.insertPurchaseOrder()
+		ok, orderId := purchaseOrder.insertPurchaseOrder(userId)
 		if !ok {
 			returnData, _ = json.Marshal(nil)
 		} else {
@@ -1030,7 +1035,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseInvoice PurchaseInvoice
 		json.Unmarshal(message, &purchaseInvoice)
 		purchaseInvoice.enterprise = enterpriseId
-		ok, invoiceId := purchaseInvoice.insertPurchaseInvoice()
+		ok, invoiceId := purchaseInvoice.insertPurchaseInvoice(userId)
 		if !ok {
 			returnData, _ = json.Marshal(nil)
 		} else {
@@ -1044,7 +1049,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseDeliveryNote PurchaseDeliveryNote
 		json.Unmarshal(message, &purchaseDeliveryNote)
 		purchaseDeliveryNote.enterprise = enterpriseId
-		ok, noteId := purchaseDeliveryNote.insertPurchaseDeliveryNotes()
+		ok, noteId := purchaseDeliveryNote.insertPurchaseDeliveryNotes(userId)
 		if !ok {
 			returnData, _ = json.Marshal(nil)
 		} else {
@@ -1075,7 +1080,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrderDetail SalesOrderDetail
 		json.Unmarshal(message, &saleOrderDetail)
 		saleOrderDetail.enterprise = enterpriseId
-		ok = saleOrderDetail.insertSalesOrderDetail()
+		ok = saleOrderDetail.insertSalesOrderDetail(userId)
 	case "SALES_ORDER_DISCOUNT":
 		if !permissions.Sales {
 			return
@@ -1083,7 +1088,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrderDiscount SalesOrderDiscount
 		json.Unmarshal(message, &saleOrderDiscount)
 		saleOrderDiscount.enterprise = enterpriseId
-		ok = saleOrderDiscount.insertSalesOrderDiscount()
+		ok = saleOrderDiscount.insertSalesOrderDiscount(userId)
 	case "SALES_INVOICE_DETAIL":
 		if !permissions.Sales {
 			return
@@ -1091,7 +1096,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var salesInvoiceDetail SalesInvoiceDetail
 		json.Unmarshal(message, &salesInvoiceDetail)
 		salesInvoiceDetail.enterprise = enterpriseId
-		ok = salesInvoiceDetail.insertSalesInvoiceDetail(true)
+		ok = salesInvoiceDetail.insertSalesInvoiceDetail(true, userId)
 	case "MANUFACTURING_ORDER_TYPE":
 		if !permissions.Manufacturing {
 			return
@@ -1108,7 +1113,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &manufacturingOrder)
 		manufacturingOrder.UserCreated = userId
 		manufacturingOrder.enterprise = enterpriseId
-		ok = manufacturingOrder.insertManufacturingOrder()
+		ok = manufacturingOrder.insertManufacturingOrder(userId)
 	case "SALES_ORDER_PACKAGING":
 		if !permissions.Preparation {
 			return
@@ -1124,14 +1129,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var salesOrderDetailPackaged SalesOrderDetailPackaged
 		json.Unmarshal(message, &salesOrderDetailPackaged)
 		salesOrderDetailPackaged.enterprise = enterpriseId
-		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackaged()
+		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackaged(userId)
 	case "SALES_ORDER_DETAIL_PACKAGED_EAN13":
 		if !permissions.Preparation {
 			return
 		}
 		var salesOrderDetailPackaged SalesOrderDetailPackagedEAN13
 		json.Unmarshal(message, &salesOrderDetailPackaged)
-		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackagedEAN13(enterpriseId)
+		ok = salesOrderDetailPackaged.insertSalesOrderDetailPackagedEAN13(enterpriseId, userId)
 	case "WAREHOUSE_MOVEMENTS":
 		if !(permissions.Sales || permissions.Purchases || permissions.Warehouse) {
 			return
@@ -1139,7 +1144,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var warehouseMovement WarehouseMovement
 		json.Unmarshal(message, &warehouseMovement)
 		warehouseMovement.enterprise = enterpriseId
-		ok = warehouseMovement.insertWarehouseMovement()
+		ok = warehouseMovement.insertWarehouseMovement(userId)
 	case "USER":
 		if !permissions.Admin {
 			return
@@ -1169,7 +1174,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseOrderDetail PurchaseOrderDetail
 		json.Unmarshal(message, &purchaseOrderDetail)
 		purchaseOrderDetail.enterprise = enterpriseId
-		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true)
+		ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(true, userId)
 	case "PURCHASE_INVOICE_DETAIL":
 		if !permissions.Purchases {
 			return
@@ -1177,7 +1182,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
 		json.Unmarshal(message, &purchaseInvoiceDetail)
 		purchaseInvoiceDetail.enterprise = enterpriseId
-		ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true)
+		ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(true, userId)
 	case "PALLET":
 		if !permissions.Preparation {
 			return
@@ -1209,7 +1214,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var accountingMovement AccountingMovement
 		json.Unmarshal(message, &accountingMovement)
 		accountingMovement.enterprise = enterpriseId
-		ok = accountingMovement.insertAccountingMovement()
+		ok = accountingMovement.insertAccountingMovement(userId)
 	case "ACCOUNTING_MOVEMENT_DETAIL":
 		if !permissions.Accounting {
 			return
@@ -1217,7 +1222,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var accountingMovementDetail AccountingMovementDetail
 		json.Unmarshal(message, &accountingMovementDetail)
 		accountingMovementDetail.enterprise = enterpriseId
-		ok = accountingMovementDetail.insertAccountingMovementDetail()
+		ok = accountingMovementDetail.insertAccountingMovementDetail(userId)
 	case "CONFIG_ACCOUNTS_VAT":
 		if !permissions.Admin {
 			return
@@ -1233,7 +1238,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var charges Charges
 		json.Unmarshal(message, &charges)
 		charges.enterprise = enterpriseId
-		ok = charges.insertCharges()
+		ok = charges.insertCharges(userId)
 	case "PAYMENT":
 		if !permissions.Accounting {
 			return
@@ -1241,7 +1246,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var payment Payment
 		json.Unmarshal(message, &payment)
 		payment.enterprise = enterpriseId
-		ok = payment.insertPayment()
+		ok = payment.insertPayment(userId)
 	case "API_KEYS":
 		if !permissions.Admin {
 			return
@@ -1271,7 +1276,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	ws.WriteMessage(mt, data)
 }
 
-func instructionUpdate(command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32) {
+func instructionUpdate(command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32, userId int32) {
 	var ok bool
 
 	if permissions.Masters {
@@ -1315,12 +1320,12 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 			var customer Customer
 			json.Unmarshal(message, &customer)
 			customer.enterprise = enterpriseId
-			ok = customer.updateCustomer()
+			ok = customer.updateCustomer(userId)
 		case "PRODUCT":
 			var product Product
 			json.Unmarshal(message, &product)
 			product.enterprise = enterpriseId
-			ok = product.updateProduct()
+			ok = product.updateProduct(userId)
 		case "PRODUCT_FAMILY":
 			var productFamily ProductFamily
 			json.Unmarshal(message, &productFamily)
@@ -1350,7 +1355,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 			var supplier Supplier
 			json.Unmarshal(message, &supplier)
 			supplier.enterprise = enterpriseId
-			ok = supplier.updateSupplier()
+			ok = supplier.updateSupplier(userId)
 		case "DOCUMENT_CONTAINER":
 			var documentContainer DocumentContainer
 			json.Unmarshal(message, &documentContainer)
@@ -1379,7 +1384,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var saleOrder SaleOrder
 		json.Unmarshal(message, &saleOrder)
 		saleOrder.enterprise = enterpriseId
-		ok = saleOrder.updateSalesOrder()
+		ok = saleOrder.updateSalesOrder(userId)
 	case "SALES_ORDER_DETAIL":
 		if !permissions.Sales {
 			return
@@ -1387,7 +1392,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var salesOrderDetail SalesOrderDetail
 		json.Unmarshal(message, &salesOrderDetail)
 		salesOrderDetail.enterprise = enterpriseId
-		ok = salesOrderDetail.updateSalesOrderDetail()
+		ok = salesOrderDetail.updateSalesOrderDetail(userId)
 	case "MANUFACTURING_ORDER_TYPE":
 		if !permissions.Manufacturing {
 			return
@@ -1403,7 +1408,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var shipping Shipping
 		json.Unmarshal(message, &shipping)
 		shipping.enterprise = enterpriseId
-		ok = shipping.updateShipping()
+		ok = shipping.updateShipping(userId)
 	case "USER":
 		if !permissions.Admin {
 			return
@@ -1427,7 +1432,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var purchaseOrder PurchaseOrder
 		json.Unmarshal(message, &purchaseOrder)
 		purchaseOrder.enterprise = enterpriseId
-		ok = purchaseOrder.updatePurchaseOrder()
+		ok = purchaseOrder.updatePurchaseOrder(userId)
 	case "SETTINGS":
 		var settings Settings
 		json.Unmarshal(message, &settings)
@@ -1486,7 +1491,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 	ws.WriteMessage(mt, data)
 }
 
-func instructionDelete(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32) {
+func instructionDelete(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32, userId int32) {
 	// attempt to delete from resources with alpha key, if the resource if not found,
 	// parse the input as number and attemp to delete resource with numeric key
 	var found bool = true
@@ -1584,12 +1589,12 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 			var customer Customer
 			customer.Id = int32(id)
 			customer.enterprise = enterpriseId
-			ok = customer.deleteCustomer()
+			ok = customer.deleteCustomer(userId)
 		case "PRODUCT":
 			var product Product
 			product.Id = int32(id)
 			product.enterprise = enterpriseId
-			ok = product.deleteProduct()
+			ok = product.deleteProduct(userId)
 		case "PRODUCT_FAMILY":
 			var productFamily ProductFamily
 			productFamily.Id = int32(id)
@@ -1618,7 +1623,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 			var supplier Supplier
 			supplier.Id = int32(id)
 			supplier.enterprise = enterpriseId
-			ok = supplier.deleteSupplier()
+			ok = supplier.deleteSupplier(userId)
 		case "DOCUMENT_CONTAINER":
 			var documentContainer DocumentContainer
 			documentContainer.Id = int32(id)
@@ -1644,7 +1649,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var saleOrder SaleOrder
 		saleOrder.Id = int64(id)
 		saleOrder.enterprise = enterpriseId
-		ok = saleOrder.deleteSalesOrder()
+		ok = saleOrder.deleteSalesOrder(userId)
 	case "SALES_ORDER_DETAIL":
 		if !permissions.Sales {
 			return
@@ -1652,7 +1657,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var saleOrderDetail SalesOrderDetail
 		saleOrderDetail.Id = int64(id)
 		saleOrderDetail.enterprise = enterpriseId
-		ok = saleOrderDetail.deleteSalesOrderDetail()
+		ok = saleOrderDetail.deleteSalesOrderDetail(userId)
 	case "SALES_ORDER_DISCOUNT":
 		if !permissions.Sales {
 			return
@@ -1660,7 +1665,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var saleOrderDiscount SalesOrderDiscount
 		saleOrderDiscount.Id = int32(id)
 		saleOrderDiscount.enterprise = enterpriseId
-		ok = saleOrderDiscount.deleteSalesOrderDiscount()
+		ok = saleOrderDiscount.deleteSalesOrderDiscount(userId)
 	case "SALES_INVOICE":
 		if !permissions.Sales {
 			return
@@ -1668,7 +1673,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var salesInvoice SalesInvoice
 		salesInvoice.Id = int64(id)
 		salesInvoice.enterprise = enterpriseId
-		ok = salesInvoice.deleteSalesInvoice()
+		ok = salesInvoice.deleteSalesInvoice(userId)
 	case "SALES_INVOICE_DETAIL":
 		if !permissions.Sales {
 			return
@@ -1676,7 +1681,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var salesInvoiceDetail SalesInvoiceDetail
 		salesInvoiceDetail.Id = int64(id)
 		salesInvoiceDetail.enterprise = enterpriseId
-		ok = salesInvoiceDetail.deleteSalesInvoiceDetail()
+		ok = salesInvoiceDetail.deleteSalesInvoiceDetail(userId)
 	case "MANUFACTURING_ORDER_TYPE":
 		if !permissions.Manufacturing {
 			return
@@ -1692,7 +1697,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var manufacturingOrder ManufacturingOrder
 		manufacturingOrder.Id = int64(id)
 		manufacturingOrder.enterprise = enterpriseId
-		ok = manufacturingOrder.deleteManufacturingOrder()
+		ok = manufacturingOrder.deleteManufacturingOrder(userId)
 	case "PACKAGING":
 		if !permissions.Preparation {
 			return
@@ -1700,7 +1705,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var packaging Packaging
 		packaging.Id = int64(id)
 		packaging.enterprise = enterpriseId
-		ok = packaging.deletePackaging(enterpriseId)
+		ok = packaging.deletePackaging(enterpriseId, userId)
 	case "WAREHOUSE_MOVEMENTS":
 		if !(permissions.Sales || permissions.Purchases || permissions.Warehouse) {
 			return
@@ -1708,7 +1713,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var warehouseMovement WarehouseMovement
 		warehouseMovement.Id = int64(id)
 		warehouseMovement.enterprise = enterpriseId
-		ok = warehouseMovement.deleteWarehouseMovement()
+		ok = warehouseMovement.deleteWarehouseMovement(userId)
 	case "SALES_DELIVERY_NOTES":
 		if !permissions.Sales {
 			return
@@ -1716,7 +1721,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var salesDeliveryNote SalesDeliveryNote
 		salesDeliveryNote.Id = int64(id)
 		salesDeliveryNote.enterprise = enterpriseId
-		ok = salesDeliveryNote.deleteSalesDeliveryNotes()
+		ok = salesDeliveryNote.deleteSalesDeliveryNotes(userId)
 	case "SHIPPING":
 		if !permissions.Preparation {
 			return
@@ -1724,7 +1729,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var shipping Shipping
 		shipping.Id = int64(id)
 		shipping.enterprise = enterpriseId
-		ok = shipping.deleteShipping()
+		ok = shipping.deleteShipping(userId)
 	case "USER":
 		if !permissions.Admin {
 			return
@@ -1748,7 +1753,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseOrder PurchaseOrder
 		purchaseOrder.Id = int64(id)
 		purchaseOrder.enterprise = enterpriseId
-		ok = purchaseOrder.deletePurchaseOrder()
+		ok = purchaseOrder.deletePurchaseOrder(userId)
 	case "PURCHASE_ORDER_DETAIL":
 		if !permissions.Purchases {
 			return
@@ -1756,7 +1761,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseOrderDetail PurchaseOrderDetail
 		purchaseOrderDetail.Id = int64(id)
 		purchaseOrderDetail.enterprise = enterpriseId
-		ok = purchaseOrderDetail.deletePurchaseOrderDetail()
+		ok = purchaseOrderDetail.deletePurchaseOrderDetail(userId)
 	case "PURCHASE_DELIVERY_NOTE":
 		if !permissions.Purchases {
 			return
@@ -1764,7 +1769,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseDeliveryNote PurchaseDeliveryNote
 		purchaseDeliveryNote.Id = int64(id)
 		purchaseDeliveryNote.enterprise = enterpriseId
-		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes()
+		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes(userId)
 	case "PURCHASE_INVOICE":
 		if !permissions.Purchases {
 			return
@@ -1772,7 +1777,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseInvoice PurchaseInvoice
 		purchaseInvoice.Id = int64(id)
 		purchaseInvoice.enterprise = enterpriseId
-		ok = purchaseInvoice.deletePurchaseInvoice()
+		ok = purchaseInvoice.deletePurchaseInvoice(userId)
 	case "PURCHASE_INVOICE_DETAIL":
 		if !permissions.Purchases {
 			return
@@ -1780,7 +1785,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
 		purchaseInvoiceDetail.Id = int64(id)
 		purchaseInvoiceDetail.enterprise = enterpriseId
-		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail()
+		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail(userId)
 	case "PALLET":
 		if !permissions.Preparation {
 			return
@@ -1812,7 +1817,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var accountingMovement AccountingMovement
 		accountingMovement.Id = int64(id)
 		accountingMovement.enterprise = enterpriseId
-		ok = accountingMovement.deleteAccountingMovement()
+		ok = accountingMovement.deleteAccountingMovement(userId)
 	case "ACCOUNTING_MOVEMENT_DETAIL":
 		if !permissions.Accounting {
 			return
@@ -1820,7 +1825,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var accountingMovementDetail AccountingMovementDetail
 		accountingMovementDetail.Id = int64(id)
 		accountingMovementDetail.enterprise = enterpriseId
-		ok = accountingMovementDetail.deleteAccountingMovementDetail()
+		ok = accountingMovementDetail.deleteAccountingMovementDetail(userId)
 	case "CHARGES":
 		if !permissions.Accounting {
 			return
@@ -1828,7 +1833,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var charges Charges
 		charges.Id = int32(id)
 		charges.enterprise = enterpriseId
-		ok = charges.deleteCharges()
+		ok = charges.deleteCharges(userId)
 	case "PAYMENT":
 		if !permissions.Accounting {
 			return
@@ -1836,7 +1841,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var payment Payment
 		payment.Id = int32(id)
 		payment.enterprise = enterpriseId
-		ok = payment.deletePayment()
+		ok = payment.deletePayment(userId)
 	case "API_KEYS":
 		if !permissions.Admin {
 			return
@@ -2122,14 +2127,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(invoiceAllSaleOrder(int64(id), enterpriseId))
+		data, _ = json.Marshal(invoiceAllSaleOrder(int64(id), enterpriseId, userId))
 	case "INVOICE_PARTIAL_SALE_ORDER":
 		if !permissions.Sales {
 			return
 		}
 		var invoiceInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &invoiceInfo)
-		data, _ = json.Marshal(invoiceInfo.invoicePartiallySaleOrder(enterpriseId))
+		data, _ = json.Marshal(invoiceInfo.invoicePartiallySaleOrder(enterpriseId, userId))
 	case "GET_SALES_ORDER_RELATIONS":
 		if !permissions.Sales {
 			return
@@ -2180,7 +2185,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var salesOrderDetailPackaged SalesOrderDetailPackaged
 		json.Unmarshal([]byte(message), &salesOrderDetailPackaged)
 		salesOrderDetailPackaged.enterprise = enterpriseId
-		data, _ = json.Marshal(salesOrderDetailPackaged.deleteSalesOrderDetailPackaged(true))
+		data, _ = json.Marshal(salesOrderDetailPackaged.deleteSalesOrderDetailPackaged(true, userId))
 	case "DELIVERY_NOTE_ALL_SALE_ORDER":
 		if !permissions.Sales {
 			return
@@ -2189,7 +2194,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		ok, _ := deliveryNoteAllSaleOrder(int64(id), enterpriseId)
+		ok, _ := deliveryNoteAllSaleOrder(int64(id), enterpriseId, userId)
 		data, _ = json.Marshal(ok)
 	case "DELIVERY_NOTE_PARTIALLY_SALE_ORDER":
 		if !permissions.Sales {
@@ -2197,7 +2202,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var noteInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &noteInfo)
-		data, _ = json.Marshal(noteInfo.deliveryNotePartiallySaleOrder(enterpriseId))
+		data, _ = json.Marshal(noteInfo.deliveryNotePartiallySaleOrder(enterpriseId, userId))
 	case "SHIPPING_SALE_ORDER":
 		if !permissions.Preparation {
 			return
@@ -2206,7 +2211,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(generateShippingFromSaleOrder(int64(id), enterpriseId))
+		data, _ = json.Marshal(generateShippingFromSaleOrder(int64(id), enterpriseId, userId))
 	case "TOGGLE_SHIPPING_SENT":
 		if !permissions.Preparation {
 			return
@@ -2215,11 +2220,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(toggleShippingSent(int64(id), 1))
+		data, _ = json.Marshal(toggleShippingSent(int64(id), enterpriseId, userId))
 	case "SET_SHIPPING_COLLECTED":
 		var shippings []int64
 		json.Unmarshal([]byte(message), &shippings)
-		data, _ = json.Marshal(setShippingCollected(shippings, enterpriseId))
+		data, _ = json.Marshal(setShippingCollected(shippings, enterpriseId, userId))
 	case "GET_SALES_DELIVERY_NOTE_RELATIONS":
 		if !permissions.Sales {
 			return
@@ -2258,7 +2263,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var needs []PurchaseNeed
 		json.Unmarshal([]byte(message), &needs)
-		data, _ = json.Marshal(generatePurchaseOrdersFromNeeds(needs, enterpriseId))
+		data, _ = json.Marshal(generatePurchaseOrdersFromNeeds(needs, enterpriseId, userId))
 	case "DELIVERY_NOTE_ALL_PURCHASE_ORDER":
 		if !permissions.Purchases {
 			return
@@ -2267,7 +2272,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		ok, _ := deliveryNoteAllPurchaseOrder(int64(id), enterpriseId)
+		ok, _ := deliveryNoteAllPurchaseOrder(int64(id), enterpriseId, userId)
 		data, _ = json.Marshal(ok)
 	case "GET_PURCHASE_ORDER_RELATIONS":
 		if !permissions.Purchases {
@@ -2302,7 +2307,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var noteInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &noteInfo)
-		data, _ = json.Marshal(noteInfo.deliveryNotePartiallyPurchaseOrder(enterpriseId))
+		data, _ = json.Marshal(noteInfo.deliveryNotePartiallyPurchaseOrder(enterpriseId, userId))
 	case "INVOICE_ALL_PURCHASE_ORDER":
 		if !permissions.Purchases {
 			return
@@ -2311,14 +2316,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(invoiceAllPurchaseOrder(int64(id), enterpriseId))
+		data, _ = json.Marshal(invoiceAllPurchaseOrder(int64(id), enterpriseId, userId))
 	case "INVOICE_PARTIAL_PURCHASE_ORDER":
 		if !permissions.Purchases {
 			return
 		}
 		var invoiceInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &invoiceInfo)
-		data, _ = json.Marshal(invoiceInfo.invoicePartiallyPurchaseOrder(enterpriseId))
+		data, _ = json.Marshal(invoiceInfo.invoicePartiallyPurchaseOrder(enterpriseId, userId))
 	case "INSERT_DOCUMENT":
 		var document Document
 		json.Unmarshal([]byte(message), &document)
@@ -2353,7 +2358,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			break
 		}
 		p.generateBarcode(enterpriseId)
-		data, _ = json.Marshal(p.updateProduct())
+		data, _ = json.Marshal(p.updateProduct(userId))
 	case "EMAIL":
 		if !(permissions.Sales || permissions.Purchases) {
 			return
@@ -2379,7 +2384,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var importInfo ImportInfo
 		json.Unmarshal([]byte(message), &importInfo)
-		data, _ = json.Marshal(importInfo.importJson(enterpriseId))
+		data, _ = json.Marshal(importInfo.importJson(enterpriseId, userId))
 	case "REGENERATE_DRAGGED_STOCK":
 		if !permissions.Warehouse {
 			return
@@ -2409,7 +2414,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Masters {
 			return
 		}
-		data, _ = json.Marshal(calculateMinimumStock(enterpriseId))
+		data, _ = json.Marshal(calculateMinimumStock(enterpriseId, userId))
 	case "GENERATE_MANUFACTURIG_OR_PURCHASE_ORDERS_MINIMUM_STOCK":
 		if !permissions.Masters {
 			return
@@ -2421,14 +2426,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var invoiceIds []int64
 		json.Unmarshal([]byte(message), &invoiceIds)
-		data, _ = json.Marshal(salesPostInvoices(invoiceIds, enterpriseId))
+		data, _ = json.Marshal(salesPostInvoices(invoiceIds, enterpriseId, userId))
 	case "PURCHASE_POST_INVOICES":
 		if !permissions.Accounting {
 			return
 		}
 		var invoiceIds []int64
 		json.Unmarshal([]byte(message), &invoiceIds)
-		data, _ = json.Marshal(purchasePostInvoices(invoiceIds, enterpriseId))
+		data, _ = json.Marshal(purchasePostInvoices(invoiceIds, enterpriseId, userId))
 	case "MANUFACTURING_ORDER_TAG_PRINTED":
 		if !permissions.Manufacturing {
 			return
@@ -2446,7 +2451,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(cancelSalesOrderDetail(int64(id), enterpriseId))
+		data, _ = json.Marshal(cancelSalesOrderDetail(int64(id), enterpriseId, userId))
 	case "API_KEYS":
 		if !permissions.Admin {
 			return
@@ -2472,7 +2477,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var productGenerator ProductGenerator
 		json.Unmarshal([]byte(message), &productGenerator)
-		data, _ = json.Marshal(productGenerator.productGenerator(enterpriseId))
+		data, _ = json.Marshal(productGenerator.productGenerator(enterpriseId, userId))
 	case "REGISTER_USER_IN_GOOGLE_AUTHENTICATOR":
 		if !permissions.Admin {
 			return
@@ -2499,7 +2504,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(toggleSimplifiedInvoiceSalesInvoice(int64(id), enterpriseId))
+		data, _ = json.Marshal(toggleSimplifiedInvoiceSalesInvoice(int64(id), enterpriseId, userId))
 	case "MAKE_AMENDING_SALE_INVOICE":
 		if !permissions.Sales {
 			return
@@ -2513,7 +2518,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var makeAmendingInvoice MakeAmendingInvoice
 		json.Unmarshal([]byte(message), &makeAmendingInvoice)
-		data, _ = json.Marshal(makeAmendingPurchaseInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description))
+		data, _ = json.Marshal(makeAmendingPurchaseInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description, userId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -2532,7 +2537,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var paginatedSearch PaginatedSearch
 		json.Unmarshal([]byte(message), &paginatedSearch)
-		paginatedSearch.Enterprise = enterpriseId
+		paginatedSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(paginatedSearch.searchCustomers())
 	case "SUPPLER":
 		if !permissions.Masters {
@@ -2557,7 +2562,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var salesOrderSearch SalesOrderSearch
 		json.Unmarshal([]byte(message), &salesOrderSearch)
-		salesOrderSearch.Enterprise = enterpriseId
+		salesOrderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(salesOrderSearch.searchSalesOrder())
 	case "SALES_INVOICE":
 		if !permissions.Sales {
@@ -2565,7 +2570,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var orderSearch OrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchSalesInvoices())
 	case "SALES_DELIVERY_NOTE":
 		if !permissions.Sales {
@@ -2573,7 +2578,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var orderSearch OrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchSalesDelvieryNotes())
 	case "PURCHASE_ORDER":
 		if !permissions.Purchases {
@@ -2581,7 +2586,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var orderSearch OrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchPurchaseOrder())
 	case "PURCHASE_INVOICE":
 		if !permissions.Purchases {
@@ -2589,7 +2594,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var orderSearch OrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchPurchaseInvoice())
 	case "PURCHASE_DELIVERY_NOTE":
 		if !permissions.Purchases {
@@ -2597,7 +2602,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var orderSearch OrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
-		orderSearch.Enterprise = enterpriseId
+		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchPurchaseDeliveryNote())
 	case "COUNTRY":
 		if !permissions.Masters {
@@ -2615,7 +2620,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var paginatedSearch PaginatedSearch
 		json.Unmarshal([]byte(message), &paginatedSearch)
-		paginatedSearch.Enterprise = enterpriseId
+		paginatedSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(paginatedSearch.searchAddresses())
 	case "LANGUAGE":
 		if !permissions.Masters {
@@ -2628,7 +2633,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		}
 		var warehouseMovement WarehouseMovementSearch
 		json.Unmarshal([]byte(message), &warehouseMovement)
-		warehouseMovement.Enterprise = enterpriseId
+		warehouseMovement.enterprise = enterpriseId
 		data, _ = json.Marshal(warehouseMovement.searchWarehouseMovement())
 	case "ACCOUNT":
 		if !permissions.Accounting {

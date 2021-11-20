@@ -521,7 +521,7 @@ func copySyCustomers(enterpriseId int32) {
 			}
 
 			c.enterprise = enterpriseId
-			res := c.insertCustomer()
+			res := c.insertCustomer(0)
 			ok, customerId := res.Id > 0, int32(res.Id)
 			if !ok {
 				continue
@@ -583,7 +583,7 @@ func copySyCustomers(enterpriseId int32) {
 					a.PrivateOrBusiness = "P"
 				}
 				a.enterprise = enterpriseId
-				a.insertAddress()
+				a.insertAddress(0)
 			} // for rows.Next()
 		} else { // if rows == 0
 			// update the customer
@@ -620,7 +620,7 @@ func copySyCustomers(enterpriseId int32) {
 				c.FiscalName = c.Tradename
 				c.Name = c.Tradename
 			}
-			c.updateCustomer()
+			c.updateCustomer(0)
 
 			// add/update addresses
 			sqlStatement = `SELECT id, address1, address2, city, province, zip, country_code FROM public.sy_addresses WHERE customer_id=$1 AND enterprise=$2`
@@ -685,7 +685,7 @@ func copySyCustomers(enterpriseId int32) {
 						a.PrivateOrBusiness = "P"
 					}
 					a.enterprise = enterpriseId
-					a.insertAddress()
+					a.insertAddress(0)
 				} else {
 					sqlStatement := `SELECT id FROM address WHERE sy_id=$1 AND enterprise=$2`
 					rowCount := db.QueryRow(sqlStatement, id, enterpriseId)
@@ -778,7 +778,7 @@ func copySyProducts(enterpriseId int32) {
 					p.VatPercent = 0
 				}
 				p.enterprise = enterpriseId
-				p.insertProduct()
+				p.insertProduct(0)
 			} else {
 				for i := 0; i < len(variants); i++ {
 					p := Product{}
@@ -805,7 +805,7 @@ func copySyProducts(enterpriseId int32) {
 						p.VatPercent = 0
 					}
 					p.enterprise = enterpriseId
-					p.insertProduct()
+					p.insertProduct(0)
 				}
 			}
 		} else { // if rows == 0
@@ -840,7 +840,7 @@ func copySyProducts(enterpriseId int32) {
 				} else {
 					p.VatPercent = 0
 				}
-				p.updateProduct()
+				p.updateProduct(0)
 			} else {
 				for i := 0; i < len(variants); i++ {
 					sqlStatement := `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
@@ -875,7 +875,7 @@ func copySyProducts(enterpriseId int32) {
 						} else {
 							p.VatPercent = 0
 						}
-						p.updateProduct()
+						p.updateProduct(0)
 					} else { // the variant does not exist
 						p := Product{}
 						p.shopifyId = id
@@ -901,7 +901,7 @@ func copySyProducts(enterpriseId int32) {
 							p.VatPercent = 0
 						}
 						p.enterprise = enterpriseId
-						p.insertProduct()
+						p.insertProduct(0)
 					}
 				} // for
 			} // else
@@ -1030,7 +1030,7 @@ func copySyDraftOrders(enterpriseId int32) {
 
 			o.shopifyDraftId = id
 			o.enterprise = enterpriseId
-			ok, orderId := o.insertSalesOrder()
+			ok, orderId := o.insertSalesOrder(0)
 			if !ok {
 				continue
 			}
@@ -1040,7 +1040,7 @@ func copySyDraftOrders(enterpriseId int32) {
 			if c.BillingSeries == nil || *c.BillingSeries == "" {
 				c.BillingSeries = &o.BillingSeries
 			}
-			c.updateCustomer()
+			c.updateCustomer(0)
 
 			// insert the details
 			sqlStatement = `SELECT id, variant_id, product_id, quantity, taxable, price FROM public.sy_draft_order_line_item WHERE draft_order_id=$1 AND enterprise=$2`
@@ -1084,7 +1084,7 @@ func copySyDraftOrders(enterpriseId int32) {
 				d.Product = productIdErp
 				d.shopifyDraftId = id
 				d.enterprise = enterpriseId
-				d.insertSalesOrderDetail()
+				d.insertSalesOrderDetail(0)
 			} // for rows.Next()
 		} else { // if rows == 0
 			var orderIdErp int64
@@ -1118,7 +1118,7 @@ func copySyDraftOrders(enterpriseId int32) {
 			}
 
 			o.enterprise = enterpriseId
-			ok := o.updateSalesOrder()
+			ok := o.updateSalesOrder(0)
 			if !ok {
 				continue
 			}
@@ -1128,7 +1128,7 @@ func copySyDraftOrders(enterpriseId int32) {
 			if c.BillingSeries == nil || *c.BillingSeries == "" {
 				c.BillingSeries = &o.BillingSeries
 			}
-			c.updateCustomer()
+			c.updateCustomer(0)
 
 			// insert/update the details
 			sqlStatement = `SELECT id, variant_id, product_id, quantity, taxable, price FROM public.sy_draft_order_line_item WHERE draft_order_id=$1 AND enterprise=$2`
@@ -1183,7 +1183,7 @@ func copySyDraftOrders(enterpriseId int32) {
 					d.Product = productIdErp
 					d.shopifyDraftId = id
 					d.enterprise = enterpriseId
-					d.insertSalesOrderDetail()
+					d.insertSalesOrderDetail(0)
 				} else { // if salesOrderDetailId <= 0
 					d := getSalesOrderDetailRow(salesOrderDetailId)
 					d.Order = o.Id
@@ -1196,7 +1196,7 @@ func copySyDraftOrders(enterpriseId int32) {
 					}
 					d.Product = productIdErp
 					d.enterprise = enterpriseId
-					d.updateSalesOrderDetail()
+					d.updateSalesOrderDetail(0)
 				}
 			} // for rows.Next()
 		} // else
@@ -1372,7 +1372,7 @@ func copySyOrders(enterpriseId int32) {
 
 			o.shopifyId = id
 			o.enterprise = enterpriseId
-			ok := o.updateSalesOrder()
+			ok := o.updateSalesOrder(0)
 			if !ok {
 				continue
 			}
@@ -1382,7 +1382,7 @@ func copySyOrders(enterpriseId int32) {
 			if c.BillingSeries == nil || *c.BillingSeries == "" {
 				c.BillingSeries = &o.BillingSeries
 			}
-			c.updateCustomer()
+			c.updateCustomer(0)
 
 			// update the details
 			sqlStatement = `SELECT id, variant_id, product_id, quantity, taxable, price FROM public.sy_order_line_item WHERE order_id=$1 AND enterprise=$2`
@@ -1437,12 +1437,12 @@ func copySyOrders(enterpriseId int32) {
 					d.Product = productIdErp
 					d.shopifyId = id
 					d.enterprise = enterpriseId
-					d.updateSalesOrderDetail()
+					d.updateSalesOrderDetail(0)
 				}
 			}
 
 			// create the invoice for the order
-			invoiceAllSaleOrder(o.Id, enterpriseId)
+			invoiceAllSaleOrder(o.Id, enterpriseId, 0)
 		} // if rows == 0
 	} // for rows.Next()
 } // copySyOrders

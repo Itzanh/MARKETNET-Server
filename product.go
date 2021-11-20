@@ -101,7 +101,7 @@ func (p *Product) isValid() bool {
 	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0)
 }
 
-func (p *Product) insertProduct() bool {
+func (p *Product) insertProduct(userId int32) bool {
 	if !p.isValid() {
 		return false
 	}
@@ -124,10 +124,14 @@ func (p *Product) insertProduct() bool {
 	row.Scan(&productId)
 	p.Id = productId
 
+	if productId > 0 {
+		insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "I")
+	}
+
 	return productId > 0
 }
 
-func (p *Product) updateProduct() bool {
+func (p *Product) updateProduct(userId int32) bool {
 	if p.Id <= 0 || !p.isValid() {
 		return false
 	}
@@ -146,11 +150,13 @@ func (p *Product) updateProduct() bool {
 		return false
 	}
 
+	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "U")
+
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
 
-func (p *Product) deleteProduct() bool {
+func (p *Product) deleteProduct(userId int32) bool {
 	if p.Id <= 0 {
 		return false
 	}
@@ -168,6 +174,8 @@ func (p *Product) deleteProduct() bool {
 		log("DB", err.Error())
 		return false
 	}
+
+	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "D")
 
 	sqlStatement = `DELETE FROM public.product WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, p.Id, p.enterprise)
@@ -529,7 +537,7 @@ func (i *ProductImage) deleteProductImage(enterpriseId int32) bool {
 	return rows > 0
 }
 
-func calculateMinimumStock(enterpriseId int32) bool {
+func calculateMinimumStock(enterpriseId int32, userId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 	t := time.Now()
 	if s.MinimumStockSalesPeriods <= 0 || s.MinimumStockSalesDays <= 0 {
@@ -574,6 +582,8 @@ func calculateMinimumStock(enterpriseId int32) bool {
 			trans.Rollback()
 			return false
 		}
+
+		insertTransactionalLog(enterpriseId, "product", int(productId), userId, "U")
 	}
 
 	///
@@ -617,7 +627,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
 				o.UserCreated = userId
 				o.enterprise = enterpriseId
-				ok := o.insertManufacturingOrder()
+				ok := o.insertManufacturingOrder(userId)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -640,7 +650,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				p.PaymentMethod = *d.PaymentMethod
 
 				p.enterprise = enterpriseId
-				ok, purchaseOrderId := p.insertPurchaseOrder()
+				ok, purchaseOrderId := p.insertPurchaseOrder(userId)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -651,7 +661,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				// generate the needs as a detail
 				product := getProductRow(productId)
 				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
-				ok, _ = det.insertPurchaseOrderDetail(false)
+				ok, _ = det.insertPurchaseOrderDetail(false, userId)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -660,7 +670,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				// generate the needs as a detail
 				product := getProductRow(productId)
 				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
-				ok, _ = det.insertPurchaseOrderDetail(false)
+				ok, _ = det.insertPurchaseOrderDetail(false, userId)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -748,7 +758,7 @@ type ProductGenerate struct {
 	InitialStock    int32   `json:"initialStock"`
 }
 
-func (g *ProductGenerator) productGenerator(enterpriseId int32) bool {
+func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bool {
 	var manufacturingOrderTypeId int32
 	if g.ManufacturingOrderTypeMode == 2 {
 		if g.ManufacturingOrderTypeName == nil {
@@ -790,7 +800,7 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32) bool {
 			p.ManufacturingOrderType = &manufacturingOrderTypeId
 		}
 
-		ok := p.insertProduct()
+		ok := p.insertProduct(userId)
 		if !ok {
 			return false
 		}
@@ -798,7 +808,7 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32) bool {
 		if product.GenerateBarCode {
 			p := getProductRow(p.Id)
 			p.generateBarcode(enterpriseId)
-			p.updateProduct()
+			p.updateProduct(userId)
 		}
 
 		if product.InitialStock != 0 {
@@ -810,7 +820,7 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32) bool {
 				Type:       "R",
 				enterprise: enterpriseId,
 			}
-			wm.insertWarehouseMovement()
+			wm.insertWarehouseMovement(userId)
 		}
 	}
 	return true

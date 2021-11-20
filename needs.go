@@ -60,7 +60,7 @@ func (n PurchaseNeeds) Less(i, j int) bool {
 	return n[i].supplier.Id < n[j].supplier.Id
 }
 
-func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32) bool {
+func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, userId int32) bool {
 	if len(needs) == 0 {
 		return false
 	}
@@ -122,7 +122,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32) b
 			o.Warehouse = getPurchaseOrderDefaults(enterpriseId).Warehouse
 			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
 			o.enterprise = enterpriseId
-			ok, orderId := o.insertPurchaseOrder()
+			ok, orderId := o.insertPurchaseOrder(userId)
 			if !ok || orderId <= 0 {
 				trans.Rollback()
 				return false
@@ -136,7 +136,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32) b
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
 				d.enterprise = enterpriseId
-				ok, detailId := d.insertPurchaseOrderDetail(false)
+				ok, detailId := d.insertPurchaseOrderDetail(false, userId)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -152,7 +152,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32) b
 						trans.Rollback()
 						return false
 					}
-					ok := setSalesOrderState(details[k].Order)
+					ok := setSalesOrderState(enterpriseId, details[k].Order, userId)
 					if !ok {
 						trans.Rollback()
 						return false

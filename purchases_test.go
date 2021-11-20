@@ -30,7 +30,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}}
+	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
 	o := q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
@@ -41,7 +41,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "1"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
 	o = q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
@@ -52,7 +52,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "Itzan"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
 	o = q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
@@ -65,7 +65,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}, DateStart: &start, DateEnd: &end}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchPurchaseOrder()
 
 	for i := 0; i < len(o); i++ {
@@ -107,14 +107,14 @@ func TestPurchaseOrderInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	ok, orderId := o.insertPurchaseOrder()
+	ok, orderId := o.insertPurchaseOrder(0)
 	if !ok || orderId <= 0 {
 		t.Error("Insert error, purchase order not inserted")
 		return
 	}
 
 	o.Id = orderId
-	ok = o.deletePurchaseOrder()
+	ok = o.deletePurchaseOrder(0)
 	if !ok {
 		t.Error("Delete error, purchase order not deleted")
 		return
@@ -224,7 +224,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder()
+	_, orderId := o.insertPurchaseOrder(0)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -236,7 +236,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok, detailId := d.insertPurchaseOrderDetail(true)
+	ok, detailId := d.insertPurchaseOrderDetail(true, 0)
 	if !ok || detailId <= 0 {
 		t.Error("Insert error, purchase order detail not inserted")
 		return
@@ -260,14 +260,14 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete
 	d.Id = detailId
-	ok = d.deletePurchaseOrderDetail()
+	ok = d.deletePurchaseOrderDetail(0)
 	if !ok {
 		t.Error("Delete error, purchase order not deleted")
 		return
 	}
 
 	o.Id = orderId
-	o.deletePurchaseOrder()
+	o.deletePurchaseOrder(0)
 }
 
 /* FUNCTIONALITY */
@@ -319,7 +319,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}}
+	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
 	o := q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
@@ -330,7 +330,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "1"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
 	o = q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
@@ -341,7 +341,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "Itzan"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
 	o = q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
@@ -354,7 +354,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}, DateStart: &start, DateEnd: &end}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchPurchaseInvoice()
 
 	for i := 0; i < len(o); i++ {
@@ -394,14 +394,14 @@ func TestPurchaseInvoiceInsertUpdateDelete(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertPurchaseInvoice()
+	ok, invoiceId := i.insertPurchaseInvoice(0)
 	if !ok || invoiceId <= 0 {
 		t.Error("Insert error, can't insert purchase invocice")
 		return
 	}
 
 	i.Id = invoiceId
-	ok = i.deletePurchaseInvoice()
+	ok = i.deletePurchaseInvoice(0)
 	if !ok {
 		t.Error("Delete error, can't delete purchase invocice")
 		return
@@ -426,7 +426,7 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder()
+	_, orderId := o.insertPurchaseOrder(0)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -437,9 +437,9 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true)
+	d.insertPurchaseOrderDetail(true, 0)
 
-	ok := invoiceAllPurchaseOrder(orderId, 1)
+	ok := invoiceAllPurchaseOrder(orderId, 1, 0)
 	if !ok {
 		t.Error("Could not invoice all purchase order")
 		return
@@ -474,16 +474,16 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deletePurchaseInvoice()
+	ok = invoice.deletePurchaseInvoice(0)
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail()
+	details[0].deletePurchaseOrderDetail(0)
 	o.Id = orderId
-	o.deletePurchaseOrder()
+	o.deletePurchaseOrder(0)
 }
 
 func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
@@ -502,7 +502,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder()
+	_, orderId := o.insertPurchaseOrder(0)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -513,7 +513,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true)
+	d.insertPurchaseOrderDetail(true, 0)
 	details := getPurchaseOrderDetail(orderId, 1)
 
 	invoiceInfo := OrderDetailGenerate{
@@ -525,7 +525,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.invoicePartiallyPurchaseOrder(1)
+	ok := invoiceInfo.invoicePartiallyPurchaseOrder(1, 0)
 	if !ok {
 		t.Error("Could not invoice partially purchase order")
 		return
@@ -560,16 +560,16 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deletePurchaseInvoice()
+	ok = invoice.deletePurchaseInvoice(0)
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail()
+	details[0].deletePurchaseOrderDetail(0)
 	o.Id = orderId
-	o.deletePurchaseOrder()
+	o.deletePurchaseOrder(0)
 }
 
 func TestGetPurchaseInvoiceRelations(t *testing.T) {
@@ -661,7 +661,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		enterprise:     1,
 	}
 
-	_, invoiceId := i.insertPurchaseInvoice()
+	_, invoiceId := i.insertPurchaseInvoice(0)
 
 	d := PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
@@ -673,7 +673,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok := d.insertPurchaseInvoiceDetail(true)
+	ok := d.insertPurchaseInvoiceDetail(true, 0)
 	if !ok {
 		t.Error("Insert error, can't insert purchase invocice detail")
 		return
@@ -689,7 +689,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete
 	i.Id = invoiceId
-	ok = i.deletePurchaseInvoice()
+	ok = i.deletePurchaseInvoice(0)
 	if !ok {
 		t.Error("Delete error, can't delete purchase invocice detail")
 		return
@@ -721,7 +721,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}}
+	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
 	o := q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
@@ -732,7 +732,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "1"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
 	o = q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
@@ -743,7 +743,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, Search: "Itzan"}}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
 	o = q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
@@ -756,7 +756,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}, DateStart: &start, DateEnd: &end}
+	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchPurchaseDeliveryNote()
 
 	for i := 0; i < len(o); i++ {
@@ -797,14 +797,14 @@ func TestPurchaseDeliveryNoteInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	ok, noteId := i.insertPurchaseDeliveryNotes()
+	ok, noteId := i.insertPurchaseDeliveryNotes(0)
 	if !ok || noteId <= 0 {
 		t.Error("Insert error, can't insert purchase delivery note")
 		return
 	}
 
 	i.Id = noteId
-	ok = i.deletePurchaseDeliveryNotes()
+	ok = i.deletePurchaseDeliveryNotes(0)
 	if !ok {
 		t.Error("Delete error, can't delete purchase delivery note")
 		return
@@ -829,7 +829,7 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder()
+	_, orderId := o.insertPurchaseOrder(0)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -840,9 +840,9 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true)
+	d.insertPurchaseOrderDetail(true, 0)
 
-	ok, noteId := deliveryNoteAllPurchaseOrder(orderId, 1)
+	ok, noteId := deliveryNoteAllPurchaseOrder(orderId, 1, 0)
 	if !ok || noteId <= 0 {
 		t.Error("Could not delivery note all purchase order")
 		return
@@ -877,16 +877,16 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deletePurchaseDeliveryNotes()
+	ok = note.deletePurchaseDeliveryNotes(0)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail()
+	details[0].deletePurchaseOrderDetail(0)
 	o.Id = orderId
-	o.deletePurchaseOrder()
+	o.deletePurchaseOrder(0)
 }
 
 func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
@@ -905,7 +905,7 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder()
+	_, orderId := o.insertPurchaseOrder(0)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -916,7 +916,7 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true)
+	d.insertPurchaseOrderDetail(true, 0)
 	details := getPurchaseOrderDetail(orderId, 1)
 
 	invoiceInfo := OrderDetailGenerate{
@@ -928,7 +928,7 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.deliveryNotePartiallyPurchaseOrder(1)
+	ok := invoiceInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
 	if !ok {
 		t.Error("Could not deliveryNote partially purchase order")
 		return
@@ -963,14 +963,14 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deletePurchaseDeliveryNotes()
+	ok = note.deletePurchaseDeliveryNotes(0)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail()
+	details[0].deletePurchaseOrderDetail(0)
 	o.Id = orderId
-	o.deletePurchaseOrder()
+	o.deletePurchaseOrder(0)
 }

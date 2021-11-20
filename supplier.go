@@ -83,7 +83,7 @@ func (s *Supplier) isValid() bool {
 
 // 1 = Invalid
 // 2 = Database error
-func (s *Supplier) insertSupplier() OperationResult {
+func (s *Supplier) insertSupplier(userId int32) OperationResult {
 	if !s.isValid() {
 		return OperationResult{Code: 1}
 	}
@@ -107,11 +107,16 @@ func (s *Supplier) insertSupplier() OperationResult {
 
 	var supplierId int32
 	row.Scan(&supplierId)
+	s.Id = supplierId
+
+	if supplierId > 0 {
+		insertTransactionalLog(s.enterprise, "suppliers", int(s.Id), userId, "I")
+	}
 
 	return OperationResult{Id: int64(supplierId)}
 }
 
-func (s *Supplier) updateSupplier() bool {
+func (s *Supplier) updateSupplier(userId int32) bool {
 	if s.Id <= 0 || !s.isValid() {
 		return false
 	}
@@ -133,14 +138,18 @@ func (s *Supplier) updateSupplier() bool {
 		return false
 	}
 
+	insertTransactionalLog(s.enterprise, "suppliers", int(s.Id), userId, "U")
+
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
 
-func (s *Supplier) deleteSupplier() bool {
+func (s *Supplier) deleteSupplier(userId int32) bool {
 	if s.Id <= 0 {
 		return false
 	}
+
+	insertTransactionalLog(s.enterprise, "suppliers", int(s.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.suppliers WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, s.Id, s.enterprise)

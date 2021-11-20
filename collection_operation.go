@@ -136,7 +136,7 @@ func getColletionOperationRow(collectionOperationId int32) CollectionOperation {
 	return o
 }
 
-func (c *CollectionOperation) insertCollectionOperation() bool {
+func (c *CollectionOperation) insertCollectionOperation(userId int32) bool {
 	if c.Total <= 0 {
 		return false
 	}
@@ -158,12 +158,16 @@ func (c *CollectionOperation) insertCollectionOperation() bool {
 	row.Scan(&collectionOperationId)
 	c.Id = collectionOperationId
 
+	if collectionOperationId > 0 {
+		insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "I")
+	}
+
 	return collectionOperationId > 0
 }
 
 // Adds or substracts the paid quantity on the collection operation
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (c *CollectionOperation) addQuantityCharges(charges float64) bool {
+func (c *CollectionOperation) addQuantityCharges(charges float64, userId int32) bool {
 	sqlStatement := `UPDATE public.collection_operation SET paid=paid+$2, pending=pending-$2, status=(CASE WHEN pending-$2=0 THEN 'C' ELSE 'P' END) WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, charges)
 	rows, _ := res.RowsAffected()
@@ -172,13 +176,17 @@ func (c *CollectionOperation) addQuantityCharges(charges float64) bool {
 		log("DB", err.Error())
 	}
 
+	insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "U")
+
 	return err == nil && rows > 0
 }
 
-func (c *CollectionOperation) deleteCollectionOperation() bool {
+func (c *CollectionOperation) deleteCollectionOperation(userId int32) bool {
 	if c.Id <= 0 {
 		return false
 	}
+
+	insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1 AND enterprise=$2`
 	_, err := db.Exec(sqlStatement, c.Id, c.enterprise)

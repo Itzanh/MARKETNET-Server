@@ -49,7 +49,7 @@ func (p *SalesOrderDetailPackaged) isValid() bool {
 	return !(p.OrderDetail <= 0 || p.Packaging <= 0 || p.Quantity <= 0)
 }
 
-func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged() bool {
+func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) bool {
 	if !p.isValid() {
 		return false
 	}
@@ -80,7 +80,7 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged() bool {
 		return false
 	}
 
-	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, -p.Quantity)
+	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, -p.Quantity, userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -99,7 +99,7 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged() bool {
 	///
 }
 
-func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransaction bool) bool {
+func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransaction bool, userId int32) bool {
 	if p.OrderDetail <= 0 || p.Packaging <= 0 {
 		return false
 	}
@@ -138,7 +138,7 @@ func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransactio
 		return false
 	}
 
-	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, inMemoryPackage.Quantity)
+	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, inMemoryPackage.Quantity, userId)
 	if !ok {
 		if openTransaction {
 			trans.Rollback()
@@ -178,7 +178,7 @@ func (d *SalesOrderDetailPackagedEAN13) isValid() bool {
 	return !(d.SalesOrder <= 0 || len(d.EAN13) != 13 || d.Packaging <= 0 || d.Quantity <= 0)
 }
 
-func (d *SalesOrderDetailPackagedEAN13) insertSalesOrderDetailPackagedEAN13(enterpriseId int32) bool {
+func (d *SalesOrderDetailPackagedEAN13) insertSalesOrderDetailPackagedEAN13(enterpriseId int32, userId int32) bool {
 	if !d.isValid() {
 		return false
 	}
@@ -202,5 +202,5 @@ func (d *SalesOrderDetailPackagedEAN13) insertSalesOrderDetailPackagedEAN13(ente
 	p.Quantity = d.Quantity
 	p.enterprise = enterpriseId
 
-	return p.insertSalesOrderDetailPackaged()
+	return p.insertSalesOrderDetailPackaged(userId)
 }

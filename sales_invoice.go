@@ -48,7 +48,7 @@ func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
 
 	si.Invoices = make([]SalesInvoice, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE enterprise=$3 ORDER BY date_created DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return si
@@ -62,7 +62,7 @@ func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM public.sales_invoice WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.Enterprise)
+	row := db.QueryRow(sqlStatement, q.enterprise)
 	row.Scan(&si.Rows)
 
 	return si
@@ -86,7 +86,7 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
 		sqlStatement := `SELECT sales_invoice.*,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE invoice_number=$1 AND enterprise=$2 ORDER BY date_created DESC`
-		rows, err = db.Query(sqlStatement, orderNumber, s.Enterprise)
+		rows, err = db.Query(sqlStatement, orderNumber, s.enterprise)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
@@ -103,7 +103,7 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 			sqlStatement += ` AND accounting_movement IS NULL`
 		}
 		sqlStatement += ` AND sales_invoice.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.Enterprise)
+		interfaces = append(interfaces, s.enterprise)
 		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
 		interfaces = append(interfaces, s.Offset)
 		interfaces = append(interfaces, s.Limit)
@@ -125,7 +125,7 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 	orderNumber, err = strconv.Atoi(s.Search)
 	if err == nil {
 		sqlStatement := `SELECT COUNT(*) FROM sales_invoice WHERE invoice_number=$1 AND enterprise=$2`
-		row = db.QueryRow(sqlStatement, orderNumber, s.Enterprise)
+		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
@@ -142,7 +142,7 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 			sqlStatement += ` AND accounting_movement IS NULL`
 		}
 		sqlStatement += ` AND sales_invoice.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.Enterprise)
+		interfaces = append(interfaces, s.enterprise)
 		row = db.QueryRow(sqlStatement, interfaces...)
 	}
 	if row.Err() != nil {
@@ -174,7 +174,7 @@ func (i *SalesInvoice) isValid() bool {
 	return !(i.Customer <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
 
-func (i *SalesInvoice) insertSalesInvoice() (bool, int64) {
+func (i *SalesInvoice) insertSalesInvoice(userId int32) (bool, int64) {
 	if !i.isValid() {
 		return false, 0
 	}
@@ -219,10 +219,15 @@ func (i *SalesInvoice) insertSalesInvoice() (bool, int64) {
 
 	var invoiceId int64
 	row.Scan(&invoiceId)
+
+	if invoiceId > 0 {
+		insertTransactionalLog(i.enterprise, "sales_invoice", int(invoiceId), userId, "I")
+	}
+
 	return invoiceId > 0, invoiceId
 }
 
-func (i *SalesInvoice) deleteSalesInvoice() bool {
+func (i *SalesInvoice) deleteSalesInvoice(userId int32) bool {
 	if i.Id <= 0 {
 		return false
 	}
@@ -249,12 +254,14 @@ func (i *SalesInvoice) deleteSalesInvoice() bool {
 	d := getSalesInvoiceDetail(i.Id, i.enterprise)
 
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deleteSalesInvoiceDetail()
+		ok := d[i].deleteSalesInvoiceDetail(userId)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
+
+	insertTransactionalLog(i.enterprise, "sales_invoice", int(i.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.sales_invoice WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, i.Id, i.enterprise)
@@ -275,13 +282,15 @@ func (i *SalesInvoice) deleteSalesInvoice() bool {
 	return rows > 0
 }
 
-func toggleSimplifiedInvoiceSalesInvoice(invoiceId int64, enterpriseId int32) bool {
+func toggleSimplifiedInvoiceSalesInvoice(invoiceId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE sales_invoice SET simplified_invoice = NOT simplified_invoice WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, invoiceId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
@@ -351,7 +360,7 @@ func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float
 
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64) bool {
+func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE sales_invoice SET total_products = total_products + $2, vat_amount = vat_amount + $3 WHERE id = $1`
 	_, err := db.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
@@ -359,12 +368,12 @@ func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPerce
 		return false
 	}
 
-	return calcTotalsSaleInvoice(invoiceId)
+	return calcTotalsSaleInvoice(enterpriseId, invoiceId, userId)
 }
 
 // Applies the logic to calculate the totals of the sales invoice and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsSaleInvoice(invoiceId int64) bool {
+func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32) bool {
 	sqlStatement := `UPDATE sales_invoice SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err := db.Exec(sqlStatement, invoiceId)
 	if err != nil {
@@ -379,10 +388,12 @@ func calcTotalsSaleInvoice(invoiceId int64) bool {
 		log("DB", err.Error())
 	}
 
+	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
+
 	return err == nil
 }
 
-func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32) bool {
+func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bool {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	if saleOrder.enterprise != enterpriseId {
@@ -409,14 +420,14 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32) bool {
 	}
 	///
 
-	ok := setDatePaymentAcceptedSalesOrder(saleOrder.Id)
+	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	invoice.enterprise = saleOrder.enterprise
-	ok, invoiceId := invoice.insertSalesInvoice()
+	ok, invoiceId := invoice.insertSalesInvoice(userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -432,7 +443,7 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32) bool {
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
 		invoiceDetal.enterprise = invoice.enterprise
-		ok = invoiceDetal.insertSalesInvoiceDetail(false)
+		ok = invoiceDetal.insertSalesInvoiceDetail(false, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -457,7 +468,7 @@ type OrderDetailGenerateSelection struct {
 	Quantity int32 `json:"quantity"`
 }
 
-func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId int32) bool {
+func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId int32, userId int32) bool {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(invoiceInfo.OrderId)
 	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(invoiceInfo.Selection) == 0 {
@@ -488,14 +499,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 	}
 	///
 
-	ok := setDatePaymentAcceptedSalesOrder(saleOrder.Id)
+	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	invoice.enterprise = saleOrder.enterprise
-	ok, invoiceId := invoice.insertSalesInvoice()
+	ok, invoiceId := invoice.insertSalesInvoice(userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -511,7 +522,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
 		invoiceDetal.enterprise = invoice.enterprise
-		ok = invoiceDetal.insertSalesInvoiceDetail(false)
+		ok = invoiceDetal.insertSalesInvoiceDetail(false, userId)
 		if !ok {
 			trans.Rollback()
 			return false

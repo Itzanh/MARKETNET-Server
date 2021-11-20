@@ -418,7 +418,7 @@ func copyWcCustomers(enterpriseId int32) {
 				c.Phone = shippingPhone
 			}
 			c.enterprise = enterpriseId
-			res := c.insertCustomer()
+			res := c.insertCustomer(0)
 			ok, customerId := res.Id > 0, int32(res.Id)
 			if !ok {
 				continue
@@ -475,7 +475,7 @@ func copyWcCustomers(enterpriseId int32) {
 				ba.PrivateOrBusiness = "B"
 			}
 			ba.enterprise = enterpriseId
-			ba.insertAddress()
+			ba.insertAddress(0)
 
 			// create shipping address
 			sa := Address{}
@@ -528,13 +528,13 @@ func copyWcCustomers(enterpriseId int32) {
 				sa.PrivateOrBusiness = "B"
 			}
 			sa.enterprise = enterpriseId
-			sa.insertAddress()
+			sa.insertAddress(0)
 
 			// set as the main billing and shipping address
 			customer := getCustomerRow(customerId)
 			customer.MainBillingAddress = &ba.Id
 			customer.MainShippingAddress = &sa.Id
-			customer.updateCustomer()
+			customer.updateCustomer(0)
 		} else {
 			// update the addresses
 			sqlStatement := `SELECT id FROM public.customer WHERE wc_id=$1 AND enterprise=$2 LIMIT 1`
@@ -650,7 +650,7 @@ func copyWcCustomers(enterpriseId int32) {
 					}
 				}
 				ba.enterprise = enterpriseId
-				ba.insertAddress()
+				ba.insertAddress(0)
 			}
 
 			// shipping address
@@ -751,7 +751,7 @@ func copyWcCustomers(enterpriseId int32) {
 					}
 				}
 				sa.enterprise = enterpriseId
-				sa.insertAddress()
+				sa.insertAddress(0)
 			}
 
 		} // else
@@ -831,7 +831,7 @@ func copyWcProducts(enterpriseId int32) {
 				p.VatPercent = s.DefaultVatPercent
 				p.wooCommerceId = id
 				p.enterprise = enterpriseId
-				p.insertProduct()
+				p.insertProduct(0)
 
 				for i := 0; i < len(images); i++ {
 					pi := ProductImage{
@@ -892,7 +892,7 @@ func copyWcProducts(enterpriseId int32) {
 					p.wooCommerceId = id
 					p.wooCommerceVariationId = v_id
 					p.enterprise = enterpriseId
-					p.insertProduct()
+					p.insertProduct(0)
 
 					for i := 0; i < len(images); i++ {
 						pi := ProductImage{
@@ -939,7 +939,7 @@ func copyWcProducts(enterpriseId int32) {
 				if err == nil {
 					p.Height = float64(f_height)
 				}
-				p.updateProduct()
+				p.updateProduct(0)
 			} else { // if len(variations) == 0 {
 				for i := 0; i < len(variations); i++ {
 					sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 AND enterprise=$3 LIMIT 1`
@@ -992,7 +992,7 @@ func copyWcProducts(enterpriseId int32) {
 					if err == nil {
 						p.Height = float64(f_height)
 					}
-					p.updateProduct()
+					p.updateProduct(0)
 				} // for
 			} // else
 		} // else
@@ -1148,7 +1148,7 @@ func copyWcOrders(enterpriseId int32) {
 				}
 			}
 			ba.enterprise = enterpriseId
-			ba.insertAddress()
+			ba.insertAddress(0)
 			billingAddress = ba.Id
 		}
 
@@ -1213,7 +1213,7 @@ func copyWcOrders(enterpriseId int32) {
 				}
 			}
 			sa.enterprise = enterpriseId
-			sa.insertAddress()
+			sa.insertAddress(0)
 			shippingAddress = sa.Id
 		}
 
@@ -1238,7 +1238,7 @@ func copyWcOrders(enterpriseId int32) {
 		}
 
 		s.enterprise = enterpriseId
-		ok, orderId := s.insertSalesOrder()
+		ok, orderId := s.insertSalesOrder(0)
 		if !ok {
 			continue
 		}
@@ -1251,7 +1251,7 @@ func copyWcOrders(enterpriseId int32) {
 		if c.BillingSeries == nil || *c.BillingSeries == "" {
 			c.BillingSeries = &s.BillingSeries
 		}
-		c.updateCustomer()
+		c.updateCustomer(0)
 
 		// insert the details
 		sqlStatement = `SELECT id, product_id, variation_id, quantity, total_tax, price FROM public.wc_order_details WHERE "order"=$1 AND enterprise=$2`
@@ -1295,14 +1295,14 @@ func copyWcOrders(enterpriseId int32) {
 
 			d.wooCommerceId = id
 			d.enterprise = enterpriseId
-			d.insertSalesOrderDetail()
+			d.insertSalesOrderDetail(0)
 
 		} // for rows.Next() {
 
 		// if the payment method is paid in advance, it means that this order is already paid (by VISA o PayPal etc)
 		// automatically generate an invoice for this payment
 		if paidInAdvance {
-			invoiceAllSaleOrder(orderId, enterpriseId)
+			invoiceAllSaleOrder(orderId, enterpriseId, 0)
 		}
 
 	} // for rows.Next() {

@@ -996,7 +996,7 @@ func copyPsCustomers(enterpriseId int32) {
 			c.TaxId = taxId
 			c.VatNumber = vatNumber
 			c.enterprise = enterpriseId
-			c.insertCustomer()
+			c.insertCustomer(0)
 		}
 	}
 }
@@ -1101,7 +1101,7 @@ func copyPsAddresses(enterpriseId int32) {
 			a.prestaShopId = id
 			a.PrivateOrBusiness = "_"
 			a.enterprise = enterpriseId
-			a.insertAddress()
+			a.insertAddress(0)
 
 			// set the customer details if are empty
 			c := getCustomerRow(customer)
@@ -1120,7 +1120,7 @@ func copyPsAddresses(enterpriseId int32) {
 			if c.State == nil {
 				c.State = state
 			}
-			c.updateCustomer()
+			c.updateCustomer(0)
 		}
 	}
 }
@@ -1234,7 +1234,7 @@ func copyPsProducts(enterpriseId int32) {
 				p.Description = description
 				p.prestaShopId = ps_productId
 				p.enterprise = enterpriseId
-				p.insertProduct()
+				p.insertProduct(0)
 			} else {
 				p := getProductRow(productId)
 				p.Name = name
@@ -1243,7 +1243,7 @@ func copyPsProducts(enterpriseId int32) {
 				p.Price = price
 				p.DateCreated = dateAdd
 				p.Description = description
-				p.updateProduct()
+				p.updateProduct(0)
 			}
 
 		} else { // it's a product with combinations
@@ -1294,7 +1294,7 @@ func copyPsProducts(enterpriseId int32) {
 					p.prestaShopId = ps_productId
 					p.prestaShopCombinationId = combinationId
 					p.enterprise = enterpriseId
-					p.insertProduct()
+					p.insertProduct(0)
 				} else {
 					p := getProductRow(productId)
 					p.Name = combinationName
@@ -1303,7 +1303,7 @@ func copyPsProducts(enterpriseId int32) {
 					p.Price = combinationPrice
 					p.DateCreated = dateAdd
 					p.Description = description
-					p.updateProduct()
+					p.updateProduct(0)
 				}
 			}
 		}
@@ -1456,7 +1456,7 @@ func copyPsOrders(enterpriseId int32) {
 		}
 
 		s.enterprise = enterpriseId
-		s.insertSalesOrder()
+		s.insertSalesOrder(0)
 
 		// set the customer details if are empty
 		c := getCustomerRow(customer)
@@ -1466,7 +1466,7 @@ func copyPsOrders(enterpriseId int32) {
 		if c.BillingSeries == nil || *c.BillingSeries == "" {
 			c.BillingSeries = &s.BillingSeries
 		}
-		c.updateCustomer()
+		c.updateCustomer(0)
 	}
 }
 
@@ -1536,7 +1536,7 @@ func copyPsOrderDetails(enterpriseId int32) {
 
 		d.enterprise = enterpriseId
 		d.prestaShopId = detailId
-		ok := d.insertSalesOrderDetail()
+		ok := d.insertSalesOrderDetail(0)
 
 		if ok {
 			found := false
@@ -1563,7 +1563,7 @@ func copyPsOrderDetails(enterpriseId int32) {
 		row.Scan(&paidInAdvance)
 
 		if paidInAdvance {
-			invoiceAllSaleOrder(orderIds[i], enterpriseId)
+			invoiceAllSaleOrder(orderIds[i], enterpriseId, 0)
 		}
 	}
 

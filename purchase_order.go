@@ -67,7 +67,7 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
 		sqlStatement := `SELECT purchase_order.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order WHERE order_number=$1 AND enterprise=$2 ORDER BY date_created DESC`
-		rows, err = db.Query(sqlStatement, orderNumber, s.Enterprise)
+		rows, err = db.Query(sqlStatement, orderNumber, s.enterprise)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
@@ -81,7 +81,7 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 			interfaces = append(interfaces, s.DateEnd)
 		}
 		sqlStatement += ` AND purchase_order.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.Enterprise)
+		interfaces = append(interfaces, s.enterprise)
 		sqlStatement += ` ORDER BY date_created DESC`
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
@@ -120,7 +120,7 @@ func (p *PurchaseOrder) isValid() bool {
 	return !(len(p.Warehouse) == 0 || len(p.SupplierReference) > 40 || p.Supplier <= 0 || p.PaymentMethod <= 0 || len(p.BillingSeries) == 0 || p.Currency <= 0 || p.BillingAddress <= 0 || p.ShippingAddress <= 0 || len(p.Notes) > 250)
 }
 
-func (p *PurchaseOrder) insertPurchaseOrder() (bool, int64) {
+func (p *PurchaseOrder) insertPurchaseOrder(userId int32) (bool, int64) {
 	if !p.isValid() {
 		return false, 0
 	}
@@ -142,10 +142,16 @@ func (p *PurchaseOrder) insertPurchaseOrder() (bool, int64) {
 
 	var invoiceId int64
 	row.Scan(&invoiceId)
+	p.Id = invoiceId
+
+	if invoiceId > 0 {
+		insertTransactionalLog(p.enterprise, "purchase_order", int(invoiceId), userId, "I")
+	}
+
 	return invoiceId > 0, invoiceId
 }
 
-func (p *PurchaseOrder) updatePurchaseOrder() bool {
+func (p *PurchaseOrder) updatePurchaseOrder(userId int32) bool {
 	if p.Id <= 0 || !p.isValid() {
 		return false
 	}
@@ -174,7 +180,7 @@ func (p *PurchaseOrder) updatePurchaseOrder() bool {
 		res, err = db.Exec(sqlStatement, p.Id, p.Supplier, p.PaymentMethod, p.Currency, p.CurrencyChange, p.BillingAddress, p.ShippingAddress, p.DiscountPercent, p.FixDiscount, p.ShippingPrice, p.ShippingDiscount, p.Description, p.Notes, p.SupplierReference)
 
 		if p.DiscountPercent != inMemoryOrder.DiscountPercent || p.FixDiscount != inMemoryOrder.FixDiscount || p.ShippingPrice != inMemoryOrder.ShippingPrice || p.ShippingDiscount != inMemoryOrder.ShippingDiscount {
-			ok := calcTotalsPurchaseOrder(p.Id)
+			ok := calcTotalsPurchaseOrder(p.Id, p.enterprise, userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -199,10 +205,15 @@ func (p *PurchaseOrder) updatePurchaseOrder() bool {
 	///
 
 	rows, _ := res.RowsAffected()
+
+	if rows > 0 {
+		insertTransactionalLog(p.enterprise, "purchase_order", int(p.Id), userId, "U")
+	}
+
 	return rows > 0
 }
 
-func (p *PurchaseOrder) deletePurchaseOrder() bool {
+func (p *PurchaseOrder) deletePurchaseOrder(userId int32) bool {
 	if p.Id <= 0 {
 		return false
 	}
@@ -230,12 +241,14 @@ func (p *PurchaseOrder) deletePurchaseOrder() bool {
 
 	for i := 0; i < len(d); i++ {
 		d[i].enterprise = p.enterprise
-		ok := d[i].deletePurchaseOrderDetail()
+		ok := d[i].deletePurchaseOrderDetail(userId)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
+
+	insertTransactionalLog(inMemoryOrder.enterprise, "purchase_order", int(p.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.purchase_order WHERE id=$1`
 	res, err := db.Exec(sqlStatement, p.Id)
@@ -258,7 +271,7 @@ func (p *PurchaseOrder) deletePurchaseOrder() bool {
 
 // Adds a total amount to the order total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsPurchaseOrder(orderId int64, totalAmount float64, vatPercent float64) bool {
+func addTotalProductsPurchaseOrder(orderId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE purchase_order SET total_products=total_products+$2,total_vat=total_vat+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, orderId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
@@ -266,25 +279,28 @@ func addTotalProductsPurchaseOrder(orderId int64, totalAmount float64, vatPercen
 		return false
 	}
 
-	return calcTotalsPurchaseOrder(orderId)
+	return calcTotalsPurchaseOrder(orderId, enterpriseId, userId)
 }
 
 // If the payment accepted date is null, sets it to the current date and time.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func setDatePaymentAcceptedPurchaseOrder(orderId int64) bool {
+func setDatePaymentAcceptedPurchaseOrder(orderId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE purchase_order SET date_paid=CASE WHEN date_paid IS NOT NULL THEN date_paid ELSE CURRENT_TIMESTAMP(3) END WHERE id=$1`
 	_, err := db.Exec(sqlStatement, orderId)
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
 
 	return err == nil
 }
 
 // Applies the logic to calculate the totals of the purchase order and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsPurchaseOrder(orderId int64) bool {
+func calcTotalsPurchaseOrder(orderId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE purchase_order SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+total_vat WHERE id=$1`
 	_, err := db.Exec(sqlStatement, orderId)
 	if err != nil {
@@ -294,6 +310,9 @@ func calcTotalsPurchaseOrder(orderId int64) bool {
 
 	sqlStatement = `UPDATE purchase_order SET total_amount=total_with_discount+total_vat WHERE id=$1`
 	_, err = db.Exec(sqlStatement, orderId)
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+
 	return err == nil
 }
 
@@ -387,56 +406,68 @@ func removePurchaseOrderLinesNumber(orderId int64) bool {
 
 // Add an amount to the invoiced_lines field in the purchase order. This number represents the total of invoiced lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addPurchaseOrderInvoicedLines(orderId int64) bool {
+func addPurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE public.purchase_order SET invoiced_lines=invoiced_lines+1 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, orderId)
 	rows, _ := res.RowsAffected()
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
 
 	return err == nil && rows > 0
 }
 
 // Takes out an amount to the invoiced_lines field in the purchase order. This number represents the total of invoiced lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func removePurchaseOrderInvoicedLines(orderId int64) bool {
+func removePurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE public.purchase_order SET invoiced_lines=invoiced_lines-1 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, orderId)
 	rows, _ := res.RowsAffected()
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
 
 	return err == nil && rows > 0
 }
 
 // Add an amount to the delivery_note_lines field in the purchase order. This number represents the total of delivery note lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addPurchaseOrderDeliveryNoteLines(orderId int64) bool {
+func addPurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE public.purchase_order SET delivery_note_lines=delivery_note_lines+1 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, orderId)
 	rows, _ := res.RowsAffected()
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
 
 	return err == nil && rows > 0
 }
 
 // Takes out an amount to the delivery_note_lines field in the purchase order. This number represents the total of delivery note lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func removePurchaseOrderDeliveryNoteLines(orderId int64) bool {
+func removePurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE public.purchase_order SET delivery_note_lines=delivery_note_lines-1 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, orderId)
 	rows, _ := res.RowsAffected()
 
 	if err != nil {
 		log("DB", err.Error())
+		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
 
 	return err == nil && rows > 0
 }

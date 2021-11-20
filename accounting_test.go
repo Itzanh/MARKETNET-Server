@@ -248,13 +248,13 @@ func TestAccountingMovementInsertDelete(t *testing.T) {
 		enterprise:   1,
 	}
 
-	ok := am.insertAccountingMovement()
+	ok := am.insertAccountingMovement(0)
 	if !ok {
 		t.Error("Insert error, can't insert accounting movement")
 		return
 	}
 
-	ok = am.deleteAccountingMovement()
+	ok = am.deleteAccountingMovement(0)
 	if !ok {
 		t.Error("Delete error, can't delete accounting movement")
 		return
@@ -378,7 +378,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		BillingAddress: 1,
 		enterprise:     1,
 	}
-	_, invoiceId := i.insertSalesInvoice()
+	_, invoiceId := i.insertSalesInvoice(0)
 	d := SalesInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product,
@@ -387,7 +387,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertSalesInvoiceDetail(true)
+	d.insertSalesInvoiceDetail(true, 0)
 	d = SalesInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product2,
@@ -396,11 +396,11 @@ func TestSalesPostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertSalesInvoiceDetail(true)
+	d.insertSalesInvoiceDetail(true, 0)
 	i = getSalesInvoiceRow(invoiceId)
 
 	// post sale invoice
-	result := salesPostInvoices([]int64{invoiceId}, 1)
+	result := salesPostInvoices([]int64{invoiceId}, 1, 0)
 	for i := 0; i < len(result); i++ {
 		if !result[i].Ok {
 			t.Error("Can't post sale invoice")
@@ -495,7 +495,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		Concept:             "TESTING...",
 		enterprise:          1,
 	}
-	ok := charge.insertCharges()
+	ok := charge.insertCharges(0)
 	if !ok {
 		t.Error("Can't insert charges")
 		return
@@ -570,21 +570,21 @@ func TestSalesPostInvoices(t *testing.T) {
 	// DELETE
 	// delete the charge (that will delete the new accounting movement)
 	charge.enterprise = 1
-	ok = charge.deleteCharges()
+	ok = charge.deleteCharges(0)
 	if !ok {
 		t.Error("Delete error, can't delete charge")
 		return
 	}
 
 	// delete accounting movement
-	ok = am.deleteAccountingMovement()
+	ok = am.deleteAccountingMovement(0)
 	if !ok {
 		t.Error("Delete error, can't delete accounting movement")
 		return
 	}
 
 	// delete invoioce and details
-	ok = i.deleteSalesInvoice()
+	ok = i.deleteSalesInvoice(0)
 	if !ok {
 		t.Error("Delete error, can't delete sale invoice")
 		return
@@ -610,7 +610,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		BillingAddress: 1,
 		enterprise:     1,
 	}
-	_, invoiceId := i.insertPurchaseInvoice()
+	_, invoiceId := i.insertPurchaseInvoice(0)
 	d := PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product,
@@ -619,7 +619,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertPurchaseInvoiceDetail(true)
+	d.insertPurchaseInvoiceDetail(true, 0)
 	d = PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product2,
@@ -628,11 +628,11 @@ func TestPurchasePostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertPurchaseInvoiceDetail(true)
+	d.insertPurchaseInvoiceDetail(true, 0)
 	i = getPurchaseInvoiceRow(invoiceId)
 
 	// post purchase invoice
-	result := purchasePostInvoices([]int64{invoiceId}, 1)
+	result := purchasePostInvoices([]int64{invoiceId}, 1, 0)
 	for i := 0; i < len(result); i++ {
 		if !result[i].Ok {
 			t.Error("Can't post purchase invoice")
@@ -727,7 +727,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		Concept:            "TESTING...",
 		enterprise:         1,
 	}
-	ok := payment.insertPayment()
+	ok := payment.insertPayment(0)
 	if !ok {
 		t.Error("Can't insert payments")
 		return
@@ -801,20 +801,20 @@ func TestPurchasePostInvoices(t *testing.T) {
 
 	// DELETE
 	// delete the payment (that will delete the new accounting movement)
-	ok = payment.deletePayment()
+	ok = payment.deletePayment(0)
 	if !ok {
 		t.Error("Delete error, can't delete payment")
 		return
 	}
 
 	// delete accounting movement
-	ok = am.deleteAccountingMovement()
+	ok = am.deleteAccountingMovement(0)
 	if !ok {
 		t.Error("Delete error, can't delete accounting movement")
 	}
 
 	// delete invoioce and details
-	ok = i.deletePurchaseInvoice()
+	ok = i.deletePurchaseInvoice(0)
 	if !ok {
 		t.Error("Delete error, can't delete purchase invoice")
 	}

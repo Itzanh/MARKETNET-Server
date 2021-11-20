@@ -45,7 +45,7 @@ func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
 
 	wm.Movements = make([]WarehouseMovement, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM public.warehouse_movement WHERE enterprise=$3 ORDER BY id DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return wm
@@ -57,7 +57,7 @@ func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.Enterprise)
+	row := db.QueryRow(sqlStatement, q.enterprise)
 	row.Scan(&wm.Rows)
 
 	return wm
@@ -76,7 +76,7 @@ func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() Warehou
 	}
 
 	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM public.warehouse_movement WHERE warehouse=$1 AND enterprise=$4 ORDER BY id DESC OFFSET $2 LIMIT $3`
-	rows, err := db.Query(sqlStatement, w.WarehouseId, w.Offset, w.Limit, w.Enterprise)
+	rows, err := db.Query(sqlStatement, w.WarehouseId, w.Offset, w.Limit, w.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return wm
@@ -88,7 +88,7 @@ func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() Warehou
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM public.warehouse_movement WHERE warehouse=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, w.WarehouseId, w.Enterprise)
+	row := db.QueryRow(sqlStatement, w.WarehouseId, w.enterprise)
 	if row.Err() != nil {
 		return wm
 	}
@@ -178,7 +178,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 		parameters = append(parameters, w.DateEnd)
 	}
 	sqlStatement += ` AND warehouse_movement.enterprise = $` + strconv.Itoa(len(parameters)+1)
-	parameters = append(parameters, w.Enterprise)
+	parameters = append(parameters, w.enterprise)
 	sqlStatement += ` ORDER BY warehouse_movement.id DESC OFFSET $` + strconv.Itoa(len(parameters)+1) + ` LIMIT $` + strconv.Itoa(len(parameters)+2)
 	parameters = append(parameters, w.Offset)
 	parameters = append(parameters, w.Limit)
@@ -205,7 +205,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 		parameters = append(parameters, w.DateEnd)
 	}
 	sqlStatement += ` AND warehouse_movement.enterprise = $` + strconv.Itoa(len(parameters)+1)
-	parameters = append(parameters, w.Enterprise)
+	parameters = append(parameters, w.enterprise)
 	row := db.QueryRow(sqlStatement, parameters...)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
@@ -220,7 +220,7 @@ func (m *WarehouseMovement) isValid() bool {
 	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1 || (m.Type != "I" && m.Type != "O" && m.Type != "R"))
 }
 
-func (m *WarehouseMovement) insertWarehouseMovement() bool {
+func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
 	if !m.isValid() {
 		return false
 	}
@@ -262,6 +262,8 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 
 	m.Id = warehouseMovementId
 
+	insertTransactionalLog(m.enterprise, "warehouse_movement", int(warehouseMovementId), userId, "I")
+
 	// update the product quantity
 	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock, m.enterprise)
 	if !ok {
@@ -270,14 +272,14 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	// delivery notes generation
 	if m.SalesOrderDetail != nil {
-		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity))
+		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity), userId)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
 	if m.PurchaseOrderDetail != nil {
-		ok = addQuantityDeliveryNotePurchaseOrderDetail(*m.PurchaseOrderDetail, abs(m.Quantity))
+		ok = addQuantityDeliveryNotePurchaseOrderDetail(*m.PurchaseOrderDetail, abs(m.Quantity), m.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -285,7 +287,7 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	// sales delivery note price
 	if m.SalesDeliveryNote != nil {
-		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent)
+		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent, m.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -293,7 +295,7 @@ func (m *WarehouseMovement) insertWarehouseMovement() bool {
 	}
 	// purchase delivery note price
 	if m.PurchaseDeliveryNote != nil {
-		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent)
+		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent, m.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -322,7 +324,7 @@ func absf(x float64) float64 {
 	return x
 }
 
-func (m *WarehouseMovement) deleteWarehouseMovement() bool {
+func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 	if m.Id <= 0 {
 		return false
 	}
@@ -338,6 +340,8 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 		return false
 	}
 	///
+
+	insertTransactionalLog(m.enterprise, "warehouse_movement", int(m.Id), userId, "D")
 
 	// delete the warehouse movement
 	sqlStatement := `DELETE FROM public.warehouse_movement WHERE id=$1 AND enterprise=$2`
@@ -399,14 +403,14 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	// delivery note generation
 	if inMemoryMovement.SalesOrderDetail != nil {
-		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity))
+		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity), userId)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
 	if inMemoryMovement.PurchaseOrderDetail != nil {
-		ok = addQuantityDeliveryNotePurchaseOrderDetail(*inMemoryMovement.PurchaseOrderDetail, -abs(inMemoryMovement.Quantity))
+		ok = addQuantityDeliveryNotePurchaseOrderDetail(*inMemoryMovement.PurchaseOrderDetail, -abs(inMemoryMovement.Quantity), m.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -414,7 +418,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	// sales delivery note price
 	if inMemoryMovement.SalesDeliveryNote != nil {
-		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
+		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent, m.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -422,7 +426,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement() bool {
 	}
 	// purchase delivery note price
 	if inMemoryMovement.PurchaseDeliveryNote != nil {
-		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent)
+		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent, inMemoryMovement.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false

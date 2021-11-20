@@ -45,7 +45,7 @@ func (q *PaginationQuery) getCustomers() Customers {
 
 	ct.Customers = make([]Customer, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer WHERE enterprise=$3 ORDER BY id DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return ct
@@ -57,7 +57,7 @@ func (q *PaginationQuery) getCustomers() Customers {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM customer WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.Enterprise)
+	row := db.QueryRow(sqlStatement, q.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ct
@@ -75,7 +75,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 
 	ct.Customers = make([]Customer, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE (name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1) AND enterprise=$4 ORDER BY id DESC LIMIT $2 OFFSET $3`
-	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Limit, s.Offset, s.Enterprise)
+	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Limit, s.Offset, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return ct
@@ -87,7 +87,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM customer WHERE (name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1) AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, "%"+s.Search+"%", s.Enterprise)
+	row := db.QueryRow(sqlStatement, "%"+s.Search+"%", s.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ct
@@ -117,7 +117,7 @@ func (c *Customer) isValid() bool {
 
 // 1 = Invalid
 // 2 = Database error
-func (c *Customer) insertCustomer() OperationResult {
+func (c *Customer) insertCustomer(userId int32) OperationResult {
 	if !c.isValid() {
 		return OperationResult{Code: 1}
 	}
@@ -141,11 +141,16 @@ func (c *Customer) insertCustomer() OperationResult {
 
 	var customerId int32
 	row.Scan(&customerId)
+	c.Id = customerId
+
+	if customerId > 0 {
+		insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "I")
+	}
 
 	return OperationResult{Id: int64(customerId)}
 }
 
-func (c *Customer) updateCustomer() bool {
+func (c *Customer) updateCustomer(userId int32) bool {
 	if c.Id <= 0 || !c.isValid() {
 		return false
 	}
@@ -167,14 +172,18 @@ func (c *Customer) updateCustomer() bool {
 		return false
 	}
 
+	insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "U")
+
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
 
-func (c *Customer) deleteCustomer() bool {
+func (c *Customer) deleteCustomer(userId int32) bool {
 	if c.Id <= 0 {
 		return false
 	}
+
+	insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.customer WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)

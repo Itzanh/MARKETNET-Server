@@ -65,7 +65,7 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		UserCreated: 1,
 		enterprise:  1,
 	}
-	ok := mo.insertManufacturingOrder()
+	ok := mo.insertManufacturingOrder(0)
 	if !ok {
 		t.Error("Insert error, manufacturing order not inserted")
 		return
@@ -91,7 +91,7 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	ok = mo.deleteManufacturingOrder()
+	ok = mo.deleteManufacturingOrder(0)
 	if !ok {
 		t.Error("Delete error, can't delete manufacturing order")
 		return
@@ -116,7 +116,7 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertSalesOrder()
+	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
 		Order:      orderId,
@@ -127,9 +127,9 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertSalesOrderDetail()
+	d.insertSalesOrderDetail(1)
 
-	invoiceAllSaleOrder(orderId, 1)
+	invoiceAllSaleOrder(orderId, 1, 0)
 	ok := manufacturingOrderAllSaleOrder(orderId, 1, 1)
 	if !ok {
 		t.Error("Could not manufacturing order all sale order")
@@ -146,7 +146,7 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[0].deleteManufacturingOrder()
+		ok = r.ManufacturingOrders[0].deleteManufacturingOrder(0)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -154,15 +154,15 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created sale invoice
-	r.Invoices[0].deleteSalesInvoice()
+	r.Invoices[0].deleteSalesInvoice(0)
 
 	// delete created order
 	details := getSalesOrderDetail(orderId, 1)
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail()
+	details[0].deleteSalesOrderDetail(1)
 	o.Id = orderId
 	o.enterprise = 1
-	o.deleteSalesOrder()
+	o.deleteSalesOrder(1)
 }
 
 func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
@@ -183,7 +183,7 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertSalesOrder()
+	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
 		Order:      orderId,
@@ -194,8 +194,8 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertSalesOrderDetail()
-	invoiceAllSaleOrder(orderId, 1)
+	d.insertSalesOrderDetail(1)
+	invoiceAllSaleOrder(orderId, 1, 0)
 
 	details := getSalesOrderDetail(orderId, 1)
 	odg := OrderDetailGenerate{OrderId: orderId, Selection: []OrderDetailGenerateSelection{{Id: details[0].Id, Quantity: 1}}}
@@ -215,7 +215,7 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[0].deleteManufacturingOrder()
+		ok = r.ManufacturingOrders[0].deleteManufacturingOrder(0)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -223,14 +223,14 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created sale invoice
-	r.Invoices[0].deleteSalesInvoice()
+	r.Invoices[0].deleteSalesInvoice(0)
 
 	// delete created order
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail()
+	details[0].deleteSalesOrderDetail(1)
 	o.Id = orderId
 	o.enterprise = 1
-	o.deleteSalesOrder()
+	o.deleteSalesOrder(1)
 }
 
 // ===== CUSTOMERS

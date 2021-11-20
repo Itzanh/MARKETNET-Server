@@ -380,7 +380,7 @@ type ImportInfo struct {
 	TableName string `json:"tableName"`
 }
 
-func (f *ImportInfo) importJson(enterpriseId int32) bool {
+func (f *ImportInfo) importJson(enterpriseId int32, userId int32) bool {
 	if len(f.JsonData) == 0 || len(f.TableName) == 0 {
 		return false
 	}
@@ -413,7 +413,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &address)
 		for i := 0; i < len(address); i++ {
 			address[i].enterprise = enterpriseId
-			ok = address[i].insertAddress().Id > 0
+			ok = address[i].insertAddress(userId).Id > 0
 			if !ok {
 				trans.Rollback()
 				return false
@@ -488,7 +488,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &customer)
 		for i := 0; i < len(customer); i++ {
 			customer[i].enterprise = enterpriseId
-			ok = customer[i].insertCustomer().Id > 0
+			ok = customer[i].insertCustomer(userId).Id > 0
 			if !ok {
 				trans.Rollback()
 				return false
@@ -544,7 +544,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		for i := 0; i < len(manufacturingOrder); i++ {
 			manufacturingOrder[i].UserCreated = 1
 			manufacturingOrder[i].enterprise = enterpriseId
-			ok = manufacturingOrder[i].insertManufacturingOrder()
+			ok = manufacturingOrder[i].insertManufacturingOrder(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -588,7 +588,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &product)
 		for i := 0; i < len(product); i++ {
 			product[i].enterprise = enterpriseId
-			ok = product[i].insertProduct()
+			ok = product[i].insertProduct(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -610,7 +610,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &purchaseDeliveryNote)
 		for i := 0; i < len(purchaseDeliveryNote); i++ {
 			purchaseDeliveryNote[i].enterprise = enterpriseId
-			ok, _ = purchaseDeliveryNote[i].insertPurchaseDeliveryNotes()
+			ok, _ = purchaseDeliveryNote[i].insertPurchaseDeliveryNotes(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -621,7 +621,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &purchaseInvoice)
 		for i := 0; i < len(purchaseInvoice); i++ {
 			purchaseInvoice[i].enterprise = enterpriseId
-			ok, _ = purchaseInvoice[i].insertPurchaseInvoice()
+			ok, _ = purchaseInvoice[i].insertPurchaseInvoice(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -632,7 +632,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &purchaseOrder)
 		for i := 0; i < len(purchaseOrder); i++ {
 			purchaseOrder[i].enterprise = enterpriseId
-			ok, _ = purchaseOrder[i].insertPurchaseOrder()
+			ok, _ = purchaseOrder[i].insertPurchaseOrder(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -643,7 +643,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &salesDeliveryNote)
 		for i := 0; i < len(salesDeliveryNote); i++ {
 			salesDeliveryNote[i].enterprise = enterpriseId
-			ok, _ = salesDeliveryNote[i].insertSalesDeliveryNotes()
+			ok, _ = salesDeliveryNote[i].insertSalesDeliveryNotes(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -654,7 +654,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &saleInvoice)
 		for i := 0; i < len(saleInvoice); i++ {
 			saleInvoice[i].enterprise = enterpriseId
-			ok, _ = saleInvoice[i].insertSalesInvoice()
+			ok, _ = saleInvoice[i].insertSalesInvoice(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -665,7 +665,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &saleOrder)
 		for i := 0; i < len(saleOrder); i++ {
 			saleOrder[i].enterprise = enterpriseId
-			ok, _ = saleOrder[i].insertSalesOrder()
+			ok, _ = saleOrder[i].insertSalesOrder(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -676,7 +676,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &shipping)
 		for i := 0; i < len(shipping); i++ {
 			shipping[i].enterprise = enterpriseId
-			ok, _ = shipping[i].insertShipping()
+			ok, _ = shipping[i].insertShipping(userId)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -698,7 +698,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &supplier)
 		for i := 0; i < len(supplier); i++ {
 			supplier[i].enterprise = enterpriseId
-			ok = supplier[i].insertSupplier().Id > 0
+			ok = supplier[i].insertSupplier(userId).Id > 0
 			if !ok {
 				trans.Rollback()
 				return false
@@ -720,7 +720,7 @@ func (f *ImportInfo) importJson(enterpriseId int32) bool {
 		json.Unmarshal(jsonData, &warehouseMovement)
 		for i := 0; i < len(warehouseMovement); i++ {
 			warehouseMovement[i].enterprise = enterpriseId
-			ok = warehouseMovement[i].insertWarehouseMovement()
+			ok = warehouseMovement[i].insertWarehouseMovement(userId)
 			if !ok {
 				trans.Rollback()
 				return false

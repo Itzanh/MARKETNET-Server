@@ -14,7 +14,7 @@ func TestGetCustomers(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
@@ -31,7 +31,7 @@ func TestSearchCustomers(t *testing.T) {
 	}
 
 	// search all
-	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}}
+	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}
 	c := q.searchCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
@@ -110,7 +110,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	res := c.insertCustomer()
+	res := c.insertCustomer(0)
 	ok, customerId := res.Id > 0, res.Id
 	if !ok {
 		t.Error("Insert error, customer not inserted")
@@ -119,7 +119,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	c.Id = int32(customerId)
 
 	c.TaxId = "ABCDEF1234"
-	ok = c.updateCustomer()
+	ok = c.updateCustomer(0)
 	if !ok {
 		t.Error("Update error, customer not updated")
 		return
@@ -140,7 +140,7 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	}
 
 	// delete
-	ok = c.deleteCustomer()
+	ok = c.deleteCustomer(0)
 	if !ok {
 		t.Error("Delete error, customer not deleted")
 		return
@@ -154,7 +154,7 @@ func TestGetCustomerAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
@@ -175,7 +175,7 @@ func TestGetCustomerSaleOrders(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}
 	c := q.getCustomers()
 
 	for i := 0; i < len(c.Customers); i++ {
@@ -215,7 +215,7 @@ func TestSetCustomerAccount(t *testing.T) {
 	}
 
 	// insert
-	res := c.insertCustomer()
+	res := c.insertCustomer(0)
 	ok, customerId := res.Id > 0, res.Id
 	if !ok {
 		t.Error("Insert error, customer not inserted")
@@ -233,7 +233,7 @@ func TestSetCustomerAccount(t *testing.T) {
 		return
 	}
 
-	ok = c.deleteCustomer()
+	ok = c.deleteCustomer(0)
 	if !ok {
 		t.Error("Customer not deleted")
 	}
@@ -393,7 +393,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok := c.insertSupplier().Id > 0
+	ok := c.insertSupplier(0).Id > 0
 	if !ok {
 		t.Error("Insert error, supplier not inserted")
 		return
@@ -404,7 +404,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	c = suppliers[len(suppliers)-1]
 
 	c.TaxId = "ABCDEF1234"
-	ok = c.updateSupplier()
+	ok = c.updateSupplier(0)
 	if !ok {
 		t.Error("Update error, supplier not updated")
 		return
@@ -425,7 +425,7 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	}
 
 	// delete
-	ok = c.deleteSupplier()
+	ok = c.deleteSupplier(0)
 	if !ok {
 		t.Error("Delete error, supplier not deleted")
 		return
@@ -498,7 +498,7 @@ func TestSetSupplierAccount(t *testing.T) {
 	}
 
 	// insert
-	ok := s.insertSupplier().Id > 0
+	ok := s.insertSupplier(0).Id > 0
 	if !ok {
 		t.Error("Insert error, supplier not inserted")
 		return
@@ -516,7 +516,7 @@ func TestSetSupplierAccount(t *testing.T) {
 		return
 	}
 
-	s.deleteSupplier()
+	s.deleteSupplier(0)
 }
 
 func TestLocateSuppliers(t *testing.T) {
@@ -673,7 +673,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct()
+	ok := p.insertProduct(0)
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -683,7 +683,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 	p = products[len(products)-1]
 
 	p.Name = "Wooden Office Desk"
-	ok = p.updateProduct()
+	ok = p.updateProduct(0)
 	if !ok {
 		t.Error("Update error, could not update product")
 		return
@@ -695,7 +695,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	ok = p.deleteProduct()
+	ok = p.deleteProduct(0)
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return
@@ -823,7 +823,7 @@ func TestGenerateBarcode(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct()
+	ok := p.insertProduct(0)
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -844,7 +844,7 @@ func TestGenerateBarcode(t *testing.T) {
 		return
 	}
 
-	ok = p.deleteProduct()
+	ok = p.deleteProduct(0)
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return
@@ -909,7 +909,7 @@ func TestCalculateMinimumStock(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	ok := calculateMinimumStock(1)
+	ok := calculateMinimumStock(1, 0)
 	if !ok {
 		t.Error("Calculate minimum stock not successful")
 	}
@@ -1373,7 +1373,7 @@ func TestGetAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: 1, enterprise: 1}
 	addresses := q.getAddresses()
 	if len(addresses.Addresses) == 0 || addresses.Addresses[0].Id <= 0 {
 		t.Error("Can't scan addresses")
@@ -1398,7 +1398,7 @@ func TestSearchAddresses(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}, Search: ""}
+	q := PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, enterprise: 1}, Search: ""}
 	addresses := q.searchAddresses()
 	if len(addresses.Addresses) == 0 || addresses.Addresses[0].Id <= 0 {
 		t.Error("Can't scan addresses")
@@ -1426,13 +1426,13 @@ func TestAddressInsertUpdateDelete(t *testing.T) {
 		enterprise:        1,
 	}
 
-	ok := a.insertAddress().Id > 0
+	ok := a.insertAddress(0).Id > 0
 	if !ok {
 		t.Error("Insert error, can't insert address")
 		return
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}
 	addresses := q.getAddresses().Addresses
 	a = addresses[len(addresses)-1]
 

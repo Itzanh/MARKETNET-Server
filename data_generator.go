@@ -100,13 +100,13 @@ func generateCustomers(enterpriseId int32) {
 		c.PaymentMethod = &paymentMethods[rand.Intn(len(paymentMethods))].Id
 
 		c.enterprise = 1
-		c.insertCustomer()
+		c.insertCustomer(0)
 	}
 }
 
 func generateAddresses(enterpriseId int32) {
 	countries := getCountries(1)
-	q := PaginationQuery{Offset: 0, Limit: 0, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: 0, enterprise: 1}
 	customers := q.getCustomers()
 
 	for i := 0; i < len(customers.Customers); i++ {
@@ -181,7 +181,7 @@ func generateAddresses(enterpriseId int32) {
 
 			a.PrivateOrBusiness = "_"
 			a.enterprise = enterpriseId
-			a.insertAddress()
+			a.insertAddress(0)
 		}
 	}
 
@@ -212,7 +212,7 @@ func generateSaleOrders(enterpriseId int32) {
 			o.BillingAddress = addresses[rand.Intn(len(addresses))].Id
 			o.ShippingAddress = addresses[rand.Intn(len(addresses))].Id
 			o.enterprise = 1
-			ok, id := o.insertSalesOrder()
+			ok, id := o.insertSalesOrder(1)
 
 			if !ok {
 				continue
@@ -229,7 +229,7 @@ func generateSaleOrders(enterpriseId int32) {
 				d.Quantity = int32(rand.Intn(10) + 1)
 				d.VatPercent = product.VatPercent
 				d.enterprise = 1
-				d.insertSalesOrderDetail()
+				d.insertSalesOrderDetail(0)
 			}
 		}
 	}
@@ -240,7 +240,7 @@ func generateInvoiceAllSalesOrders() {
 	o := q.getSalesOrder(1)
 
 	for i := 0; i < len(o.Orders); i++ {
-		invoiceAllSaleOrder(o.Orders[i].Id, 1)
-		deliveryNoteAllSaleOrder(o.Orders[i].Id, 1)
+		invoiceAllSaleOrder(o.Orders[i].Id, 1, 0)
+		deliveryNoteAllSaleOrder(o.Orders[i].Id, 1, 0)
 	}
 }

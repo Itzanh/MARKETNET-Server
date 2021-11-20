@@ -56,7 +56,7 @@ func (d *PurchaseOrderDetail) isValid() bool {
 	return !(d.Order <= 0 || d.Product <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
-func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, int64) {
+func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool, userId int32) (bool, int64) {
 	if !s.isValid() {
 		return false, 0
 	}
@@ -88,14 +88,18 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		}
 		return false, 0
 	}
+
 	var detailId int64
 	row.Scan(&detailId)
+	s.Id = detailId
+
+	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "I")
 
 	if detailId <= 0 {
 		return false, 0
 	}
 
-	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent)
+	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId)
 	if !ok {
 		if beginTrans {
 			trans.Rollback()
@@ -108,13 +112,14 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		return false, 0
 	}
 
-	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(detailId, s.Product, s.Quantity)
+	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(detailId, s.Product, s.Quantity, s.enterprise, userId)
 	if quantityAssignedSale < 0 {
 		if beginTrans {
 			trans.Rollback()
 		}
 		return false, 0
 	}
+
 	sqlStatement = `UPDATE purchase_order_detail SET quantity_assigned_sale=$2 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, detailId, quantityAssignedSale)
 	if err != nil {
@@ -124,6 +129,8 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 		}
 		return false, 0
 	}
+
+	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "U")
 
 	// add quantity pending receiving
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
@@ -156,7 +163,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(beginTrans bool) (bool, 
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, productId int32, quantity int32) int32 {
+func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, productId int32, quantity int32, enterpriseId int32, userId int32) int32 {
 	// associate pending sales order detail until there are no more quantity pending to be assigned, or there are no more pending sales order details
 	sqlStatement := `SELECT id,quantity,"order" FROM sales_order_detail WHERE product=$1 AND status='A' ORDER BY (SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail."order") ASC`
 	rows, err := db.Query(sqlStatement, productId)
@@ -181,7 +188,8 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, produc
 			_, err := db.Exec(sqlStatement, salesDetailId, purchaseDetailId)
 			if err == nil {
 				quantityAssignedSale += salesQuantity
-				setSalesOrderState(orderId)
+				setSalesOrderState(enterpriseId, orderId, userId)
+				insertTransactionalLog(enterpriseId, "sales_order_detail", int(salesDetailId), userId, "U")
 			} else {
 				log("DB", err.Error())
 			}
@@ -193,7 +201,7 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, produc
 }
 
 // Deletes an order detail, substracting the stock and the amount from the order total. All the operations are done under a transaction.
-func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
+func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32) bool {
 	if s.Id <= 0 {
 		return false
 	}
@@ -221,12 +229,14 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 			trans.Rollback()
 			return false
 		}
-		ok := setSalesOrderState(details[i].Order)
+		ok := setSalesOrderState(detailInMemory.enterprise, details[i].Order, userId)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
+
+	insertTransactionalLog(detailInMemory.enterprise, "purchase_order_detail", int(s.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.purchase_order_detail WHERE id=$1`
 	_, err = db.Exec(sqlStatement, s.Id)
@@ -234,7 +244,8 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 		trans.Rollback()
 		return false
 	}
-	ok := addTotalProductsPurchaseOrder(detailInMemory.Order, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
+
+	ok := addTotalProductsPurchaseOrder(detailInMemory.Order, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, detailInMemory.enterprise, userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -270,7 +281,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail() bool {
 // Adds quantity to the field to prevent from other sale orders to use the quantity that is already reserved for order that are already waiting a purchase order.
 // This function will substract if a negative quantity is given.
 // THIS FUNCION DOES NOT OPEN A TRANSACTION
-func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32) bool {
+func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE purchase_order_detail SET quantity_assigned_sale=quantity_assigned_sale+$2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
@@ -278,12 +289,15 @@ func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32) bool {
 		log("DB", err.Error())
 		return false
 	}
+
+	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+
 	return true
 }
 
 // Adds an invoiced quantity to the purchase order detail. This function will subsctract from the quantity if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32) bool {
+func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32, enterpriseId int32, userId int32) bool {
 	detailBefore := getPurchaseOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false
@@ -298,18 +312,20 @@ func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32) bool
 		return false
 	}
 
+	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+
 	detailAfter := getPurchaseOrderDetailRow(detailId)
 	if detailAfter.Id <= 0 {
 		return false
 	}
 
 	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity { // set as invoced
-		ok := addPurchaseOrderInvoicedLines(detailBefore.Order)
+		ok := addPurchaseOrderInvoicedLines(detailBefore.Order, enterpriseId, userId)
 		if !ok {
 			return false
 		}
 	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity { // undo invoiced
-		ok := removePurchaseOrderInvoicedLines(detailBefore.Order)
+		ok := removePurchaseOrderInvoicedLines(detailBefore.Order, enterpriseId, userId)
 		if !ok {
 			return false
 		}
@@ -319,7 +335,7 @@ func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32) bool
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32) bool {
+func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, enterpriseId int32, userId int32) bool {
 	detailBefore := getPurchaseOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false
@@ -333,34 +349,36 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32) 
 		return false
 	}
 
+	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+
 	detailAfter := getPurchaseOrderDetailRow(detailId)
 	if detailAfter.Id <= 0 {
 		return false
 	}
 
 	if detailBefore.QuantityDeliveryNote != detailBefore.Quantity && detailAfter.QuantityDeliveryNote == detailAfter.Quantity { // set as delivery note generated
-		ok := addPurchaseOrderDeliveryNoteLines(detailBefore.Order)
+		ok := addPurchaseOrderDeliveryNoteLines(detailBefore.Order, enterpriseId, userId)
 		if !ok {
 			return false
 		}
 	} else if detailBefore.QuantityDeliveryNote == detailBefore.Quantity && detailAfter.QuantityDeliveryNote != detailAfter.Quantity { // undo delivery note generated
-		ok := removePurchaseOrderDeliveryNoteLines(detailBefore.Order)
+		ok := removePurchaseOrderDeliveryNoteLines(detailBefore.Order, enterpriseId, userId)
 		if !ok {
 			return false
 		}
 	}
 
 	if quantity > 0 { // the purchase order has been added to a delivery note, advance the status from the pending sales order details
-		return setSalesOrderDetailStateAllPendingPurchaseOrder(detailId)
+		return setSalesOrderDetailStateAllPendingPurchaseOrder(detailId, enterpriseId, userId)
 	} else { // the delivery note details has been removed, roll back the sales order detail status
-		return undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId)
+		return undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId, enterpriseId, userId)
 	}
 }
 
 // All the purchase order detail has been added to a delivery note. Advance the status from all the pending sales details to "Sent to preparation".
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64) bool {
+func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
 	rows, err := db.Query(sqlStatement, detailId)
 	if err != nil {
@@ -374,7 +392,8 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64) bool {
 	for rows.Next() {
 		var orderId int64
 		rows.Scan(&orderId)
-		setSalesOrderState(orderId)
+		setSalesOrderState(enterpriseId, orderId, userId)
+		insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailId), userId, "U")
 	}
 
 	return err == nil
@@ -384,7 +403,7 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64) bool {
 // Roll back the status change.
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64) bool {
+func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
 	rows, err := db.Query(sqlStatement, detailId)
 	if err != nil {
@@ -398,7 +417,8 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64) bool {
 	for rows.Next() {
 		var orderId int64
 		rows.Scan(&orderId)
-		setSalesOrderState(orderId)
+		setSalesOrderState(enterpriseId, orderId, userId)
+		insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailId), userId, "U")
 	}
 
 	return err == nil

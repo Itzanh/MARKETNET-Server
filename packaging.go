@@ -117,7 +117,7 @@ func (p *Packaging) insertPackaging() bool {
 	///
 }
 
-func (p *Packaging) deletePackaging(enterpriseId int32) bool {
+func (p *Packaging) deletePackaging(enterpriseId int32, userId int32) bool {
 	if p.Id <= 0 {
 		return false
 	}
@@ -138,7 +138,7 @@ func (p *Packaging) deletePackaging(enterpriseId int32) bool {
 	detailsPackaged := getSalesOrderDetailPackaged(p.Id, enterpriseId)
 	for i := 0; i < len(detailsPackaged); i++ {
 		detailsPackaged[i].enterprise = enterpriseId
-		ok := detailsPackaged[i].deleteSalesOrderDetailPackaged(false)
+		ok := detailsPackaged[i].deleteSalesOrderDetailPackaged(false, userId)
 		if !ok {
 			trans.Rollback()
 			return false

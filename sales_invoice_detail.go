@@ -52,7 +52,7 @@ func (d *SalesInvoiceDetail) isValid() bool {
 	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || (d.Product != nil && *d.Product <= 0) || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
-func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) bool {
+func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool, userId int32) bool {
 	if !s.isValid() {
 		return false
 	}
@@ -70,13 +70,18 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) boo
 		///
 	}
 
-	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement := `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	row := db.QueryRow(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
-	ok := addTotalProductsSalesInvoice(s.Invoice, s.Price*float64(s.Quantity), s.VatPercent)
+
+	var saleInvoiceDetailId int64
+	row.Scan(&saleInvoiceDetailId)
+	s.Id = saleInvoiceDetailId
+
+	ok := addTotalProductsSalesInvoice(s.Invoice, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId)
 	if !ok {
 		if beginTransaction {
 			trans.Rollback()
@@ -84,7 +89,7 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) boo
 		return false
 	}
 	if s.OrderDetail != nil && *s.OrderDetail != 0 {
-		ok := addQuantityInvociedSalesOrderDetail(*s.OrderDetail, s.Quantity)
+		ok := addQuantityInvociedSalesOrderDetail(*s.OrderDetail, s.Quantity, userId)
 		if !ok {
 			if beginTransaction {
 				trans.Rollback()
@@ -95,18 +100,21 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(beginTransaction bool) boo
 
 	if beginTransaction {
 		///
-		err = trans.Commit()
+		err := trans.Commit()
 		if err != nil {
 			return false
 		}
 		///
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	if saleInvoiceDetailId > 0 {
+		insertTransactionalLog(s.enterprise, "sales_invoice_detail", int(saleInvoiceDetailId), userId, "I")
+	}
+
+	return saleInvoiceDetailId > 0
 }
 
-func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
+func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32) bool {
 	if d.Id <= 0 {
 		return false
 	}
@@ -135,6 +143,9 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 		trans.Rollback()
 		return false
 	}
+
+	insertTransactionalLog(d.enterprise, "sales_invoice_detail", int(d.Id), userId, "D")
+
 	sqlStatement := `DELETE FROM public.sales_invoice_detail WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
 	rows, _ := res.RowsAffected()
@@ -155,7 +166,7 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 		return rows > 0
 	}
 
-	ok := addTotalProductsSalesInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
+	ok := addTotalProductsSalesInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, d.enterprise, userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -168,14 +179,14 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail() bool {
 		}
 		// if the detail had a purchase order pending, rollback the quantity assigned
 		if detail.Status == "B" {
-			ok = addQuantityAssignedSalePurchaseOrder(*detail.PurchaseOrderDetail, -detail.Quantity)
+			ok = addQuantityAssignedSalePurchaseOrder(*detail.PurchaseOrderDetail, -detail.Quantity, detailInMemory.enterprise, userId)
 			if !ok {
 				trans.Rollback()
 				return false
 			}
 		}
 		// revert back the status
-		ok := addQuantityInvociedSalesOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity)
+		ok := addQuantityInvociedSalesOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity, userId)
 		if !ok {
 			trans.Rollback()
 			return false

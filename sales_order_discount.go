@@ -44,7 +44,7 @@ func (d *SalesOrderDiscount) isValid() bool {
 	return !(d.Order <= 0 || len(d.Name) == 0 || len(d.Name) > 100 || d.ValueTaxIncluded <= 0 || d.ValueTaxExcluded <= 0)
 }
 
-func (d *SalesOrderDiscount) insertSalesOrderDiscount() bool {
+func (d *SalesOrderDiscount) insertSalesOrderDiscount(userId int32) bool {
 	if !d.isValid() {
 		return false
 	}
@@ -69,7 +69,7 @@ func (d *SalesOrderDiscount) insertSalesOrderDiscount() bool {
 		return false
 	}
 
-	ok := addDiscountsSalesOrder(d.Order, d.ValueTaxExcluded)
+	ok := addDiscountsSalesOrder(d.enterprise, d.Order, userId, d.ValueTaxExcluded)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -85,7 +85,7 @@ func (d *SalesOrderDiscount) insertSalesOrderDiscount() bool {
 	return rows > 0
 }
 
-func (d *SalesOrderDiscount) deleteSalesOrderDiscount() bool {
+func (d *SalesOrderDiscount) deleteSalesOrderDiscount(userId int32) bool {
 	if d.Id <= 0 {
 		return false
 	}
@@ -111,7 +111,7 @@ func (d *SalesOrderDiscount) deleteSalesOrderDiscount() bool {
 		return false
 	}
 
-	ok := addDiscountsSalesOrder(inMemoryDiscount.Order, -inMemoryDiscount.ValueTaxExcluded)
+	ok := addDiscountsSalesOrder(d.enterprise, inMemoryDiscount.Order, userId, -inMemoryDiscount.ValueTaxExcluded)
 	if !ok {
 		trans.Rollback()
 		return false

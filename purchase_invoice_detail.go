@@ -52,7 +52,7 @@ func (d *PurchaseInvoiceDetail) isValid() bool {
 	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || (d.Product != nil && *d.Product <= 0) || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
-func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction bool) bool {
+func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction bool, userId int32) bool {
 	if !s.isValid() {
 		return false
 	}
@@ -70,19 +70,20 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		///
 	}
 
-	sqlStatement := `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	res, err := db.Exec(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement := `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	row := db.QueryRow(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return false
-	}
+	var invoiceDetailId int64
+	row.Scan(&invoiceDetailId)
+	s.Id = invoiceDetailId
 
-	ok := addTotalProductsPurchaseInvoice(s.Invoice, s.Price*float64(s.Quantity), s.VatPercent)
+	insertTransactionalLog(s.enterprise, "purchase_invoice_details", int(invoiceDetailId), userId, "I")
+
+	ok := addTotalProductsPurchaseInvoice(s.Invoice, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId)
 	if !ok {
 		if beginTransaction {
 			trans.Rollback()
@@ -90,7 +91,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 		return false
 	}
 	if s.OrderDetail != nil && *s.OrderDetail != 0 {
-		ok := addQuantityInvoicedPurchaseOrderDetail(*s.OrderDetail, s.Quantity)
+		ok := addQuantityInvoicedPurchaseOrderDetail(*s.OrderDetail, s.Quantity, s.enterprise, userId)
 		if !ok {
 			if beginTransaction {
 				trans.Rollback()
@@ -101,17 +102,17 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(beginTransaction boo
 
 	if beginTransaction {
 		///
-		err = trans.Commit()
+		err := trans.Commit()
 		if err != nil {
 			return false
 		}
 		///
 	}
 
-	return rows > 0
+	return invoiceDetailId > 0
 }
 
-func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
+func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail(userId int32) bool {
 	if d.Id <= 0 {
 		return false
 	}
@@ -140,6 +141,9 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 		trans.Rollback()
 		return false
 	}
+
+	insertTransactionalLog(detailInMemory.enterprise, "purchase_invoice_details", int(d.Id), userId, "D")
+
 	sqlStatement := `DELETE FROM public.purchase_invoice_details WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
 	if err != nil {
@@ -152,13 +156,13 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail() bool {
 		return false
 	}
 
-	ok := addTotalProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
+	ok := addTotalProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, d.enterprise, userId)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 	if detailInMemory.OrderDetail != nil && *detailInMemory.OrderDetail != 0 {
-		ok := addQuantityInvoicedPurchaseOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity)
+		ok := addQuantityInvoicedPurchaseOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity, d.enterprise, userId)
 		if !ok {
 			trans.Rollback()
 			return false

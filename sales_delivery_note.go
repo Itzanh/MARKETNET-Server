@@ -45,7 +45,7 @@ func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
 
 	sd.Notes = make([]SalesDeliveryNote, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_delivery_note.customer) FROM public.sales_delivery_note WHERE enterprise=$3 ORDER BY date_created DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return sd
@@ -57,7 +57,7 @@ func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM public.sales_delivery_note WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.Enterprise)
+	row := db.QueryRow(sqlStatement, q.enterprise)
 	row.Scan(&sd.Rows)
 
 	return sd
@@ -102,7 +102,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 			interfaces = append(interfaces, s.DateEnd)
 		}
 		sqlStatement += ` AND sales_delivery_note.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.Enterprise)
+		interfaces = append(interfaces, s.enterprise)
 		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
 		interfaces = append(interfaces, s.Offset)
 		interfaces = append(interfaces, s.Limit)
@@ -136,7 +136,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 			interfaces = append(interfaces, s.DateEnd)
 		}
 		sqlStatement += ` AND sales_delivery_note.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.Enterprise)
+		interfaces = append(interfaces, s.enterprise)
 		row = db.QueryRow(sqlStatement, interfaces...)
 	}
 	if row.Err() != nil {
@@ -152,7 +152,7 @@ func (n *SalesDeliveryNote) isValid() bool {
 	return !(len(n.Warehouse) == 0 || len(n.Warehouse) > 2 || n.Customer <= 0 || n.PaymentMethod <= 0 || len(n.BillingSeries) == 0 || len(n.BillingSeries) > 3 || n.ShippingAddress <= 0)
 }
 
-func (n *SalesDeliveryNote) insertSalesDeliveryNotes() (bool, int64) {
+func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32) (bool, int64) {
 	if !n.isValid() {
 		return false, 0
 	}
@@ -174,10 +174,16 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes() (bool, int64) {
 
 	var noteId int64
 	row.Scan(&noteId)
+	n.Id = noteId
+
+	if noteId > 0 {
+		insertTransactionalLog(n.enterprise, "sales_delivery_note", int(noteId), userId, "I")
+	}
+
 	return noteId > 0, noteId
 }
 
-func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {
+func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32) bool {
 	if n.Id <= 0 {
 		return false
 	}
@@ -191,12 +197,14 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {
 
 	d := getWarehouseMovementBySalesDeliveryNote(n.Id, n.enterprise)
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deleteWarehouseMovement()
+		ok := d[i].deleteWarehouseMovement(userId)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
+
+	insertTransactionalLog(n.enterprise, "sales_delivery_note", int(n.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.sales_delivery_note WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, n.Id, n.enterprise)
@@ -217,7 +225,7 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes() bool {
 	return rows > 0
 }
 
-func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32) (bool, int64) {
+func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) (bool, int64) {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	if saleOrder.enterprise != enterpriseId {
@@ -246,7 +254,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32) (bool, int6
 	///
 
 	n.enterprise = enterpriseId
-	ok, deliveryNoteId := n.insertSalesDeliveryNotes()
+	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId)
 	if !ok {
 		trans.Rollback()
 		return false, 0
@@ -264,7 +272,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32) (bool, int6
 		movement.Price = orderDetail.Price
 		movement.VatPercent = orderDetail.VatPercent
 		movement.enterprise = enterpriseId
-		ok = movement.insertWarehouseMovement()
+		ok = movement.insertWarehouseMovement(userId)
 		if !ok {
 			trans.Rollback()
 			return false, 0
@@ -277,7 +285,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32) (bool, int6
 	///
 }
 
-func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId int32) bool {
+func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId int32, userId int32) bool {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(noteInfo.OrderId)
 	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(noteInfo.Selection) == 0 {
@@ -310,7 +318,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 	///
 
 	n.enterprise = enterpriseId
-	ok, deliveryNoteId := n.insertSalesDeliveryNotes()
+	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -328,7 +336,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 		movement.Price = orderDetail.Price
 		movement.VatPercent = orderDetail.VatPercent
 		movement.enterprise = enterpriseId
-		ok = movement.insertWarehouseMovement()
+		ok = movement.insertWarehouseMovement(userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -428,7 +436,7 @@ func getSalesDeliveryNoteShippings(noteId int64) []Shipping {
 
 // Adds a total amount to the delivery note total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsSalesDeliveryNote(noteId int64, totalAmount float64, vatPercent float64) bool {
+func addTotalProductsSalesDeliveryNote(noteId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE sales_delivery_note SET total_products=total_products+$2, vat_amount=vat_amount+$3 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
@@ -436,12 +444,12 @@ func addTotalProductsSalesDeliveryNote(noteId int64, totalAmount float64, vatPer
 		return false
 	}
 
-	return calcTotalsSaleDeliveryNote(noteId)
+	return calcTotalsSaleDeliveryNote(noteId, enterpriseId, userId)
 }
 
 // Applies the logic to calculate the totals of the sales delivery note.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsSaleDeliveryNote(noteId int64) bool {
+func calcTotalsSaleDeliveryNote(noteId int64, enterpriseId int32, userId int32) bool {
 	sqlStatement := `UPDATE sales_delivery_note SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err := db.Exec(sqlStatement, noteId)
 	if err != nil {
@@ -451,5 +459,8 @@ func calcTotalsSaleDeliveryNote(noteId int64) bool {
 
 	sqlStatement = `UPDATE sales_delivery_note SET total_amount=total_with_discount+vat_amount WHERE id = $1`
 	_, err = db.Exec(sqlStatement, noteId)
+
+	insertTransactionalLog(enterpriseId, "sales_delivery_note", int(noteId), userId, "U")
+
 	return err == nil
 }

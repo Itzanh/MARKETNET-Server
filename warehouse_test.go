@@ -169,7 +169,7 @@ func TestCreateStockRow(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct()
+	ok := p.insertProduct(0)
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -198,7 +198,7 @@ func TestCreateStockRow(t *testing.T) {
 		t.Error("Can't create stock rows")
 	}
 
-	ok = p.deleteProduct()
+	ok = p.deleteProduct(0)
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return
@@ -241,7 +241,7 @@ func TestStock(t *testing.T) {
 		TrackMinimumStock:      true,
 		enterprise:             1,
 	}
-	p.insertProduct()
+	p.insertProduct(0)
 	products := getProduct(1)
 	p = products[len(products)-1]
 
@@ -369,7 +369,7 @@ func TestStock(t *testing.T) {
 	}
 
 	// delete
-	p.deleteProduct()
+	p.deleteProduct(0)
 	w.deleteWarehouse()
 }
 
@@ -382,7 +382,7 @@ func TestGetWarehouseMovement(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}
+	q := PaginationQuery{Offset: 0, Limit: 1, enterprise: 1}
 	m := q.getWarehouseMovement()
 
 	if len(m.Movements) == 0 || m.Movements[0].Id <= 0 {
@@ -396,7 +396,7 @@ func TestGetWarehouseMovementByWarehouse(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}, WarehouseId: "W1"}
+	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, enterprise: 1}, WarehouseId: "W1"}
 	m := q.getWarehouseMovementByWarehouse()
 
 	if len(m.Movements) == 0 || m.Movements[0].Id <= 0 {
@@ -436,7 +436,7 @@ func TestSearchWarehouseMovement(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	s := WarehouseMovementSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, Enterprise: 1}, Search: ""}}
+	s := WarehouseMovementSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: 1, enterprise: 1}, Search: ""}}
 	m := s.searchWarehouseMovement()
 
 	if len(m.Movements) == 0 || m.Movements[0].Id <= 0 {
@@ -488,7 +488,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		TrackMinimumStock:      true,
 		enterprise:             1,
 	}
-	p.insertProduct()
+	p.insertProduct(0)
 
 	w := Warehouse{
 		Id:         "WA",
@@ -508,7 +508,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok := wm.insertWarehouseMovement()
+	ok := wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -519,10 +519,10 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	// delete the warehouse movement
-	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, Enterprise: 1}, WarehouseId: w.Id}
+	q := WarehouseMovementByWarehouse{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, WarehouseId: w.Id}
 	movements := q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[len(movements.Movements)-1]
-	ok = wm.deleteWarehouseMovement()
+	ok = wm.deleteWarehouseMovement(0)
 	if !ok {
 		t.Error("Delete error, the warehouse movement could not be deleted")
 		return
@@ -536,7 +536,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -548,7 +548,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "O",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -561,7 +561,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// delete the warehouse movement
 	movements = q.getWarehouseMovementByWarehouse()
 	for i := 0; i < len(movements.Movements); i++ {
-		ok = movements.Movements[i].deleteWarehouseMovement()
+		ok = movements.Movements[i].deleteWarehouseMovement(0)
 		if !ok {
 			t.Error("Delete error, the warehouse movement could not be deleted")
 			return
@@ -579,7 +579,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, noteId := sn.insertSalesDeliveryNotes()
+	_, noteId := sn.insertSalesDeliveryNotes(0)
 	sn.Id = noteId
 
 	wm = WarehouseMovement{
@@ -592,7 +592,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		VatPercent:        21,
 		enterprise:        1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -611,7 +611,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 
-	wm.deleteWarehouseMovement()
+	wm.deleteWarehouseMovement(0)
 	if !ok {
 		t.Error("Delete error, the warehouse movement could not be deleted")
 		return
@@ -624,7 +624,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	}
 
 	sn.Id = noteId
-	sn.deleteSalesDeliveryNotes()
+	sn.deleteSalesDeliveryNotes(0)
 
 	// test purchase delivery note generation
 	pn := PurchaseDeliveryNote{
@@ -637,7 +637,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, noteId = pn.insertPurchaseDeliveryNotes()
+	_, noteId = pn.insertPurchaseDeliveryNotes(0)
 	pn.Id = noteId
 
 	wm = WarehouseMovement{
@@ -650,7 +650,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		VatPercent:           21,
 		enterprise:           1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -669,7 +669,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 
-	wm.deleteWarehouseMovement()
+	wm.deleteWarehouseMovement(0)
 	if !ok {
 		t.Error("Delete error, the warehouse movement could not be deleted")
 		return
@@ -682,7 +682,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	}
 
 	pn.Id = noteId
-	pn.deletePurchaseDeliveryNotes()
+	pn.deletePurchaseDeliveryNotes(0)
 
 	// test dragged stock
 	// An input gets inserted, later an output, then a regularisation is made, and then an input is added. If this last row (input) gets deleted,
@@ -694,7 +694,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -706,7 +706,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "O",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -718,7 +718,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "R",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -730,7 +730,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -743,7 +743,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	movements = q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[0]
-	ok = wm.deleteWarehouseMovement()
+	ok = wm.deleteWarehouseMovement(0)
 	if !ok {
 		t.Error("Delete error, the warehouse movement could not be deleted")
 		return
@@ -757,7 +757,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	movements = q.getWarehouseMovementByWarehouse()
 	for i := 0; i < len(movements.Movements); i++ {
-		ok = movements.Movements[i].deleteWarehouseMovement()
+		ok = movements.Movements[i].deleteWarehouseMovement(0)
 		if !ok {
 			t.Error("Delete error, the warehouse movement could not be deleted")
 			return
@@ -780,7 +780,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -792,7 +792,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "O",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -804,7 +804,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -816,7 +816,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "R",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -828,7 +828,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -841,7 +841,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	movements = q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[2]
-	ok = wm.deleteWarehouseMovement()
+	ok = wm.deleteWarehouseMovement(0)
 	if !ok {
 		t.Error("Delete error, the warehouse movement could not be deleted")
 		return
@@ -855,7 +855,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	movements = q.getWarehouseMovementByWarehouse()
 	for i := 0; i < len(movements.Movements); i++ {
-		ok = movements.Movements[i].deleteWarehouseMovement()
+		ok = movements.Movements[i].deleteWarehouseMovement(0)
 		if !ok {
 			t.Error("Delete error, the warehouse movement could not be deleted")
 			return
@@ -878,7 +878,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -890,7 +890,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "O",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -902,7 +902,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -914,7 +914,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "R",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -926,7 +926,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		Type:       "I",
 		enterprise: 1,
 	}
-	ok = wm.insertWarehouseMovement()
+	ok = wm.insertWarehouseMovement(0)
 	if !ok {
 		t.Error("Insert error, the warehouse movement could not be inserted")
 		return
@@ -939,7 +939,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	movements = q.getWarehouseMovementByWarehouse()
 	wm = movements.Movements[1]
-	ok = wm.deleteWarehouseMovement()
+	ok = wm.deleteWarehouseMovement(0)
 	if !ok {
 		t.Error("Delete error, the warehouse movement could not be deleted")
 		return
@@ -953,7 +953,7 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	movements = q.getWarehouseMovementByWarehouse()
 	for i := 0; i < len(movements.Movements); i++ {
-		ok = movements.Movements[i].deleteWarehouseMovement()
+		ok = movements.Movements[i].deleteWarehouseMovement(0)
 		if !ok {
 			t.Error("Delete error, the warehouse movement could not be deleted")
 			return
@@ -967,6 +967,6 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	}
 
 	// delete
-	p.deleteProduct()
+	p.deleteProduct(0)
 	w.deleteWarehouse()
 }

@@ -24,7 +24,7 @@ type ConnectionLogs struct {
 func (q *PaginationQuery) getConnectionLogs() ConnectionLogs {
 	logs := make([]ConnectionLog, 0)
 	sqlStatement := `SELECT *,(SELECT username FROM "user" WHERE "user".id=connection_log."user") FROM public.connection_log WHERE enterprise=$3 ORDER BY date_connected DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return ConnectionLogs{}
@@ -37,7 +37,7 @@ func (q *PaginationQuery) getConnectionLogs() ConnectionLogs {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM public.connection_log WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.Enterprise)
+	row := db.QueryRow(sqlStatement, q.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ConnectionLogs{}

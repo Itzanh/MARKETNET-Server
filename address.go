@@ -33,7 +33,7 @@ func (q *PaginationQuery) getAddresses() Addresses {
 
 	ad.Addresses = make([]Address, 0)
 	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address WHERE address.enterprise=$3 ORDER BY id ASC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.Enterprise)
+	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return ad
@@ -73,7 +73,7 @@ func (s *PaginatedSearch) searchAddresses() Addresses {
 
 	ad.Addresses = make([]Address, 0)
 	sqlStatement := `SELECT address.*,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) AND (address.enterprise=$4) ORDER BY id ASC OFFSET $2 LIMIT $3`
-	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Offset, s.Limit, s.Enterprise)
+	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Offset, s.Limit, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return ad
@@ -85,7 +85,7 @@ func (s *PaginatedSearch) searchAddresses() Addresses {
 	}
 
 	sqlStatement = `SELECT COUNT(*) FROM address FULL JOIN customer ON customer.id=address.customer FULL JOIN state ON state.id=address.state FULL JOIN suppliers ON suppliers.id=address.supplier WHERE (address ILIKE $1 OR customer.name ILIKE $1 OR state.name ILIKE $1 OR suppliers.name ILIKE $1) AND (address.id > 0) AND (address.enterprise=$2)`
-	row := db.QueryRow(sqlStatement, "%"+s.Search+"%", s.Enterprise)
+	row := db.QueryRow(sqlStatement, "%"+s.Search+"%", s.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return ad
@@ -101,7 +101,7 @@ func (a *Address) isValid() bool {
 
 // 1 = Invalid
 // 2 = Database error
-func (a *Address) insertAddress() OperationResult {
+func (a *Address) insertAddress(userId int32) OperationResult {
 	if !a.isValid() {
 		return OperationResult{Code: 1}
 	}
@@ -124,7 +124,7 @@ func (a *Address) insertAddress() OperationResult {
 			ok = true
 		}
 		if ok {
-			c.updateCustomer()
+			c.updateCustomer(userId)
 		}
 	}
 	if a.Supplier != nil {
@@ -135,7 +135,7 @@ func (a *Address) insertAddress() OperationResult {
 			ok = true
 		}
 		if ok {
-			s.updateSupplier()
+			s.updateSupplier(userId)
 		}
 	}
 

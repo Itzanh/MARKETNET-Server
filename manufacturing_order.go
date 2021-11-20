@@ -123,7 +123,7 @@ func (o *ManufacturingOrder) isValid() bool {
 	return !((o.OrderDetail != nil && *o.OrderDetail <= 0) || o.Product <= 0 || (o.Order != nil && *o.Order <= 0))
 }
 
-func (o *ManufacturingOrder) insertManufacturingOrder() bool {
+func (o *ManufacturingOrder) insertManufacturingOrder(userId int32) bool {
 	if !o.isValid() {
 		return false
 	}
@@ -162,28 +162,30 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 		o.Warehouse = s.DefaultWarehouse
 	}
 
-	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise, warehouse, quantity_manufactured) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	res, err := db.Exec(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise, o.Warehouse, o.QuantityManufactured)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise, warehouse, quantity_manufactured) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	row := db.QueryRow(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise, o.Warehouse, o.QuantityManufactured)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		trans.Rollback()
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return false
-	}
+	var manufacturingOrderId int64
+	row.Scan(&manufacturingOrderId)
+	o.Id = manufacturingOrderId
 
 	if o.OrderDetail != nil && *o.OrderDetail > 0 {
 		sqlStatement = `UPDATE sales_order_detail SET status = 'D' WHERE id = $1`
-		_, err = db.Exec(sqlStatement, o.OrderDetail)
+		_, err := db.Exec(sqlStatement, o.OrderDetail)
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
-		ok := setSalesOrderState(*o.Order)
+
+		insertTransactionalLog(o.enterprise, "sales_order_detail", int(*o.OrderDetail), userId, "U")
+
+		ok := setSalesOrderState(o.enterprise, *o.Order, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -203,10 +205,14 @@ func (o *ManufacturingOrder) insertManufacturingOrder() bool {
 	}
 	///
 
-	return rows > 0
+	if manufacturingOrderId > 0 {
+		insertTransactionalLog(o.enterprise, "manufacturing_order", int(manufacturingOrderId), userId, "I")
+	}
+
+	return manufacturingOrderId > 0
 }
 
-func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
+func (o *ManufacturingOrder) deleteManufacturingOrder(userId int32) bool {
 	if o.Id <= 0 {
 		return false
 	}
@@ -222,6 +228,8 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 	if inMemoryManufacturingOrder.Id <= 0 || inMemoryManufacturingOrder.enterprise != o.enterprise {
 		return false
 	}
+
+	insertTransactionalLog(inMemoryManufacturingOrder.enterprise, "manufacturing_order", int(o.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.manufacturing_order WHERE id=$1`
 	res, err := db.Exec(sqlStatement, o.Id)
@@ -244,7 +252,10 @@ func (o *ManufacturingOrder) deleteManufacturingOrder() bool {
 			trans.Rollback()
 			return false
 		}
-		ok := setSalesOrderState(*inMemoryManufacturingOrder.Order)
+
+		insertTransactionalLog(o.enterprise, "sales_order_detail", int(*inMemoryManufacturingOrder.OrderDetail), userId, "U")
+
+		ok := setSalesOrderState(inMemoryManufacturingOrder.enterprise, *inMemoryManufacturingOrder.Order, userId)
 		if !ok {
 			return false
 		}
@@ -291,6 +302,8 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 		return false
 	}
 
+	insertTransactionalLog(inMemoryManufacturingOrder.enterprise, "manufacturing_order", int(orderid), userId, "U")
+
 	inMemoryManufacturingOrder = getManufacturingOrderRow(orderid)
 	if inMemoryManufacturingOrder.Id <= 0 {
 		return false
@@ -329,6 +342,8 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 			return false
 		}
 
+		insertTransactionalLog(inMemoryManufacturingOrder.enterprise, "sales_order_detail", int(*inMemoryManufacturingOrder.OrderDetail), userId, "U")
+
 		sqlStatement = `SELECT "order" FROM sales_order_detail WHERE id = $1`
 		row := db.QueryRow(sqlStatement, inMemoryManufacturingOrder.OrderDetail)
 		if row.Err() != nil {
@@ -344,7 +359,7 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 			return false
 		}
 
-		ok := setSalesOrderState(orderId)
+		ok := setSalesOrderState(enterpriseId, orderId, userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -360,7 +375,7 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 			Type:       "I", // Input
 			enterprise: enterpriseId,
 		}
-		ok := movement.insertWarehouseMovement()
+		ok := movement.insertWarehouseMovement(userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -373,6 +388,8 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 			trans.Rollback()
 			return false
 		}
+
+		insertTransactionalLog(inMemoryManufacturingOrder.enterprise, "manufacturing_order", int(inMemoryManufacturingOrder.Id), userId, "U")
 
 		ok = addQuantityPendingManufacture(inMemoryManufacturingOrder.Product, inMemoryManufacturingOrder.Warehouse, -1, inMemoryManufacturingOrder.enterprise)
 		if !ok {
@@ -388,8 +405,10 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 			return false
 		}
 
+		insertTransactionalLog(inMemoryManufacturingOrder.enterprise, "manufacturing_order", int(inMemoryManufacturingOrder.Id), userId, "U")
+
 		movement := getWarehouseMovementRow(*inMemoryManufacturingOrder.WarehouseMovement)
-		ok := movement.deleteWarehouseMovement()
+		ok := movement.deleteWarehouseMovement(userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -448,7 +467,7 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 				o.UserCreated = userId
 				o.enterprise = enterpriseId
 				o.Warehouse = saleOrder.Warehouse
-				ok := o.insertManufacturingOrder()
+				ok := o.insertManufacturingOrder(userId)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -497,7 +516,7 @@ func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder(userI
 		o.UserCreated = userId
 		o.enterprise = enterpriseId
 		o.Warehouse = saleOrder.Warehouse
-		ok := o.insertManufacturingOrder()
+		ok := o.insertManufacturingOrder(userId)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -517,5 +536,10 @@ func manufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int3
 
 	sqlStatement := `UPDATE public.manufacturing_order SET tag_printed = true, date_tag_printed = current_timestamp(3), user_tag_printed = $2 WHERE id=$1 AND enterprise=$3`
 	_, err := db.Exec(sqlStatement, orderId, userId, enterpriseId)
+
+	if err != nil {
+		insertTransactionalLog(enterpriseId, "manufacturing_order", int(orderId), userId, "U")
+	}
+
 	return err == nil
 }

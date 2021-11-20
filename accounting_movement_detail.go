@@ -59,7 +59,7 @@ func (a *AccountingMovementDetail) isValid() bool {
 	return !(a.Movement <= 0 || a.Journal <= 0 || a.AccountNumber <= 0 || (a.Credit == 0 && a.Debit == 0) || (a.Type != "O" && a.Type != "N" && a.Type != "V" && a.Type != "R" && a.Type != "C") || len(a.Note) > 300 || len(a.DocumentName) > 15 || a.PaymentMethod <= 0)
 }
 
-func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
+func (a *AccountingMovementDetail) insertAccountingMovementDetail(userId int32) bool {
 	if !a.isValid() {
 		return false
 	}
@@ -97,8 +97,10 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 	}
 	a.Id = detailId
 
+	insertTransactionalLog(a.enterprise, "accounting_movement_detail", int(detailId), userId, "I")
+
 	m := AccountingMovement{Id: a.Movement}
-	ok := m.addCreditAndDebit(a.Credit, a.Debit)
+	ok := m.addCreditAndDebit(a.Credit, a.Debit, userId)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -117,7 +119,7 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail() bool {
 	///
 }
 
-func (a *AccountingMovementDetail) deleteAccountingMovementDetail() bool {
+func (a *AccountingMovementDetail) deleteAccountingMovementDetail(userId int32) bool {
 	if a.Id <= 0 {
 		return false
 	}
@@ -141,6 +143,8 @@ func (a *AccountingMovementDetail) deleteAccountingMovementDetail() bool {
 		return false
 	}
 
+	insertTransactionalLog(a.enterprise, "accounting_movement_detail", int(a.Id), userId, "I")
+
 	sqlStatement := `DELETE FROM public.accounting_movement_detail WHERE id=$1 AND enterprise=$2`
 	_, err = db.Exec(sqlStatement, a.Id, a.enterprise)
 	if err != nil {
@@ -150,7 +154,7 @@ func (a *AccountingMovementDetail) deleteAccountingMovementDetail() bool {
 	}
 
 	m := AccountingMovement{Id: inMemoryDetail.Movement}
-	ok := m.addCreditAndDebit(-inMemoryDetail.Credit, -inMemoryDetail.Debit)
+	ok := m.addCreditAndDebit(-inMemoryDetail.Credit, -inMemoryDetail.Debit, userId)
 	if !ok {
 		trans.Rollback()
 		return false
