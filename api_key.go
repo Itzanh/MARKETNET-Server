@@ -58,6 +58,7 @@ func (a *ApiKey) insertApiKey() bool {
 	} else if a.Auth == "B" {
 		basicAuthUser := generateRandomString(20)
 		a.BasicAuthUser = &basicAuthUser
+		time.Sleep(1000)
 		basicAuthPassword := generateRandomString(20)
 		a.BasicAuthPassword = &basicAuthPassword
 	}
@@ -71,10 +72,10 @@ func (a *ApiKey) insertApiKey() bool {
 }
 
 func generateRandomString(length int) string {
-	const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890,.-;:_!@#$%&"
+	const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567890,.-;*_!@#$%&"
 	str := ""
 
-	s := rand.NewSource(time.Now().UnixNano())
+	s := rand.NewSource(time.Now().UnixNano() + (time.Now().Unix() % 1000))
 	r := rand.New(s)
 	for i := 0; i < length; i++ {
 		str += string(CHARSET[r.Intn(len(CHARSET))])
