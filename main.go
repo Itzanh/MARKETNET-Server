@@ -2519,6 +2519,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var makeAmendingInvoice MakeAmendingInvoice
 		json.Unmarshal([]byte(message), &makeAmendingInvoice)
 		data, _ = json.Marshal(makeAmendingPurchaseInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description, userId))
+	case "UPDATE_CURRENCY_DATA":
+		if !permissions.Masters {
+			return
+		}
+		updateCurrencyExchange(enterpriseId)
 	}
 	ws.WriteMessage(mt, data)
 }
