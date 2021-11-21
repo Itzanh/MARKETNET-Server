@@ -10,7 +10,7 @@ import (
 )
 
 const SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT = 75
-const SENDCLOUD_EMAIL_ALLOWED_CHARACTER_SET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.!#$%&'*+-/=?^_`{|}~"
+const SENDCLOUD_EMAIL_ALLOWED_CHARACTER_SET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.!#$%&'*+-/=?^_`{|}~@"
 const SENDCLOUD_COMMERCIAL_GOODS = int8(2)
 
 type Parcel struct {
@@ -263,5 +263,107 @@ type ParcelResponseLabel struct {
 }
 
 type ParcelError struct {
+	Message string `json:"message"`
+}
+
+func getShippingTrackingSendCloud(enterpriseId int32) {
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return
+	}
+	///
+
+	// webservice SendCloud, shipped, collected, but not delivered by the carrier yet
+	sqlStatement := `SELECT id,shipping_number,carrier FROM shipping WHERE enterprise=$1 AND (SELECT webservice FROM carrier WHERE carrier.id=shipping.carrier) = 'S' AND sent = true AND collected = true AND delivered = false`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return
+	}
+
+	var shippingId int64
+	var shippingNumber string
+	var carrier int32
+	for rows.Next() {
+		rows.Scan(&shippingId, &shippingNumber, &carrier)
+		c := getCarierRow(carrier)
+
+		req, err := http.NewRequest("GET", c.SendcloudUrl+"/"+shippingNumber, nil)
+		if err != nil {
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.SetBasicAuth(c.SendcloudKey, c.SendcloudSecret)
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		// get the response
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+
+		parcel := ParcelGetContainer{}
+		err = json.Unmarshal(body, &parcel)
+		if err != nil {
+			continue
+		}
+
+		if parcel.Parcel == nil || parcel.Parcel.Status == nil {
+			continue
+		}
+
+		var delivered bool = (parcel.Parcel.Status.Id == 11 && parcel.Parcel.Status.Message == "Delivered")
+
+		sqlStatement := `SELECT message FROM public.shipping_status_history WHERE shipping = $1 ORDER BY date_created DESC LIMIT 1`
+		row := db.QueryRow(sqlStatement, shippingId)
+		if row.Err() != nil {
+			log("DB", row.Err().Error())
+			continue
+		}
+
+		var lastMessageInDb string
+		row.Scan(&lastMessageInDb)
+
+		if parcel.Parcel.Status.Message != lastMessageInDb {
+			sqlStatement := `INSERT INTO public.shipping_status_history(shipping, status_id, message, delivered) VALUES ($1, $2, $3, $4)`
+			_, err := db.Exec(sqlStatement, shippingId, parcel.Parcel.Status.Id, parcel.Parcel.Status.Message, delivered)
+			if err != nil {
+				log("DB", err.Error())
+				continue
+			}
+		}
+
+		if delivered {
+			sqlStatement := `UPDATE public.shipping SET delivered=true WHERE id=$1`
+			_, err := db.Exec(sqlStatement, shippingId)
+			if err != nil {
+				log("DB", err.Error())
+				continue
+			}
+
+			insertTransactionalLog(enterpriseId, "shipping", int(shippingId), 0, "U")
+		}
+	}
+
+	///
+	trans.Commit()
+	///
+}
+
+type ParcelGetContainer struct {
+	Parcel *ParcelGetParcel `json:"parcel"`
+}
+
+type ParcelGetParcel struct {
+	Status *ParcelGetParcelStatus `json:"status"`
+}
+
+type ParcelGetParcelStatus struct {
+	Id      int16  `json:"id"`
 	Message string `json:"message"`
 }

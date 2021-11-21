@@ -128,6 +128,14 @@ func main() {
 		if err != nil {
 			enterpriseCronInfo.CronClearLabels = cronId
 		}
+		if settingsRecords[i].CronSendcloudTracking != "" {
+			cronId, err := c.AddFunc(settingsRecords[i].CronSendcloudTracking, func() {
+				getShippingTrackingSendCloud(enterpriseId)
+			})
+			if err != nil {
+				enterpriseCronInfo.CronSendcloudTracking = &cronId
+			}
+		}
 		runningCrons[enterpriseId] = enterpriseCronInfo
 	}
 	c.AddFunc(settings.Server.CronClearLogs, clearLogs)
@@ -852,6 +860,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(address)
+	case "SHIPPING_STATUS_HISTORY":
+		if !permissions.Preparation {
+			return
+		}
+		data, _ = json.Marshal(getShippingStatusHistory(enterpriseId, int64(id)))
 	}
 	ws.WriteMessage(mt, data)
 }

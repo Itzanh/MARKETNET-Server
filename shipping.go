@@ -28,6 +28,7 @@ type Shipping struct {
 	CarrierNotes      string     `json:"carrierNotes"`
 	Description       string     `json:"description"`
 	CarrierWebService string     `json:"carrierWebService"`
+	Delivered         bool       `json:"delivered"`
 	enterprise        int32
 }
 
@@ -41,7 +42,7 @@ func getShippings(enterpriseId int32) []Shipping {
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
 		shippings = append(shippings, s)
 	}
 
@@ -65,7 +66,7 @@ func searchShippings(search string, enterpriseId int32) []Shipping {
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
 		shippings = append(shippings, s)
 	}
 
@@ -81,7 +82,7 @@ func getShippingRow(shippingId int64) Shipping {
 	}
 
 	s := Shipping{}
-	row.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
+	row.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
 
 	return s
 }
@@ -96,7 +97,7 @@ func getShippingsPendingCollected(enterpriseId int32) []Shipping {
 	}
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
 		shippings = append(shippings, s)
 	}
 
