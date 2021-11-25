@@ -372,9 +372,12 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 	if product.Id <= 0 {
 		return "", nil
 	}
+
 	order := getSalesOrderRow(s.Order)
 	stock := getStockRow(s.Product, order.Warehouse, s.enterprise)
-	if stock.Quantity > 0 { // the product is in stock, send to preparation
+	if !product.ControlStock {
+		return "E", nil
+	} else if stock.Quantity > 0 { // the product is in stock, send to preparation
 		return "E", nil
 	} else { // the product is not in stock, purchase or manufacture
 		if product.Manufacturing {

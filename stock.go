@@ -152,6 +152,11 @@ func addQuantityPendingManufacture(productId int32, warehouseId string, quantity
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func addQuantityStock(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+	productRow := getProductRow(productId)
+	if productRow.enterprise != enterpriseId || !productRow.ControlStock {
+		return false
+	}
+
 	sqlStatement := `UPDATE public.stock SET quantity=quantity+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 
@@ -180,6 +185,11 @@ func addQuantityStock(productId int32, warehouseId string, quantity int32, enter
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func setQuantityStock(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+	productRow := getProductRow(productId)
+	if productRow.enterprise != enterpriseId || !productRow.ControlStock {
+		return false
+	}
+
 	sqlStatement := `UPDATE public.stock SET quantity=$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
 	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 
