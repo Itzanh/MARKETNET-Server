@@ -490,4 +490,10 @@ func initialReportTemplate(enterpriseId int32) {
 		return
 	}
 	ReportTemplate{enterprise: enterpriseId, Key: "CARRIER_PALLET", Html: string(content)}.insertReportTemplate()
+
+	content, err = ioutil.ReadFile("./reports/sales_order_digital_product_data.html")
+	if err != nil {
+		return
+	}
+	ReportTemplate{enterprise: enterpriseId, Key: "SALES_ORDER_DIGITAL_PRODUCT_DATA", Html: string(content)}.insertReportTemplate()
 }

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous" -->
+
+    <style>
+        body {
+            max-width: 1000px;
+        }
+        
+        div.enterprise-logo {
+            max-width: 500px;
+        }
+        
+        img.enterprise-logo {
+            max-width: 500px;
+            max-height: 250px;
+        }
+        
+        div.form-group p {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        
+        h1 {
+            background-color: black;
+            color: white;
+            display: inline;
+        }
+        
+        div.formRowRoot>div.form-row {
+            margin-right: 0px;
+        }
+        
+        .form-row {
+            display: -ms-flexbox;
+            display: flex;
+            -ms-flex-wrap: wrap;
+            flex-wrap: wrap;
+            margin-right: -5px;
+            margin-left: -5px;
+        }
+        
+        .form-row>.col,
+        .form-row>[class*=col-] {
+            padding-right: 5px;
+            padding-left: 5px;
+        }
+        
+        .col {
+            -ms-flex-preferred-size: 0;
+            flex-basis: 0;
+            -ms-flex-positive: 1;
+            flex-grow: 1;
+            max-width: 100%;
+            position: relative;
+            width: 100%;
+        }
+        
+        table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+        }
+        
+        table {
+            border-collapse: collapse;
+        }
+        
+        .table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .table td,
+        .table th {
+            padding: .75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        th {
+            text-align: inherit;
+            text-align: -webkit-match-parent;
+        }
+        
+        .table td,
+        .table th {
+            padding: .75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        *,
+         ::after,
+         ::before {
+            box-sizing: border-box;
+        }
+        
+         :root {
+            --blue: #007bff;
+            --indigo: #6610f2;
+            --purple: #6f42c1;
+            --pink: #e83e8c;
+            --red: #dc3545;
+            --orange: #fd7e14;
+            --yellow: #ffc107;
+            --green: #28a745;
+            --teal: #20c997;
+            --cyan: #17a2b8;
+            --white: #fff;
+            --gray: #6c757d;
+            --gray-dark: #343a40;
+            --primary: #007bff;
+            --secondary: #6c757d;
+            --success: #28a745;
+            --info: #17a2b8;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --breakpoint-xs: 0;
+            --breakpoint-sm: 576px;
+            --breakpoint-md: 768px;
+            --breakpoint-lg: 992px;
+            --breakpoint-xl: 1200px;
+            --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        
+        html {
+            font-family: sans-serif;
+            line-height: 1.15;
+            -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+
+    <script>
+        $$script$$
+    </script>
+
+</head>
+
+<body>
+    <div class="form-row">
+        <div class="col enterprise-logo">
+            <img src="./report?report=LOGO" class="enterprise-logo" />
+        </div>
+        <div class="col">
+            <h1>Sale order</h1>
+            <div class="form-group">
+                <div class="form-row">
+                    <div class="col">
+                        <p>Order date</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_date$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Order number</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_number$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Reference</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_reference$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Payment method</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_payment_method_name$$</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col">
+                    <p>Customer</p>
+                </div>
+                <div class="col">
+                    <p>$$order_customer_name$$</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <p>
+                    $$address_address$$
+                    <br/> $$address_address2$$
+                    <br /> $$address_city$$ $$address_postcode$$ ($$address_state$$) - $$address_country$$
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Product</th>
+                <th scope="col">Key</th>
+                <th scope="col">Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            &&detail&&
+            <tr>
+                <td>$$detail_product$$</td>
+                <td>$$detail_key$$</td>
+                <td>$$detail_value$$</td>>
+            </tr>
+            &&--detail--&&
+        </tbody>
+    </table>
+
+    <div class="form-row">
+        <div class="col">
+            <h4>Notes</h4>
+            <p>$$order_notes$$</p>
+        </div>
+        <div class="col">
+            <h4>Totals</h4>
+            <div class="form-group">
+                <div class="form-row">
+                    <div class="col">
+                        <p>Total products</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_total_products$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>VAT amount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_vat_amount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Discount percent</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_discount_percent$$ %</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Fix discount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_fix_discount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Shipping price</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_shipping_price$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Shipping discount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_shipping_discount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Total with discount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_total_with_discount$$</p>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col">
+                        <p>Total amount</p>
+                    </div>
+                    <div class="col">
+                        <p>$$order_total_amount$$ €</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>

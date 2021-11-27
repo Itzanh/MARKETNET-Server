@@ -21,6 +21,7 @@ func addHttpHandlerFuncions() {
 	// sales
 	http.HandleFunc("/api/sale_orders", apiSaleOrders)
 	http.HandleFunc("/api/sale_order_details", apiSaleOrderDetails)
+	http.HandleFunc("/api/sale_order_details_digital_product_data", apiSaleOrderDetailsDigitalProductData)
 	http.HandleFunc("/api/sale_invoices", apiSaleInvoices)
 	http.HandleFunc("/api/sale_invoice_details", apiSaleInvoiceDetals)
 	http.HandleFunc("/api/sale_delivery_notes", apiSaleDeliveryNotes)
@@ -200,6 +201,73 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		saleOrderDetail.Id = int64(id)
 		saleOrderDetail.enterprise = enterpriseId
 		ok = saleOrderDetail.deleteSalesOrderDetail(userId)
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getSalesOrderDetailDigitalProductData(int64(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if string(body[0]) == "{" {
+			var d SalesOrderDetailDigitalProductData
+			json.Unmarshal(body, &d)
+			ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
+		} else if string(body[0]) == "[" {
+			var d []SalesOrderDetailDigitalProductData
+			json.Unmarshal(body, &d)
+			for i := 0; i < len(d); i++ {
+				ok = d[i].insertSalesOrderDetailDigitalProductData(enterpriseId)
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
+	case "PUT":
+		var d SalesOrderDetailDigitalProductData
+		json.Unmarshal(body, &d)
+		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var d SalesOrderDetailDigitalProductData
+		d.Id = enterpriseId
+		ok = d.deleteSalesOrderDetailDigitalProductData(enterpriseId)
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {

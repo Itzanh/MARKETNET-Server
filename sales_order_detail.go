@@ -19,6 +19,7 @@ type SalesOrderDetail struct {
 	PurchaseOrderDetail      *int64  `json:"purchaseOrderDetail"`
 	ProductName              string  `json:"productName"`
 	Cancelled                bool    `json:"cancelled"`
+	DigitalProduct           bool    `json:"digitalProduct"`
 	prestaShopId             int32
 	wooCommerceId            int32
 	shopifyId                int64
@@ -28,7 +29,7 @@ type SalesOrderDetail struct {
 
 func getSalesOrderDetail(orderId int64, enterpriseId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE "order"=$1 AND enterprise=$2 ORDER BY id ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product),(SELECT digital_product FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE "order"=$1 AND enterprise=$2 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -36,7 +37,7 @@ func getSalesOrderDetail(orderId int64, enterpriseId int32) []SalesOrderDetail {
 	}
 	for rows.Next() {
 		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName, &d.DigitalProduct)
 		details = append(details, d)
 	}
 

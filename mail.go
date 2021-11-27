@@ -53,6 +53,8 @@ func (e *EmailInfo) sendEmail(enterpriseId int32) bool {
 		report = reportSalesDeliveryNote(int(e.ReportDataId), false, enterpriseId)
 	case "PURCHASE_ORDER":
 		report = reportPurchaseOrder(int(e.ReportDataId), false, enterpriseId)
+	case "SALES_ORDER_DIGITAL_PRODUCT_DATA":
+		report = reportSalesOrderDigitalProductDetails(int(e.ReportDataId), false, enterpriseId)
 	default:
 		return false
 	}

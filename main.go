@@ -865,6 +865,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getShippingStatusHistory(enterpriseId, int64(id)))
+	case "SALES_ORDER_DETAIL_DIGITAL_PRODUCT_DATA":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getSalesOrderDetailDigitalProductData(int64(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1284,6 +1289,13 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var filter ConnectionFilterUser
 		json.Unmarshal(message, &filter)
 		ok = filter.insertConnectionFilterUser(enterpriseId)
+	case "SALES_ORDER_DETAIL_DIGITAL_PRODUCT_DATA":
+		if !permissions.Sales {
+			return
+		}
+		var d SalesOrderDetailDigitalProductData
+		json.Unmarshal(message, &d)
+		ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1499,6 +1511,13 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &template)
 		template.enterprise = enterpriseId
 		ok = template.updateReportTemplate()
+	case "SALES_ORDER_DETAIL_DIGITAL_PRODUCT_DATA":
+		if !permissions.Sales {
+			return
+		}
+		var d SalesOrderDetailDigitalProductData
+		json.Unmarshal(message, &d)
+		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1871,6 +1890,13 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		filter.Id = int32(id)
 		filter.enterprise = enterpriseId
 		ok = filter.deleteConnectionFilter()
+	case "SALES_ORDER_DETAIL_DIGITAL_PRODUCT_DATA":
+		if !permissions.Sales {
+			return
+		}
+		d := SalesOrderDetailDigitalProductData{}
+		d.Id = int32(id)
+		ok = d.deleteSalesOrderDetailDigitalProductData(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2537,6 +2563,13 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		updateCurrencyExchange(enterpriseId)
+	case "SET_DIGITAL_SALES_ORDER_DETAIL_AS_SENT":
+		if !permissions.Sales {
+			return
+		}
+		var dat SetDigitalSalesOrderDetailAsSent
+		json.Unmarshal([]byte(message), &dat)
+		data, _ = json.Marshal(dat.setDigitalSalesOrderDetailAsSent(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }

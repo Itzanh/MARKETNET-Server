@@ -468,3 +468,73 @@ func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 
 	return []byte(html)
 }
+
+func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId int32) []byte {
+	s := getSalesOrderRow(int64(id))
+
+	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
+	customer := getNameCustomer(s.Customer, enterpriseId)
+	address := getAddressRow(s.BillingAddress)
+	stateName := ""
+	if address.State != nil {
+		stateName = getNameState(*address.State, enterpriseId)
+	}
+	countryName := getNameCountry(address.Country, enterpriseId)
+	details := getSalesOrderDetail(s.Id, enterpriseId)
+
+	template := getReportTemplate(enterpriseId, "SALES_ORDER_DIGITAL_PRODUCT_DATA")
+
+	html := template.Html
+
+	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
+	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
+	html = strings.Replace(html, "$$order_reference$$", s.Reference, 1)
+	html = strings.Replace(html, "$$order_payment_method_name$$", paymentMethod, 1)
+	html = strings.Replace(html, "$$order_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
+	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
+	html = strings.Replace(html, "$$address_city$$", address.City, 1)
+	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
+	html = strings.Replace(html, "$$address_state$$", stateName, 1)
+	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$order_notes$$", s.Notes, 1)
+	html = strings.Replace(html, "$$order_total_products$$", fmt.Sprintf("%.2f", s.TotalProducts), 1)
+	html = strings.Replace(html, "$$order_vat_amount$$", fmt.Sprintf("%.2f", s.VatAmount), 1)
+	html = strings.Replace(html, "$$order_discount_percent$$", fmt.Sprintf("%.2f", s.DiscountPercent), 1)
+	html = strings.Replace(html, "$$order_fix_discount$$", fmt.Sprintf("%.2f", s.FixDiscount), 1)
+	html = strings.Replace(html, "$$order_shipping_price$$", fmt.Sprintf("%.2f", s.ShippingPrice), 1)
+	html = strings.Replace(html, "$$order_shipping_discount$$", fmt.Sprintf("%.2f", s.ShippingDiscount), 1)
+	html = strings.Replace(html, "$$order_total_with_discount$$", fmt.Sprintf("%.2f", s.TotalWithDiscount), 1)
+	html = strings.Replace(html, "$$order_total_amount$$", fmt.Sprintf("%.2f", s.TotalAmount), 1)
+	if forcePrint {
+		html = strings.Replace(html, "$$script$$", "window.print()", 1)
+	} else {
+		html = strings.Replace(html, "$$script$$", "", 1)
+	}
+
+	detailHtmlTemplate := html[strings.Index(html, "&&detail&&")+len("&&detail&&") : strings.Index(html, "&&--detail--&&")]
+	detailsHtml := ""
+
+	for i := 0; i < len(details); i++ {
+		digitalProductDetails := getSalesOrderDetailDigitalProductData(details[i].Id, enterpriseId)
+		if len(digitalProductDetails) == 0 {
+			continue
+		}
+
+		product := getNameProduct(details[i].Product, enterpriseId)
+
+		for j := 0; j < len(digitalProductDetails); j++ {
+			detailHtml := detailHtmlTemplate
+
+			detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+			detailHtml = strings.Replace(detailHtml, "$$detail_key$$", digitalProductDetails[j].Key, 1)
+			detailHtml = strings.Replace(detailHtml, "$$detail_value$$", digitalProductDetails[j].Key, 1)
+
+			detailsHtml += detailHtml
+		}
+	}
+
+	html = html[:strings.Index(html, "&&detail&&")] + detailsHtml + html[strings.Index(html, "&&--detail--&&")+len("&&--detail--&&"):]
+
+	return []byte(html)
+}
