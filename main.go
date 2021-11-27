@@ -2071,8 +2071,16 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 	// PARAMETERLESS
 	switch command {
 	case "SALE_ORDER":
-		data, _ = json.Marshal(locateSaleOrder(enterpriseId))
+		if !permissions.Sales {
+			return
+		}
+		var query SaleOrderLocateQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.locateSaleOrder(enterpriseId))
 	case "DOCUMENT_CONTAINER":
+		if !permissions.Masters {
+			return
+		}
 		data, _ = json.Marshal(locateDocumentContainer(enterpriseId))
 	case "LOCATE_ACCOUNT_CUSTOMER":
 		if !permissions.Masters {

@@ -68,8 +68,8 @@ func (q *PaginationQuery) getAllManufacturingOrders(enterpriseId int32) Manufact
 		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.manufacturing_order WHERE enterprise=$3 OFFSET $1 LIMIT $2`
-	row := db.QueryRow(sqlStatement, q.Offset, q.Limit, enterpriseId)
+	sqlStatement = `SELECT COUNT(*) FROM public.manufacturing_order WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return mo
@@ -94,8 +94,8 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.manufacturing_order WHERE type=$1 AND enterprise=$4 OFFSET $2 LIMIT $3`
-	row := db.QueryRow(sqlStatement, q.OrderTypeId, q.Offset, q.Limit, enterpriseId)
+	sqlStatement = `SELECT COUNT(*) FROM public.manufacturing_order WHERE type=$1 AND enterprise=$2`
+	row := db.QueryRow(sqlStatement, q.OrderTypeId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return mo

@@ -151,10 +151,11 @@ func TestLocateSaleOrder(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := locateSaleOrder(1)
+	query := SaleOrderLocateQuery{Offset: 0, Limit: 100}
+	o := query.locateSaleOrder(1)
 
-	for i := 0; i < len(o); i++ {
-		if o[i].Id <= 0 {
+	for i := 0; i < len(o.Orders); i++ {
+		if o.Orders[i].Id <= 0 {
 			t.Error("Scan error, sale orders with ID 0.")
 			return
 		}

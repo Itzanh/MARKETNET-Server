@@ -579,6 +579,11 @@ func setSalesOrderState(enterpriseId int32, orderId int64, userId int32) bool {
 	return rows > 0 && err == nil
 }
 
+type SaleOrderLocateReturn struct {
+	Orders []SaleOrderLocate `json:"orders"`
+	Rows   int64             `json:"rows"`
+}
+
 type SaleOrderLocate struct {
 	Id           int32     `json:"id"`
 	Customer     int32     `json:"customer"`
@@ -587,21 +592,36 @@ type SaleOrderLocate struct {
 	DateCreated  time.Time `json:"dateCreated"`
 }
 
-func locateSaleOrder(enterpriseId int32) []SaleOrderLocate {
-	var sales []SaleOrderLocate = make([]SaleOrderLocate, 0)
-	sqlStatement := `SELECT id,customer,(SELECT name FROM customer WHERE id=sales_order.customer),order_name,date_created FROM sales_order WHERE enterprise=$1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
+type SaleOrderLocateQuery struct {
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
+}
+
+func (query *SaleOrderLocateQuery) locateSaleOrder(enterpriseId int32) SaleOrderLocateReturn {
+	res := SaleOrderLocateReturn{}
+	res.Orders = make([]SaleOrderLocate, 0)
+	sqlStatement := `SELECT id,customer,(SELECT name FROM customer WHERE id=sales_order.customer),order_name,date_created FROM sales_order WHERE enterprise=$1 ORDER BY date_created DESC LIMIT $2`
+	rows, err := db.Query(sqlStatement, enterpriseId, query.Offset+query.Limit)
 	if err != nil {
 		log("DB", err.Error())
-		return sales
+		return res
 	}
 	for rows.Next() {
 		s := SaleOrderLocate{}
 		rows.Scan(&s.Id, &s.Customer, &s.CustomerName, &s.OrderName, &s.DateCreated)
-		sales = append(sales, s)
+		res.Orders = append(res.Orders, s)
 	}
 
-	return sales
+	sqlStatement = `SELECT COUNT(id) FROM sales_order WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return res
+	}
+
+	row.Scan(&res.Rows)
+
+	return res
 }
 
 // Add an amount to the lines_number field in the sale order. This number represents the total of lines.
