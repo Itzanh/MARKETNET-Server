@@ -9,6 +9,11 @@ import (
 func sendEmail(destinationAddress string, destinationAddressName string, subject string, innerText string, enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
+	if s.Email != "_" {
+		el := EmailLog{EmailFrom: s.EmailFrom, NameFrom: s.NameFrom, DestinationEmail: destinationAddress, DestinationName: destinationAddressName, Subject: subject, Content: innerText, enterprise: enterpriseId}
+		el.insertEmailLog()
+	}
+
 	if s.Email == "_" {
 		return false
 	} else if s.Email == "S" {

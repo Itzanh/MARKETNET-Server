@@ -588,6 +588,10 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		json.Unmarshal([]byte(message), &query)
 		query.enterpriseId = enterpriseId
 		data, _ = json.Marshal(query.getRegisterTransactionalLogs())
+	case "EMAIL_LOGS":
+		var search EmailLogSearch
+		json.Unmarshal([]byte(message), &search)
+		data, _ = json.Marshal(search.getEmailLogs(enterpriseId))
 	default:
 		found = false
 	}
