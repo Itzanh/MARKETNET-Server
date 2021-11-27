@@ -55,6 +55,7 @@ func addHttpHandlerFuncions() {
 	http.HandleFunc("/api/manufacturing_order_types", apiManufacturingOrderTypes)
 	// preparation
 	http.HandleFunc("/api/shippings", apiShipping)
+	http.HandleFunc("/api/shipping_status_history", apiShippingStatusHistory)
 	// stock
 	http.HandleFunc("/api/stock", apiStock)
 	// accounting
@@ -1888,6 +1889,43 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 		shipping.Id = int64(id)
 		shipping.enterprise = enterpriseId
 		ok = shipping.deleteShipping(userId)
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiShippingStatusHistory(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getShippingStatusHistory(enterpriseId, int64(id)))
+		w.Write(data)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
