@@ -308,22 +308,6 @@ func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
 	///
 }
 
-// Abs returns the absolute value of x.
-func abs(x int32) int32 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
-// Abs returns the absolute value of x.
-func absf(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 	if m.Id <= 0 {
 		return false

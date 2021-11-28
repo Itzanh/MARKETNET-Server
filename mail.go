@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net/smtp"
+	"strings"
+
 	strip "github.com/grokify/html-strip-tags-go"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -18,6 +21,8 @@ func sendEmail(destinationAddress string, destinationAddressName string, subject
 		return false
 	} else if s.Email == "S" {
 		sendEmailSendgrid(s.SendGridKey, s.EmailFrom, s.NameFrom, destinationAddress, destinationAddressName, subject, innerText)
+	} else if s.Email == "T" {
+		sendEmailSMTP(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText)
 	}
 	return false
 }
@@ -28,6 +33,30 @@ func sendEmailSendgrid(key string, fromAddress string, fromAddressName string, d
 	message := mail.NewSingleEmail(from, subject, to, strip.StripTags(innerText), innerText)
 	client := sendgrid.NewSendClient(key)
 	_, err := client.Send(message)
+
+	if err != nil {
+		log("SENDGRID", err.Error())
+	}
+
+	return err == nil
+}
+
+func sendEmailSMTP(identiy string, username string, password string, smtpServer string, destinationAddress string, subject string, innerText string) bool {
+	auth := smtp.PlainAuth(identiy, username, password, smtpServer[:strings.Index(smtpServer, ":")])
+
+	to := []string{destinationAddress}
+	msg := []byte("To: " + destinationAddress + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n" +
+		"\r\n" +
+		innerText + "\r\n")
+
+	err := smtp.SendMail(smtpServer, auth, username, to, msg)
+
+	if err != nil {
+		log("SMTP", err.Error())
+	}
+
 	return err == nil
 }
 

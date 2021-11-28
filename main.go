@@ -2713,22 +2713,3 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 	}
 	ws.WriteMessage(mt, data)
 }
-
-func isParameterPresent(parameter string) bool {
-	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i] == parameter {
-			return true
-		}
-	}
-	return false
-}
-
-func getParameterValue(parameter string) (string, bool) {
-	for i := 1; i < len(os.Args); i++ {
-		parameterValue := strings.Split(os.Args[i], "=")
-		if len(parameterValue) == 2 && parameterValue[0] == parameter {
-			return parameterValue[1], true
-		}
-	}
-	return "", false
-}
