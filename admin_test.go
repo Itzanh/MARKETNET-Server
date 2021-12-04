@@ -552,7 +552,7 @@ func TestEvaluatePasswordSecureCloud(t *testing.T) {
 	}
 
 	// test hash blacklist
-	insertPwdBlacklistHash("miblacklist")
+	insertSinglePwdBlacklistHash("miblacklist")
 	res = evaluatePasswordSecureCloud(1, "miblacklist")
 	if res.PasswordHashInBlacklist == false {
 		t.Error("Password hash blacklist OK in incorrect password")

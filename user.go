@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"crypto/sha512"
+	"encoding/hex"
+	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 )
@@ -431,8 +435,48 @@ func searchPasswordHashInBlackList(password string) bool {
 	return rowsFound > 0
 }
 
-/*func insertPwdBlacklist() {
-	file, err := os.Open("C:\\Users\\Itzan\\Desktop\\rockyou.txt")
+func addPasswordsToBlacklist() {
+	pwdBlackList, ok := getParameterValue("pwd-blacklist-file")
+	if ok {
+		if len(pwdBlackList) == 0 {
+			fmt.Println("You must specify a .txt file path")
+			return
+		}
+
+		insertPwdBlacklist(pwdBlackList)
+		return
+	}
+
+	pwdHashBlackList, ok := getParameterValue("pwd-hash-blacklist-file")
+	if ok {
+		if len(pwdHashBlackList) == 0 {
+			fmt.Println("You must specify a .txt file path")
+			return
+		}
+
+		insertPwdBlacklistHash(pwdHashBlackList)
+		return
+	}
+
+	singlePwd, ok := getParameterValue("single-pwd")
+	if ok {
+		if len(singlePwd) == 0 {
+			fmt.Println("You must specify a password")
+			return
+		}
+
+		insertSinglePwdBlacklistHash(singlePwd)
+		return
+	}
+
+	fmt.Println("Option not recognised")
+}
+
+// inserts an entire password dictionary in txt format in the blacklist
+// format is a list of passwords separated by a new line
+// example: "C:\\Users\\Itzan\\Desktop\\rockyou.txt"
+func insertPwdBlacklist(path string) {
+	file, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -448,10 +492,13 @@ func searchPasswordHashInBlackList(password string) bool {
 
 		db.Exec(sqlStatement, password)
 	}
-}*/
+}
 
-/*func insertPwdBlacklistHash() {
-	file, err := os.Open("C:\\Users\\Itzan\\Desktop\\pwned-passwords-sha1-ordered-by-count-v7.txt")
+// inserts a list of SHA-1 hashes in the hashed passwords blacklist
+// format is a list of SHA-1 hashes separated by a new line
+// example: "C:\\Users\\Itzan\\Desktop\\pwned-passwords-sha1-ordered-by-count-v7.txt"
+func insertPwdBlacklistHash(path string) {
+	file, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -473,9 +520,9 @@ func searchPasswordHashInBlackList(password string) bool {
 			return
 		}
 	}
-}*/
+}
 
-func insertPwdBlacklistHash(pass string) {
+func insertSinglePwdBlacklistHash(pass string) {
 	hasher := sha1.New()
 
 	hasher.Write([]byte(pass))

@@ -83,6 +83,12 @@ func main() {
 		}
 	}
 
+	// add passwords to blacklist
+	if isParameterPresent("--add-pwd-blacklist") {
+		addPasswordsToBlacklist()
+		os.Exit(0)
+	}
+
 	// listen to requests
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
