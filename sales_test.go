@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 )
@@ -890,6 +891,553 @@ func TestGetSalesInvoiceRelations(t *testing.T) {
 	}
 }
 
+func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	country := int32(2) // United Kingdom
+	language := int32(8)
+	paymentMethod := int32(3)
+	billingSeries := "EXP"
+
+	c := Customer{
+		Name:          "Jake Kaiser",
+		Tradename:     "Jake Kaiser",
+		FiscalName:    "Jake Kaiser",
+		Phone:         "679681745",
+		Email:         "jake.kaiser@gmail.com",
+		Country:       &country,
+		Language:      &language,
+		PaymentMethod: &paymentMethod,
+		BillingSeries: &billingSeries,
+		enterprise:    1,
+	}
+
+	// insert
+	res := c.insertCustomer(0)
+	ok, customerId := res.Id > 0, res.Id
+	if !ok {
+		t.Error("Insert error, customer not inserted")
+		return
+	}
+	c.Id = int32(customerId)
+
+	a := Address{
+		Customer:          &c.Id,
+		Supplier:          nil,
+		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
+		Address2:          "GUULBOTQGDPGHYTZKZNRT",
+		City:              "NKTCH",
+		Country:           country,
+		PrivateOrBusiness: "_",
+		ZipCode:           "AWS13",
+		enterprise:        1,
+	}
+
+	ok = a.insertAddress(0).Id > 0
+	if !ok {
+		t.Error("Insert error, can't insert address")
+		return
+	}
+
+	i := SalesInvoice{
+		Customer:       c.Id,
+		PaymentMethod:  1,
+		BillingSeries:  "INT",
+		Currency:       1,
+		BillingAddress: a.Id,
+		enterprise:     1,
+	}
+
+	ok, invoiceId := i.insertSalesInvoice(0)
+	if !ok {
+		t.Error("Insert error, the invoice could not be inserted")
+		return
+	}
+	i.Id = invoiceId
+
+	i = getSalesInvoiceRow(i.Id)
+	if i.SimplifiedInvoice {
+		t.Error("An export invoice has been marked as simplified invoice")
+		return
+	}
+
+	ok = toggleSimplifiedInvoiceSalesInvoice(i.Id, 1, 0)
+	if !ok {
+		t.Error("Can't toggle simplified invoice")
+		return
+	}
+
+	i = getSalesInvoiceRow(i.Id)
+	if !i.SimplifiedInvoice {
+		t.Error("Simplified invoice not toggled")
+		return
+	}
+
+	ok = i.deleteSalesInvoice(0)
+	if !ok {
+		t.Error("Delete error, the invoice could not be deleted")
+		return
+	}
+
+	ok = a.deleteAddress()
+	if !ok {
+		t.Error("Delete error, address not deleted")
+		return
+	}
+
+	// delete
+	ok = c.deleteCustomer(0)
+	if !ok {
+		t.Error("Delete error, customer not deleted")
+		return
+	}
+}
+
+func TestSaleInvoiceSimplifiedInvoiceNational(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	country := int32(1) // Spain
+	language := int32(8)
+	paymentMethod := int32(3)
+	billingSeries := "EXP"
+
+	c := Customer{
+		Name:          "Jake Kaiser",
+		Tradename:     "Jake Kaiser",
+		FiscalName:    "Jake Kaiser",
+		Phone:         "679681745",
+		Email:         "jake.kaiser@gmail.com",
+		Country:       &country,
+		Language:      &language,
+		PaymentMethod: &paymentMethod,
+		BillingSeries: &billingSeries,
+		enterprise:    1,
+	}
+
+	// insert
+	res := c.insertCustomer(0)
+	ok, customerId := res.Id > 0, res.Id
+	if !ok {
+		t.Error("Insert error, customer not inserted")
+		return
+	}
+	c.Id = int32(customerId)
+
+	a := Address{
+		Customer:          &c.Id,
+		Supplier:          nil,
+		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
+		Address2:          "GUULBOTQGDPGHYTZKZNRT",
+		City:              "NKTCH",
+		Country:           country,
+		PrivateOrBusiness: "_",
+		ZipCode:           "AWS13",
+		enterprise:        1,
+	}
+
+	ok = a.insertAddress(0).Id > 0
+	if !ok {
+		t.Error("Insert error, can't insert address")
+		return
+	}
+
+	i := SalesInvoice{
+		Customer:       c.Id,
+		PaymentMethod:  1,
+		BillingSeries:  "INT",
+		Currency:       1,
+		BillingAddress: a.Id,
+		enterprise:     1,
+	}
+
+	ok, invoiceId := i.insertSalesInvoice(0)
+	if !ok {
+		t.Error("Insert error, the invoice could not be inserted")
+		return
+	}
+
+	if !i.SimplifiedInvoice {
+		t.Error("A national invoice without TAX ID or VAT number has been marked as not simplified invoice")
+		return
+	}
+
+	i.Id = invoiceId
+	ok = i.deleteSalesInvoice(0)
+	if !ok {
+		t.Error("Delete error, the invoice could not be deleted")
+		return
+	}
+
+	ok = a.deleteAddress()
+	if !ok {
+		t.Error("Delete error, address not deleted")
+		return
+	}
+
+	// delete
+	ok = c.deleteCustomer(0)
+	if !ok {
+		t.Error("Delete error, customer not deleted")
+		return
+	}
+}
+
+func TestSaleInvoiceSimplifiedInvoiceEUWithoutTaxId(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	country := int32(3) // Italy
+	language := int32(8)
+	paymentMethod := int32(3)
+	billingSeries := "EXP"
+
+	c := Customer{
+		Name:          "Jake Kaiser",
+		Tradename:     "Jake Kaiser",
+		FiscalName:    "Jake Kaiser",
+		Phone:         "679681745",
+		Email:         "jake.kaiser@gmail.com",
+		Country:       &country,
+		Language:      &language,
+		PaymentMethod: &paymentMethod,
+		BillingSeries: &billingSeries,
+		enterprise:    1,
+	}
+
+	// insert
+	res := c.insertCustomer(0)
+	ok, customerId := res.Id > 0, res.Id
+	if !ok {
+		t.Error("Insert error, customer not inserted")
+		return
+	}
+	c.Id = int32(customerId)
+
+	a := Address{
+		Customer:          &c.Id,
+		Supplier:          nil,
+		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
+		Address2:          "GUULBOTQGDPGHYTZKZNRT",
+		City:              "NKTCH",
+		Country:           country,
+		PrivateOrBusiness: "_",
+		ZipCode:           "AWS13",
+		enterprise:        1,
+	}
+
+	ok = a.insertAddress(0).Id > 0
+	if !ok {
+		t.Error("Insert error, can't insert address")
+		return
+	}
+
+	i := SalesInvoice{
+		Customer:       c.Id,
+		PaymentMethod:  1,
+		BillingSeries:  "INT",
+		Currency:       1,
+		BillingAddress: a.Id,
+		enterprise:     1,
+	}
+
+	ok, invoiceId := i.insertSalesInvoice(0)
+	if !ok {
+		t.Error("Insert error, the invoice could not be inserted")
+		return
+	}
+
+	if !i.SimplifiedInvoice {
+		t.Error("A EU invoice without TAX ID or VAT number has been marked as not simplified invoice")
+		return
+	}
+
+	i.Id = invoiceId
+	ok = i.deleteSalesInvoice(0)
+	if !ok {
+		t.Error("Delete error, the invoice could not be deleted")
+		return
+	}
+
+	ok = a.deleteAddress()
+	if !ok {
+		t.Error("Delete error, address not deleted")
+		return
+	}
+
+	// delete
+	ok = c.deleteCustomer(0)
+	if !ok {
+		t.Error("Delete error, customer not deleted")
+		return
+	}
+}
+
+func TestSaleInvoiceSimplifiedInvoiceEUWithTaxId(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	country := int32(3) // Italy
+	language := int32(8)
+	paymentMethod := int32(3)
+	billingSeries := "EXP"
+
+	c := Customer{
+		Name:          "Jake Kaiser",
+		Tradename:     "Jake Kaiser",
+		FiscalName:    "Jake Kaiser",
+		Phone:         "679681745",
+		Email:         "jake.kaiser@gmail.com",
+		Country:       &country,
+		Language:      &language,
+		PaymentMethod: &paymentMethod,
+		BillingSeries: &billingSeries,
+		enterprise:    1,
+		TaxId:         "IT1234",
+		VatNumber:     "IT1234",
+	}
+
+	// insert
+	res := c.insertCustomer(0)
+	ok, customerId := res.Id > 0, res.Id
+	if !ok {
+		t.Error("Insert error, customer not inserted")
+		return
+	}
+	c.Id = int32(customerId)
+
+	a := Address{
+		Customer:          &c.Id,
+		Supplier:          nil,
+		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
+		Address2:          "GUULBOTQGDPGHYTZKZNRT",
+		City:              "NKTCH",
+		Country:           country,
+		PrivateOrBusiness: "_",
+		ZipCode:           "AWS13",
+		enterprise:        1,
+	}
+
+	ok = a.insertAddress(0).Id > 0
+	if !ok {
+		t.Error("Insert error, can't insert address")
+		return
+	}
+
+	i := SalesInvoice{
+		Customer:       c.Id,
+		PaymentMethod:  1,
+		BillingSeries:  "INT",
+		Currency:       1,
+		BillingAddress: a.Id,
+		enterprise:     1,
+	}
+
+	ok, invoiceId := i.insertSalesInvoice(0)
+	if !ok {
+		t.Error("Insert error, the invoice could not be inserted")
+		return
+	}
+
+	if i.SimplifiedInvoice {
+		t.Error("A EU invoice without TAX ID or VAT number has been marked as simplified invoice")
+		return
+	}
+
+	i.Id = invoiceId
+	ok = i.deleteSalesInvoice(0)
+	if !ok {
+		t.Error("Delete error, the invoice could not be deleted")
+		return
+	}
+
+	ok = a.deleteAddress()
+	if !ok {
+		t.Error("Delete error, address not deleted")
+		return
+	}
+
+	// delete
+	ok = c.deleteCustomer(0)
+	if !ok {
+		t.Error("Delete error, customer not deleted")
+		return
+	}
+}
+
+func TestMakeAmendingSaleInvoice(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	country := int32(1) // Spain
+	language := int32(8)
+	paymentMethod := int32(3)
+	billingSeries := "EXP"
+
+	c := Customer{
+		Name:          "Jake Kaiser",
+		Tradename:     "Jake Kaiser",
+		FiscalName:    "Jake Kaiser",
+		Phone:         "679681745",
+		Email:         "jake.kaiser@gmail.com",
+		Country:       &country,
+		Language:      &language,
+		PaymentMethod: &paymentMethod,
+		BillingSeries: &billingSeries,
+		enterprise:    1,
+	}
+
+	// insert
+	res := c.insertCustomer(0)
+	ok, customerId := res.Id > 0, res.Id
+	if !ok {
+		t.Error("Insert error, customer not inserted")
+		return
+	}
+	c.Id = int32(customerId)
+
+	a := Address{
+		Customer:          &c.Id,
+		Supplier:          nil,
+		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
+		Address2:          "GUULBOTQGDPGHYTZKZNRT",
+		City:              "NKTCH",
+		Country:           country,
+		PrivateOrBusiness: "_",
+		ZipCode:           "AWS13",
+		enterprise:        1,
+	}
+
+	ok = a.insertAddress(0).Id > 0
+	if !ok {
+		t.Error("Insert error, can't insert address")
+		return
+	}
+
+	i := SalesInvoice{
+		Customer:       c.Id,
+		PaymentMethod:  1,
+		BillingSeries:  "INT",
+		Currency:       1,
+		BillingAddress: a.Id,
+		enterprise:     1,
+	}
+
+	ok, invoiceId := i.insertSalesInvoice(0)
+	if !ok {
+		t.Error("Insert error, the invoice could not be inserted")
+		return
+	}
+	i.Id = invoiceId
+
+	// we can't make an amending invoice the same day as the original invoice, so we set the original invoice to yesterday
+	sqlStatement := `UPDATE sales_invoice SET date_created=$2 WHERE id=$1`
+	db.Exec(sqlStatement, i.Id, time.Now().AddDate(0, 0, -1))
+
+	var product int32 = 1
+
+	d := SalesInvoiceDetail{
+		Invoice:    invoiceId,
+		Product:    &product,
+		Price:      65,
+		Quantity:   2,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	ok = d.insertSalesInvoiceDetail(true, 0)
+	if !ok {
+		t.Error("Insert error, sale invoice detail not inserted")
+		return
+	}
+
+	ok = makeAmendingSaleInvoice(i.Id, 1, 20, "TEST")
+	if !ok {
+		t.Error("Can't make an amending invoice")
+		return
+	}
+
+	relations := getSalesInvoiceRelations(i.Id, 1)
+	if len(relations.Invoices) == 0 || relations.Invoices[0].Id <= 0 {
+		t.Error("Can't load amending invoices from relations")
+		return
+	}
+
+	amendingInv := getSalesInvoiceRow(relations.Invoices[0].Id)
+	if !amendingInv.Amending {
+		t.Error("Amending invoice not generated as amending")
+		return
+	}
+	if amendingInv.AmendedInvoice == nil {
+		t.Error("The amending invoice does't have an amended invoce id")
+		return
+	}
+	if *amendingInv.AmendedInvoice != i.Id {
+		t.Error("The ID of the amended invoice is not correct")
+		return
+	}
+	if amendingInv.TotalAmount != -20 {
+		t.Error("The amending invoice total amount is not correct")
+		return
+	}
+
+	amendingInvoiceDetails := getSalesInvoiceDetail(amendingInv.Id, 1)
+	if len(amendingInvoiceDetails) != 1 {
+		t.Error("The amending invoice doesn't have a detail")
+		return
+	}
+
+	amendingInvRelations := getSalesInvoiceRelations(amendingInv.Id, 1)
+	if len(amendingInvRelations.Invoices) == 0 || amendingInvRelations.Invoices[0].Id <= 0 {
+		t.Error("Can't load the original invoice from relations")
+	}
+
+	// delete
+	ok = amendingInvoiceDetails[0].deleteSalesInvoiceDetail(0)
+	if !ok {
+		t.Error("Delete error, sale invoice detail not deleted")
+		return
+	}
+
+	ok = amendingInv.deleteSalesInvoice(0)
+	if !ok {
+		t.Error("Delete error, the amending invoice could not be deleted")
+		return
+	}
+
+	// delete detail
+	details := getSalesInvoiceDetail(invoiceId, 1)
+	ok = details[0].deleteSalesInvoiceDetail(0)
+	if !ok {
+		t.Error("Delete error, sale invoice detail not deleted")
+		return
+	}
+
+	ok = i.deleteSalesInvoice(0)
+	if !ok {
+		t.Error("Delete error, the invoice could not be deleted")
+		return
+	}
+
+	ok = a.deleteAddress()
+	if !ok {
+		t.Error("Delete error, address not deleted")
+		return
+	}
+
+	ok = c.deleteCustomer(0)
+	if !ok {
+		t.Error("Delete error, customer not deleted")
+		return
+	}
+}
+
 // ===== SALE INVOICE DETAILS
 
 /* GET */
@@ -1336,4 +1884,100 @@ func TestGetSalesDeliveryNoteRelations(t *testing.T) {
 	if checkOrders == 2 || checkShippings == 2 {
 		t.Errorf("Error scanning sale delivery note relations checkOrders %q checkShippings %q", checkOrders, checkShippings)
 	}
+}
+
+// ===== SALE ORDER DISCOUNT
+
+func TestSaleOrderDiscount(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	o := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		Description:     "",
+		Notes:           "",
+		enterprise:      1,
+	}
+
+	_, orderId := o.insertSalesOrder(1)
+
+	d := SalesOrderDetail{
+		Order:      orderId,
+		Product:    4,
+		Price:      9.99,
+		Quantity:   2,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	// test insert
+	ok := d.insertSalesOrderDetail(0)
+	if !ok {
+		t.Error("Insert error, sale order detail not inserted")
+		return
+	}
+	o = getSalesOrderRow(orderId)
+	totalAmount := o.TotalAmount
+
+	discount := SalesOrderDiscount{
+		Order:            orderId,
+		Name:             "Test discount",
+		ValueTaxIncluded: 10,
+		ValueTaxExcluded: 10,
+		enterprise:       1,
+	}
+	ok = discount.insertSalesOrderDiscount(0)
+	if !ok {
+		t.Error("Can't insert order discount")
+		return
+	}
+
+	discounts := getSalesOrderDiscounts(orderId, 1)
+	if len(discounts) == 0 || discounts[0].Id <= 0 {
+		t.Error("Can't scan order discounts")
+		return
+	}
+
+	disc := getSalesOrderDiscountsRow(discounts[0].Id)
+	if disc.Id <= 0 {
+		t.Error("Can't scan order discount row")
+		return
+	}
+
+	o = getSalesOrderRow(orderId)
+	if math.Round(o.TotalAmount*100)/100 != math.Round(totalAmount*100)/100-10 {
+		t.Error("The total amount hasn't changed")
+		return
+	}
+
+	ok = disc.deleteSalesOrderDiscount(0)
+	if !ok {
+		t.Error("Can't delete sales order discount")
+		return
+	}
+
+	o = getSalesOrderRow(orderId)
+	if math.Round(o.TotalAmount*100)/100 != math.Round(totalAmount*100)/100 {
+		t.Error("The total amount hasn't changed to normal")
+		return
+	}
+
+	// attempt delete
+	details := getSalesOrderDetail(orderId, 1)
+	ok = details[0].deleteSalesOrderDetail(1)
+	if !ok {
+		t.Error("Delete error, sale order detail not deleted")
+		return
+	}
+
+	o.Id = orderId
+	o.enterprise = 1
+	o.deleteSalesOrder(1)
 }

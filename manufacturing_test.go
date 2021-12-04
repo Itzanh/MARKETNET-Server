@@ -146,7 +146,7 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[0].deleteManufacturingOrder(0)
+		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -233,7 +233,137 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	o.deleteSalesOrder(1)
 }
 
-// ===== CUSTOMERS
+func TestManufacturingOrderQuantity(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	o := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		Description:     "",
+		Notes:           "",
+		enterprise:      1,
+	}
+
+	_, orderId := o.insertSalesOrder(1)
+
+	d := SalesOrderDetail{
+		Order:      orderId,
+		Product:    1,
+		Price:      9.99,
+		Quantity:   2,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	d.insertSalesOrderDetail(1)
+
+	invoiceAllSaleOrder(orderId, 1, 0)
+
+	details := getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "C" {
+		t.Error("The status is not correct when manufacturing orders are not generated yet")
+	}
+
+	ok := manufacturingOrderAllSaleOrder(orderId, 1, 1)
+	if !ok {
+		t.Error("Could not manufacturing order all sale order")
+		return
+	}
+
+	details = getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "D" {
+		t.Error("The status is not correct when manufactured 0/2")
+	}
+
+	// get orders from the sale order relations
+	r := getSalesOrderRelations(orderId, 1)
+
+	if len(r.ManufacturingOrders) == 0 {
+		t.Error("The manufacturing order has not loaded from the sale order relations")
+		return
+	}
+
+	// set the first as manufactured
+	toggleManufactuedManufacturingOrder(r.ManufacturingOrders[0].Id, 1, 1)
+	r = getSalesOrderRelations(orderId, 1)
+	if r.ManufacturingOrders[0].Manufactured == false {
+		t.Error("Can't set a manufacturing order as manufactured")
+		return
+	}
+
+	details = getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "D" {
+		t.Error("The status is not correct when manufactured 1/2")
+	}
+
+	// set the second as manufactured
+	toggleManufactuedManufacturingOrder(r.ManufacturingOrders[1].Id, 1, 1)
+	r = getSalesOrderRelations(orderId, 1)
+	if r.ManufacturingOrders[1].Manufactured == false {
+		t.Error("Can't set a manufacturing order as manufactured")
+		return
+	}
+
+	details = getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "E" {
+		t.Error("The status is not correct when manufactured 2/2")
+	}
+
+	// set the second as NOT manufactured
+	toggleManufactuedManufacturingOrder(r.ManufacturingOrders[1].Id, 1, 1)
+	r = getSalesOrderRelations(orderId, 1)
+	if r.ManufacturingOrders[1].Manufactured == true {
+		t.Error("Can't set a manufacturing order as NOT manufactured")
+		return
+	}
+
+	details = getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "D" {
+		t.Error("The status is not correct when manufactured 1/2")
+	}
+
+	// set the first as NOT manufactured
+	toggleManufactuedManufacturingOrder(r.ManufacturingOrders[0].Id, 1, 1)
+	r = getSalesOrderRelations(orderId, 1)
+	if r.ManufacturingOrders[0].Manufactured == true {
+		t.Error("Can't set a manufacturing order as NOT manufactured")
+		return
+	}
+
+	details = getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "D" {
+		t.Error("The status is not correct when manufactured 0/2")
+	}
+
+	// delete created manufacturing orders
+	for i := 0; i < len(r.ManufacturingOrders); i++ {
+		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0)
+		if !ok {
+			t.Error("Delete error, can't delete manufacturing orders")
+			return
+		}
+	}
+
+	// delete created sale invoice
+	r.Invoices[0].deleteSalesInvoice(0)
+
+	// delete created order
+	details = getSalesOrderDetail(orderId, 1)
+	details[0].enterprise = 1
+	details[0].deleteSalesOrderDetail(1)
+	o.Id = orderId
+	o.enterprise = 1
+	o.deleteSalesOrder(1)
+}
+
+// ===== MANUFACTURING ORDER TYPE
 
 /* GET */
 

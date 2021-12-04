@@ -39,7 +39,7 @@ func getManufacturingOrderTypeRow(typeId int32) ManufacturingOrderType {
 }
 
 func (t *ManufacturingOrderType) isValid() bool {
-	return !(len(t.Name) == 0 || len(t.Name) > 100) || t.QuantityManufactured < 1
+	return !(len(t.Name) == 0 || len(t.Name) > 100 || t.QuantityManufactured < 1)
 }
 
 func (t *ManufacturingOrderType) insertManufacturingOrderType() bool {

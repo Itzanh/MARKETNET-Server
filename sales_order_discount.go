@@ -9,7 +9,7 @@ type SalesOrderDiscount struct {
 	enterprise       int32
 }
 
-func getSalesOrderDiscounts(orderId int32, enterpriseId int32) []SalesOrderDiscount {
+func getSalesOrderDiscounts(orderId int64, enterpriseId int32) []SalesOrderDiscount {
 	var discounts []SalesOrderDiscount = make([]SalesOrderDiscount, 0)
 	sqlStatement := `SELECT * FROM public.sales_order_discount WHERE "order"=$1 AND enterprise=$2 ORDER BY id ASC`
 	rows, err := db.Query(sqlStatement, orderId, enterpriseId)

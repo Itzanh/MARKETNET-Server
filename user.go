@@ -475,13 +475,12 @@ func searchPasswordHashInBlackList(password string) bool {
 	}
 }*/
 
-/*func insertPwdBlacklistHash() {
+func insertPwdBlacklistHash(pass string) {
 	hasher := sha1.New()
-	pass := "miblacklist"
 
 	hasher.Write([]byte(pass))
 	hash := hasher.Sum(nil)
 
 	sqlStatement := `INSERT INTO public.pwd_sha1_blacklist(hash) VALUES ($1)`
 	db.Exec(sqlStatement, hash)
-}*/
+}

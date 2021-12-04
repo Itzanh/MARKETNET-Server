@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -940,6 +941,14 @@ func TestLocateProduct(t *testing.T) {
 		return
 	}
 
+	for i := 0; i < len(produts); i++ {
+		p := getProductRow(produts[i].Id)
+		if p.Off {
+			t.Error("The locator is showing off products")
+			return
+		}
+	}
+
 	q = ProductLocateQuery{Mode: 0, Value: "1"}
 	produts = q.locateProduct(1)
 
@@ -965,6 +974,81 @@ func TestLocateProduct(t *testing.T) {
 	}
 }
 
+func TestProductOffSaleOrderDetailInsert(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	o := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		Description:     "",
+		Notes:           "",
+		enterprise:      1,
+	}
+
+	_, orderId := o.insertSalesOrder(1)
+
+	p := Product{
+		Name:              "Glass Office Desk",
+		Reference:         "OF-DSK",
+		BarCode:           "1234067891236",
+		ControlStock:      true,
+		Weight:            30,
+		Width:             160,
+		Height:            100,
+		Depth:             40,
+		VatPercent:        21,
+		Price:             65,
+		Manufacturing:     false,
+		TrackMinimumStock: true,
+		prestaShopId:      1,
+		enterprise:        1,
+		Off:               true,
+	}
+
+	ok := p.insertProduct(0)
+	if !ok {
+		t.Error("Insert error, could not insert product")
+		return
+	}
+
+	d := SalesOrderDetail{
+		Order:      orderId,
+		Product:    p.Id,
+		Price:      9.99,
+		Quantity:   2,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	// test insert
+	ok = d.insertSalesOrderDetail(0)
+	if ok {
+		t.Error("Insert error, sale order detail inserted with an off product")
+		return
+	}
+
+	ok = p.deleteProduct(1)
+	if !ok {
+		t.Error("Delete error, can't delete the temp product")
+		return
+	}
+
+	o.Id = orderId
+	o.enterprise = 1
+	ok = o.deleteSalesOrder(1)
+	if !ok {
+		t.Error("Delete error, can't delete the temp sale order")
+		return
+	}
+}
+
 func TestCheckEan13(t *testing.T) {
 	if !checkEan13("1234567890418") {
 		t.Error("The EAN13 should be OK")
@@ -973,6 +1057,244 @@ func TestCheckEan13(t *testing.T) {
 	if checkEan13("1234567890417") {
 		t.Error("The EAN13 should not be OK")
 	}
+
+	if checkEan13("123456789041") {
+		t.Error("The EAN13 should not be OK")
+	}
+}
+
+func TestSaleOrderDetailNoStock(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	o := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		Description:     "",
+		Notes:           "",
+		enterprise:      1,
+	}
+
+	_, orderId := o.insertSalesOrder(1)
+
+	p := Product{
+		Name:              "Glass Office Desk",
+		Reference:         "OF-DSK",
+		BarCode:           "1234067891236",
+		ControlStock:      false,
+		Weight:            30,
+		Width:             160,
+		Height:            100,
+		Depth:             40,
+		VatPercent:        21,
+		Price:             65,
+		Manufacturing:     true,
+		TrackMinimumStock: true,
+		prestaShopId:      1,
+		enterprise:        1,
+		DigitalProduct:    true,
+	}
+
+	ok := p.insertProduct(0)
+	if !ok {
+		t.Error("Insert error, could not insert product")
+		return
+	}
+
+	d := SalesOrderDetail{
+		Order:      orderId,
+		Product:    p.Id,
+		Price:      9.99,
+		Quantity:   2,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	// test insert
+	ok = d.insertSalesOrderDetail(0)
+	if !ok {
+		t.Error("Insert error, sale order detail not inserted")
+		return
+	}
+
+	invoiceAllSaleOrder(orderId, 1, 0)
+
+	// check if the order has the correct status
+	details := getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "E" {
+		t.Error("The status is not 'E' for no control stock")
+		return
+	}
+
+	// CRUD digital product data
+	dpd := SalesOrderDetailDigitalProductData{
+		Detail: d.Id,
+		Key:    "test",
+		Value:  "1234-5678-90",
+	}
+	dpd.insertSalesOrderDetailDigitalProductData(1)
+
+	dgDatas := getSalesOrderDetailDigitalProductData(d.Id, 1)
+	if len(dgDatas) == 0 || dgDatas[0].Id <= 0 {
+		t.Error("Can't scan digital product data")
+		return
+	}
+
+	dgDatas[0].Key = "license_code"
+	dgDatas[0].updateSalesOrderDetailDigitalProductData(1)
+
+	dgDatas = getSalesOrderDetailDigitalProductData(d.Id, 1)
+	if dgDatas[0].Key != "license_code" {
+		t.Error("Digital product data not updated")
+		return
+	}
+
+	// set as sent
+	setAsSent := SetDigitalSalesOrderDetailAsSent{
+		Detail:                 d.Id,
+		SendEmail:              false,
+		DestinationAddress:     "admin@marketneterp.io",
+		DestinationAddressName: "admin@marketneterp.io",
+		Subject:                "UNIT TEST",
+	}
+	setAsSent.setDigitalSalesOrderDetailAsSent(1)
+
+	// check if the order has the correct status
+	details = getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "G" {
+		t.Error("The status is not 'G' for digital product sent")
+		return
+	}
+
+	// attempt delete
+	sqlStatement := `UPDATE sales_order_detail SET status='E' WHERE id=$1`
+	_, err := db.Exec(sqlStatement, d.Id)
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	dgDatas[0].deleteSalesOrderDetailDigitalProductData(1)
+	dgDatas = getSalesOrderDetailDigitalProductData(d.Id, 1)
+	if len(dgDatas) != 0 {
+		t.Error("Can't delete digital product data")
+		return
+	}
+
+	inv := getSalesOrderRelations(orderId, 1).Invoices[0]
+	inv.deleteSalesInvoice(0)
+
+	details[0].enterprise = 1
+	ok = details[0].deleteSalesOrderDetail(1)
+	if !ok {
+		t.Error("Delete error, sale order detail not deleted")
+		return
+	}
+
+	// check that the sale order has been updated correctly
+	inMemoryOrder := getSalesOrderRow(orderId)
+	if inMemoryOrder.LinesNumber != 0 {
+		t.Error("The sale order number of lines is not updated upon delete")
+		return
+	}
+
+	o.Id = orderId
+	o.enterprise = 1
+	o.deleteSalesOrder(0)
+
+	p.enterprise = 1
+	p.deleteProduct(0)
+}
+
+func TestProductGenerator(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	pg := ProductGenerator{
+		Products: []ProductGenerate{
+			{
+				Name:            "Test product generator",
+				Reference:       "TST_PROD_GEN",
+				GenerateBarCode: true,
+				Weight:          10,
+				Width:           10,
+				Height:          10,
+				Depth:           10,
+				Price:           100,
+				Manufacturing:   true,
+				InitialStock:    12,
+			},
+		},
+		ManufacturingOrderTypeMode: 1,
+	}
+	ok := pg.productGenerator(1, 0)
+	if !ok {
+		t.Error("The product generador returned an error")
+		return
+	}
+
+	products := getProduct(1)
+	p := products[len(products)-1]
+	if p.Reference != "TST_PROD_GEN" {
+		t.Error("Product not generated")
+		return
+	}
+
+	if p.Name != "Test product generator" {
+		t.Error("Incorrect name")
+		return
+	}
+
+	if p.Reference != "TST_PROD_GEN" {
+		t.Error("Incorrect reference")
+		return
+	}
+
+	if len(strings.Trim(p.BarCode, "")) == 0 {
+		t.Error("Barcode not generated")
+		return
+	}
+
+	if p.Weight != 10 || p.Width != 10 || p.Height != 10 || p.Depth != 10 {
+		t.Error("Weight and dimensions not set")
+		return
+	}
+
+	if p.Price != 100 {
+		t.Error("Price not set")
+		return
+	}
+
+	if !p.Manufacturing || p.ManufacturingOrderType == nil || *p.ManufacturingOrderType <= 0 {
+		t.Error("Manufacturing information not set")
+		return
+	}
+
+	mot := getManufacturingOrderTypeRow(*p.ManufacturingOrderType)
+	if mot.Id <= 0 {
+		t.Error("Can't scan manufacturing order created")
+		return
+	}
+
+	if mot.Name != "Test product generator" {
+		t.Error("Manufacturing order name not set")
+		return
+	}
+
+	if mot.QuantityManufactured <= 0 {
+		t.Error("Quantity manufactured incorrect")
+		return
+	}
+
+	p.deleteProduct(0)
+
+	mot.deleteManufacturingOrderType()
 }
 
 // ===== COUNTRY

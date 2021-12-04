@@ -508,3 +508,54 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 }
+
+func TestEvaluatePasswordSecureCloud(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	// test complexity
+	res := evaluatePasswordSecureCloud(1, "AAAAAAAA")
+	if res.PasswordComplexity == true {
+		t.Error("Password complexity OK in incorrect password")
+		return
+	}
+
+	res = evaluatePasswordSecureCloud(1, "12345678")
+	if res.PasswordComplexity == true {
+		t.Error("Password complexity OK in incorrect password")
+		return
+	}
+
+	res = evaluatePasswordSecureCloud(1, "ABCD1234")
+	if res.PasswordComplexity == false {
+		t.Error("Password complexity ERR in correct password")
+		return
+	}
+
+	// test blacklist
+	sqlStatement := `SELECT pwd FROM public.pwd_blacklist LIMIT 1`
+	row := db.QueryRow(sqlStatement)
+	var passwdInBlacklist string
+	row.Scan(passwdInBlacklist)
+
+	res = evaluatePasswordSecureCloud(1, passwdInBlacklist)
+	if res.PasswordInBlacklist == false {
+		t.Error("Password blacklist OK in incorrect password")
+		return
+	}
+
+	res = evaluatePasswordSecureCloud(1, "passwdInBlacklist")
+	if res.PasswordInBlacklist == true {
+		t.Error("Password blacklist ERR in correct password")
+		return
+	}
+
+	// test hash blacklist
+	insertPwdBlacklistHash("miblacklist")
+	res = evaluatePasswordSecureCloud(1, "miblacklist")
+	if res.PasswordHashInBlacklist == false {
+		t.Error("Password hash blacklist OK in incorrect password")
+		return
+	}
+}
