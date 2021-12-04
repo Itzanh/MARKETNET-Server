@@ -390,8 +390,9 @@ func TestManufacturingOrderTypeInsertUpdateDelete(t *testing.T) {
 	}
 
 	mot := ManufacturingOrderType{
-		Name:       "Test",
-		enterprise: 1,
+		Name:                 "Test",
+		enterprise:           1,
+		QuantityManufactured: 1,
 	}
 
 	// insert
