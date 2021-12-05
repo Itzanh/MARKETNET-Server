@@ -1,8 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,14 +17,6 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 	forcePrint := false
 	if ok {
 		forcePrint = force_print[0] == "1"
-	}
-
-	if report[0] == "LOGO" {
-		data := getLogo()
-		w.Write(data)
-		mimeType := http.DetectContentType(data)
-		w.Header().Add("Content-Type", mimeType)
-		return
 	}
 
 	token, ok := r.URL.Query()["token"]
@@ -65,12 +57,9 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getLogo() []byte {
-	content, err := ioutil.ReadFile("./reports/logo.png")
-	if err != nil {
-		return nil
-	}
-	return content
+func getEnterpriseLogoBase64(enterpriseId int32) string {
+	logo, mimeType := getEnterpriseLogo(enterpriseId)
+	return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(logo)
 }
 
 func reportSalesOrder(id int, forcePrint bool, enterpriseId int32) []byte {
@@ -90,6 +79,7 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 
 	html := template.Html
 
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$order_reference$$", s.Reference, 1)
@@ -155,6 +145,7 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 
 	html := template.Html
 
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$invoice_number$$", i.InvoiceName, 1)
 	html = strings.Replace(html, "$$invoice_date$$", i.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$invoice_payment_method_name$$", paymentMethod, 1)
@@ -218,6 +209,7 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 
 	html := template.Html
 
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$note_number$$", n.DeliveryNoteName, 1)
 	html = strings.Replace(html, "$$note_date$$", n.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$note_payment_method_name$$", paymentMethod, 1)
@@ -281,6 +273,7 @@ func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 
 	html := template.Html
 
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$order_reference$$", s.SupplierReference, 1)
@@ -437,6 +430,7 @@ func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 
 	html := template.Html
 
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$order_customer_name$$", customer, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
@@ -486,6 +480,7 @@ func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId
 
 	html := template.Html
 
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$order_reference$$", s.Reference, 1)

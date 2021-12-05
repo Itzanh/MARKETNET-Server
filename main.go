@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -2588,8 +2589,29 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var dat SetDigitalSalesOrderDetailAsSent
 		json.Unmarshal([]byte(message), &dat)
 		data, _ = json.Marshal(dat.setDigitalSalesOrderDetailAsSent(enterpriseId))
+	case "GET_ENTERPRISE_LOGO":
+		var dat map[string]string = make(map[string]string)
+		logo, mimeType := getEnterpriseLogo(enterpriseId)
+		dat["base64"] = base64.StdEncoding.EncodeToString(logo)
+		dat["mimeType"] = mimeType
+		data, _ = json.Marshal(dat)
+	case "SET_ENTERPRISE_LOGO":
+		var dat map[string]string = make(map[string]string)
+		json.Unmarshal([]byte(message), &dat)
+		logobase64, ok := dat["base64"]
+		if !ok {
+			return
+		}
+		logo, err := base64.StdEncoding.DecodeString(logobase64)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(setEnterpriseLogo(enterpriseId, logo))
+	case "DELETE_ENTERPRISE_LOGO":
+		data, _ = json.Marshal(deleteEnterpriseLogo(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
+
 }
 
 type PaginatedSearch struct {
