@@ -372,6 +372,16 @@ func (s *SaleOrder) deleteSalesOrder(userId int32) bool {
 		}
 	}
 
+	// delete discounts
+	discounts := getSalesOrderDiscounts(s.Id, s.enterprise)
+	for i := 0; i < len(discounts); i++ {
+		ok := discounts[i].deleteSalesOrderDiscount(userId)
+		if !ok {
+			trans.Rollback()
+			return false
+		}
+	}
+
 	insertTransactionalLog(s.enterprise, "sales_order", int(s.Id), userId, "D")
 
 	// delete sale order
