@@ -286,7 +286,10 @@ func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32, enterp
 	res, err := db.Exec(sqlStatement, detailId, quantity)
 	rows, _ := res.RowsAffected()
 	if err != nil || rows == 0 {
-		log("DB", err.Error())
+		if err != nil {
+			log("DB", err.Error())
+		}
+
 		return false
 	}
 

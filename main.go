@@ -90,6 +90,14 @@ func main() {
 		os.Exit(0)
 	}
 
+	/*cmo := ComplexManufacturingOrder{
+		Type:       3,
+		enterprise: 1,
+		Warehouse:  "W1",
+	}
+	ok = cmo.insertComplexManufacturingOrder(1, true)
+	fmt.Println(ok)*/
+
 	// listen to requests
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
@@ -572,6 +580,13 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal([]byte(message), &manufacturingPaginationQuery)
 		data, _ = json.Marshal(manufacturingPaginationQuery.getManufacturingOrder(enterpriseId))
+	case "COMPLEX_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing {
+			return
+		}
+		var complexManufacturingPaginationQuery ComplexManufacturingPaginationQuery
+		json.Unmarshal([]byte(message), &complexManufacturingPaginationQuery)
+		data, _ = json.Marshal(complexManufacturingPaginationQuery.getComplexManufacturingOrder(enterpriseId))
 	case "CONNECTION_LOG":
 		if !permissions.Admin {
 			return
@@ -881,6 +896,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getSalesOrderDetailDigitalProductData(int64(id), enterpriseId))
+	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
+		if !permissions.Manufacturing {
+			return
+		}
+		data, _ = json.Marshal(getManufacturingOrderTypeComponents(int32(id), enterpriseId))
+	case "COMPLEX_MANUFACTURING_ORDER_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing {
+			return
+		}
+		data, _ = json.Marshal(getComplexManufacturingOrderManufacturingOrder(int64(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1143,6 +1168,15 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		manufacturingOrder.UserCreated = userId
 		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.insertManufacturingOrder(userId)
+	case "COMPLEX_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing {
+			return
+		}
+		var complexManufacturingOrder ComplexManufacturingOrder
+		json.Unmarshal(message, &complexManufacturingOrder)
+		complexManufacturingOrder.UserCreated = userId
+		complexManufacturingOrder.enterprise = enterpriseId
+		ok = complexManufacturingOrder.insertComplexManufacturingOrder(userId, true)
 	case "SALES_ORDER_PACKAGING":
 		if !permissions.Preparation {
 			return
@@ -1307,6 +1341,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
 		ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
+	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
+		if !permissions.Manufacturing {
+			return
+		}
+		var c ManufacturingOrderTypeComponents
+		json.Unmarshal(message, &c)
+		c.enterprise = enterpriseId
+		ok = c.insertManufacturingOrderTypeComponents()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1529,6 +1571,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
 		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
+	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
+		if !permissions.Manufacturing {
+			return
+		}
+		var c ManufacturingOrderTypeComponents
+		json.Unmarshal(message, &c)
+		c.enterprise = enterpriseId
+		ok = c.updateManufacturingOrderTypeComponents()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1741,6 +1791,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		manufacturingOrder.Id = int64(id)
 		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.deleteManufacturingOrder(userId)
+	case "COMPLEX_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing {
+			return
+		}
+		var complexManufacturingOrder ComplexManufacturingOrder
+		complexManufacturingOrder.Id = int64(id)
+		complexManufacturingOrder.enterprise = enterpriseId
+		ok = complexManufacturingOrder.deleteComplexManufacturingOrder(userId)
 	case "PACKAGING":
 		if !permissions.Preparation {
 			return
@@ -1908,6 +1966,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		d := SalesOrderDetailDigitalProductData{}
 		d.Id = int32(id)
 		ok = d.deleteSalesOrderDetailDigitalProductData(enterpriseId)
+	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
+		if !permissions.Manufacturing {
+			return
+		}
+		var c ManufacturingOrderTypeComponents
+		c.Id = int32(id)
+		c.enterprise = enterpriseId
+		ok = c.deleteManufacturingOrderTypeComponents()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2220,6 +2286,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(toggleManufactuedManufacturingOrder(int64(id), userId, enterpriseId))
+	case "TOGGLE_COMPLEX_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(toggleManufactuedComplexManufacturingOrder(int64(id), userId, enterpriseId))
 	case "MANUFACTURING_ORDER_ALL_SALE_ORDER":
 		if !permissions.Sales {
 			return
@@ -2228,14 +2303,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId))
+		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId) && complexManufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId))
 	case "MANUFACTURING_ORDER_PARTIAL_SALE_ORDER":
 		if !permissions.Sales {
 			return
 		}
 		var orderInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &orderInfo)
-		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder(userId, enterpriseId))
+		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder(userId, enterpriseId) && orderInfo.complexManufacturingOrderPartiallySaleOrder(userId, enterpriseId))
 	case "DELETE_SALES_ORDER_DETAIL_PACKAGED":
 		if !permissions.Preparation {
 			return

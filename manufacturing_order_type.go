@@ -4,6 +4,7 @@ type ManufacturingOrderType struct {
 	Id                   int32  `json:"id"`
 	Name                 string `json:"name"`
 	QuantityManufactured int32  `json:"quantityManufactured"`
+	Complex              bool   `json:"complex"`
 	enterprise           int32
 }
 
@@ -17,7 +18,7 @@ func getManufacturingOrderType(enterpriseId int32) []ManufacturingOrderType {
 	}
 	for rows.Next() {
 		t := ManufacturingOrderType{}
-		rows.Scan(&t.Id, &t.Name, &t.enterprise, &t.QuantityManufactured)
+		rows.Scan(&t.Id, &t.Name, &t.enterprise, &t.QuantityManufactured, &t.Complex)
 		types = append(types, t)
 	}
 
@@ -33,7 +34,7 @@ func getManufacturingOrderTypeRow(typeId int32) ManufacturingOrderType {
 	}
 
 	t := ManufacturingOrderType{}
-	row.Scan(&t.Id, &t.Name, &t.enterprise, &t.QuantityManufactured)
+	row.Scan(&t.Id, &t.Name, &t.enterprise, &t.QuantityManufactured, &t.Complex)
 
 	return t
 }
@@ -47,8 +48,8 @@ func (t *ManufacturingOrderType) insertManufacturingOrderType() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.manufacturing_order_type(name, enterprise, quantity_manufactured) VALUES ($1, $2, $3) RETURNING id`
-	row := db.QueryRow(sqlStatement, t.Name, t.enterprise, t.QuantityManufactured)
+	sqlStatement := `INSERT INTO public.manufacturing_order_type(name, enterprise, quantity_manufactured, complex) VALUES ($1, $2, $3, $4) RETURNING id`
+	row := db.QueryRow(sqlStatement, t.Name, t.enterprise, t.QuantityManufactured, t.Complex)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -64,8 +65,8 @@ func (t *ManufacturingOrderType) updateManufacturingOrderType() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.manufacturing_order_type SET name=$2, quantity_manufactured=$4 WHERE id=$1 AND enterprise=$3`
-	res, err := db.Exec(sqlStatement, t.Id, t.Name, t.enterprise, t.QuantityManufactured)
+	sqlStatement := `UPDATE public.manufacturing_order_type SET name=$2, quantity_manufactured=$4, complex=$5 WHERE id=$1 AND enterprise=$3`
+	res, err := db.Exec(sqlStatement, t.Id, t.Name, t.enterprise, t.QuantityManufactured, t.Complex)
 	if err != nil {
 		log("DB", err.Error())
 		return false

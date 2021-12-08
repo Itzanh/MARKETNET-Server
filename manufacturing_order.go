@@ -32,16 +32,17 @@ type ManufacturingOrder struct {
 	Warehouse            string     `json:"warehouse"`
 	WarehouseMovement    *int64     `json:"warehouseMovement"`
 	QuantityManufactured int32      `json:"quantityManufactured"`
+	complex              bool
 	enterprise           int32
 }
 
 type ManufacturingPaginationQuery struct {
 	PaginationQuery
-	OrderTypeId int16 `json:"orderTypeId"`
+	OrderTypeId int32 `json:"orderTypeId"`
 }
 
 type ManufacturingOrders struct {
-	Rows                int32                `json:"rows"`
+	Rows                int64                `json:"rows"`
 	ManufacturingOrders []ManufacturingOrder `json:"manufacturingOrders"`
 }
 
@@ -64,7 +65,7 @@ func (q *PaginationQuery) getAllManufacturingOrders(enterpriseId int32) Manufact
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
@@ -90,7 +91,7 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		mo.ManufacturingOrders = append(mo.ManufacturingOrders, o)
 	}
 
@@ -114,9 +115,27 @@ func getManufacturingOrderRow(manufacturingOrderId int64) ManufacturingOrder {
 	}
 
 	o := ManufacturingOrder{}
-	row.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured)
+	row.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex)
 
 	return o
+}
+
+func getManufacturingOrdersForStockPending(enterpriseId int32, productId int32) []ManufacturingOrder {
+	var orders []ManufacturingOrder = make([]ManufacturingOrder, 0)
+	sqlStatement := `SELECT * FROM public.manufacturing_order WHERE enterprise=$1 AND product=$2 AND NOT manufactured AND order_detail IS NULL AND NOT complex ORDER BY date_created ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId, productId)
+	if err != nil {
+		log("DB", err.Error())
+		return orders
+	}
+
+	for rows.Next() {
+		o := ManufacturingOrder{}
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex)
+		orders = append(orders, o)
+	}
+
+	return orders
 }
 
 func (o *ManufacturingOrder) isValid() bool {
@@ -162,7 +181,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32) bool {
 		o.Warehouse = s.DefaultWarehouse
 	}
 
-	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise, warehouse, quantity_manufactured) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise, warehouse, quantity_manufactured, complex) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
 	row := db.QueryRow(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise, o.Warehouse, o.QuantityManufactured)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
@@ -428,6 +447,9 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 		}
 	}
 
+	// manufacture / undo complex manufacturing orders
+	setComplexManufacturingOrderManufacturingOrderManufactured(inMemoryManufacturingOrder.Id, inMemoryManufacturingOrder.Manufactured)
+
 	///
 	transErr = trans.Commit()
 	return transErr == nil
@@ -459,11 +481,11 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 
 			product := getProductRow(orderDetail.Product)
 			if product.Id <= 0 || !product.Manufacturing || product.ManufacturingOrderType == nil || *product.ManufacturingOrderType == 0 {
-				break
+				continue
 			}
 			manufacturingOrderType := getManufacturingOrderTypeRow(*product.ManufacturingOrderType)
-			if manufacturingOrderType.Id <= 0 || manufacturingOrderType.QuantityManufactured <= 0 {
-				break
+			if manufacturingOrderType.Id <= 0 || manufacturingOrderType.QuantityManufactured <= 0 || manufacturingOrderType.Complex {
+				continue
 			}
 
 			for j := 0; j < int(orderDetail.Quantity); j += int(manufacturingOrderType.QuantityManufactured) {
