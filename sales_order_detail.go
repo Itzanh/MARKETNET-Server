@@ -322,12 +322,13 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 		// set the order detail state applying the workflow logic
 		if ok {
 			status, purchaseOrderDetail := detailBefore.computeStatus(userId)
-			sqlStatement = `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
+			sqlStatement := `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
 			_, err := db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
 			if err != nil {
 				log("DB", err.Error())
 				return false
 			}
+
 		}
 		if !ok {
 			return false
@@ -354,6 +355,32 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 		if !ok {
 			return false
 		}
+
+		// reset relations
+		if detailBefore.PurchaseOrderDetail != nil {
+			ok := addQuantityAssignedSalePurchaseOrder(*detailBefore.PurchaseOrderDetail, detailBefore.Quantity, detailBefore.enterprise, userId)
+			if !ok {
+				return false
+			}
+		}
+		orders := getSalesOrderManufacturingOrders(salesOrder.Id, salesOrder.enterprise)
+		for i := 0; i < len(orders); i++ {
+			if orders[i].OrderDetail != nil || *orders[i].OrderDetail != detailBefore.Id {
+				continue
+			}
+
+			ok := orders[i].deleteManufacturingOrder(userId)
+			if !ok {
+				return false
+			}
+		}
+		sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET sale_order_detail = NULL WHERE sale_order_detail = $1`
+		_, err := db.Exec(sqlStatement, detailBefore.Id)
+		if err != nil {
+			log("DB", err.Error())
+			return false
+		}
+		// -- reset relations
 	}
 
 	ok = setSalesOrderState(salesOrder.enterprise, salesOrder.Id, userId)
@@ -368,6 +395,7 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 	return err == nil
 }
 
+// returns: status, purchase order detail id
 func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 	product := getProductRow(s.Product)
 	if product.Id <= 0 {
@@ -382,7 +410,96 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 		return "E", nil
 	} else { // the product is not in stock, purchase or manufacture
 		if product.Manufacturing {
-			return "C", nil
+			// search for pending manufacturing order for stock
+			manufacturingOrderType := getManufacturingOrderTypeRow(*product.ManufacturingOrderType)
+			if manufacturingOrderType.Complex {
+				sqlStatement := `SELECT id, manufacturing_order_type_component FROM public.complex_manufacturing_order_manufacturing_order WHERE product = $1 AND type = 'O' AND manufactured = false AND sale_order_detail IS NULL ORDER BY id ASC`
+				rows, err := db.Query(sqlStatement, product.Id)
+				if err != nil {
+					log("DB", err.Error())
+					// fallback
+					return "C", nil
+				}
+
+				var orders []int64 = make([]int64, 0)
+				var quantities []int32 = make([]int32, 0)
+				var totalQuantityManufactured int32 = 0
+
+				for rows.Next() {
+					var complexManufacturingOrderForStockId int64
+					var manufacturingOrderTypeComponentId int32
+					rows.Scan(&complexManufacturingOrderForStockId, &manufacturingOrderTypeComponentId)
+					orders = append(orders, complexManufacturingOrderForStockId)
+
+					com := getManufacturingOrderTypeComponentRow(manufacturingOrderTypeComponentId)
+					quantities = append(quantities, com.Quantity)
+					totalQuantityManufactured += com.Quantity
+				}
+
+				if totalQuantityManufactured >= s.Quantity {
+					var quantityAssigned int32 = 0
+					for i := 0; i < len(orders); i++ {
+						sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET sale_order_detail=$2 WHERE id=$1`
+						_, err := db.Exec(sqlStatement, orders[i], s.Id)
+						if err != nil {
+							log("DB", err.Error())
+							// fallback
+							return "C", nil
+						}
+
+						quantityAssigned += quantities[i]
+						if quantityAssigned >= s.Quantity {
+							break
+						}
+					}
+
+					return "D", nil
+				} else {
+					return "C", nil
+				}
+			} else {
+				sqlStatement := `SELECT id, quantity_manufactured FROM manufacturing_order WHERE manufactured = false AND product = $1 AND complex = false ORDER BY date_created ASC`
+				rows, err := db.Query(sqlStatement, product.Id)
+				if err != nil {
+					log("DB", err.Error())
+					// fallback
+					return "C", nil
+				}
+
+				var totalQuantityManufactured int32 = 0
+				var orders []int64 = make([]int64, 0)
+				var quantities []int32 = make([]int32, 0)
+
+				for rows.Next() {
+					var manufacturingOrderForStockId int64
+					var quantityManufactured int32
+					rows.Scan(&manufacturingOrderForStockId, &quantityManufactured)
+					totalQuantityManufactured += quantityManufactured
+					orders = append(orders, manufacturingOrderForStockId)
+					quantities = append(quantities, quantityManufactured)
+				}
+
+				if totalQuantityManufactured < s.Quantity {
+					return "C", nil
+				} else {
+					var quantityAssigned int32 = 0
+					for i := 0; i < len(orders); i++ {
+						sqlStatement := `UPDATE public.manufacturing_order SET sale_order_detail=$2 WHERE id=$1`
+						_, err := db.Exec(sqlStatement, orders[i], s.Id)
+						if err != nil {
+							log("DB", err.Error())
+							// fallback
+							return "C", nil
+						}
+
+						quantityAssigned += quantities[i]
+						if quantityAssigned >= s.Quantity {
+							break
+						}
+					}
+					return "D", nil
+				}
+			}
 		} else {
 			// search for pending purchases
 			sqlStatement := `SELECT id FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note = 0 AND quantity - quantity_assigned_sale >= $2 ORDER BY (SELECT date_created FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order") ASC LIMIT 1`

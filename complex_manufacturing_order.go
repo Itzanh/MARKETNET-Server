@@ -10,8 +10,9 @@ import (
 // TODO add transactional log
 // TODO add recursivity
 
-// TODO asociar lineas de pedido de venta a órdenes de trabajo para stock
-// TODO asociar lineas de pedido de venta a órdenes de trabajo complejas para stock
+// TODO interactuar con pendiente de fabricar
+// TODO mostrar en pedido de venta
+// TODO mostrar en producto
 
 // TODO modificar en lineas de pedido de compra
 
@@ -194,7 +195,7 @@ func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpr
 		components := getManufacturingOrderTypeComponents(manufacturingOrderType.Id, enterpriseId)
 		var component *ManufacturingOrderTypeComponents = nil
 		for i := 0; i < len(components); i++ {
-			if components[i].Type == "I" && components[i].Product == product.Id {
+			if components[i].Type == "O" && components[i].Product == product.Id {
 				component = &components[i]
 				break
 			}
