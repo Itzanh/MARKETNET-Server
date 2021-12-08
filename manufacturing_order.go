@@ -448,7 +448,7 @@ func toggleManufactuedManufacturingOrder(orderid int64, userId int32, enterprise
 	}
 
 	// manufacture / undo complex manufacturing orders
-	setComplexManufacturingOrderManufacturingOrderManufactured(inMemoryManufacturingOrder.Id, inMemoryManufacturingOrder.Manufactured)
+	setComplexManufacturingOrderManufacturingOrderManufactured(inMemoryManufacturingOrder.Id, inMemoryManufacturingOrder.Manufactured, inMemoryManufacturingOrder.enterprise, userId)
 
 	///
 	transErr = trans.Commit()

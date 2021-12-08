@@ -1176,7 +1176,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &complexManufacturingOrder)
 		complexManufacturingOrder.UserCreated = userId
 		complexManufacturingOrder.enterprise = enterpriseId
-		ok = complexManufacturingOrder.insertComplexManufacturingOrder(userId, true)
+		ok, _ = complexManufacturingOrder.insertComplexManufacturingOrder(userId, true)
 	case "SALES_ORDER_PACKAGING":
 		if !permissions.Preparation {
 			return
