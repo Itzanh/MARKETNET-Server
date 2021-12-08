@@ -372,9 +372,9 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, 
 	}
 
 	if quantity > 0 { // the purchase order has been added to a delivery note, advance the status from the pending sales order details
-		return setSalesOrderDetailStateAllPendingPurchaseOrder(detailId, enterpriseId, userId)
+		return setSalesOrderDetailStateAllPendingPurchaseOrder(detailId, enterpriseId, userId) && setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId, enterpriseId, userId)
 	} else { // the delivery note details has been removed, roll back the sales order detail status
-		return undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId, enterpriseId, userId)
+		return undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId, enterpriseId, userId) && undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId, enterpriseId, userId)
 	}
 }
 
@@ -425,6 +425,96 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 	}
 
 	return err == nil
+}
+
+// Gets all the sub orders from complex manufacturing orders that are waiting for this pending purchase order,
+// and sets them to manufactured (and the parent order as manufacturable).
+//
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int64, enterpriseId int32, userId int32) bool {
+	sqlStatement := `SELECT id,complex_manufacturing_order,(SELECT quantity FROM manufacturing_order_type_components WHERE manufacturing_order_type_components.id=complex_manufacturing_order_manufacturing_order.manufacturing_order_type_component) FROM public.complex_manufacturing_order_manufacturing_order WHERE purchase_order_detail = $1`
+	rows, err := db.Query(sqlStatement, detailId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	var subOrders []int64 = make([]int64, 0)
+	var complexManufacturingOrders []int64 = make([]int64, 0)
+	var quantites []int32 = make([]int32, 0)
+
+	for rows.Next() {
+		var subOrder int64
+		var complexManufacturingOrder int64
+		var quantity int32
+		rows.Scan(&subOrder, &complexManufacturingOrder, &quantity)
+		subOrders = append(subOrders, subOrder)
+		complexManufacturingOrders = append(complexManufacturingOrders, complexManufacturingOrder)
+		quantites = append(quantites, quantity)
+	}
+
+	for i := 0; i < len(subOrders); i++ {
+		sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET manufactured=true WHERE id=$1`
+		_, err := db.Exec(sqlStatement, subOrders[i])
+		if err != nil {
+			log("DB", err.Error())
+			return false
+		}
+	}
+
+	for i := 0; i < len(complexManufacturingOrders); i++ {
+		ok := addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrders[i], quantites[i])
+		if !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+// The purchase order detail was added to a delivery note and it advanced the status from the complex manufacturing orders, but the delivery note was deleted.
+// Roll back the status change.
+//
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int64, enterpriseId int32, userId int32) bool {
+	sqlStatement := `SELECT id,complex_manufacturing_order,(SELECT quantity FROM manufacturing_order_type_components WHERE manufacturing_order_type_components.id=complex_manufacturing_order_manufacturing_order.manufacturing_order_type_component) FROM public.complex_manufacturing_order_manufacturing_order WHERE purchase_order_detail = $1`
+	rows, err := db.Query(sqlStatement, detailId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	var subOrders []int64 = make([]int64, 0)
+	var complexManufacturingOrders []int64 = make([]int64, 0)
+	var quantites []int32 = make([]int32, 0)
+
+	for rows.Next() {
+		var subOrder int64
+		var complexManufacturingOrder int64
+		var quantity int32
+		rows.Scan(&subOrder, &complexManufacturingOrder, &quantity)
+		subOrders = append(subOrders, subOrder)
+		complexManufacturingOrders = append(complexManufacturingOrders, complexManufacturingOrder)
+		quantites = append(quantites, quantity)
+	}
+
+	for i := 0; i < len(subOrders); i++ {
+		sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET manufactured=false WHERE id=$1`
+		_, err := db.Exec(sqlStatement, subOrders[i])
+		if err != nil {
+			log("DB", err.Error())
+			return false
+		}
+	}
+
+	for i := 0; i < len(complexManufacturingOrders); i++ {
+		ok := addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrders[i], -quantites[i])
+		if !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 type PurchaseSalesOrderDetail struct {

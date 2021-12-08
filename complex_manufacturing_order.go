@@ -10,11 +10,8 @@ import (
 // TODO add transactional log
 // TODO add recursivity
 
-// TODO interactuar con pendiente de fabricar
 // TODO mostrar en pedido de venta
 // TODO mostrar en producto
-
-// TODO modificar en lineas de pedido de compra
 
 type ComplexManufacturingOrder struct {
 	Id                         int64      `json:"id"`
@@ -614,6 +611,11 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 					}
 				}
 			}
+
+			ok := addQuantityPendingManufacture(cmomo[i].Product, inMemoryComplexManufacturingOrder.Warehouse, -com.Quantity, inMemoryComplexManufacturingOrder.enterprise)
+			if !ok {
+				return false
+			}
 		} // for i := 0; i < len(cmomo); i++ {
 
 		sqlStatement := `UPDATE public.complex_manufacturing_order SET manufactured=true, date_manufactured=CURRENT_TIMESTAMP(3), user_manufactured=$2 WHERE id=$1`
@@ -650,13 +652,20 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 					return false
 				}
 			}
-		}
+
+			com := getManufacturingOrderTypeComponentRow(cmomo[i].ManufacturingOrderTypeComponent)
+			ok := addQuantityPendingManufacture(cmomo[i].Product, inMemoryComplexManufacturingOrder.Warehouse, com.Quantity, inMemoryComplexManufacturingOrder.enterprise)
+			if !ok {
+				return false
+			}
+		} // for i := 0; i < len(cmomo); i++ {
 
 		sqlStatement := `UPDATE public.complex_manufacturing_order SET manufactured=false, date_manufactured=NULL, user_manufactured=NULL WHERE id=$1`
 		_, err := db.Exec(sqlStatement, inMemoryComplexManufacturingOrder.Id)
 		if err != nil {
 			log("DB", err.Error())
 		}
+
 	} // } else { // if !inMemoryComplexManufacturingOrder.Manufactured {
 
 	///
@@ -735,6 +744,11 @@ func (c *ComplexManufacturingOrderManufacturingOrder) insertComplexManufacturing
 	ok := addQuantityPendingManufactureComplexManufacturingOrder(c.ComplexManufacturingOrder, 1)
 	if ok && c.WarehouseMovement != nil {
 		return addQuantityManufacturedComplexManufacturingOrder(c.ComplexManufacturingOrder, 1)
+	}
+	if ok {
+		order := getComplexManufacturingOrderRow(c.ComplexManufacturingOrder)
+		com := getManufacturingOrderTypeComponentRow(c.ManufacturingOrderTypeComponent)
+		return addQuantityPendingManufacture(c.Product, order.Warehouse, com.Quantity, c.enterprise)
 	}
 	return ok
 }
