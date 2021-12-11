@@ -47,36 +47,88 @@ func getManufacturingOrderTypeComponentRow(manfuacturingOrderTypeId int32) Manuf
 	return c
 }
 
-func (c *ManufacturingOrderTypeComponents) isValid() bool {
-	return !(c.ManufacturingOrderType <= 0 || (c.Type != "I" && c.Type != "O") || c.Product <= 0 || c.Quantity <= 0)
+type ManufacturingOrderTypeComponentIsValid struct {
+	Ok       bool  `json:"ok"`
+	ErorCode uint8 `json:"errorCode"`
 }
 
-func (c *ManufacturingOrderTypeComponents) insertManufacturingOrderTypeComponents() bool {
-	if !c.isValid() {
-		return false
+// returns:
+// ok
+// code
+// 0 = parameter error / ok
+// 1 = the input product has the same manufacturing order type as the component
+// 2 = the output product doesn't have the same manufacturing order type as the component
+// 3 = the product already exist in one of the components
+func (c *ManufacturingOrderTypeComponents) isValid() (bool, uint8) {
+	if c.Product <= 0 {
+		return false, 0
+	}
+	// the manufacturing order type has to be the same as this one for the output, and different on the input to make sure that there are no recursivity errors
+	product := getProductRow(c.Product)
+	if product.Id <= 0 {
+		return false, 0
+	}
+	if c.Type == "I" {
+		if product.ManufacturingOrderType != nil && *product.ManufacturingOrderType == c.ManufacturingOrderType {
+			return false, 1
+		}
+	} else if c.Type == "O" {
+		if product.ManufacturingOrderType == nil || *product.ManufacturingOrderType != c.ManufacturingOrderType {
+			return false, 2
+		}
+	} else {
+		return false, 0
+	}
+
+	if c.Id > 0 { // update
+		// check that the product has not been associated yet
+		components := getManufacturingOrderTypeComponents(c.ManufacturingOrderType, c.enterprise)
+		for i := 0; i < len(components); i++ {
+			if components[i].Id != c.Id && components[i].Product == c.Product {
+				return false, 3
+			}
+		}
+	} else { // insert
+		// check that the product has not been associated yet
+		components := getManufacturingOrderTypeComponents(c.ManufacturingOrderType, c.enterprise)
+		for i := 0; i < len(components); i++ {
+			if components[i].Product == c.Product {
+				return false, 3
+			}
+		}
+	}
+
+	return !(c.ManufacturingOrderType <= 0 || (c.Type != "I" && c.Type != "O") || c.Quantity <= 0), 0
+}
+
+func (c *ManufacturingOrderTypeComponents) insertManufacturingOrderTypeComponents() (bool, uint8) {
+	ok, errorCode := c.isValid()
+	if !ok {
+		return false, errorCode
 	}
 
 	sqlStatement := `INSERT INTO public.manufacturing_order_type_components(manufacturing_order_type, type, product, quantity, enterprise) VALUES ($1, $2, $3, $4, $5)`
 	_, err := db.Exec(sqlStatement, c.ManufacturingOrderType, c.Type, c.Product, c.Quantity, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return false, 0
 	}
-	return true
+	return true, 0
 }
 
-func (c *ManufacturingOrderTypeComponents) updateManufacturingOrderTypeComponents() bool {
-	if c.Id <= 0 || !c.isValid() {
-		return false
+func (c *ManufacturingOrderTypeComponents) updateManufacturingOrderTypeComponents() (bool, uint8) {
+	ok, errorCode := c.isValid()
+	if c.Id <= 0 || !ok {
+		return false, errorCode
 	}
 
 	sqlStatement := `UPDATE public.manufacturing_order_type_components SET manufacturing_order_type=$2, type=$3, product=$4, quantity=$5, enterprise=$6 WHERE id=$1`
 	_, err := db.Exec(sqlStatement, c.Id, c.ManufacturingOrderType, c.Type, c.Product, c.Quantity, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return false, 0
 	}
-	return true
+	return true, 0
 }
 
 func (c *ManufacturingOrderTypeComponents) deleteManufacturingOrderTypeComponents() bool {

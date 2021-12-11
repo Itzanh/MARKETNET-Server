@@ -1105,6 +1105,19 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			note := getPurchaseDeliveryNoteRow(noteId)
 			returnData, _ = json.Marshal(note)
 		}
+	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
+		if !permissions.Manufacturing {
+			return
+		}
+		var c ManufacturingOrderTypeComponents
+		json.Unmarshal(message, &c)
+		c.enterprise = enterpriseId
+		ok, errorCode := c.insertManufacturingOrderTypeComponents()
+		isValid := ManufacturingOrderTypeComponentIsValid{
+			Ok:       ok,
+			ErorCode: errorCode,
+		}
+		returnData, _ = json.Marshal(isValid)
 	default:
 		found = false
 	}
@@ -1336,14 +1349,6 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
 		ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
-	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
-		if !permissions.Manufacturing {
-			return
-		}
-		var c ManufacturingOrderTypeComponents
-		json.Unmarshal(message, &c)
-		c.enterprise = enterpriseId
-		ok = c.insertManufacturingOrderTypeComponents()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1351,6 +1356,23 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 
 func instructionUpdate(command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32, userId int32) {
 	var ok bool
+	switch command {
+	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
+		if !permissions.Manufacturing {
+			return
+		}
+		var c ManufacturingOrderTypeComponents
+		json.Unmarshal(message, &c)
+		c.enterprise = enterpriseId
+		ok, errorCode := c.updateManufacturingOrderTypeComponents()
+		isValid := ManufacturingOrderTypeComponentIsValid{
+			Ok:       ok,
+			ErorCode: errorCode,
+		}
+		returnData, _ := json.Marshal(isValid)
+		ws.WriteMessage(mt, returnData)
+		return
+	}
 
 	if permissions.Masters {
 		switch command {
@@ -1566,14 +1588,6 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
 		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
-	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
-		if !permissions.Manufacturing {
-			return
-		}
-		var c ManufacturingOrderTypeComponents
-		json.Unmarshal(message, &c)
-		c.enterprise = enterpriseId
-		ok = c.updateManufacturingOrderTypeComponents()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
