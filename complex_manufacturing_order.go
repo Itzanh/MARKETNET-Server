@@ -7,10 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO mostrar en pedido de venta
-// TODO mostrar en producto
-// TODO view the quantity assigled to the complex manufacturing orders from the frontend (purchase order)
-
 type ComplexManufacturingOrder struct {
 	Id                         int64      `json:"id"`
 	Type                       int32      `json:"type"`
@@ -940,4 +936,22 @@ func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrd
 	}
 
 	return false
+}
+
+func complexManufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int32) bool {
+	if orderId <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE public.complex_manufacturing_order SET tag_printed = true, date_tag_printed = current_timestamp(3), user_tag_printed = $2 WHERE id=$1 AND enterprise=$3`
+	_, err := db.Exec(sqlStatement, orderId, userId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+	}
+
+	if err == nil {
+		insertTransactionalLog(enterpriseId, "complex_manufacturing_order", int(orderId), userId, "U")
+	}
+
+	return err == nil
 }

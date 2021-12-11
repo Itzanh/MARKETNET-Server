@@ -565,8 +565,11 @@ func manufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int3
 
 	sqlStatement := `UPDATE public.manufacturing_order SET tag_printed = true, date_tag_printed = current_timestamp(3), user_tag_printed = $2 WHERE id=$1 AND enterprise=$3`
 	_, err := db.Exec(sqlStatement, orderId, userId, enterpriseId)
-
 	if err != nil {
+		log("DB", err.Error())
+	}
+
+	if err == nil {
 		insertTransactionalLog(enterpriseId, "manufacturing_order", int(orderId), userId, "U")
 	}
 

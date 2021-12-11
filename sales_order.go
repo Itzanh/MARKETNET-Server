@@ -471,18 +471,20 @@ func getSaleOrderDefaults(enterpriseId int32) SaleOrderDefaults {
 }
 
 type SalesOrderRelations struct {
-	Invoices            []SalesInvoice       `json:"invoices"`
-	ManufacturingOrders []ManufacturingOrder `json:"manufacturingOrders"`
-	DeliveryNotes       []SalesDeliveryNote  `json:"deliveryNotes"`
-	Shippings           []Shipping           `json:"shippings"`
+	Invoices                   []SalesInvoice              `json:"invoices"`
+	ManufacturingOrders        []ManufacturingOrder        `json:"manufacturingOrders"`
+	ComplexManufacturingOrders []ComplexManufacturingOrder `json:"complexManufacturingOrders"`
+	DeliveryNotes              []SalesDeliveryNote         `json:"deliveryNotes"`
+	Shippings                  []Shipping                  `json:"shippings"`
 }
 
 func getSalesOrderRelations(orderId int64, enterpriseId int32) SalesOrderRelations {
 	return SalesOrderRelations{
-		Invoices:            getSalesOrderInvoices(orderId, enterpriseId),
-		ManufacturingOrders: getSalesOrderManufacturingOrders(orderId, enterpriseId),
-		DeliveryNotes:       getSalesOrderDeliveryNotes(orderId, enterpriseId),
-		Shippings:           getSalesOrderShippings(orderId, enterpriseId),
+		Invoices:                   getSalesOrderInvoices(orderId, enterpriseId),
+		ManufacturingOrders:        getSalesOrderManufacturingOrders(orderId, enterpriseId),
+		DeliveryNotes:              getSalesOrderDeliveryNotes(orderId, enterpriseId),
+		Shippings:                  getSalesOrderShippings(orderId, enterpriseId),
+		ComplexManufacturingOrders: getSalesOrderComplexManufacturingOrders(orderId, enterpriseId),
 	}
 }
 
@@ -522,6 +524,25 @@ func getSalesOrderManufacturingOrders(orderId int64, enterpriseId int32) []Manuf
 	}
 
 	return manufacturingOrders
+}
+
+func getSalesOrderComplexManufacturingOrders(orderId int64, enterpriseId int32) []ComplexManufacturingOrder {
+	// COMPLEX MANUFACTURING ORDERS
+	var complexManufacturingOrders []ComplexManufacturingOrder = make([]ComplexManufacturingOrder, 0)
+	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.*,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id FULL JOIN sales_order_detail ON complex_manufacturing_order_manufacturing_order.sale_order_detail=sales_order_detail.id WHERE sales_order_detail."order" = $1 AND complex_manufacturing_order.enterprise = $2 AND complex_manufacturing_order_manufacturing_order.id > 0 ORDER BY complex_manufacturing_order.date_created ASC`
+	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return complexManufacturingOrders
+	}
+
+	for rows.Next() {
+		o := ComplexManufacturingOrder{}
+		rows.Scan(&o.Id, &o.Type, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.enterprise, &o.QuantityPendingManufacture, &o.QuantityManufactured, &o.Warehouse, &o.DateCreated, &o.Uuid, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.UserTagPrinted, &o.TypeName)
+		complexManufacturingOrders = append(complexManufacturingOrders, o)
+	}
+
+	return complexManufacturingOrders
 }
 
 func getSalesOrderDeliveryNotes(orderId int64, enterpriseId int32) []SalesDeliveryNote {

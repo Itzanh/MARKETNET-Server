@@ -746,6 +746,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		data, _ = json.Marshal(getProductWarehouseMovement(int32(id), enterpriseId))
 	case "PRODUCT_MANUFACTURING_ORDERS":
 		data, _ = json.Marshal(getProductManufacturingOrders(int32(id), enterpriseId))
+	case "PRODUCT_COMPLEX_MANUFACTURING_ORDERS":
+		data, _ = json.Marshal(getProductComplexManufacturingOrders(int32(id), enterpriseId))
 	case "SALES_ORDER_ROW":
 		if !permissions.Sales {
 			return
@@ -858,6 +860,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getSalesOrderDetailsFromPurchaseOrderDetail(int64(id), enterpriseId))
+	case "COMPLEX_MANUFACTURING_ORDERS_FROM_PURCHASE_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getComplexManufacturingOrdersFromPurchaseOrderDetail(int64(id), enterpriseId))
 	case "PURCHASES_ORDER_DETAILS_FROM_SALE_ORDER_DETAIL":
 		if !permissions.Sales {
 			return
@@ -2576,6 +2583,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(manufacturingOrderTagPrinted(int64(id), userId, enterpriseId))
+	case "COMPLEX_MANUFACTURING_ORDER_TAG_PRINTED":
+		if !permissions.Manufacturing {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(complexManufacturingOrderTagPrinted(int64(id), userId, enterpriseId))
 	case "CANCEL_SALES_ORDER_DETAIL":
 		if !permissions.Sales {
 			return

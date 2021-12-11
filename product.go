@@ -352,6 +352,25 @@ func getProductManufacturingOrders(productId int32, enterpriseId int32) []Manufa
 	return manufacturingOrders
 }
 
+// Get the complex manufacturing orders with the product specified.
+func getProductComplexManufacturingOrders(productId int32, enterpriseId int32) []ComplexManufacturingOrder {
+	complexManufacturingOrders := make([]ComplexManufacturingOrder, 0)
+	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.*,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_tag_printed) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id WHERE complex_manufacturing_order_manufacturing_order.product = $1 AND complex_manufacturing_order.enterprise = $2 ORDER BY complex_manufacturing_order.date_created ASC`
+	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return complexManufacturingOrders
+	}
+
+	for rows.Next() {
+		o := ComplexManufacturingOrder{}
+		rows.Scan(&o.Id, &o.Type, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.enterprise, &o.QuantityPendingManufacture, &o.QuantityManufactured, &o.Warehouse, &o.DateCreated, &o.Uuid, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.UserTagPrinted, &o.TypeName, &o.UserCreatedName, &o.UserManufactured, &o.UserTagPrintedName)
+		complexManufacturingOrders = append(complexManufacturingOrders, o)
+	}
+
+	return complexManufacturingOrders
+}
+
 func (p *Product) generateBarcode(enterpriseId int32) bool {
 	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE enterprise=$1 AND SUBSTRING(barcode,0,5)=$2 ORDER BY barcode DESC LIMIT 1`
 	row := db.QueryRow(sqlStatement, enterpriseId, getSettingsRecordById(enterpriseId).BarcodePrefix)

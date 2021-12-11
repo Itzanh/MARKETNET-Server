@@ -512,3 +512,28 @@ func getSalesOrderDetailsFromPurchaseOrderDetail(detailId int64, enterpriseId in
 
 	return purchaseSalesOrderDetail
 }
+
+type PurchaseComplexManufacturingOrder struct {
+	Id           int64     `json:"id"`
+	Type         int32     `json:"type"`
+	Manufactured bool      `json:"manufactured"`
+	DateCreated  time.Time `json:"dateCreated"`
+	TypeName     string    `json:"typeName"`
+}
+
+func getComplexManufacturingOrdersFromPurchaseOrderDetail(detailId int64, enterpriseId int32) []PurchaseComplexManufacturingOrder {
+	purchaseComplexManufacturingOrder := make([]PurchaseComplexManufacturingOrder, 0)
+	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.id,complex_manufacturing_order.type,complex_manufacturing_order.manufactured,complex_manufacturing_order.date_created,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id WHERE complex_manufacturing_order_manufacturing_order.purchase_order_detail = $1 AND complex_manufacturing_order.enterprise = $2 ORDER BY complex_manufacturing_order.date_created ASC`
+	rows, err := db.Query(sqlStatement, detailId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return purchaseComplexManufacturingOrder
+	}
+
+	for rows.Next() {
+		o := PurchaseComplexManufacturingOrder{}
+		rows.Scan(&o.Id, &o.Type, &o.Manufactured, &o.DateCreated, &o.TypeName)
+		purchaseComplexManufacturingOrder = append(purchaseComplexManufacturingOrder, o)
+	}
+	return purchaseComplexManufacturingOrder
+}
