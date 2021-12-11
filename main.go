@@ -17,6 +17,8 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+const MAX_INT32 = 2147483647
+
 // Basic, static, server settings such as the DB password or the port.
 var settings BackendSettings
 
@@ -90,21 +92,12 @@ func main() {
 		os.Exit(0)
 	}
 
-	/*cmo := ComplexManufacturingOrder{
-		Type:       3,
-		enterprise: 1,
-		Warehouse:  "W1",
-	}
-	ok = cmo.insertComplexManufacturingOrder(1, true)
-	fmt.Println(ok)*/
-
 	// listen to requests
 	fmt.Println("Server ready! :D")
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	http.HandleFunc("/", reverse)
 	http.HandleFunc("/document", handleDocument)
 	http.HandleFunc("/report", generateReport)
-	http.HandleFunc("/export", handleExport)
 	if isParameterPresent("--saas") {
 		http.HandleFunc("/saas", handleEnterprise)
 	}
@@ -504,11 +497,6 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getPSZones(enterpriseId))
-	case "TABLES":
-		if !permissions.Admin {
-			return
-		}
-		data, _ = json.Marshal(getTableAndFieldInfo())
 	case "CONNECTIONS":
 		if !permissions.Admin {
 			return
@@ -2506,25 +2494,6 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var emailInfo EmailInfo
 		json.Unmarshal([]byte(message), &emailInfo)
 		data, _ = json.Marshal(emailInfo.sendEmail(enterpriseId))
-	case "EXPORT":
-		if !permissions.Admin {
-			return
-		}
-		var exportInfo ExportInfo
-		json.Unmarshal([]byte(message), &exportInfo)
-		data, _ = json.Marshal(exportInfo.export())
-	case "EXPORT_JSON":
-		if !permissions.Admin {
-			return
-		}
-		data, _ = json.Marshal(exportToJSON(message, enterpriseId))
-	case "IMPORT_JSON":
-		if !permissions.Admin {
-			return
-		}
-		var importInfo ImportInfo
-		json.Unmarshal([]byte(message), &importInfo)
-		data, _ = json.Marshal(importInfo.importJson(enterpriseId, userId))
 	case "REGENERATE_DRAGGED_STOCK":
 		if !permissions.Warehouse {
 			return
