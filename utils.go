@@ -121,3 +121,8 @@ func Reverse(s string) string {
 	}
 	return string(runes)
 }
+
+type OkAndErrorCodeReturn struct {
+	Ok       bool  `json:"ok"`
+	ErorCode uint8 `json:"errorCode"`
+}

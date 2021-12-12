@@ -345,7 +345,7 @@ func getProductManufacturingOrders(productId int32, enterpriseId int32) []Manufa
 	}
 	for rows.Next() {
 		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
+		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
 		manufacturingOrders = append(manufacturingOrders, o)
 	}
 
@@ -803,4 +803,21 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 		}
 	}
 	return true
+}
+
+func getProductsByManufacturingOrderType(manufacturingOrderTypeId int32, enterpriseId int32) []Product {
+	var products []Product = make([]Product, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM public.product WHERE enterprise=$1 AND manufacturing_order_type=$2 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId, manufacturingOrderTypeId)
+	if err != nil {
+		log("DB", err.Error())
+		return products
+	}
+	for rows.Next() {
+		p := Product{}
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.FamilyName)
+		products = append(products, p)
+	}
+
+	return products
 }

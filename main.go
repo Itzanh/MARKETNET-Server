@@ -901,6 +901,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getComplexManufacturingOrderManufacturingOrder(int64(id), enterpriseId))
+	case "MANUFACTURING_ORDER_TYPE_PRODUCTS":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(getProductsByManufacturingOrderType(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1113,7 +1118,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &c)
 		c.enterprise = enterpriseId
 		ok, errorCode := c.insertManufacturingOrderTypeComponents()
-		isValid := ManufacturingOrderTypeComponentIsValid{
+		isValid := OkAndErrorCodeReturn{
 			Ok:       ok,
 			ErorCode: errorCode,
 		}
@@ -1365,7 +1370,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &c)
 		c.enterprise = enterpriseId
 		ok, errorCode := c.updateManufacturingOrderTypeComponents()
-		isValid := ManufacturingOrderTypeComponentIsValid{
+		isValid := OkAndErrorCodeReturn{
 			Ok:       ok,
 			ErorCode: errorCode,
 		}
@@ -2220,6 +2225,16 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(locateBillingSeries(enterpriseId))
+	case "COLOR":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateColor(enterpriseId))
+	case "PRODUCT_FAMILIES":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateProductFamilies(enterpriseId))
 	default:
 		found = false
 	}
@@ -2312,14 +2327,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if err != nil {
 			return
 		}
-		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId) && complexManufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId))
+		data, _ = json.Marshal(manufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId) || complexManufacturingOrderAllSaleOrder(int64(id), userId, enterpriseId))
 	case "MANUFACTURING_ORDER_PARTIAL_SALE_ORDER":
 		if !permissions.Sales {
 			return
 		}
 		var orderInfo OrderDetailGenerate
 		json.Unmarshal([]byte(message), &orderInfo)
-		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder(userId, enterpriseId) && orderInfo.complexManufacturingOrderPartiallySaleOrder(userId, enterpriseId))
+		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder(userId, enterpriseId) || orderInfo.complexManufacturingOrderPartiallySaleOrder(userId, enterpriseId))
 	case "DELETE_SALES_ORDER_DETAIL_PACKAGED":
 		if !permissions.Preparation {
 			return
@@ -2405,7 +2420,12 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var needs []PurchaseNeed
 		json.Unmarshal([]byte(message), &needs)
-		data, _ = json.Marshal(generatePurchaseOrdersFromNeeds(needs, enterpriseId, userId))
+		ok, errorCode := generatePurchaseOrdersFromNeeds(needs, enterpriseId, userId)
+		ret := OkAndErrorCodeReturn{
+			Ok:       ok,
+			ErorCode: errorCode,
+		}
+		data, _ = json.Marshal(ret)
 	case "DELIVERY_NOTE_ALL_PURCHASE_ORDER":
 		if !permissions.Purchases {
 			return

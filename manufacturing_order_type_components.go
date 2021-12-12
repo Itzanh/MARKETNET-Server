@@ -47,11 +47,6 @@ func getManufacturingOrderTypeComponentRow(manfuacturingOrderTypeId int32) Manuf
 	return c
 }
 
-type ManufacturingOrderTypeComponentIsValid struct {
-	Ok       bool  `json:"ok"`
-	ErorCode uint8 `json:"errorCode"`
-}
-
 // returns:
 // ok
 // code

@@ -106,3 +106,25 @@ func getNameColor(id int32, enterpriseId int32) string {
 	row.Scan(&name)
 	return name
 }
+
+type ColorLocate struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func locateColor(enterpriseId int32) []ColorLocate {
+	var color []ColorLocate = make([]ColorLocate, 0)
+	sqlStatement := `SELECT id,name FROM public.color WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return color
+	}
+	for rows.Next() {
+		c := ColorLocate{}
+		rows.Scan(&c.Id, &c.Name)
+		color = append(color, c)
+	}
+
+	return color
+}

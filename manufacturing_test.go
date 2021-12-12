@@ -1,6 +1,8 @@
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
 // ===== MANUFACTURING ORDERS
 
@@ -215,7 +217,7 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[0].deleteManufacturingOrder(0)
+		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -238,6 +240,37 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
+	family := int32(1)
+	manufacturingOrderType := int32(1)
+
+	p := Product{
+		Name:                   "Glass Office Desk",
+		Reference:              "OF-DSK",
+		BarCode:                "1234067891236",
+		ControlStock:           true,
+		Weight:                 30,
+		Family:                 &family,
+		Width:                  160,
+		Height:                 100,
+		Depth:                  40,
+		VatPercent:             21,
+		Price:                  65,
+		Manufacturing:          true,
+		ManufacturingOrderType: &manufacturingOrderType,
+		TrackMinimumStock:      true,
+		prestaShopId:           1,
+		enterprise:             1,
+	}
+
+	ok := p.insertProduct(0)
+	if !ok {
+		t.Error("Insert error, could not insert product")
+		return
+	}
+
+	products := getProduct(1)
+	p = products[len(products)-1]
+
 	o := SaleOrder{
 		Warehouse:       "W1",
 		Customer:        1,
@@ -251,27 +284,28 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertSalesOrder(1)
+	_, orderId := o.insertSalesOrder(0)
 
 	d := SalesOrderDetail{
 		Order:      orderId,
-		Product:    1,
+		Product:    p.Id,
 		Price:      9.99,
 		Quantity:   2,
 		VatPercent: 21,
 		enterprise: 1,
 	}
 
-	d.insertSalesOrderDetail(1)
+	d.insertSalesOrderDetail(0)
 
 	invoiceAllSaleOrder(orderId, 1, 0)
 
 	details := getSalesOrderDetail(orderId, 1)
 	if details[0].Status != "C" {
 		t.Error("The status is not correct when manufacturing orders are not generated yet")
+		return
 	}
 
-	ok := manufacturingOrderAllSaleOrder(orderId, 1, 1)
+	ok = manufacturingOrderAllSaleOrder(orderId, 1, 1)
 	if !ok {
 		t.Error("Could not manufacturing order all sale order")
 		return
@@ -357,10 +391,16 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	// delete created order
 	details = getSalesOrderDetail(orderId, 1)
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(0)
 	o.Id = orderId
 	o.enterprise = 1
-	o.deleteSalesOrder(1)
+	o.deleteSalesOrder(0)
+
+	ok = p.deleteProduct(0)
+	if !ok {
+		t.Error("Delete error, could not delete product")
+		return
+	}
 }
 
 // ===== MANUFACTURING ORDER TYPE

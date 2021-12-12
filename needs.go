@@ -60,15 +60,27 @@ func (n PurchaseNeeds) Less(i, j int) bool {
 	return n[i].supplier.Id < n[j].supplier.Id
 }
 
-func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, userId int32) bool {
+// returns:
+// ok
+// error code:
+// 0 = internal error
+// 1 = no needs selected
+// 2 = the product selected is a manufacturing product
+// 3 = the product does not have a supplier
+// 4 = no quantity specified
+// 5 = the supplier does not have a main billing address
+// 6 = the supplier does not have a main shipping address
+// 7 = the supplier does not have a payment method
+// 8 = the supplier does not have a billing series
+func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, userId int32) (bool, uint8) {
 	if len(needs) == 0 {
-		return false
+		return false, 1
 	}
 
 	///
 	trans, err := db.Begin()
 	if err != nil {
-		return false
+		return false, 0
 	}
 	///
 
@@ -78,14 +90,17 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 			continue
 		}
 		quantityNeeded := getNeedRow(product.Id)
-		if product.Manufacturing || product.Supplier == nil || *product.Supplier <= 0 || needs[i].Quantity <= 0 || quantityNeeded > needs[i].Quantity {
+		if product.Manufacturing {
 			trans.Rollback()
-			return false
+			return false, 2
 		}
-
 		if product.Supplier == nil || *product.Supplier <= 0 {
 			trans.Rollback()
-			return false
+			return false, 3
+		}
+		if needs[i].Quantity <= 0 || quantityNeeded > needs[i].Quantity {
+			trans.Rollback()
+			return false, 4
 		}
 
 		supplier := getSupplierRow(*product.Supplier)
@@ -107,10 +122,21 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 			i--
 		}
 		if ok || i == len(needs)-1 {
-
-			if supplierNeeds[0].supplier.MainBillingAddress == nil || supplierNeeds[0].supplier.MainShippingAddress == nil || supplierNeeds[0].supplier.PaymentMethod == nil || supplierNeeds[0].supplier.BillingSeries == nil {
+			if supplierNeeds[0].supplier.MainBillingAddress == nil {
 				trans.Rollback()
-				return false
+				return false, 5
+			}
+			if supplierNeeds[0].supplier.MainShippingAddress == nil {
+				trans.Rollback()
+				return false, 6
+			}
+			if supplierNeeds[0].supplier.PaymentMethod == nil {
+				trans.Rollback()
+				return false, 7
+			}
+			if supplierNeeds[0].supplier.BillingSeries == nil {
+				trans.Rollback()
+				return false, 8
 			}
 			// "supplierNeeds" is now an array with the needs of the same supplier, create the purchase order and the detail from the supplier and the needs
 			o := PurchaseOrder{}
@@ -125,7 +151,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 			ok, orderId := o.insertPurchaseOrder(userId)
 			if !ok || orderId <= 0 {
 				trans.Rollback()
-				return false
+				return false, 0
 			}
 
 			for j := 0; j < len(supplierNeeds); j++ {
@@ -139,7 +165,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 				ok, detailId := d.insertPurchaseOrderDetail(false, userId)
 				if !ok {
 					trans.Rollback()
-					return false
+					return false, 0
 				}
 
 				// advance the status to "Purchase order pending" of the pending sales order details
@@ -150,12 +176,12 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 					if err != nil {
 						log("DB", err.Error())
 						trans.Rollback()
-						return false
+						return false, 0
 					}
 					ok := setSalesOrderState(enterpriseId, details[k].Order, userId)
 					if !ok {
 						trans.Rollback()
-						return false
+						return false, 0
 					}
 				}
 			}
@@ -166,6 +192,6 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 
 	///
 	err = trans.Commit()
-	return err == nil
+	return err == nil, 0
 	///
 }

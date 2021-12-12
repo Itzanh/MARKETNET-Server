@@ -182,7 +182,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32) bool {
 	}
 
 	sqlStatement := `INSERT INTO public.manufacturing_order(order_detail, product, type, uuid, user_created, "order", enterprise, warehouse, quantity_manufactured, complex) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
-	row := db.QueryRow(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise, o.Warehouse, o.QuantityManufactured)
+	row := db.QueryRow(sqlStatement, o.OrderDetail, o.Product, o.Type, o.Uuid, o.UserCreated, o.Order, o.enterprise, o.Warehouse, o.QuantityManufactured, o.complex)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()

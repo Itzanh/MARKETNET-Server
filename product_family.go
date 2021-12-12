@@ -108,3 +108,25 @@ func getNameProductFamily(id int32, enterpriseId int32) string {
 	row.Scan(&name)
 	return name
 }
+
+type ProductFamilyLocate struct {
+	Id   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+func locateProductFamilies(enterpriseId int32) []ProductFamilyLocate {
+	var families []ProductFamilyLocate = make([]ProductFamilyLocate, 0)
+	sqlStatement := `SELECT id,name FROM public.product_family WHERE enterprise=$1 ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return families
+	}
+	for rows.Next() {
+		f := ProductFamilyLocate{}
+		rows.Scan(&f.Id, &f.Name)
+		families = append(families, f)
+	}
+
+	return families
+}

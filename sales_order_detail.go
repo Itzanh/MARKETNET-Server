@@ -484,8 +484,8 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 				} else {
 					var quantityAssigned int32 = 0
 					for i := 0; i < len(orders); i++ {
-						sqlStatement := `UPDATE public.manufacturing_order SET sale_order_detail=$2 WHERE id=$1`
-						_, err := db.Exec(sqlStatement, orders[i], s.Id)
+						sqlStatement := `UPDATE public.manufacturing_order SET order_detail=$2, "order"=$3 WHERE id=$1`
+						_, err := db.Exec(sqlStatement, orders[i], s.Id, s.Order)
 						if err != nil {
 							log("DB", err.Error())
 							// fallback
