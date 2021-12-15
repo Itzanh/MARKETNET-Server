@@ -99,6 +99,20 @@ func getProductRow(productId int32) Product {
 	return p
 }
 
+func getProductByBarcode(ean13 string, enterpriseId int32) Product {
+	sqlStatement := `SELECT id FROM product WHERE enterprise = $1 AND barcode = $2`
+	row := db.QueryRow(sqlStatement, enterpriseId, ean13)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return Product{}
+	}
+
+	var productId int32
+	row.Scan(&productId)
+
+	return getProductRow(productId)
+}
+
 func (p *Product) isValid() bool {
 	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0)
 }

@@ -602,6 +602,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var search EmailLogSearch
 		json.Unmarshal([]byte(message), &search)
 		data, _ = json.Marshal(search.getEmailLogs(enterpriseId))
+	case "POS_TERMINALS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getPOSTerminals(enterpriseId))
 	default:
 		found = false
 	}
@@ -1593,6 +1598,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
 		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
+	case "POS_TERMINAL":
+		if !permissions.Admin {
+			return
+		}
+		var t POSTerminal
+		json.Unmarshal(message, &t)
+		t.enterprise = enterpriseId
+		ok = t.updatePOSTerminal()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2703,6 +2716,32 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		data, _ = json.Marshal(setEnterpriseLogo(enterpriseId, logo))
 	case "DELETE_ENTERPRISE_LOGO":
 		data, _ = json.Marshal(deleteEnterpriseLogo(enterpriseId))
+	case "POS_TERMINAL_REQUEST":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(posTerminalRequest(message, enterpriseId))
+	case "POS_INSERT_NEW_SALE_ORDER":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(posInsertNewSaleOrder(message, enterpriseId, userId))
+	case "POS_SERVE_SALE_ORDER":
+		if !permissions.Sales {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(posServeSaleOrder(int64(id), enterpriseId, userId))
+	case "POS_INSERT_NEW_SALE_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		var info InsertNewSaleOrderDetail
+		json.Unmarshal([]byte(message), &info)
+		data, _ = json.Marshal(info.posInsertNewSaleOrderDetail(enterpriseId, userId))
 	}
 	ws.WriteMessage(mt, data)
 

@@ -408,7 +408,7 @@ func initialGroup(enterpriseId int32) {
 	row.Scan(&rows)
 
 	if rows == 0 {
-		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true, Accounting: true, enterprise: enterpriseId}
+		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true, Accounting: true, enterprise: enterpriseId, PointOfSale: true}
 		g.insertGroup()
 
 		fmt.Println("INITIAL DATA: Generated admin group")
@@ -443,12 +443,6 @@ func initialUserGroup() {
 }
 
 func initialReportTemplate(enterpriseId int32) {
-	templates := getReportTemplates(enterpriseId)
-
-	if len(templates) > 0 {
-		return
-	}
-
 	content, err := ioutil.ReadFile("./reports/sales_order.html")
 	if err != nil {
 		return
@@ -460,6 +454,7 @@ func initialReportTemplate(enterpriseId int32) {
 		return
 	}
 	ReportTemplate{enterprise: enterpriseId, Key: "SALES_INVOICE", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{enterprise: enterpriseId, Key: "SALES_INVOICE_TICKET", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/sales_delivery_note.html")
 	if err != nil {

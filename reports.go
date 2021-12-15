@@ -43,6 +43,8 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 		w.Write(reportSalesOrder(id, forcePrint, enterpriseId))
 	case "SALES_INVOICE":
 		w.Write(reportSalesInvoice(id, forcePrint, enterpriseId))
+	case "SALES_INVOICE_TICKET":
+		w.Write(reportSalesInvoiceTicket(id, forcePrint, enterpriseId))
 	case "SALES_DELIVERY_NOTE":
 		w.Write(reportSalesDeliveryNote(id, forcePrint, enterpriseId))
 	case "PURCHASE_ORDER":
@@ -142,6 +144,70 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_INVOICE")
+
+	html := template.Html
+
+	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
+	html = strings.Replace(html, "$$invoice_number$$", i.InvoiceName, 1)
+	html = strings.Replace(html, "$$invoice_date$$", i.DateCreated.Format("2006-01-02 15:04:05"), 1)
+	html = strings.Replace(html, "$$invoice_payment_method_name$$", paymentMethod, 1)
+	html = strings.Replace(html, "$$invoice_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
+	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
+	html = strings.Replace(html, "$$address_city$$", address.City, 1)
+	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
+	html = strings.Replace(html, "$$address_state$$", stateName, 1)
+	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$invoice_total_products$$", fmt.Sprintf("%.2f", i.TotalProducts), 1)
+	html = strings.Replace(html, "$$invoice_vat_amount$$", fmt.Sprintf("%.2f", i.VatAmount), 1)
+	html = strings.Replace(html, "$$invoice_discount_percent$$", fmt.Sprintf("%.2f", i.DiscountPercent), 1)
+	html = strings.Replace(html, "$$invoice_fix_discount$$", fmt.Sprintf("%.2f", i.FixDiscount), 1)
+	html = strings.Replace(html, "$$invoice_shipping_price$$", fmt.Sprintf("%.2f", i.ShippingPrice), 1)
+	html = strings.Replace(html, "$$invoice_shipping_discount$$", fmt.Sprintf("%.2f", i.ShippingDiscount), 1)
+	html = strings.Replace(html, "$$invoice_total_with_discount$$", fmt.Sprintf("%.2f", i.TotalWithDiscount), 1)
+	html = strings.Replace(html, "$$invoice_total_amount$$", fmt.Sprintf("%.2f", i.TotalAmount), 1)
+	if forcePrint {
+		html = strings.Replace(html, "$$script$$", "window.print()", 1)
+	} else {
+		html = strings.Replace(html, "$$script$$", "", 1)
+	}
+
+	detailHtmlTemplate := html[strings.Index(html, "&&detail&&")+len("&&detail&&") : strings.Index(html, "&&--detail--&&")]
+	detailsHtml := ""
+
+	for i := 0; i < len(details); i++ {
+		detailHtml := detailHtmlTemplate
+
+		product := getNameProduct(*details[i].Product, enterpriseId)
+
+		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_unit_price$$", fmt.Sprintf("%.2f", details[i].Price), 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_vat$$", fmt.Sprintf("%.2f", details[i].VatPercent), 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_total$$", fmt.Sprintf("%.2f", details[i].TotalAmount), 1)
+
+		detailsHtml += detailHtml
+	}
+
+	html = html[:strings.Index(html, "&&detail&&")] + detailsHtml + html[strings.Index(html, "&&--detail--&&")+len("&&--detail--&&"):]
+
+	return []byte(html)
+}
+
+func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byte {
+	i := getSalesInvoiceRow(int64(id))
+
+	paymentMethod := getNamePaymentMethod(i.PaymentMethod, enterpriseId)
+	customer := getNameCustomer(i.Customer, enterpriseId)
+	address := getAddressRow(i.BillingAddress)
+	stateName := ""
+	if address.State != nil {
+		stateName = getNameState(*address.State, enterpriseId)
+	}
+	countryName := getNameCountry(address.Country, enterpriseId)
+	details := getSalesInvoiceDetail(i.Id, enterpriseId)
+
+	template := getReportTemplate(enterpriseId, "SALES_INVOICE_TICKET")
 
 	html := template.Html
 

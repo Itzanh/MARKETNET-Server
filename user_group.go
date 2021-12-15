@@ -28,7 +28,7 @@ func getUserGroupsIn(userId int32) []Group {
 	}
 	for rows.Next() {
 		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise)
+		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)
 		groups = append(groups, g)
 	}
 
