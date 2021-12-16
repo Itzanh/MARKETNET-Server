@@ -231,6 +231,9 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 	if saleOrder.enterprise != enterpriseId {
 		return false, 0
 	}
+	if saleOrder.DeliveryNoteLines >= saleOrder.LinesNumber {
+		return false, 0
+	}
 	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
 
 	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
@@ -291,11 +294,14 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(noteInfo.Selection) == 0 {
 		return false
 	}
+	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
+		return false
+	}
 
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(noteInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(noteInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 || noteInfo.Selection[i].Quantity > orderDetail.Quantity {
+		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 || noteInfo.Selection[i].Quantity > orderDetail.Quantity || orderDetail.QuantityDeliveryNote >= orderDetail.Quantity {
 			return false
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)

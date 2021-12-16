@@ -399,6 +399,9 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bo
 	if saleOrder.enterprise != enterpriseId {
 		return false
 	}
+	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
+		return false
+	}
 	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
 
 	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
@@ -474,11 +477,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(invoiceInfo.Selection) == 0 {
 		return false
 	}
+	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
+		return false
+	}
 
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(invoiceInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(invoiceInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
+		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity || orderDetail.QuantityInvoiced >= orderDetail.Quantity {
 			return false
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)
