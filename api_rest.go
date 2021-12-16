@@ -53,6 +53,8 @@ func addHttpHandlerFuncions() {
 	// manufacturing
 	http.HandleFunc("/api/manufacturing_orders", apiManufacturingOrders)
 	http.HandleFunc("/api/manufacturing_order_types", apiManufacturingOrderTypes)
+	http.HandleFunc("/api/complex_manufacturing_orders", apiComplexManufacturingOrders)
+	http.HandleFunc("/api/manufacturing_order_type_components", apiManufacturingOrderTypesComponents)
 	// preparation
 	http.HandleFunc("/api/shippings", apiShipping)
 	http.HandleFunc("/api/shipping_status_history", apiShippingStatusHistory)
@@ -1837,6 +1839,113 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 		manufacturingOrderType.Id = int32(id)
 		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.deleteManufacturingOrderType()
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, userId, enterpriseId := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		var manufacturingPaginationQuery ManufacturingPaginationQuery
+		json.Unmarshal(body, &manufacturingPaginationQuery)
+		data, _ := json.Marshal(manufacturingPaginationQuery.getAllComplexManufacturingOrders(enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		var complexManufacturingOrder ComplexManufacturingOrder
+		json.Unmarshal(body, &complexManufacturingOrder)
+		complexManufacturingOrder.UserCreated = userId
+		complexManufacturingOrder.enterprise = enterpriseId
+		ok, _ = complexManufacturingOrder.insertComplexManufacturingOrder(userId, true)
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var complexManufacturingOrder ComplexManufacturingOrder
+		complexManufacturingOrder.Id = int64(id)
+		complexManufacturingOrder.enterprise = enterpriseId
+		ok = complexManufacturingOrder.deleteComplexManufacturingOrder(enterpriseId)
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getManufacturingOrderTypeComponents(int32(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		var manufacturingOrderTypeComponent ManufacturingOrderTypeComponents
+		json.Unmarshal(body, &manufacturingOrderTypeComponent)
+		manufacturingOrderTypeComponent.enterprise = enterpriseId
+		ok, _ = manufacturingOrderTypeComponent.insertManufacturingOrderTypeComponents()
+	case "PUT":
+		var manufacturingOrderTypeComponent ManufacturingOrderTypeComponents
+		json.Unmarshal(body, &manufacturingOrderTypeComponent)
+		manufacturingOrderTypeComponent.enterprise = enterpriseId
+		ok, _ = manufacturingOrderTypeComponent.updateManufacturingOrderTypeComponents()
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var manufacturingOrderTypeComponent ManufacturingOrderTypeComponents
+		manufacturingOrderTypeComponent.Id = int32(id)
+		manufacturingOrderTypeComponent.enterprise = enterpriseId
+		ok = manufacturingOrderTypeComponent.deleteManufacturingOrderTypeComponents()
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
