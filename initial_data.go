@@ -23,6 +23,7 @@ func initialData(enterpriseId int32) {
 	initialGroup(enterpriseId)
 	initialUserGroup()
 	initialReportTemplate(enterpriseId)
+	initialPermissionDictionary(enterpriseId)
 }
 
 func initialPaymentData(enterpriseId int32) {
@@ -491,4 +492,45 @@ func initialReportTemplate(enterpriseId int32) {
 		return
 	}
 	ReportTemplate{enterprise: enterpriseId, Key: "SALES_ORDER_DIGITAL_PRODUCT_DATA", Html: string(content)}.insertReportTemplate()
+}
+
+// check every permission in the initial data file agains the ones in the database
+// if a permission exists in both the database and the initial data file, do noghting
+// if a permissions exists in the initial data file and not in the database, create it in the DDBB
+// if a permission exists in the database but not in the initial data file, remove it from the database
+func initialPermissionDictionary(enterpriseId int32) {
+	content, err := ioutil.ReadFile("./initial_data/permission_dictionary.json")
+	if err != nil {
+		return
+	}
+
+	var initialPerm []PermissionDictionary = make([]PermissionDictionary, 0)
+	json.Unmarshal(content, &initialPerm)
+	perm := getPermissionDictionary(enterpriseId)
+
+	for i := 0; i < len(initialPerm); i++ {
+		// initial permission key
+		ipk := initialPerm[i].Key
+		var found bool = false
+
+		for j := 0; j < len(perm); j++ {
+			if perm[j].Key == ipk {
+				found = true
+				perm = append(perm[:j], perm[j+1:]...) // if one permission exists in the DB and not in the file, the final array wont't be empty
+				break
+			}
+		}
+
+		if !found {
+			sqlStatement := `INSERT INTO public.permission_dictionary(enterprise, key, description) VALUES ($1, $2, $3)`
+			db.Exec(sqlStatement, enterpriseId, initialPerm[i].Key, initialPerm[i].Description)
+		}
+	}
+
+	for i := 0; i < len(perm); i++ {
+		sqlStatement := `DELETE FROM public.permission_dictionary_group WHERE permission_key = $1 AND enterprise = $2`
+		db.Exec(sqlStatement, perm[i].Key, enterpriseId)
+		sqlStatement = `DELETE FROM public.permission_dictionary WHERE enterprise = $1 AND key = $2`
+		db.Exec(sqlStatement, enterpriseId, perm[i].Key)
+	}
 }

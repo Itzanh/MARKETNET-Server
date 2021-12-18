@@ -607,6 +607,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getPOSTerminals(enterpriseId))
+	case "PERMISSION_DICTIONARY":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getPermissionDictionary(enterpriseId))
+	case "PERMISSION_DICTIONARY_GRUPS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getGroupsPermissionDictionary(enterpriseId, message))
 	default:
 		found = false
 	}
@@ -911,6 +921,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getProductsByManufacturingOrderType(int32(id), enterpriseId))
+	case "GROUP_PERMISSION_DICTIONARY":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getGroupPermissionDictionary(enterpriseId, int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -982,6 +997,9 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			state.enterprise = enterpriseId
 			ok = state.insertState()
 		case "PRODUCT":
+			if getUserPermission("CANT_CREATE_PRODUCT", enterpriseId, userId) {
+				return
+			}
 			var product Product
 			json.Unmarshal(message, &product)
 			product.enterprise = enterpriseId
@@ -1032,7 +1050,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 	var found bool = true
 	switch command {
 	case "SALES_ORDER":
-		if !permissions.Sales {
+		if !permissions.Sales || getUserPermission("CANT_MANUALLY_CREATE_SALE_ORDER", enterpriseId, userId) {
 			return
 		}
 		var saleOrder SaleOrder
@@ -1046,7 +1064,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			returnData, _ = json.Marshal(order)
 		}
 	case "SALES_INVOICE":
-		if !permissions.Sales {
+		if !permissions.Sales || getUserPermission("CANT_MANUALLY_CREATE_SALE_INVOICE", enterpriseId, userId) {
 			return
 		}
 		var saleInvoice SalesInvoice
@@ -1060,7 +1078,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			returnData, _ = json.Marshal(invoice)
 		}
 	case "SALES_DELIVERY_NOTES":
-		if !permissions.Sales {
+		if !permissions.Sales || getUserPermission("CANT_MANUALLY_CREATE_SALE_DELIVERY_NOTE", enterpriseId, userId) {
 			return
 		}
 		var salesDeliveryNote SalesDeliveryNote
@@ -1102,7 +1120,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			returnData, _ = json.Marshal(invoice)
 		}
 	case "PURCHASE_DELIVERY_NOTE":
-		if !permissions.Purchases {
+		if !permissions.Purchases || getUserPermission("CANT_MANUALLY_CREATE_PURCHASE_DELIVERY_NOTE", enterpriseId, userId) {
 			return
 		}
 		var purchaseDeliveryNote PurchaseDeliveryNote
@@ -1178,7 +1196,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.insertManufacturingOrderType()
 	case "MANUFACTURING_ORDER":
-		if !permissions.Manufacturing {
+		if !permissions.Manufacturing || getUserPermission("CANT_MANUALLY_CREATE_MANUFACTURING_ORDERS", enterpriseId, userId) {
 			return
 		}
 		var manufacturingOrder ManufacturingOrder
@@ -1187,7 +1205,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.insertManufacturingOrder(userId)
 	case "COMPLEX_MANUFACTURING_ORDER":
-		if !permissions.Manufacturing {
+		if !permissions.Manufacturing || getUserPermission("CANT_MANUALLY_CREATE_MANUFACTURING_ORDERS", enterpriseId, userId) {
 			return
 		}
 		var complexManufacturingOrder ComplexManufacturingOrder
@@ -1359,6 +1377,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
 		ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
+	case "PERMISSION_DICTIONARY_GROUP":
+		if !permissions.Admin {
+			return
+		}
+		var d PermissionDictionaryGroup
+		json.Unmarshal(message, &d)
+		d.enterprise = enterpriseId
+		ok = d.insertPermissionDictionaryGroup()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1427,6 +1453,9 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 			customer.enterprise = enterpriseId
 			ok = customer.updateCustomer(userId)
 		case "PRODUCT":
+			if getUserPermission("CANT_UPDATE_DELETE_PRODUCT", enterpriseId, userId) {
+				return
+			}
 			var product Product
 			json.Unmarshal(message, &product)
 			product.enterprise = enterpriseId
@@ -1657,6 +1686,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var filter ConnectionFilterUser
 		json.Unmarshal([]byte(message), &filter)
 		ok = filter.deleteConnectionFilterUser(enterpriseId)
+	case "PERMISSION_DICTIONARY_GROUP":
+		if !permissions.Admin {
+			return
+		}
+		var p PermissionDictionaryGroup
+		json.Unmarshal([]byte(message), &p)
+		p.enterprise = enterpriseId
+		ok = p.deletePermissionDictionaryGroup()
 	default:
 		found = false
 	}
@@ -1711,6 +1748,9 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 			customer.enterprise = enterpriseId
 			ok = customer.deleteCustomer(userId)
 		case "PRODUCT":
+			if getUserPermission("CANT_UPDATE_DELETE_PRODUCT", enterpriseId, userId) {
+				return
+			}
 			var product Product
 			product.Id = int32(id)
 			product.enterprise = enterpriseId
@@ -1811,7 +1851,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.deleteManufacturingOrderType()
 	case "MANUFACTURING_ORDER":
-		if !permissions.Manufacturing {
+		if !permissions.Manufacturing || getUserPermission("CANT_DELETE_MANUFACTURING_ORDERS", enterpriseId, userId) {
 			return
 		}
 		var manufacturingOrder ManufacturingOrder
@@ -1819,7 +1859,7 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.deleteManufacturingOrder(userId)
 	case "COMPLEX_MANUFACTURING_ORDER":
-		if !permissions.Manufacturing {
+		if !permissions.Manufacturing || getUserPermission("CANT_DELETE_MANUFACTURING_ORDERS", enterpriseId, userId) {
 			return
 		}
 		var complexManufacturingOrder ComplexManufacturingOrder

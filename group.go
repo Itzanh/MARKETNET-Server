@@ -37,6 +37,23 @@ func getGroup(enterpriseId int32) []Group {
 	return groups
 }
 
+func getGroupsPermissionDictionary(enterpriseId int32, permission string) []Group {
+	var groups []Group = make([]Group, 0)
+	sqlStatement := `SELECT "group".* FROM "group" INNER JOIN permission_dictionary_group ON permission_dictionary_group."group" = "group".id AND permission_dictionary_group.enterprise = "group".enterprise WHERE permission_dictionary_group.permission_key = $2 AND "group".enterprise = $1`
+	rows, err := db.Query(sqlStatement, enterpriseId, permission)
+	if err != nil {
+		log("DB", err.Error())
+		return groups
+	}
+	for rows.Next() {
+		g := Group{}
+		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)
+		groups = append(groups, g)
+	}
+
+	return groups
+}
+
 func (g *Group) isValid() bool {
 	return !(len(g.Name) > 50)
 }
@@ -91,16 +108,17 @@ func (g *Group) deleteGroup() bool {
 }
 
 type Permissions struct {
-	Sales         bool `json:"sales"`
-	Purchases     bool `json:"purchases"`
-	Masters       bool `json:"masters"`
-	Warehouse     bool `json:"warehouse"`
-	Manufacturing bool `json:"manufacturing"`
-	Preparation   bool `json:"preparation"`
-	Admin         bool `json:"admin"`
-	PrestaShop    bool `json:"prestashop"`
-	Accounting    bool `json:"accounting"`
-	PointOfSale   bool `json:"pointOfSale"`
+	Sales                bool     `json:"sales"`
+	Purchases            bool     `json:"purchases"`
+	Masters              bool     `json:"masters"`
+	Warehouse            bool     `json:"warehouse"`
+	Manufacturing        bool     `json:"manufacturing"`
+	Preparation          bool     `json:"preparation"`
+	Admin                bool     `json:"admin"`
+	PrestaShop           bool     `json:"prestashop"`
+	Accounting           bool     `json:"accounting"`
+	PointOfSale          bool     `json:"pointOfSale"`
+	PermissionDictionary []string `json:"permissionDictionary"`
 }
 
 func getUserPermissions(userId int32, enterpriseId int32) Permissions {
@@ -140,5 +158,6 @@ func getUserPermissions(userId int32, enterpriseId int32) Permissions {
 		}
 	}
 
+	p.PermissionDictionary = getPermissionDictionaryUserGroupInForWebClient(userId)
 	return p
 }

@@ -1,0 +1,37 @@
+[{
+        "key": "CANT_MANUALLY_CREATE_SALE_INVOICE",
+        "description": "If this permission is given to a group, none of this group's users will be able to create invoices manually from the sale invoices menu."
+    },
+    {
+        "key": "CANT_MANUALLY_CREATE_SALE_ORDER",
+        "description": "If this permission is given to a group, none of this group's users will be able to create orders manually from the sale orders menu."
+    },
+    {
+        "key": "CANT_MANUALLY_CREATE_SALE_DELIVERY_NOTE",
+        "description": "If this permission is given to a group, none of this group's users will be able to create sale delivery notes manually from the sale delivery notes menu."
+    },
+    {
+        "key": "CANT_MANUALLY_CREATE_PURCHASE_DELIVERY_NOTE",
+        "description": "If this permission is given to a group, none of this group's users will be able to create purchase delivery notes manually from the purchase delivery notes menu."
+    },
+    {
+        "key": "CANT_CREATE_PRODUCT",
+        "description": "This group will not be able to create new products manually in the web."
+    },
+    {
+        "key": "CANT_UPDATE_DELETE_PRODUCT",
+        "description": "This group will not be able to modify fields in the products, or delete products, in the web."
+    },
+    {
+        "key": "CANT_MANUALLY_CREATE_MANUFACTURING_ORDERS",
+        "description": "If this permission is given to a group, none of this group's users will be able to create complex/normal manufacturing orders."
+    },
+    {
+        "key": "CANT_USE_PRODUCT_GENERATOR",
+        "description": "This group will not be able to create new products in the web using the product generator."
+    },
+    {
+        "key": "CANT_DELETE_MANUFACTURING_ORDERS",
+        "description": "If this permission is given to a group, none of this group's users will be able to delete complex/normal manufacturing orders."
+    }
+]
