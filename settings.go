@@ -396,14 +396,20 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 	db.Exec(sqlStatement, "W1", enterpriseId)
 
 	config := getSettingsRecordById(enterpriseId)
-	prestaShopExportSerie := "EXP"
-	prestaShopIntracommunitySerie := "IEU"
-	prestaShopInteriorSerie := "INT"
-	config.PrestaShopExportSerie = &prestaShopExportSerie
-	config.PrestaShopIntracommunitySerie = &prestaShopIntracommunitySerie
-	config.PrestaShopInteriorSerie = &prestaShopInteriorSerie
+	ecommerceExportSerie := "EXP"
+	ecommerceIntracommunitySerie := "IEU"
+	ecommerceInteriorSerie := "INT"
+	config.PrestaShopExportSerie = &ecommerceExportSerie
+	config.PrestaShopIntracommunitySerie = &ecommerceIntracommunitySerie
+	config.PrestaShopInteriorSerie = &ecommerceInteriorSerie
 	config.PrestashopStatusPaymentAccepted = 2
 	config.PrestashopStatusShipped = 4
+	config.WooCommerceExportSerie = &ecommerceExportSerie
+	config.WooCommerceIntracommunitySerie = &ecommerceIntracommunitySerie
+	config.WooCommerceInteriorSerie = &ecommerceInteriorSerie
+	config.ShopifyExportSerie = &ecommerceExportSerie
+	config.ShopifyIntracommunitySerie = &ecommerceIntracommunitySerie
+	config.ShopifyInteriorSerie = &ecommerceInteriorSerie
 	if !config.updateSettingsRecord() {
 		return false
 	}

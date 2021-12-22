@@ -98,6 +98,8 @@ func activate() {
 			if !takeActivationChance(enterpriseKey, activation.LicenseCode, *activation.Chance) {
 				fmt.Println("The application could not be activated by license and will shut down")
 				os.Exit(2)
+			} else {
+				continue
 			}
 		}
 
@@ -187,6 +189,7 @@ type TakeChanceActivation struct {
 	LicenseCode string `json:"licenseCode"`
 	Chance      string `json:"chance"`
 	InstallId   string `json:"installId"`
+	HardwareId  string `json:"hardwareId"`
 }
 
 // Change the secret by a secret code
@@ -196,6 +199,7 @@ func takeActivationChance(enterpriseKey string, licenseCode string, chance strin
 		LicenseCode: licenseCode,
 		Chance:      chance,
 		InstallId:   uuid.New().String(),
+		HardwareId:  hardwareId(),
 	}
 	data, _ := json.Marshal(takeActivationChance)
 	resp, err := http.Post(CHANCE_URL, "application/json", bytes.NewBuffer(data))
@@ -234,6 +238,7 @@ type ServerActivation struct {
 	LicenseCode string `json:"licenseCode"`
 	Secret      string `json:"secret"`
 	InstallId   string `json:"installId"`
+	HardwareId  string `json:"hardwareId"`
 }
 
 type ServerActivationResult struct {
@@ -246,6 +251,7 @@ func checkActivation(enterpriseKey string, enterpriseId int32, licenseCode strin
 		LicenseCode: licenseCode,
 		Secret:      secret,
 		InstallId:   installId,
+		HardwareId:  hardwareId(),
 	}
 	data, _ := json.Marshal(a)
 	resp, err := http.Post(ACTIVATE_URL, "application/json", bytes.NewBuffer(data))

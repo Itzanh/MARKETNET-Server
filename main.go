@@ -148,6 +148,7 @@ func main() {
 	}
 	c.AddFunc(settings.Server.CronClearLogs, clearLogs)
 	c.AddFunc("@every 1m", resetMaxRequestsPerEnterprise)
+	c.AddFunc("@every 1h", crashreporter)
 	c.Start()
 	c.Run()
 
