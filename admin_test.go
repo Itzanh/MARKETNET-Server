@@ -469,7 +469,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
+	ok, _, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
 	if !ok {
 		t.Error("The API key can't get authenticated")
 		return
@@ -484,7 +484,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
+	ok, _, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
 	if !ok {
 		t.Error("The API key can be accessed after deactivating")
 		return
@@ -496,7 +496,7 @@ func TestApiKeys(t *testing.T) {
 		return
 	}
 
-	ok, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
+	ok, _, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
 	if !ok {
 		t.Error("The API key can't get authenticated")
 		return

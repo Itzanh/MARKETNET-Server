@@ -79,7 +79,7 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -94,12 +94,20 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.SaleOrders.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		data, _ := json.Marshal(paginationQuery.getSalesOrder(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.SaleOrders.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var saleOrder SaleOrder
 			json.Unmarshal(body, &saleOrder)
@@ -119,11 +127,19 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.SaleOrders.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var saleOrder SaleOrder
 		json.Unmarshal(body, &saleOrder)
 		saleOrder.enterprise = enterpriseId
 		ok = saleOrder.updateSalesOrder(userId)
 	case "DELETE":
+		if !permission.SaleOrders.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -147,7 +163,7 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -162,6 +178,10 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.SaleOrderDetails.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -171,6 +191,10 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.SaleOrderDetails.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var saleOrderDetail SalesOrderDetail
 			json.Unmarshal(body, &saleOrderDetail)
@@ -190,11 +214,19 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.SaleOrderDetails.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var salesOrderDetail SalesOrderDetail
 		json.Unmarshal(body, &salesOrderDetail)
 		salesOrderDetail.enterprise = enterpriseId
 		ok = salesOrderDetail.updateSalesOrderDetail(userId)
 	case "DELETE":
+		if !permission.SaleOrderDetails.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -218,7 +250,7 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -233,6 +265,10 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.SaleOrderDetailsDigitalProductData.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -242,6 +278,10 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.SaleOrderDetailsDigitalProductData.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var d SalesOrderDetailDigitalProductData
 			json.Unmarshal(body, &d)
@@ -259,10 +299,18 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 			ok = false
 		}
 	case "PUT":
+		if !permission.SaleOrderDetailsDigitalProductData.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(body, &d)
 		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
 	case "DELETE":
+		if !permission.SaleOrderDetailsDigitalProductData.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -285,7 +333,7 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -300,6 +348,10 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.SaleInvoices.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
@@ -307,6 +359,10 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.SaleInvoices.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var saleInvoice SalesInvoice
 			json.Unmarshal(body, &saleInvoice)
@@ -326,6 +382,10 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.SaleInvoices.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -349,7 +409,7 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -364,6 +424,10 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.SaleInvoiceDetails.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -373,6 +437,10 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.SaleInvoiceDetails.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var salesInvoiceDetail SalesInvoiceDetail
 			json.Unmarshal(body, &salesInvoiceDetail)
@@ -392,6 +460,10 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.SaleInvoiceDetails.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -415,7 +487,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -430,6 +502,10 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.SaleDeliveryNotes.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
@@ -437,6 +513,10 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.SaleDeliveryNotes.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var salesDeliveryNote SalesDeliveryNote
 			json.Unmarshal(body, &salesDeliveryNote)
@@ -456,6 +536,10 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.SaleDeliveryNotes.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -479,7 +563,7 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -494,10 +578,18 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.PurchaseOrders.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getPurchaseOrder(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PurchaseOrders.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var purchaseOrder PurchaseOrder
 			json.Unmarshal(body, &purchaseOrder)
@@ -517,11 +609,19 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.PurchaseOrders.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var purchaseOrder PurchaseOrder
 		json.Unmarshal(body, &purchaseOrder)
 		purchaseOrder.enterprise = enterpriseId
 		ok = purchaseOrder.updatePurchaseOrder(userId)
 	case "DELETE":
+		if !permission.PurchaseOrders.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -545,7 +645,7 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -560,6 +660,10 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.PurchaseOrderDetails.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -569,6 +673,10 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PurchaseOrderDetails.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var purchaseOrderDetail PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetail)
@@ -588,6 +696,10 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.PurchaseOrderDetails.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -611,7 +723,7 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -626,10 +738,18 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.PurchaseInvoices.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getPurchaseInvoices(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PurchaseInvoices.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var purchaseInvoice PurchaseInvoice
 			json.Unmarshal(body, &purchaseInvoice)
@@ -649,6 +769,10 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.PurchaseInvoices.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -672,7 +796,7 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -687,6 +811,10 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.PurchaseInvoiceDetails.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -696,6 +824,10 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PurchaseInvoiceDetails.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var purchaseInvoiceDetail PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetail)
@@ -715,6 +847,10 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.PurchaseInvoiceDetails.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -738,7 +874,7 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -753,10 +889,18 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.PurchaseDeliveryNotes.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getPurchaseDeliveryNotes(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PurchaseDeliveryNotes.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var purchaseDeliveryNote PurchaseDeliveryNote
 			json.Unmarshal(body, &purchaseDeliveryNote)
@@ -776,6 +920,10 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.PurchaseDeliveryNotes.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -799,7 +947,7 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -814,6 +962,10 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Customers.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
@@ -821,6 +973,10 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Customers.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var customer Customer
 			json.Unmarshal(body, &customer)
@@ -840,11 +996,19 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.Customers.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var customer Customer
 		json.Unmarshal(body, &customer)
 		customer.enterprise = enterpriseId
 		ok = customer.updateCustomer(userId)
 	case "DELETE":
+		if !permission.Customers.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -868,7 +1032,7 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -883,10 +1047,18 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Suppliers.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getSuppliers(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Suppliers.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var supplier Supplier
 			json.Unmarshal(body, &supplier)
@@ -906,11 +1078,19 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.Suppliers.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var supplier Supplier
 		json.Unmarshal(body, &supplier)
 		supplier.enterprise = enterpriseId
 		ok = supplier.updateSupplier(userId)
 	case "DELETE":
+		if !permission.Suppliers.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -934,7 +1114,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -949,10 +1129,18 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Products.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getProduct(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Suppliers.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var product Product
 			json.Unmarshal(body, &product)
@@ -972,11 +1160,19 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.Suppliers.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var product Product
 		json.Unmarshal(body, &product)
 		product.enterprise = enterpriseId
 		ok = product.updateProduct(userId)
 	case "DELETE":
+		if !permission.Suppliers.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1000,7 +1196,7 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1015,20 +1211,36 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Countries.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getCountries(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Countries.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var country Country
 		json.Unmarshal(body, &country)
 		country.enterprise = enterpriseId
 		ok = country.insertCountry()
 	case "PUT":
+		if !permission.Countries.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var country Country
 		json.Unmarshal(body, &country)
 		country.enterprise = enterpriseId
 		ok = country.updateCountry()
 	case "DELETE":
+		if !permission.Countries.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1052,7 +1264,7 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1067,20 +1279,36 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.States.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getStates(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.States.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var state State
 		json.Unmarshal(body, &state)
 		state.enterprise = enterpriseId
 		ok = state.insertState()
 	case "PUT":
+		if !permission.States.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var state State
 		json.Unmarshal(body, &state)
 		state.enterprise = enterpriseId
 		ok = state.updateState()
 	case "DELETE":
+		if !permission.States.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1104,7 +1332,7 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1119,20 +1347,36 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Colors.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getColor(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Colors.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var color Color
 		json.Unmarshal(body, &color)
 		color.enterprise = enterpriseId
 		ok = color.insertColor()
 	case "PUT":
+		if !permission.Colors.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var color Color
 		json.Unmarshal(body, &color)
 		color.enterprise = enterpriseId
 		ok = color.updateColor()
 	case "DELETE":
+		if !permission.Colors.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1156,7 +1400,7 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1171,20 +1415,36 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.ProductFamilies.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getProductFamilies(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.ProductFamilies.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var productFamily ProductFamily
 		json.Unmarshal(body, &productFamily)
 		productFamily.enterprise = enterpriseId
 		ok = productFamily.insertProductFamily()
 	case "PUT":
+		if !permission.ProductFamilies.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var productFamily ProductFamily
 		json.Unmarshal(body, &productFamily)
 		productFamily.enterprise = enterpriseId
 		ok = productFamily.updateProductFamily()
 	case "DELETE":
+		if !permission.ProductFamilies.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1208,7 +1468,7 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1223,6 +1483,10 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Addresses.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
@@ -1230,6 +1494,10 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Addresses.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var address Address
 			json.Unmarshal(body, &address)
@@ -1249,11 +1517,19 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "PUT":
+		if !permission.Addresses.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var address Address
 		json.Unmarshal(body, &address)
 		address.enterprise = enterpriseId
 		ok = address.updateAddress()
 	case "DELETE":
+		if !permission.Addresses.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1277,7 +1553,7 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1292,20 +1568,36 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Carriers.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getCariers(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Carriers.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var carrier Carrier
 		json.Unmarshal(body, &carrier)
 		carrier.enterprise = enterpriseId
 		ok = carrier.insertCarrier()
 	case "PUT":
+		if !permission.Carriers.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var carrier Carrier
 		json.Unmarshal(body, &carrier)
 		carrier.enterprise = enterpriseId
 		ok = carrier.updateCarrier()
 	case "DELETE":
+		if !permission.Carriers.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1329,7 +1621,7 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1344,20 +1636,36 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.BillingSeries.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getBillingSeries(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.BillingSeries.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var serie BillingSerie
 		json.Unmarshal(body, &serie)
 		serie.enterprise = enterpriseId
 		ok = serie.insertBillingSerie()
 	case "PUT":
+		if !permission.BillingSeries.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var serie BillingSerie
 		json.Unmarshal(body, &serie)
 		serie.enterprise = enterpriseId
 		ok = serie.updateBillingSerie()
 	case "DELETE":
+		if !permission.BillingSeries.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var serie BillingSerie
 		serie.Id = string(body)
 		serie.enterprise = enterpriseId
@@ -1376,7 +1684,7 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1391,20 +1699,36 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Currencies.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getCurrencies(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Currencies.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var currency Currency
 		json.Unmarshal(body, &currency)
 		currency.enterprise = enterpriseId
 		ok = currency.insertCurrency()
 	case "PUT":
+		if !permission.Currencies.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var currency Currency
 		json.Unmarshal(body, &currency)
 		currency.enterprise = enterpriseId
 		ok = currency.updateCurrency()
 	case "DELETE":
+		if !permission.Currencies.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1428,7 +1752,7 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1443,20 +1767,36 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.PaymentMethods.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getPaymentMethods(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PaymentMethods.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paymentMethod PaymentMethod
 		json.Unmarshal(body, &paymentMethod)
 		paymentMethod.enterprise = enterpriseId
 		ok = paymentMethod.insertPaymentMethod()
 	case "PUT":
+		if !permission.PaymentMethods.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paymentMethod PaymentMethod
 		json.Unmarshal(body, &paymentMethod)
 		paymentMethod.enterprise = enterpriseId
 		ok = paymentMethod.updatePaymentMethod()
 	case "DELETE":
+		if !permission.PaymentMethods.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1480,7 +1820,7 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1495,20 +1835,36 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Languages.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getLanguages(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Languages.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var language Language
 		json.Unmarshal(body, &language)
 		language.enterprise = enterpriseId
 		ok = language.insertLanguage()
 	case "PUT":
+		if !permission.Languages.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var language Language
 		json.Unmarshal(body, &language)
 		language.enterprise = enterpriseId
 		ok = language.updateLanguage()
 	case "DELETE":
+		if !permission.Languages.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1532,7 +1888,7 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1547,20 +1903,36 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Packages.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getPackages(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Packages.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var packages Packages
 		json.Unmarshal(body, &packages)
 		packages.enterprise = enterpriseId
 		ok = packages.insertPackage()
 	case "PUT":
+		if !permission.Packages.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var packages Packages
 		json.Unmarshal(body, &packages)
 		packages.enterprise = enterpriseId
 		ok = packages.updatePackage()
 	case "DELETE":
+		if !permission.Packages.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1583,7 +1955,7 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1598,20 +1970,36 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Incoterms.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getIncoterm(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Incoterms.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var incoterm Incoterm
 		json.Unmarshal(body, &incoterm)
 		incoterm.enterprise = enterpriseId
 		ok = incoterm.insertIncoterm()
 	case "PUT":
+		if !permission.Incoterms.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var incoterm Incoterm
 		json.Unmarshal(body, &incoterm)
 		incoterm.enterprise = enterpriseId
 		ok = incoterm.updateIncoterm()
 	case "DELETE":
+		if !permission.Incoterms.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1635,7 +2023,7 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1650,20 +2038,36 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Warehouses.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getWarehouses(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Warehouses.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var warehouse Warehouse
 		json.Unmarshal(body, &warehouse)
 		warehouse.enterprise = enterpriseId
 		ok = warehouse.insertWarehouse()
 	case "PUT":
+		if !permission.Warehouses.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var warehouse Warehouse
 		json.Unmarshal(body, &warehouse)
 		warehouse.enterprise = enterpriseId
 		ok = warehouse.updateWarehouse()
 	case "DELETE":
+		if !permission.Warehouses.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1687,7 +2091,7 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1702,6 +2106,10 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.WarehouseMovements.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
@@ -1709,6 +2117,10 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.WarehouseMovements.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var warehouseMovement WarehouseMovement
 			json.Unmarshal(body, &warehouseMovement)
@@ -1728,6 +2140,10 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 			ok = false
 		}
 	case "DELETE":
+		if !permission.WarehouseMovements.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1751,7 +2167,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1766,18 +2182,30 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.ManufacturingOrders.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal(body, &manufacturingPaginationQuery)
 		data, _ := json.Marshal(manufacturingPaginationQuery.getAllManufacturingOrders(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.ManufacturingOrders.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingOrder ManufacturingOrder
 		json.Unmarshal(body, &manufacturingOrder)
 		manufacturingOrder.UserCreated = userId
 		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.insertManufacturingOrder(userId)
 	case "DELETE":
+		if !permission.ManufacturingOrders.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1801,7 +2229,7 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1816,20 +2244,36 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.ManufacturingOrderTypes.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getManufacturingOrderType(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.ManufacturingOrderTypes.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingOrderType ManufacturingOrderType
 		json.Unmarshal(body, &manufacturingOrderType)
 		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.insertManufacturingOrderType()
 	case "PUT":
+		if !permission.ManufacturingOrderTypes.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingOrderType ManufacturingOrderType
 		json.Unmarshal(body, &manufacturingOrderType)
 		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.updateManufacturingOrderType()
 	case "DELETE":
+		if !permission.ManufacturingOrderTypes.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1853,7 +2297,7 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1868,18 +2312,30 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.ComplexManufacturingOrders.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal(body, &manufacturingPaginationQuery)
 		data, _ := json.Marshal(manufacturingPaginationQuery.getAllComplexManufacturingOrders(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.ComplexManufacturingOrders.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var complexManufacturingOrder ComplexManufacturingOrder
 		json.Unmarshal(body, &complexManufacturingOrder)
 		complexManufacturingOrder.UserCreated = userId
 		complexManufacturingOrder.enterprise = enterpriseId
 		ok, _ = complexManufacturingOrder.insertComplexManufacturingOrder(userId, true)
 	case "DELETE":
+		if !permission.ComplexManufacturingOrders.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1903,7 +2359,7 @@ func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1918,6 +2374,10 @@ func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.ManufacturingOrderTypeComponents.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1927,16 +2387,28 @@ func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.ManufacturingOrderTypeComponents.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingOrderTypeComponent ManufacturingOrderTypeComponents
 		json.Unmarshal(body, &manufacturingOrderTypeComponent)
 		manufacturingOrderTypeComponent.enterprise = enterpriseId
 		ok, _ = manufacturingOrderTypeComponent.insertManufacturingOrderTypeComponents()
 	case "PUT":
+		if !permission.ManufacturingOrderTypeComponents.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var manufacturingOrderTypeComponent ManufacturingOrderTypeComponents
 		json.Unmarshal(body, &manufacturingOrderTypeComponent)
 		manufacturingOrderTypeComponent.enterprise = enterpriseId
 		ok, _ = manufacturingOrderTypeComponent.updateManufacturingOrderTypeComponents()
 	case "DELETE":
+		if !permission.ManufacturingOrderTypeComponents.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1960,7 +2432,7 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -1975,20 +2447,36 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.Shippings.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getShippings(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Shippings.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var shipping Shipping
 		json.Unmarshal(body, &shipping)
 		shipping.enterprise = enterpriseId
 		ok, _ = shipping.insertShipping(userId)
 	case "PUT":
+		if !permission.Shippings.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var shipping Shipping
 		json.Unmarshal(body, &shipping)
 		shipping.enterprise = enterpriseId
 		ok = shipping.updateShipping(userId)
 	case "DELETE":
+		if !permission.Shippings.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2012,7 +2500,7 @@ func apiShippingStatusHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2027,6 +2515,10 @@ func apiShippingStatusHistory(w http.ResponseWriter, r *http.Request) {
 	ok = false
 	switch r.Method {
 	case "GET":
+		if !permission.ShippingStatusHistory.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2049,7 +2541,7 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2063,6 +2555,10 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.Stock.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2081,7 +2577,7 @@ func apiJournal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2095,20 +2591,36 @@ func apiJournal(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.Journal.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getJournals(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Journal.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var journal Journal
 		json.Unmarshal(body, &journal)
 		journal.enterprise = enterpriseId
 		ok = journal.insertJournal()
 	case "PUT":
+		if !permission.Journal.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var journal Journal
 		json.Unmarshal(body, &journal)
 		journal.enterprise = enterpriseId
 		ok = journal.updateJournal()
 	case "DELETE":
+		if !permission.Journal.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2132,7 +2644,7 @@ func apiAccount(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, _, enterpriseId := checkApiKey(r)
+	ok, _, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2146,10 +2658,18 @@ func apiAccount(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.Account.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getAccounts(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Account.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var account Account
 			json.Unmarshal(body, &account)
@@ -2171,11 +2691,19 @@ func apiAccount(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.Account.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var account Account
 		json.Unmarshal(body, &account)
 		account.enterprise = enterpriseId
 		ok = account.updateAccount()
 	case "DELETE":
+		if !permission.Account.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2199,7 +2727,7 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2213,10 +2741,18 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.AccountingMovement.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		data, _ := json.Marshal(getAccountingMovement(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.AccountingMovement.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var accountingMovement AccountingMovement
 			json.Unmarshal(body, &accountingMovement)
@@ -2238,9 +2774,17 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.AccountingMovement.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.AccountingMovement.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2264,7 +2808,7 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2278,6 +2822,10 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.AccountingMovementDetail.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2287,6 +2835,10 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.AccountingMovementDetail.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var accountingMovementDetail AccountingMovementDetail
 			json.Unmarshal(body, &accountingMovementDetail)
@@ -2308,9 +2860,17 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.AccountingMovementDetail.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.AccountingMovementDetail.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2334,7 +2894,7 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2348,6 +2908,10 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.CollectionOperation.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2357,6 +2921,10 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.CollectionOperation.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var collectionOperation CollectionOperation
 			json.Unmarshal(body, &collectionOperation)
@@ -2378,9 +2946,17 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.CollectionOperation.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.CollectionOperation.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2404,7 +2980,7 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2418,6 +2994,10 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.Charges.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2427,6 +3007,10 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Charges.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var charges Charges
 			json.Unmarshal(body, &charges)
@@ -2448,9 +3032,17 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.Charges.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.Charges.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2474,7 +3066,7 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2488,6 +3080,10 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.PaymentTransaction.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2497,6 +3093,10 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PaymentTransaction.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var paymentTransaction PaymentTransaction
 			json.Unmarshal(body, &paymentTransaction)
@@ -2518,9 +3118,17 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.PaymentTransaction.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.PaymentTransaction.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2544,7 +3152,7 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2558,6 +3166,10 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.Payment.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2567,6 +3179,10 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.Payment.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if string(body[0]) == "{" {
 			var Paymenp Payment
 			json.Unmarshal(body, &Paymenp)
@@ -2588,9 +3204,17 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "PUT":
+		if !permission.Payment.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.Payment.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		id, err := strconv.Atoi(string(body))
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -2614,7 +3238,7 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2628,6 +3252,10 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.PostSaleInvoice.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var orderSearch OrderSearch
 		json.Unmarshal(body, &orderSearch)
 		orderSearch.enterprise = enterpriseId
@@ -2636,6 +3264,10 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PostSaleInvoice.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var invoiceIds []int64
 		json.Unmarshal(body, &invoiceIds)
 		result := salesPostInvoices(invoiceIds, enterpriseId, userId)
@@ -2643,9 +3275,17 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(resp)
 		return
 	case "PUT":
+		if !permission.PostSaleInvoice.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.PostSaleInvoice.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -2659,7 +3299,7 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Headers", "content-type")
 	w.Header().Add("Content-type", "application/json")
 	// auth
-	ok, userId, enterpriseId := checkApiKey(r)
+	ok, userId, enterpriseId, permission := checkApiKey(r)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -2673,6 +3313,10 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 	// methods
 	switch r.Method {
 	case "GET":
+		if !permission.PostPurchaseInvoice.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var orderSearch OrderSearch
 		json.Unmarshal(body, &orderSearch)
 		orderSearch.enterprise = enterpriseId
@@ -2681,6 +3325,10 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 		return
 	case "POST":
+		if !permission.PostPurchaseInvoice.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		var invoiceIds []int64
 		json.Unmarshal(body, &invoiceIds)
 		result := purchasePostInvoices(invoiceIds, enterpriseId, userId)
@@ -2688,9 +3336,17 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		w.Write(resp)
 		return
 	case "PUT":
+		if !permission.PostPurchaseInvoice.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
+		if !permission.PostPurchaseInvoice.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}

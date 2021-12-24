@@ -1636,6 +1636,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &t)
 		t.enterprise = enterpriseId
 		ok = t.updatePOSTerminal()
+	case "API_KEY":
+		if !permissions.Admin {
+			return
+		}
+		var a ApiKey
+		json.Unmarshal(message, &a)
+		a.enterprise = enterpriseId
+		ok = a.updateApiKey()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2783,6 +2791,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var info InsertNewSaleOrderDetail
 		json.Unmarshal([]byte(message), &info)
 		data, _ = json.Marshal(info.posInsertNewSaleOrderDetail(enterpriseId, userId))
+	case "GET_EMPTY_API_KEY_PERMISSIONS_OBJECT":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(ApiKeyPermissions{})
 	}
 	ws.WriteMessage(mt, data)
 
