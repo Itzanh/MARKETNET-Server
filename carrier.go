@@ -33,6 +33,8 @@ func getCariers(enterpriseId int32) []Carrier {
 		log("DB", err.Error())
 		return carriers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Carrier{}
 		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress, &c.enterprise)
@@ -116,6 +118,8 @@ func findCarrierByName(languageName string, enterpriseId int32) []NameInt16 {
 		log("DB", err.Error())
 		return carriers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
@@ -150,6 +154,8 @@ func locateCarriers(enterpriseId int32) []LocateCarrier {
 		log("DB", err.Error())
 		return carriers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := LocateCarrier{}
 		rows.Scan(&c.Id, &c.Name)

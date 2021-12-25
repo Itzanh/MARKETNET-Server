@@ -16,6 +16,8 @@ func getManufacturingOrderType(enterpriseId int32) []ManufacturingOrderType {
 		log("DB", err.Error())
 		return types
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		t := ManufacturingOrderType{}
 		rows.Scan(&t.Id, &t.Name, &t.enterprise, &t.QuantityManufactured, &t.Complex)

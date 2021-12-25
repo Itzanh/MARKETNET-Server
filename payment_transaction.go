@@ -34,6 +34,8 @@ func getPendingPaymentTransaction(enterpriseId int32) []PaymentTransaction {
 		log("DB", err.Error())
 		return paymentTransaction
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := PaymentTransaction{}
 		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName, &p.SupplierName)
@@ -85,6 +87,8 @@ func searchPaymentTransactions(search CollectionOperationPaymentTransactionSearc
 		log("DB", err.Error())
 		return paymentTransaction
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := PaymentTransaction{}
 		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName, &p.SupplierName)
@@ -102,6 +106,8 @@ func getPaymentTransactions(accountingMovement int64, enterpriseId int32) []Paym
 		log("DB", err.Error())
 		return paymentTransaction
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := PaymentTransaction{}
 		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetail, &p.Account, &p.Bank, &p.Status, &p.DateCreated, &p.DateExpiration, &p.Total, &p.Paid, &p.Pending, &p.DocumentName, &p.PaymentMethod, &p.enterprise, &p.BankName, &p.PaymentMethodName, &p.AccountName)

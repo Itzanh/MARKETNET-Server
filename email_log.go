@@ -51,6 +51,7 @@ func (search *EmailLogSearch) getEmailLogs(enterpriseId int32) []EmailLog {
 		log("DB", err.Error())
 		return emailLogs
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		p := EmailLog{}

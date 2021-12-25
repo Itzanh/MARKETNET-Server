@@ -219,6 +219,8 @@ func findProductByName(productName string, enterpriseId int32) []NameInt32 {
 		log("DB", err.Error())
 		return products
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := NameInt32{}
 		rows.Scan(&p.Id, &p.Name)
@@ -267,6 +269,8 @@ func getProductSalesOrderDetailsPending(productId int32, enterpriseId int32) []S
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
@@ -285,6 +289,8 @@ func getProductPurchaseOrderDetailsPending(productId int32, enterpriseId int32) 
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
@@ -303,6 +309,8 @@ func getProductSalesOrderDetails(productId int32, enterpriseId int32) []SalesOrd
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
@@ -321,6 +329,8 @@ func getProductPurchaseOrderDetails(productId int32, enterpriseId int32) []Purch
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
@@ -339,6 +349,8 @@ func getProductWarehouseMovement(productId int32, enterpriseId int32) []Warehous
 		log("DB", err.Error())
 		return warehouseMovements
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
@@ -357,6 +369,8 @@ func getProductManufacturingOrders(productId int32, enterpriseId int32) []Manufa
 		log("DB", err.Error())
 		return manufacturingOrders
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		o := ManufacturingOrder{}
 		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
@@ -375,6 +389,7 @@ func getProductComplexManufacturingOrders(productId int32, enterpriseId int32) [
 		log("DB", err.Error())
 		return complexManufacturingOrders
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		o := ComplexManufacturingOrder{}
@@ -435,6 +450,8 @@ func getProductImages(productId int32, enterpriseId int32) []ProductImage {
 		log("DB", err.Error())
 		return image
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := ProductImage{}
 		rows.Scan(&d.Id, &d.Product, &d.URL)
@@ -551,6 +568,7 @@ func calculateMinimumStock(enterpriseId int32, userId int32) bool {
 		trans.Rollback()
 		return false
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var productId int32
@@ -594,6 +612,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 		log("DB", err.Error())
 		return false
 	}
+	defer rows.Close()
 
 	///
 	trans, err := db.Begin()
@@ -719,6 +738,8 @@ func (q *ProductLocateQuery) locateProduct(enterpriseId int32) []ProductLocate {
 		log("DB", err.Error())
 		return products
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := ProductLocate{}
 		rows.Scan(&p.Id, &p.Name, &p.Reference)
@@ -827,6 +848,8 @@ func getProductsByManufacturingOrderType(manufacturingOrderTypeId int32, enterpr
 		log("DB", err.Error())
 		return products
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := Product{}
 		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.FamilyName)

@@ -19,6 +19,8 @@ func getNeeds(enterpriseId int32) []Need {
 		log("DB", err.Error())
 		return needs
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		n := Need{}
 		rows.Scan(&n.Product, &n.ProductName, &n.SupplierName, &n.Quantity)

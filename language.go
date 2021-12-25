@@ -20,6 +20,8 @@ func getLanguages(enterpriseId int32) []Language {
 		log("DB", err.Error())
 		return languages
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		l := Language{}
 		rows.Scan(&l.Id, &l.Name, &l.Iso2, &l.Iso3, &l.enterprise)
@@ -41,6 +43,8 @@ func searchLanguages(search string, enterpriseId int32) []Language {
 		log("DB", err.Error())
 		return languages
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		l := Language{}
 		rows.Scan(&l.Id, &l.Name, &l.Iso2, &l.Iso3, &l.enterprise)
@@ -106,6 +110,8 @@ func findLanguageByName(languageName string, enterpriseId int32) []NameInt16 {
 		log("DB", err.Error())
 		return languages
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		l := NameInt16{}
 		rows.Scan(&l.Id, &l.Name)

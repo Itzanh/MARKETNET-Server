@@ -26,6 +26,7 @@ func crashreporter() {
 		fmt.Println(err)
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		l := Log{}

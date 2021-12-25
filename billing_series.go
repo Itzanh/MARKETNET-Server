@@ -20,6 +20,8 @@ func getBillingSeries(enterpriseId int32) []BillingSerie {
 		log("DB", err.Error())
 		return series
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := BillingSerie{}
 		rows.Scan(&s.Id, &s.Name, &s.BillingType, &s.Year, &s.enterprise)
@@ -167,6 +169,8 @@ func findBillingSerieByName(billingSerieName string, enterpriseId int32) []NameS
 		log("DB", err.Error())
 		return billingSeries
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		b := NameString{}
 		rows.Scan(&b.Id, &b.Name)
@@ -201,6 +205,8 @@ func locateBillingSeries(enterpriseId int32) []LocateBillingSerie {
 		log("DB", err.Error())
 		return series
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := LocateBillingSerie{}
 		rows.Scan(&s.Id, &s.Name)

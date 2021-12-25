@@ -66,6 +66,7 @@ func (q *PaginationQuery) getSalesOrder(enterpriseId int32) SaleOrders {
 		log("DB", err.Error())
 		return so
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		s := SaleOrder{}
@@ -129,6 +130,8 @@ func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
 		log("DB", err.Error())
 		return so
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -187,6 +190,8 @@ func getSalesOrderStatus(status string, enterpriseId int32) []SaleOrder {
 	if err != nil {
 		return sales
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -201,13 +206,13 @@ func getSalesOrderStatus(status string, enterpriseId int32) []SaleOrder {
 
 func getSalesOrderRow(id int64) SaleOrder {
 	sqlStatement := `SELECT * FROM sales_order WHERE id = $1 ORDER BY date_created DESC`
-	rows := db.QueryRow(sqlStatement, id)
-	if rows.Err() != nil {
+	row := db.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
 		return SaleOrder{}
 	}
 
 	s := SaleOrder{}
-	rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+	row.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 		&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
 		&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.prestaShopId,
 		&s.wooCommerceId, &s.shopifyId, &s.shopifyDraftId, &s.enterprise)
@@ -497,6 +502,8 @@ func getSalesOrderInvoices(orderId int64, enterpriseId int32) []SalesInvoice {
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -517,6 +524,8 @@ func getSalesOrderManufacturingOrders(orderId int64, enterpriseId int32) []Manuf
 		log("DB", err.Error())
 		return manufacturingOrders
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		o := ManufacturingOrder{}
 		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName)
@@ -535,6 +544,7 @@ func getSalesOrderComplexManufacturingOrders(orderId int64, enterpriseId int32) 
 		log("DB", err.Error())
 		return complexManufacturingOrders
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		o := ComplexManufacturingOrder{}
@@ -554,6 +564,8 @@ func getSalesOrderDeliveryNotes(orderId int64, enterpriseId int32) []SalesDelive
 		log("DB", err.Error())
 		return notes
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := SalesDeliveryNote{}
 		rows.Scan(&p.Id, &p.Warehouse, &p.Customer, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.VatAmount, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.enterprise)
@@ -572,6 +584,8 @@ func getSalesOrderShippings(orderId int64, enterpriseId int32) []Shipping {
 		log("DB", err.Error())
 		return shippings
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Shipping{}
 		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
@@ -637,6 +651,8 @@ func (query *SaleOrderLocateQuery) locateSaleOrder(enterpriseId int32) SaleOrder
 		log("DB", err.Error())
 		return res
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SaleOrderLocate{}
 		rows.Scan(&s.Id, &s.Customer, &s.CustomerName, &s.OrderName, &s.DateCreated)

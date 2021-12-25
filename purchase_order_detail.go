@@ -29,6 +29,8 @@ func getPurchaseOrderDetail(orderId int64, enterpriseId int32) []PurchaseOrderDe
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
@@ -171,6 +173,7 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, produc
 		log("DB", err.Error())
 		return -1
 	}
+	defer rows.Close()
 
 	var quantityAssignedSale int32
 	for quantityAssignedSale < quantity {
@@ -388,6 +391,7 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseI
 		log("DB", err.Error())
 		return false
 	}
+	defer rows.Close()
 
 	sqlStatement = `UPDATE sales_order_detail SET status='E' WHERE purchase_order_detail=$1 AND status='B'`
 	_, err = db.Exec(sqlStatement, detailId)
@@ -413,6 +417,7 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 		log("DB", err.Error())
 		return false
 	}
+	defer rows.Close()
 
 	sqlStatement = `UPDATE sales_order_detail SET status='B' WHERE purchase_order_detail=$1 AND status='E'`
 	_, err = db.Exec(sqlStatement, detailId)
@@ -438,6 +443,7 @@ func setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int6
 		log("DB", err.Error())
 		return false
 	}
+	defer rows.Close()
 
 	var complexManufacturingOrders []int64 = make([]int64, 0)
 
@@ -467,6 +473,7 @@ func undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int
 		log("DB", err.Error())
 		return false
 	}
+	defer rows.Close()
 
 	var complexManufacturingOrders []int64 = make([]int64, 0)
 
@@ -503,6 +510,7 @@ func getSalesOrderDetailsFromPurchaseOrderDetail(detailId int64, enterpriseId in
 		log("DB", err.Error())
 		return purchaseSalesOrderDetail
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		p := PurchaseSalesOrderDetail{}
@@ -529,6 +537,7 @@ func getComplexManufacturingOrdersFromPurchaseOrderDetail(detailId int64, enterp
 		log("DB", err.Error())
 		return purchaseComplexManufacturingOrder
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		o := PurchaseComplexManufacturingOrder{}

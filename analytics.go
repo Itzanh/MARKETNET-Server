@@ -29,6 +29,7 @@ func monthlySalesAmount(year *int16, enterpriseId int32) []MonthlySalesAmount {
 		log("DB", err.Error())
 		return acounts
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		m := MonthlySalesAmount{}
@@ -61,6 +62,7 @@ func monthlySalesQuantity(year *int16, enterpriseId int32) []MonthlySalesQuantit
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		q := MonthlySalesQuantity{}
@@ -86,6 +88,7 @@ func salesOfAProductQuantity(productId int32, enterpriseId int32) []SalesOfAProd
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		q := SalesOfAProductQuantity{}
@@ -112,6 +115,7 @@ func salesOfAProductAmount(productId int32, enterpriseId int32) []SalesOfAProduc
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		q := SalesOfAProductAmount{}
@@ -145,6 +149,7 @@ func daysOfServiceSaleOrders(year *int16, enterpriseId int32) []DaysOfServiceSal
 		log("DB", err.Error())
 		return days
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := DaysOfServiceSaleOrders{}
@@ -178,6 +183,7 @@ func daysOfServicePurchaseOrders(year *int16, enterpriseId int32) []DaysOfServic
 		log("DB", err.Error())
 		return days
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := DaysOfServicePurchaseOrders{}
@@ -211,6 +217,7 @@ func purchaseOrdersByMonthAmount(year *int16, enterpriseId int32) []PurchaseOrde
 		log("DB", err.Error())
 		return amounts
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := PurchaseOrdersByMonthAmount{}
@@ -244,6 +251,7 @@ func paymentMethodsSaleOrdersAmount(year *int16, enterpriseId int32) []PaymentMe
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		q := PaymentMethodsSaleOrdersQuantity{}
@@ -292,6 +300,7 @@ func (q *CountriesSaleOrdersQuery) countriesSaleOrdersAmount(enterpriseId int32)
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		q := CountriesSaleOrdersAmount{}
@@ -325,6 +334,7 @@ func manufacturingOrderCreatedManufacturedDaily(enterpriseId int32) Manufacturin
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := ManufacturingOrderCreatedManufacturedDaily{}
@@ -338,6 +348,7 @@ func manufacturingOrderCreatedManufacturedDaily(enterpriseId int32) Manufacturin
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := ManufacturingOrderCreatedManufacturedDaily{}
@@ -363,6 +374,7 @@ func dailyShippingQuantity(enterpriseId int32) []DailyShippingQuantity {
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := DailyShippingQuantity{}
@@ -389,6 +401,7 @@ func shippingByCarriers(enterpriseId int32) []ShippingByCarriers {
 		log("DB", err.Error())
 		return quantity
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		s := ShippingByCarriers{}

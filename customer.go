@@ -50,6 +50,8 @@ func (q *PaginationQuery) getCustomers() Customers {
 		log("DB", err.Error())
 		return ct
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Customer{}
 		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.enterprise, &c.CountryName)
@@ -80,6 +82,8 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 		log("DB", err.Error())
 		return ct
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Customer{}
 		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.enterprise, &c.CountryName)
@@ -204,6 +208,8 @@ func findCustomerByName(customerName string, enterpriseId int32) []NameInt32 {
 		log("DB", err.Error())
 		return customers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt32{}
 		rows.Scan(&c.Id, &c.Name)
@@ -261,6 +267,8 @@ func getCustomerAddresses(customerId int32, enterpriseId int32) []Address {
 		log("DB", err.Error())
 		return addresses
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := Address{}
 		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.enterprise, &a.ContactName, &a.CountryName, &a.StateName)
@@ -278,6 +286,8 @@ func getCustomerSaleOrders(customerId int32, enterpriseId int32) []SaleOrder {
 		log("DB", err.Error())
 		return sales
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,

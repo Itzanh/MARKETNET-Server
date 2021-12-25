@@ -35,6 +35,7 @@ func (query *TransactionalLogQuery) getRegisterTransactionalLogs() []Transaction
 		log("DB", err.Error())
 		return logs
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		s := TransactionalLog{}
@@ -67,6 +68,7 @@ func insertTransactionalLog(enterpriseId int32, tableName string, registerId int
 		log("DB", err.Error())
 		return
 	}
+	defer rows.Close()
 
 	columnNames := make([]string, 0)
 	for rows.Next() {

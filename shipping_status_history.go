@@ -19,6 +19,7 @@ func getShippingStatusHistory(enterpriseId int32, shippingId int64) []ShippingSt
 		log("DB", err.Error())
 		return shippingStatusHistory
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		s := ShippingStatusHistory{}

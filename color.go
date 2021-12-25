@@ -17,6 +17,8 @@ func getColor(enterpriseId int32) []Color {
 		log("DB", err.Error())
 		return color
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Color{}
 		rows.Scan(&c.Id, &c.Name, &c.HexColor, &c.enterprise)
@@ -86,6 +88,8 @@ func findColorByName(colorName string, enterpriseId int32) []NameInt16 {
 		log("DB", err.Error())
 		return colors
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
@@ -120,6 +124,8 @@ func locateColor(enterpriseId int32) []ColorLocate {
 		log("DB", err.Error())
 		return color
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := ColorLocate{}
 		rows.Scan(&c.Id, &c.Name)

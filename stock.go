@@ -20,6 +20,8 @@ func getStock(productId int32, enterpriseId int32) []Stock {
 		log("DB", err.Error())
 		return stock
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Stock{}
 		rows.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaialbe, &s.QuantityPendingManufacture, &s.enterprise, &s.WarehouseName)

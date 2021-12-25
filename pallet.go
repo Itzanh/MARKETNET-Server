@@ -37,6 +37,8 @@ func getSalesOrderPallets(orderId int64, enterpriseId int32) Pallets {
 		log("DB", err.Error())
 		return Pallets{}
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := Pallet{}
 		rows.Scan(&p.Id, &p.SalesOrder, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Name, &p.enterprise)

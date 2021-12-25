@@ -767,6 +767,7 @@ func copyPsCurrencies(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var isoCode string
@@ -810,6 +811,7 @@ func copyPsCountries(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var isoCode string
@@ -859,6 +861,7 @@ func copyPsStates(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var isoCode string
@@ -916,6 +919,7 @@ func copyPsCustomers(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id int32
@@ -1007,6 +1011,7 @@ func copyPsAddresses(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id int32
@@ -1131,6 +1136,7 @@ func copyPsLanguages(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var isoCode string
@@ -1159,6 +1165,7 @@ func copyPsCarriers(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id int32
@@ -1197,6 +1204,7 @@ func copyPsProducts(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var ps_productId int32
@@ -1306,6 +1314,8 @@ func copyPsProducts(enterpriseId int32) {
 					p.updateProduct(0)
 				}
 			}
+
+			rows.Close()
 		}
 
 	}
@@ -1319,6 +1329,7 @@ func copyPsOrders(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var orderId int32
@@ -1476,6 +1487,7 @@ func copyPsOrderDetails(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	orderIds := make([]int64, 0)
 
@@ -1587,6 +1599,8 @@ func getPSZones(enterpriseId int32) []PSZoneWeb {
 	if err != nil {
 		return zones
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		z := PSZoneWeb{}
 		rows.Scan(&z.Id, &z.Name, &z.Zone, &z.enterprise)

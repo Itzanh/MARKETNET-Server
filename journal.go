@@ -15,6 +15,7 @@ func getJournals(enterpriseId int32) []Journal {
 		log("DB", err.Error())
 		return journals
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		j := Journal{}

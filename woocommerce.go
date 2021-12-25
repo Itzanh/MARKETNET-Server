@@ -359,6 +359,7 @@ func copyWcCustomers(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var wcCustomerId int32
@@ -766,6 +767,7 @@ func copyWcProducts(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var wcCustomerId int32
@@ -1007,6 +1009,7 @@ func copyWcOrders(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var id int32
@@ -1298,6 +1301,7 @@ func copyWcOrders(enterpriseId int32) {
 			d.insertSalesOrderDetail(0)
 
 		} // for rows.Next() {
+		rows.Close()
 
 		// if the payment method is paid in advance, it means that this order is already paid (by VISA o PayPal etc)
 		// automatically generate an invoice for this payment

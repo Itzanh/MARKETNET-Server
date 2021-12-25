@@ -281,6 +281,7 @@ func getShippingTrackingSendCloud(enterpriseId int32) {
 		log("DB", err.Error())
 		return
 	}
+	defer rows.Close()
 
 	var shippingId int64
 	var shippingNumber string

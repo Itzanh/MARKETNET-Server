@@ -50,6 +50,8 @@ func getPurchaseOrder(enterpriseId int32) []PurchaseOrder {
 		log("DB", err.Error())
 		return purchases
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := PurchaseOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -89,6 +91,8 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 		log("DB", err.Error())
 		return purchases
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := PurchaseOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -347,6 +351,8 @@ func getPurchaseOrderInvoices(orderId int64, enterpriseId int32) []PurchaseInvoi
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -367,6 +373,8 @@ func getPurchaseOrderDeliveryNotes(orderId int64, enterpriseId int32) []Purchase
 		log("DB", err.Error())
 		return products
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := PurchaseDeliveryNote{}
 		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.enterprise)

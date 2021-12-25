@@ -37,6 +37,8 @@ func getApiKeys(enterpriseId int32) []ApiKey {
 		log("DB", err.Error())
 		return keys
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := ApiKey{}
 		rows.Scan(&a.Id, &a.Name, &a.DateCreated, &a.UserCreated, &a.Off, &a.User, &a.Token, &a.enterprise, &a.Auth, &a.BasicAuthUser, &a.BasicAuthPassword, &a.permissionsJson, &a.UserCreatedName, &a.UserName)

@@ -31,6 +31,7 @@ func getAccountingMovementDetail(movementId int64, enterpriseId int32) []Account
 		log("DB", err.Error())
 		return accountingMovementDetail
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := AccountingMovementDetail{}

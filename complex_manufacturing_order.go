@@ -56,6 +56,8 @@ func (q *PaginationQuery) getAllComplexManufacturingOrders(enterpriseId int32) C
 		log("DB", err.Error())
 		return mo
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		o := ComplexManufacturingOrder{}
 		rows.Scan(&o.Id, &o.Type, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.enterprise, &o.QuantityPendingManufacture, &o.QuantityManufactured, &o.Warehouse, &o.DateCreated, &o.Uuid, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.UserTagPrinted, &o.TypeName, &o.UserCreatedName, &o.UserManufactured, &o.UserTagPrintedName)
@@ -82,6 +84,7 @@ func (q *ComplexManufacturingPaginationQuery) getComplexManufacturingOrdersByTyp
 		log("DB", err.Error())
 		return mo
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		o := ComplexManufacturingOrder{}
@@ -762,6 +765,7 @@ func getComplexManufacturingOrderManufacturingOrder(complexManufacturingOrderId 
 		log("DB", err.Error())
 		return orders
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		c := ComplexManufacturingOrderManufacturingOrder{}

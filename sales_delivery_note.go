@@ -50,6 +50,8 @@ func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
 		log("DB", err.Error())
 		return sd
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		n := SalesDeliveryNote{}
 		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.enterprise, &n.CustomerName)
@@ -112,6 +114,8 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 		log("DB", err.Error())
 		return sd
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		n := SalesDeliveryNote{}
 		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.enterprise, &n.CustomerName)
@@ -370,6 +374,8 @@ func locateSalesDeliveryNotesBySalesOrder(orderId int64, enterpriseId int32) []S
 		log("DB", err.Error())
 		return products
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := SalesDeliveryNoteLocate{}
 		rows.Scan(&p.Id, &p.CustomerName, &p.DateCreated, &p.DeliveryNoteName)
@@ -411,6 +417,8 @@ func getSalesDeliveryNoteOrders(noteId int64, enterpriseId int32) []SaleOrder {
 		log("DB", err.Error())
 		return sales
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -431,6 +439,8 @@ func getSalesDeliveryNoteShippings(noteId int64) []Shipping {
 		log("DB", err.Error())
 		return shippings
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Shipping{}
 		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)

@@ -15,6 +15,8 @@ func getIncoterm(enterpriseId int32) []Incoterm {
 		log("DB", err.Error())
 		return incoterms
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := Incoterm{}
 		rows.Scan(&i.Id, &i.Key, &i.Name, &i.enterprise)

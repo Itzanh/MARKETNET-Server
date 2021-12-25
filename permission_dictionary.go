@@ -19,6 +19,7 @@ func getPermissionDictionary(enterpriseId int32) []PermissionDictionary {
 		log("DB", err.Error())
 		return dictionary
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := PermissionDictionary{}
@@ -56,6 +57,7 @@ func getPermissionDictionaryGroupIn(enterpriseId int32, groupId int32) []Permiss
 		log("DB", err.Error())
 		return dictionary
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := PermissionDictionaryGroup{}
@@ -126,6 +128,7 @@ func getPermissionDictionaryUserGroupInForWebClient(userId int32) []string {
 		log("DB", err.Error())
 		return dictionary
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		d := ""

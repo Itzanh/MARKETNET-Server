@@ -38,6 +38,8 @@ func (q *PaginationQuery) getAddresses() Addresses {
 		log("DB", err.Error())
 		return ad
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := Address{}
 		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.enterprise, &a.ContactName, &a.CountryName, &a.StateName)
@@ -78,6 +80,8 @@ func (s *PaginatedSearch) searchAddresses() Addresses {
 		log("DB", err.Error())
 		return ad
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := Address{}
 		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.enterprise, &a.ContactName, &a.CountryName, &a.StateName)
@@ -209,6 +213,8 @@ func locateAddressByCustomer(customerId int32, enterpriseId int32) []AddressLoca
 		log("DB", err.Error())
 		return addresses
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := AddressLocate{}
 		rows.Scan(&a.Id, &a.Address)
@@ -226,6 +232,8 @@ func locateAddressBySupplier(supplierId int32, enterpriseId int32) []AddressLoca
 		log("DB", err.Error())
 		return addresses
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := AddressLocate{}
 		rows.Scan(&a.Id, &a.Address)

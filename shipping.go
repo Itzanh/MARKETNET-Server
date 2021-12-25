@@ -40,6 +40,8 @@ func getShippings(enterpriseId int32) []Shipping {
 		log("DB", err.Error())
 		return shippings
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Shipping{}
 		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
@@ -64,6 +66,8 @@ func searchShippings(search string, enterpriseId int32) []Shipping {
 		log("DB", err.Error())
 		return shippings
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Shipping{}
 		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)
@@ -95,6 +99,8 @@ func getShippingsPendingCollected(enterpriseId int32) []Shipping {
 		log("DB", err.Error())
 		return shippings
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Shipping{}
 		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName, &s.CarrierWebService)

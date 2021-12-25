@@ -21,6 +21,8 @@ func getDocumentContainer(enterpriseId int32) []DocumentContainer {
 		log("DB", err.Error())
 		return containters
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := DocumentContainer{}
 		rows.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise)
@@ -109,6 +111,8 @@ func locateDocumentContainer(enterpriseId int32) []DocumentContainerLocate {
 		log("DB", err.Error())
 		return containters
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := DocumentContainerLocate{}
 		rows.Scan(&d.Id, &d.Name)

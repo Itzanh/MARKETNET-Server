@@ -19,6 +19,8 @@ func getPackages(enterpriseId int32) []Packages {
 		log("DB", err.Error())
 		return products
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := Packages{}
 		rows.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Product, &p.enterprise)

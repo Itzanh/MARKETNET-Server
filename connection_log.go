@@ -29,6 +29,7 @@ func (q *PaginationQuery) getConnectionLogs() ConnectionLogs {
 		log("DB", err.Error())
 		return ConnectionLogs{}
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		l := ConnectionLog{}
@@ -126,6 +127,7 @@ func getConnectionFilters(enterpriseId int32) []ConnectionFilter {
 		log("DB", err.Error())
 		return filters
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f := ConnectionFilter{}
@@ -157,6 +159,7 @@ func getConnectionFiltersByUser(userId int32) []ConnectionFilter {
 		log("DB", err.Error())
 		return filters
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f := ConnectionFilter{}
@@ -228,6 +231,7 @@ func getConnectionFilterUser(filterId int32, enterpriseId int32) []ConnectionFil
 		log("DB", err.Error())
 		return filters
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f := ConnectionFilterUser{}

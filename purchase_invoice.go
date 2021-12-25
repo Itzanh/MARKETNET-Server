@@ -42,6 +42,8 @@ func getPurchaseInvoices(enterpriseId int32) []PurchaseInvoice {
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -84,6 +86,8 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -457,6 +461,8 @@ func getPurchaseInvoiceOrders(orderId int64, enterpriseId int32) []PurchaseOrder
 		log("DB", err.Error())
 		return orders
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := PurchaseOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -486,6 +492,7 @@ func getPurchaseInvoiceAmendingAmendedInvoices(invoiceId int64, enterpriseId int
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		inv := PurchaseInvoice{}

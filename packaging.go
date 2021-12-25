@@ -22,6 +22,8 @@ func getPackaging(salesOrderId int64, enterpriseId int32) []Packaging {
 		log("DB", err.Error())
 		return packaging
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := Packaging{}
 		rows.Scan(&p.Id, &p.Package, &p.SalesOrder, &p.Weight, &p.Shipping, &p.Pallet, &p.enterprise)

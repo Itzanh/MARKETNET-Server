@@ -20,6 +20,8 @@ func getSalesOrderDetailPackaged(packagingId int64, enterpriseId int32) []SalesO
 		log("DB", err.Error())
 		return packaged
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := SalesOrderDetailPackaged{}
 		rows.Scan(&p.OrderDetail, &p.Packaging, &p.Quantity, &p.enterprise)

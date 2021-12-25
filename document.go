@@ -48,6 +48,8 @@ func getDocuments(enterpriseId int32) []Document {
 		log("DB", err.Error())
 		return document
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := Document{}
 		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
@@ -95,6 +97,8 @@ func (d *Document) getDocumentsRelations(enterpriseId int32) []Document {
 		log("DB", err.Error())
 		return document
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := Document{}
 		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)

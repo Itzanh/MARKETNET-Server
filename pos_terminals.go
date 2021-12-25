@@ -29,6 +29,7 @@ func getPOSTerminals(enterpriseId int32) []POSTerminal {
 		log("DB", err.Error())
 		return posTerminals
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var t POSTerminal

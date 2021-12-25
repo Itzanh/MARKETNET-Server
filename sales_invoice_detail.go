@@ -26,6 +26,8 @@ func getSalesInvoiceDetail(invoiceId int64, enterpriseId int32) []SalesInvoiceDe
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesInvoiceDetail{}
 		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.ProductName)

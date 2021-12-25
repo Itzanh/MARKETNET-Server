@@ -41,6 +41,8 @@ func getUser(enterpriseId int32) []User {
 		log("DB", err.Error())
 		return users
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		u := User{}
 		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)

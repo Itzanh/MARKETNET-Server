@@ -25,6 +25,8 @@ func getCountries(enterpriseId int32) []Country {
 		log("DB", err.Error())
 		return countries
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Country{}
 		rows.Scan(&c.Id, &c.Name, &c.Iso2, &c.Iso3, &c.UNCode, &c.Zone, &c.PhonePrefix, &c.Language, &c.Currency, &c.enterprise)
@@ -60,6 +62,8 @@ func searchCountries(search string, enterpriseId int32) []Country {
 		log("DB", err.Error())
 		return countries
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Country{}
 		rows.Scan(&c.Id, &c.Name, &c.Iso2, &c.Iso3, &c.UNCode, &c.Zone, &c.PhonePrefix, &c.Language, &c.Currency, &c.enterprise)
@@ -125,6 +129,8 @@ func findCountryByName(languageName string, enterpriseId int32) []NameInt16 {
 		log("DB", err.Error())
 		return countries
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)

@@ -470,6 +470,7 @@ func copySyCustomers(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var syCustomerId int64
@@ -534,6 +535,7 @@ func copySyCustomers(enterpriseId int32) {
 				log("DB", rows.Err().Error())
 				return
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var id int64
@@ -629,6 +631,7 @@ func copySyCustomers(enterpriseId int32) {
 				log("DB", rows.Err().Error())
 				return
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var id int64
@@ -720,6 +723,7 @@ func copySyProducts(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var syProductId int64
@@ -750,6 +754,7 @@ func copySyProducts(enterpriseId int32) {
 			log("DB", err.Error())
 			return
 		}
+		defer rowsVariants.Close()
 
 		for rowsVariants.Next() {
 			v := SYVariantDB{}
@@ -917,6 +922,7 @@ func copySyDraftOrders(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var syDraftOrderId int64
@@ -1049,6 +1055,7 @@ func copySyDraftOrders(enterpriseId int32) {
 				log("DB", err.Error())
 				return
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var id int64
@@ -1137,6 +1144,7 @@ func copySyDraftOrders(enterpriseId int32) {
 				log("DB", err.Error())
 				return
 			}
+			defer rows.Close()
 
 			for rows.Next() {
 				var id int64
@@ -1211,6 +1219,7 @@ func copySyOrders(enterpriseId int32) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var syOrderId int64
@@ -1391,6 +1400,7 @@ func copySyOrders(enterpriseId int32) {
 				log("DB", err.Error())
 				return
 			}
+			defer rows.Close()
 
 			details := getSalesOrderDetail(o.Id, enterpriseId)
 

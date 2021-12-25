@@ -50,6 +50,8 @@ func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
 		log("DB", err.Error())
 		return wm
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
@@ -81,6 +83,8 @@ func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() Warehou
 		log("DB", err.Error())
 		return wm
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
@@ -123,6 +127,8 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int64, enterpriseId int32) [
 		log("DB", err.Error())
 		return warehouseMovements
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
@@ -144,6 +150,8 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int64, enterpriseId int32
 		log("DB", err.Error())
 		return warehouseMovements
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
@@ -187,6 +195,8 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 		log("DB", err.Error())
 		return wm
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		m := WarehouseMovement{}
 		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
@@ -357,6 +367,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 		trans.Rollback()
 		return false
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var movementId int64
@@ -485,6 +496,8 @@ func regenerateDraggedStock(warehouseId string, enterpriseId int32) bool {
 				return false
 			}
 		}
+
+		rows.Close()
 	}
 
 	///

@@ -25,6 +25,7 @@ func getPayments(paymentTransaction int32, enterpriseId int32) []Payment {
 		log("DB", err.Error())
 		return payments
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		p := Payment{}

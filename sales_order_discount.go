@@ -17,6 +17,8 @@ func getSalesOrderDiscounts(orderId int64, enterpriseId int32) []SalesOrderDisco
 		log("DB", err.Error())
 		return discounts
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesOrderDiscount{}
 		rows.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise)

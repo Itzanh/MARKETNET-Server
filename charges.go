@@ -25,6 +25,7 @@ func getCharges(collectionOperation int32, enterpriseId int32) []Charges {
 		log("DB", err.Error())
 		return charges
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		c := Charges{}

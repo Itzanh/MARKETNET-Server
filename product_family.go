@@ -19,6 +19,8 @@ func getProductFamilies(enterpriseId int32) []ProductFamily {
 		log("DB", err.Error())
 		return families
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		f := ProductFamily{}
 		rows.Scan(&f.Id, &f.Name, &f.Reference, &f.enterprise)
@@ -88,6 +90,8 @@ func findProductFamilyByName(productFamilyName string, enterpriseId int32) []Nam
 		log("DB", err.Error())
 		return productFamily
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := NameInt16{}
 		rows.Scan(&p.Id, &p.Name)
@@ -122,6 +126,8 @@ func locateProductFamilies(enterpriseId int32) []ProductFamilyLocate {
 		log("DB", err.Error())
 		return families
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		f := ProductFamilyLocate{}
 		rows.Scan(&f.Id, &f.Name)

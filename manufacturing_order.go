@@ -63,6 +63,8 @@ func (q *PaginationQuery) getAllManufacturingOrders(enterpriseId int32) Manufact
 		log("DB", err.Error())
 		return mo
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		o := ManufacturingOrder{}
 		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
@@ -89,6 +91,8 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 		log("DB", err.Error())
 		return mo
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		o := ManufacturingOrder{}
 		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
@@ -128,6 +132,7 @@ func getManufacturingOrdersForStockPending(enterpriseId int32, productId int32) 
 		log("DB", err.Error())
 		return orders
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		o := ManufacturingOrder{}

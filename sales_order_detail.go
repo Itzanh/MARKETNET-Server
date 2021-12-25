@@ -35,6 +35,8 @@ func getSalesOrderDetail(orderId int64, enterpriseId int32) []SalesOrderDetail {
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName, &d.DigitalProduct)
@@ -67,6 +69,8 @@ func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDet
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise)
@@ -85,6 +89,8 @@ func getSalesOrderDetailPurchaseOrderPending(purchaseOrderDetail int64) []SalesO
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := SalesOrderDetail{}
 		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise)
@@ -420,6 +426,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 					// fallback
 					return "C", nil
 				}
+				defer rows.Close()
 
 				var orders []int64 = make([]int64, 0)
 				var quantities []int32 = make([]int32, 0)
@@ -465,7 +472,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 					// fallback
 					return "C", nil
 				}
-
+				defer rows.Close()
 				var totalQuantityManufactured int32 = 0
 				var orders []int64 = make([]int64, 0)
 				var quantities []int32 = make([]int32, 0)
@@ -691,6 +698,7 @@ func getPurchasesOrderDetailsFromSaleOrderDetail(detailId int32, enterpriseId in
 		log("DB", err.Error())
 		return salePurchasesOrderDetail
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		p := SalePurchasesOrderDetail{}

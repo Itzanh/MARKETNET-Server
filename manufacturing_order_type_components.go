@@ -23,6 +23,7 @@ func getManufacturingOrderTypeComponents(manfuacturingOrderTypeId int32, enterpr
 		log("DB", err.Error())
 		return components
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var c ManufacturingOrderTypeComponents

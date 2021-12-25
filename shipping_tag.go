@@ -20,6 +20,8 @@ func getShippingTags(shippingId int64, enterpriseId int32) []ShippingTag {
 		log("DB", err.Error())
 		return tags
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		t := ShippingTag{}
 		rows.Scan(&t.Id, &t.Shipping, &t.DateCreated, &t.Label, &t.enterprise)

@@ -27,6 +27,7 @@ func getAccountingMovement(enterpriseId int32) []AccountingMovement {
 		log("DB", err.Error())
 		return accountingMovements
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := AccountingMovement{}
@@ -45,6 +46,7 @@ func searchAccountingMovements(search string, enterpriseId int32) []AccountingMo
 		log("DB", err.Error())
 		return accountingMovements
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := AccountingMovement{}
@@ -643,6 +645,8 @@ func getAccountingMovementSaleInvoices(movementId int64) []SalesInvoice {
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -662,6 +666,8 @@ func getAccountingMovementPurchaseInvoices(movementId int64) []PurchaseInvoice {
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,

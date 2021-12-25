@@ -53,6 +53,8 @@ func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
 		log("DB", err.Error())
 		return si
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -113,6 +115,8 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 		log("DB", err.Error())
 		return si
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		i := SalesInvoice{}
 		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
@@ -565,6 +569,8 @@ func getSalesInvoiceOrders(invoiceId int64, enterpriseId int32) []SaleOrder {
 		log("DB", err.Error())
 		return orders
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SaleOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -585,6 +591,8 @@ func getSalesInvoiceDeliveryNotes(invoiceId int64, enterpriseId int32) []SalesDe
 		log("DB", err.Error())
 		return notes
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		n := SalesDeliveryNote{}
 		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.enterprise)
@@ -612,6 +620,7 @@ func getSalesInvoiceAmendingAmendedInvoices(invoiceId int64, enterpriseId int32)
 		log("DB", err.Error())
 		return invoices
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		inv := SalesInvoice{}

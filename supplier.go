@@ -37,6 +37,8 @@ func getSuppliers(enterpriseId int32) []Supplier {
 		log("DB", err.Error())
 		return suppliers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Supplier{}
 		rows.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated, &s.Account, &s.enterprise, &s.CountryName)
@@ -54,6 +56,8 @@ func searchSuppliers(search string, enterpriseId int32) []Supplier {
 		log("DB", err.Error())
 		return suppliers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := Supplier{}
 		rows.Scan(&s.Id, &s.Name, &s.Tradename, &s.FiscalName, &s.TaxId, &s.VatNumber, &s.Phone, &s.Email, &s.MainAddress, &s.Country, &s.State, &s.MainShippingAddress, &s.MainBillingAddress, &s.Language, &s.PaymentMethod, &s.BillingSeries, &s.DateCreated, &s.Account, &s.enterprise, &s.CountryName)
@@ -170,6 +174,8 @@ func findSupplierByName(languageName string, enterpriseId int32) []NameInt32 {
 		log("DB", err.Error())
 		return customers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt32{}
 		rows.Scan(&c.Id, &c.Name)
@@ -211,6 +217,8 @@ func getSupplierAddresses(supplierId int32, enterpriseId int32) []Address {
 		log("DB", err.Error())
 		return addresses
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		a := Address{}
 		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.enterprise, &a.ContactName, &a.CountryName, &a.StateName)
@@ -228,6 +236,8 @@ func getSupplierPurchaseOrders(supplierId int32, enterpriseId int32) []PurchaseO
 		log("DB", err.Error())
 		return purchases
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := PurchaseOrder{}
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
@@ -305,6 +315,8 @@ func (q *SupplierLocateQuery) locateSuppliers(enterpriseId int32) []SupplierLoca
 		log("DB", err.Error())
 		return suppliers
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := SupplierLocate{}
 		rows.Scan(&s.Id, &s.Name)

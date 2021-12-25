@@ -22,6 +22,8 @@ func getPaymentMethods(enterpriseId int32) []PaymentMethod {
 		log("DB", err.Error())
 		return paymentMethod
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := PaymentMethod{}
 		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName, &p.ShopifyModuleName, &p.enterprise)
@@ -105,6 +107,8 @@ func findPaymentMethodByName(paymentMethodName string, enterpriseId int32) []Nam
 		log("DB", err.Error())
 		return paymentMethods
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := NameInt16{}
 		rows.Scan(&p.Id, &p.Name)
@@ -139,6 +143,8 @@ func locatePaymentMethods(enterpriseId int32) []LocatePaymentMethod {
 		log("DB", err.Error())
 		return paymentMethod
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		p := LocatePaymentMethod{}
 		rows.Scan(&p.Id, &p.Name)

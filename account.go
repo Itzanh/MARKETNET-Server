@@ -24,6 +24,7 @@ func getAccounts(enterpriseId int32) []Account {
 		log("DB", err.Error())
 		return accounts
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := Account{}
@@ -54,6 +55,7 @@ func (s *AccountSearch) searchAccounts(enterpriseId int32) []Account {
 		log("DB", err.Error())
 		return accounts
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := Account{}
@@ -178,6 +180,7 @@ func locateAccountForCustomer(enterpriseId int32) []AccountLocate {
 		log("DB", err.Error())
 		return accounts
 	}
+	defer rows.Close()
 
 	var journal int16
 	var accountNumber int32
@@ -202,6 +205,7 @@ func locateAccountForSupplier(enterpriseId int32) []AccountLocate {
 		log("DB", err.Error())
 		return accounts
 	}
+	defer rows.Close()
 
 	var journal int16
 	var accountNumber int32
@@ -225,6 +229,7 @@ func locateAccountForBanks(enterpriseId int32) []AccountLocate {
 		log("DB", err.Error())
 		return accounts
 	}
+	defer rows.Close()
 
 	var journal int16
 	var accountNumber int32

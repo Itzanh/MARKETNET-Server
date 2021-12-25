@@ -26,6 +26,8 @@ func getPurchaseInvoiceDetail(invoiceId int64, enterpriseId int32) []PurchaseInv
 		log("DB", err.Error())
 		return details
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		d := PurchaseInvoiceDetail{}
 		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.ProductName)

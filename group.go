@@ -28,6 +28,8 @@ func getGroup(enterpriseId int32) []Group {
 		log("DB", err.Error())
 		return groups
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		g := Group{}
 		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)
@@ -45,6 +47,8 @@ func getGroupsPermissionDictionary(enterpriseId int32, permission string) []Grou
 		log("DB", err.Error())
 		return groups
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		g := Group{}
 		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)

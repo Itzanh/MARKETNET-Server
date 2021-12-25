@@ -21,6 +21,7 @@ func getSalesOrderDetailDigitalProductData(salesOrderDetailId int64, enterpriseI
 		log("DB", err.Error())
 		return productData
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		pd := SalesOrderDetailDigitalProductData{}

@@ -19,6 +19,7 @@ func getConfigAccountsVat(enterpriseId int32) []ConfigAccountsVat {
 		log("DB", err.Error())
 		return configAccountsVat
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		c := ConfigAccountsVat{}

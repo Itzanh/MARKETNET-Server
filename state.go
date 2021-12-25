@@ -21,6 +21,8 @@ func getStates(enterpriseId int32) []State {
 		log("DB", err.Error())
 		return cities
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := State{}
 		rows.Scan(&s.Id, &s.Country, &s.Name, &s.IsoCode, &s.enterprise, &s.CountryName)
@@ -38,6 +40,8 @@ func getStatesByCountry(countryId int32, enterpriseId int32) []State {
 		log("DB", err.Error())
 		return cities
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		s := State{}
 		rows.Scan(&s.Id, &s.Country, &s.Name, &s.IsoCode, &s.enterprise, &s.CountryName)
@@ -73,6 +77,8 @@ func searchStates(search string, enterpriseId int32) []State {
 		log("DB", err.Error())
 		return states
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := State{}
 		rows.Scan(&c.Id, &c.Country, &c.Name, &c.IsoCode, &c.CountryName)
@@ -143,6 +149,8 @@ func findStateByName(cityName StateNameQuery, enterpriseId int32) []NameInt32 {
 		log("DB", err.Error())
 		return cities
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt32{}
 		rows.Scan(&c.Id, &c.Name)

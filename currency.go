@@ -28,6 +28,8 @@ func getCurrencies(enterpriseId int32) []Currency {
 		log("DB", err.Error())
 		return currencies
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := Currency{}
 		rows.Scan(&c.Id, &c.Name, &c.Sign, &c.IsoCode, &c.IsoNum, &c.Change, &c.ExchangeDate, &c.enterprise)
@@ -109,6 +111,8 @@ func findCurrencyByName(currencyName string, enterpriseId int32) []NameInt16 {
 		log("DB", err.Error())
 		return currencies
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := NameInt16{}
 		rows.Scan(&c.Id, &c.Name)
@@ -143,6 +147,8 @@ func locateCurrency(enterpriseId int32) []LocateCurrency {
 		log("DB", err.Error())
 		return currencies
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		c := LocateCurrency{}
 		rows.Scan(&c.Id, &c.Name)

@@ -164,6 +164,7 @@ func getSettingsRecords() []Settings {
 	if err != nil {
 		return settings
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var s Settings

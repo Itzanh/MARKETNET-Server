@@ -18,6 +18,8 @@ func getWarehouses(enterpriseId int32) []Warehouse {
 		log("DB", err.Error())
 		return warehouses
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		w := Warehouse{}
 		rows.Scan(&w.Id, &w.Name, &w.enterprise)
@@ -87,6 +89,8 @@ func findWarehouseByName(languageName string, enterpriseId int32) []NameString {
 		log("DB", err.Error())
 		return warehouses
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		w := NameString{}
 		rows.Scan(&w.Id, &w.Name)
