@@ -618,6 +618,13 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getGroupsPermissionDictionary(enterpriseId, message))
+	case "TRIAL_BALANCE":
+		if !permissions.Accounting {
+			return
+		}
+		var query TrialBalanceQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.getTrialBalance(enterpriseId))
 	default:
 		found = false
 	}

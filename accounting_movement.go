@@ -754,3 +754,39 @@ func getAccountingMovementPurchaseInvoices(movementId int64) []PurchaseInvoice {
 
 	return invoices
 }
+
+/* TRIAL BALANCE */
+
+type TrialBalanceQuery struct {
+	DateStart time.Time `json:"dateStart"`
+	DateEnd   time.Time `json:"dateEnd"`
+	Journal   int32     `json:"journal"`
+}
+
+type TrialBalanceAccount struct {
+	Journal       int32   `json:"journal"`
+	AccountNumber int32   `json:"accountNumber"`
+	Name          string  `json:"name"`
+	Credit        float64 `json:"credit"`
+	Debit         float64 `json:"debit"`
+	Balance       float64 `json:"balance"`
+}
+
+func (q *TrialBalanceQuery) getTrialBalance(enterpriseId int32) []TrialBalanceAccount {
+	balance := make([]TrialBalanceAccount, 0)
+	sqlStatement := `SELECT journal,(SELECT account_number FROM account WHERE account.id=accounting_movement_detail.account),(SELECT name FROM account WHERE account.id=accounting_movement_detail.account),SUM(credit),SUM(debit) FROM public.accounting_movement_detail WHERE journal = $1 AND enterprise = $2 AND date_created >= $3 AND date_created <= $4 GROUP BY journal,account`
+	rows, err := db.Query(sqlStatement, q.Journal, enterpriseId, q.DateStart, q.DateEnd)
+	if err != nil {
+		log("DB", err.Error())
+		return balance
+	}
+
+	for rows.Next() {
+		a := TrialBalanceAccount{}
+		rows.Scan(&a.Journal, &a.AccountNumber, &a.Name, &a.Credit, &a.Debit)
+		a.Balance = a.Credit - a.Debit
+		balance = append(balance, a)
+	}
+
+	return balance
+}
