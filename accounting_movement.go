@@ -334,25 +334,63 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		}
 
 		// 2. details for the income
-		dInc := AccountingMovementDetail{}
-		dInc.Movement = m.Id
-		dInc.Journal = *settings.SalesJournal
-		dInc.AccountNumber = 1
-		dInc.Credit = inv.TotalWithDiscount
-		dInc.Type = "N"
-		dInc.DocumentName = inv.InvoiceName
-		dInc.PaymentMethod = inv.PaymentMethod
-		dInc.enterprise = enterpriseId
-		ok = dInc.insertAccountingMovementDetail(userId)
-		if !ok {
-			trans.Rollback()
-			return result
+		// We can create a single line for the income, or we can split it in different accounts, it is used for income / spending per products or departments:
+		// == 1. If there are no custom accounts in the products we create a single line:
+		// 700.000001 Sales 100€
+		// == 2. If some of the products have a custom account, and some other don't, we put the details price in the custom accounts, and the remaining in the generic sales account:
+		// 700.000002 Wood sales 50€
+		// 700.000001 Sales 50€
+		// == 3. If none of the products are without a custom account, we don't create an income in the generic sales accounts:
+		// 700.000002 Wood sales 50€
+		// 700.000003 Shipping 25€
+		// 700.000004 Software sales 25€
+		det := getSalesInvoiceDetail(inv.Id, inv.enterprise)
+		var detailIncomeCredit float64 = inv.TotalWithDiscount
+		for i := 0; i < len(det); i++ {
+			if det[i].Product == nil {
+				continue
+			}
+			customAccount := getProductAccount(*det[i].Product, "S") // Sales
+			if customAccount == nil {
+				continue
+			}
+			detailIncomeCredit -= det[i].Price * float64(det[i].Quantity)
+			dInc := AccountingMovementDetail{}
+			dInc.Movement = m.Id
+			dInc.Journal = customAccount.Journal
+			dInc.AccountNumber = customAccount.AccountNumber
+			dInc.Credit = det[i].Price * float64(det[i].Quantity)
+			dInc.Type = "N"
+			dInc.DocumentName = inv.InvoiceName
+			dInc.PaymentMethod = inv.PaymentMethod
+			dInc.enterprise = enterpriseId
+			ok = dInc.insertAccountingMovementDetail(userId)
+			if !ok {
+				trans.Rollback()
+				return result
+			}
+		}
+		if detailIncomeCredit != 0 {
+			dInc := AccountingMovementDetail{}
+			dInc.Movement = m.Id
+			dInc.Journal = *settings.SalesJournal
+			dInc.AccountNumber = 1
+			dInc.Credit = detailIncomeCredit
+			dInc.Type = "N"
+			dInc.DocumentName = inv.InvoiceName
+			dInc.PaymentMethod = inv.PaymentMethod
+			dInc.enterprise = enterpriseId
+			ok = dInc.insertAccountingMovementDetail(userId)
+			if !ok {
+				trans.Rollback()
+				return result
+			}
 		}
 
 		// 3. details for the VAT
 
 		// get the details and sort
-		det := getSalesInvoiceDetail(inv.Id, inv.enterprise)
+		det = getSalesInvoiceDetail(inv.Id, inv.enterprise)
 		d := make([]SalesInvoiceDetail, 0)
 		for i := 0; i < len(det); i++ {
 			if det[i].VatPercent > 0 {
@@ -541,26 +579,64 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 			}
 		}
 
-		// 2. details for the income
-		dInc := AccountingMovementDetail{}
-		dInc.Movement = m.Id
-		dInc.Journal = *settings.PurchaseJournal
-		dInc.AccountNumber = 1
-		dInc.Debit = inv.TotalWithDiscount
-		dInc.Type = "N"
-		dInc.DocumentName = inv.InvoiceName
-		dInc.PaymentMethod = inv.PaymentMethod
-		dInc.enterprise = enterpriseId
-		ok = dInc.insertAccountingMovementDetail(userId)
-		if !ok {
-			trans.Rollback()
-			return result
+		// 2. details for the outcome
+		// We can create a single line for the outcome, or we can split it in different accounts, it is used for income / spending per products or departments:
+		// == 1. If there are no custom accounts in the products we create a single line:
+		// 700.000001 Purchases 100€
+		// == 2. If some of the products have a custom account, and some other don't, we put the details price in the custom accounts, and the remaining in the generic purchases account:
+		// 700.000002 Wood purchase 50€
+		// 700.000001 Purchases 50€
+		// == 3. If none of the products are without a custom account, we don't create an income in the generic purchases accounts:
+		// 700.000002 Wood purchase 50€
+		// 700.000003 Shipping 25€
+		// 700.000004 Software purchase 25€
+		det := getPurchaseInvoiceDetail(inv.Id, inv.enterprise)
+		var detailIncomeCredit float64 = inv.TotalWithDiscount
+		for i := 0; i < len(det); i++ {
+			if det[i].Product == nil {
+				continue
+			}
+			customAccount := getProductAccount(*det[i].Product, "P") // Purchases
+			if customAccount == nil {
+				continue
+			}
+			detailIncomeCredit -= det[i].Price * float64(det[i].Quantity)
+			dInc := AccountingMovementDetail{}
+			dInc.Movement = m.Id
+			dInc.Journal = customAccount.Journal
+			dInc.AccountNumber = customAccount.AccountNumber
+			dInc.Credit = det[i].Price * float64(det[i].Quantity)
+			dInc.Type = "N"
+			dInc.DocumentName = inv.InvoiceName
+			dInc.PaymentMethod = inv.PaymentMethod
+			dInc.enterprise = enterpriseId
+			ok = dInc.insertAccountingMovementDetail(userId)
+			if !ok {
+				trans.Rollback()
+				return result
+			}
+		}
+		if detailIncomeCredit != 0 {
+			dInc := AccountingMovementDetail{}
+			dInc.Movement = m.Id
+			dInc.Journal = *settings.PurchaseJournal
+			dInc.AccountNumber = 1
+			dInc.Debit = detailIncomeCredit
+			dInc.Type = "N"
+			dInc.DocumentName = inv.InvoiceName
+			dInc.PaymentMethod = inv.PaymentMethod
+			dInc.enterprise = enterpriseId
+			ok = dInc.insertAccountingMovementDetail(userId)
+			if !ok {
+				trans.Rollback()
+				return result
+			}
 		}
 
 		// 3. details for the VAT
 
 		// get the details and sort
-		det := getPurchaseInvoiceDetail(inv.Id, inv.enterprise)
+		det = getPurchaseInvoiceDetail(inv.Id, inv.enterprise)
 		d := make([]PurchaseInvoiceDetail, 0)
 		for i := 0; i < len(det); i++ {
 			if det[i].VatPercent > 0 {

@@ -221,6 +221,56 @@ func locateAccountForSupplier(enterpriseId int32) []AccountLocate {
 	return accounts
 }
 
+func locateAccountForSales(enterpriseId int32) []AccountLocate {
+	s := getSettingsRecordById(enterpriseId)
+	accounts := make([]AccountLocate, 0)
+	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
+	rows, err := db.Query(sqlStatement, s.SalesJournal, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return accounts
+	}
+	defer rows.Close()
+
+	var journal int16
+	var accountNumber int32
+	var name string
+
+	for rows.Next() {
+		a := AccountLocate{}
+		rows.Scan(&a.Id, &journal, &accountNumber, &name)
+		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
+		accounts = append(accounts, a)
+	}
+
+	return accounts
+}
+
+func locateAccountForPurchases(enterpriseId int32) []AccountLocate {
+	s := getSettingsRecordById(enterpriseId)
+	accounts := make([]AccountLocate, 0)
+	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
+	rows, err := db.Query(sqlStatement, s.PurchaseJournal, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return accounts
+	}
+	defer rows.Close()
+
+	var journal int16
+	var accountNumber int32
+	var name string
+
+	for rows.Next() {
+		a := AccountLocate{}
+		rows.Scan(&a.Id, &journal, &accountNumber, &name)
+		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
+		accounts = append(accounts, a)
+	}
+
+	return accounts
+}
+
 func locateAccountForBanks(enterpriseId int32) []AccountLocate {
 	accounts := make([]AccountLocate, 0)
 	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' AND account.enterprise=$1 ORDER BY account_number ASC`

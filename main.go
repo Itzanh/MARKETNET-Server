@@ -927,6 +927,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getGroupPermissionDictionary(enterpriseId, int32(id)))
+	case "PRODUCT_ACCOUNTS":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(getProductAccounts(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1386,6 +1391,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &d)
 		d.enterprise = enterpriseId
 		ok = d.insertPermissionDictionaryGroup()
+	case "PRODUCT_ACCOUNTS":
+		if !permissions.Accounting {
+			return
+		}
+		var d ProductAccount
+		json.Unmarshal(message, &d)
+		d.enterprise = enterpriseId
+		ok = d.insertProductAccount()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1644,6 +1657,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &a)
 		a.enterprise = enterpriseId
 		ok = a.updateApiKey()
+	case "PRODUCT_ACCOUNTS":
+		if !permissions.Accounting {
+			return
+		}
+		var d ProductAccount
+		json.Unmarshal(message, &d)
+		d.enterprise = enterpriseId
+		ok = d.updateProductAccount()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2050,6 +2071,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		c.Id = int32(id)
 		c.enterprise = enterpriseId
 		ok = c.deleteManufacturingOrderTypeComponents()
+	case "PRODUCT_ACCOUNTS":
+		if !permissions.Accounting {
+			return
+		}
+		var d ProductAccount
+		d.Id = int32(id)
+		d.enterprise = enterpriseId
+		ok = d.deleteProductAccount()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2241,6 +2270,16 @@ func instructionLocate(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(locateAccountForSupplier(enterpriseId))
+	case "LOCATE_ACCOUNT_SALES":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateAccountForSales(enterpriseId))
+	case "LOCATE_ACCOUNT_PURCHASES":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(locateAccountForPurchases(enterpriseId))
 	case "LOCATE_ACCOUNT_BANKS":
 		if !permissions.Accounting {
 			return
