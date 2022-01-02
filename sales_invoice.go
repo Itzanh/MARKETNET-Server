@@ -174,18 +174,46 @@ func getSalesInvoiceRow(invoiceId int64) SalesInvoice {
 	return i
 }
 
+func getSalesInvoiceRowTransaction(invoiceId int64, trans sql.Tx) SalesInvoice {
+	sqlStatement := `SELECT * FROM sales_invoice WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, invoiceId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return SalesInvoice{}
+	}
+
+	i := SalesInvoice{}
+	row.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
+		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+		&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.Amending, &i.AmendedInvoice)
+
+	return i
+}
+
 func (i *SalesInvoice) isValid() bool {
 	return !(i.Customer <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
 
-func (i *SalesInvoice) insertSalesInvoice(userId int32) (bool, int64) {
+func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *sql.Tx) (bool, int64) {
 	if !i.isValid() {
 		return false, 0
+	}
+
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false, 0
+		}
+		///
 	}
 
 	// get invoice name
 	i.InvoiceNumber = getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
 	if i.InvoiceNumber <= 0 {
+		trans.Rollback()
 		return false, 0
 	}
 	now := time.Now()
@@ -197,10 +225,12 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32) (bool, int64) {
 	// simplified invoice
 	address := getAddressRow(i.BillingAddress)
 	if address.Id <= 0 {
+		trans.Rollback()
 		return false, 0
 	}
 	country := getCountryRow(address.Country, i.enterprise)
 	if country.Id <= 0 {
+		trans.Rollback()
 		return false, 0
 	}
 	if country.Zone == "E" { // Export
@@ -215,9 +245,10 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32) (bool, int64) {
 	}
 
 	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise, simplified_invoice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`
-	row := db.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise, i.SimplifiedInvoice)
+	row := trans.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise, i.SimplifiedInvoice)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false, 0
 	}
 
@@ -228,62 +259,78 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32) (bool, int64) {
 		insertTransactionalLog(i.enterprise, "sales_invoice", int(invoiceId), userId, "I")
 	}
 
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, 0
+		}
+		///
+	}
+
 	return invoiceId > 0, invoiceId
 }
 
-func (i *SalesInvoice) deleteSalesInvoice(userId int32) bool {
+// 1. can't delete details in posted invoices
+// 2. the invoice deletion is completely disallowed by policy
+// 3. it is only allowed to delete the latest invoice of the billing series
+func (i *SalesInvoice) deleteSalesInvoice(userId int32) OkAndErrorCodeReturn {
 	if i.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	invoice := getSalesInvoiceRow(i.Id)
+	if invoice.AccountingMovement != nil {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
 	s := getSettingsRecordById(i.enterprise)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
-		return false
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
-		invoice := getSalesInvoiceRow(i.Id)
 		invoiceNumber := getNextSaleInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
 		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
-			return false
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
 		}
 	}
 
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	d := getSalesInvoiceDetail(i.Id, i.enterprise)
 
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deleteSalesInvoiceDetail(userId)
+		ok := d[i].deleteSalesInvoiceDetail(userId, trans).Ok
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
 	insertTransactionalLog(i.enterprise, "sales_invoice", int(i.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.sales_invoice WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, i.Id, i.enterprise)
+	res, err := trans.Exec(sqlStatement, i.Id, i.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	err = trans.Commit()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
 func toggleSimplifiedInvoiceSalesInvoice(invoiceId int64, enterpriseId int32, userId int32) bool {
@@ -345,7 +392,6 @@ func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float
 
 	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, enterprise, simplified_invoice, amending, amended_invoice, invoice_number, invoice_name, total_products, total_with_discount, vat_amount, total_amount, discount_percent, fix_discount, shipping_price, shipping_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, 0, 0, 0) RETURNING id`
 	row := db.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, enterpriseId, i.SimplifiedInvoice, true, i.Id, invoiceNumber, invoiceName, -detailAmount, -detailAmount, -vatAmount, -quantity)
-
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -364,32 +410,35 @@ func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float
 
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
+func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE sales_invoice SET total_products = total_products + $2, vat_amount = vat_amount + $3 WHERE id = $1`
-	_, err := db.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
+	_, err := trans.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
-	return calcTotalsSaleInvoice(enterpriseId, invoiceId, userId)
+	return calcTotalsSaleInvoice(enterpriseId, invoiceId, userId, trans)
 }
 
 // Applies the logic to calculate the totals of the sales invoice and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32) bool {
+func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE sales_invoice SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err := db.Exec(sqlStatement, invoiceId)
+	_, err := trans.Exec(sqlStatement, invoiceId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	sqlStatement = `UPDATE sales_invoice SET total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err = db.Exec(sqlStatement, invoiceId)
-
+	_, err = trans.Exec(sqlStatement, invoiceId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
@@ -427,14 +476,14 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bo
 	}
 	///
 
-	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId)
+	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	invoice.enterprise = saleOrder.enterprise
-	ok, invoiceId := invoice.insertSalesInvoice(userId)
+	ok, invoiceId := invoice.insertSalesInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -450,8 +499,8 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bo
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
 		invoiceDetal.enterprise = invoice.enterprise
-		ok = invoiceDetal.insertSalesInvoiceDetail(false, userId)
-		if !ok {
+		ok := invoiceDetal.insertSalesInvoiceDetail(trans, userId)
+		if !ok.Ok {
 			trans.Rollback()
 			return false
 		}
@@ -509,14 +558,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 	}
 	///
 
-	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId)
+	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	invoice.enterprise = saleOrder.enterprise
-	ok, invoiceId := invoice.insertSalesInvoice(userId)
+	ok, invoiceId := invoice.insertSalesInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -532,7 +581,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
 		invoiceDetal.enterprise = invoice.enterprise
-		ok = invoiceDetal.insertSalesInvoiceDetail(false, userId)
+		ok = invoiceDetal.insertSalesInvoiceDetail(trans, userId).Ok
 		if !ok {
 			trans.Rollback()
 			return false

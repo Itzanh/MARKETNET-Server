@@ -1,5 +1,7 @@
 package main
 
+import "database/sql"
+
 type Stock struct {
 	Product                    int32  `json:"product"`
 	Warehouse                  string `json:"warehouse"`
@@ -46,12 +48,13 @@ func getStockRow(productId int32, warehouseId string, enterpriseId int32) Stock 
 }
 
 // Inserts a row with 0 stock in all columns
-func createStockRow(productId int32, warehouseId string, enterpriseId int32) bool {
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func createStockRow(productId int32, warehouseId string, enterpriseId int32, trans sql.Tx) bool {
 	sqlStatement := `INSERT INTO stock (product,warehouse,enterprise) VALUES ($1,$2,$3)`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -63,25 +66,25 @@ func createStockRow(productId int32, warehouseId string, enterpriseId int32) boo
 // This function will do this operation inversely if the parameter quantity is a negative number.
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func addQuantityPendingServing(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+func addQuantityPendingServing(productId int32, warehouseId string, quantity int32, enterpriseId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_pending_served=quantity_pending_served+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
-		if createStockRow(productId, warehouseId, enterpriseId) { // we create the row, and retry the operation
-			return addQuantityPendingServing(productId, warehouseId, quantity, enterpriseId)
+		if createStockRow(productId, warehouseId, enterpriseId, trans) { // we create the row, and retry the operation
+			return addQuantityPendingServing(productId, warehouseId, quantity, enterpriseId, trans)
 		} else {
 			return false // the row could neither not be created or updated
 		}
 	}
 
-	ok := setQuantityAvailable(productId, warehouseId, enterpriseId)
+	ok := setQuantityAvailable(productId, warehouseId, enterpriseId, trans)
 	if !ok {
 		return false
 	}
@@ -93,25 +96,25 @@ func addQuantityPendingServing(productId int32, warehouseId string, quantity int
 // This function will do this operation inversely if the parameter quantity is a negative number.
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func addQuantityPendingReveiving(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+func addQuantityPendingReveiving(productId int32, warehouseId string, quantity int32, enterpriseId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_pending_received=quantity_pending_received+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
-		if createStockRow(productId, warehouseId, enterpriseId) { // we create the row, and retry the operation
-			return addQuantityPendingReveiving(productId, warehouseId, quantity, enterpriseId)
+		if createStockRow(productId, warehouseId, enterpriseId, trans) { // we create the row, and retry the operation
+			return addQuantityPendingReveiving(productId, warehouseId, quantity, enterpriseId, trans)
 		} else {
 			return false // the row could neither not be created or updated
 		}
 	}
 
-	ok := setQuantityAvailable(productId, warehouseId, enterpriseId)
+	ok := setQuantityAvailable(productId, warehouseId, enterpriseId, trans)
 	if !ok {
 		return false
 	}
@@ -123,25 +126,25 @@ func addQuantityPendingReveiving(productId int32, warehouseId string, quantity i
 // This function will do this operation inversely if the parameter quantity is a negative number.
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func addQuantityPendingManufacture(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+func addQuantityPendingManufacture(productId int32, warehouseId string, quantity int32, enterpriseId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_pending_manufacture=quantity_pending_manufacture+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
-		if createStockRow(productId, warehouseId, enterpriseId) { // we create the row, and retry the operation
-			return addQuantityPendingReveiving(productId, warehouseId, quantity, enterpriseId)
+		if createStockRow(productId, warehouseId, enterpriseId, trans) { // we create the row, and retry the operation
+			return addQuantityPendingReveiving(productId, warehouseId, quantity, enterpriseId, trans)
 		} else {
 			return false // the row could neither not be created or updated
 		}
 	}
 
-	ok := setQuantityAvailable(productId, warehouseId, enterpriseId)
+	ok := setQuantityAvailable(productId, warehouseId, enterpriseId, trans)
 	if !ok {
 		return false
 	}
@@ -153,7 +156,7 @@ func addQuantityPendingManufacture(productId int32, warehouseId string, quantity
 // This function will do this operation inversely if the parameter quantity is a negative number.
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func addQuantityStock(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+func addQuantityStock(productId int32, warehouseId string, quantity int32, enterpriseId int32, trans sql.Tx) bool {
 	productRow := getProductRow(productId)
 	if productRow.enterprise != enterpriseId {
 		return false
@@ -163,24 +166,24 @@ func addQuantityStock(productId int32, warehouseId string, quantity int32, enter
 	}
 
 	sqlStatement := `UPDATE public.stock SET quantity=quantity+$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
-		if createStockRow(productId, warehouseId, enterpriseId) { // we create the row, and retry the operation
-			return addQuantityStock(productId, warehouseId, quantity, enterpriseId)
+		if createStockRow(productId, warehouseId, enterpriseId, trans) { // we create the row, and retry the operation
+			return addQuantityStock(productId, warehouseId, quantity, enterpriseId, trans)
 		} else {
 			return false // the row could neither not be created or updated
 		}
 	}
 
 	if err == nil {
-		return setQuantityAvailable(productId, warehouseId, enterpriseId) && setProductStockAllWarehouses(productId)
+		return setQuantityAvailable(productId, warehouseId, enterpriseId, trans) && setProductStockAllWarehouses(productId, trans)
 	} else {
 		return false
 	}
@@ -189,7 +192,7 @@ func addQuantityStock(productId int32, warehouseId string, quantity int32, enter
 // Sets an amount to the stock column on the stock row for this product.
 // Creates the stock row if it doesn't exists.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func setQuantityStock(productId int32, warehouseId string, quantity int32, enterpriseId int32) bool {
+func setQuantityStock(productId int32, warehouseId string, quantity int32, enterpriseId int32, trans sql.Tx) bool {
 	productRow := getProductRow(productId)
 	if productRow.enterprise != enterpriseId {
 		return false
@@ -199,24 +202,24 @@ func setQuantityStock(productId int32, warehouseId string, quantity int32, enter
 	}
 
 	sqlStatement := `UPDATE public.stock SET quantity=$3, quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$4`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, quantity, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && err == nil { // no error has ocurred, but the query hasn't affected any row. we assume that the stock row does not exist yet
-		if createStockRow(productId, warehouseId, enterpriseId) { // we create the row, and retry the operation
-			return setQuantityStock(productId, warehouseId, quantity, enterpriseId)
+		if createStockRow(productId, warehouseId, enterpriseId, trans) { // we create the row, and retry the operation
+			return setQuantityStock(productId, warehouseId, quantity, enterpriseId, trans)
 		} else {
 			return false // the row could neither not be created or updated
 		}
 	}
 
 	if err == nil {
-		return setQuantityAvailable(productId, warehouseId, enterpriseId) && setProductStockAllWarehouses(productId)
+		return setQuantityAvailable(productId, warehouseId, enterpriseId, trans) && setProductStockAllWarehouses(productId, trans)
 	} else {
 		return false
 	}
@@ -224,12 +227,12 @@ func setQuantityStock(productId int32, warehouseId string, quantity int32, enter
 
 // Sets the "Quantity available" field on the stock in the products.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func setQuantityAvailable(productId int32, warehouseId string, enterpriseId int32) bool {
+func setQuantityAvailable(productId int32, warehouseId string, enterpriseId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.stock SET quantity_available=quantity+quantity_pending_received-quantity_pending_served+quantity_pending_manufacture WHERE product=$1 AND warehouse=$2 AND enterprise=$3`
-	res, err := db.Exec(sqlStatement, productId, warehouseId, enterpriseId)
-
+	res, err := trans.Exec(sqlStatement, productId, warehouseId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -239,12 +242,13 @@ func setQuantityAvailable(productId int32, warehouseId string, enterpriseId int3
 
 // Sets the "stock" field on the product row, sum of the stocks in all the warehouses.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func setProductStockAllWarehouses(productId int32) bool {
+func setProductStockAllWarehouses(productId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE product SET stock = (SELECT SUM(quantity) FROM stock WHERE product=$1) WHERE id=$1`
-	_, err := db.Exec(sqlStatement, productId)
-
+	_, err := trans.Exec(sqlStatement, productId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
 	return err == nil

@@ -46,7 +46,7 @@ func TestGetManufacturingOrderRow(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getManufacturingOrderRow(1)
+	o := getManufacturingOrderRow(2)
 	if o.Id <= 0 {
 		t.Error("Scan error, manufacturing order row with ID 0.")
 		return
@@ -67,7 +67,7 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		UserCreated: 1,
 		enterprise:  1,
 	}
-	ok := mo.insertManufacturingOrder(0)
+	ok := mo.insertManufacturingOrder(0, nil)
 	if !ok {
 		t.Error("Insert error, manufacturing order not inserted")
 		return
@@ -93,7 +93,7 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	ok = mo.deleteManufacturingOrder(0)
+	ok = mo.deleteManufacturingOrder(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete manufacturing order")
 		return
@@ -148,7 +148,7 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0)
+		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0, nil)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -161,7 +161,7 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 	// delete created order
 	details := getSalesOrderDetail(orderId, 1)
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(1)
@@ -217,7 +217,7 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0)
+		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0, nil)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -229,7 +229,7 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 
 	// delete created order
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(1)
@@ -378,7 +378,7 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 
 	// delete created manufacturing orders
 	for i := 0; i < len(r.ManufacturingOrders); i++ {
-		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0)
+		ok = r.ManufacturingOrders[i].deleteManufacturingOrder(0, nil)
 		if !ok {
 			t.Error("Delete error, can't delete manufacturing orders")
 			return
@@ -391,7 +391,7 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	// delete created order
 	details = getSalesOrderDetail(orderId, 1)
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(0)
+	details[0].deleteSalesOrderDetail(0, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(0)

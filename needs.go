@@ -150,7 +150,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 			o.Warehouse = getPurchaseOrderDefaults(enterpriseId).Warehouse
 			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
 			o.enterprise = enterpriseId
-			ok, orderId := o.insertPurchaseOrder(userId)
+			ok, orderId := o.insertPurchaseOrder(userId, trans)
 			if !ok || orderId <= 0 {
 				trans.Rollback()
 				return false, 0
@@ -164,7 +164,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
 				d.enterprise = enterpriseId
-				ok, detailId := d.insertPurchaseOrderDetail(false, userId)
+				ok, detailId := d.insertPurchaseOrderDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return false, 0
@@ -180,7 +180,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 						trans.Rollback()
 						return false, 0
 					}
-					ok := setSalesOrderState(enterpriseId, details[k].Order, userId)
+					ok := setSalesOrderState(enterpriseId, details[k].Order, userId, *trans)
 					if !ok {
 						trans.Rollback()
 						return false, 0

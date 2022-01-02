@@ -119,9 +119,20 @@ func (i *PurchaseInvoice) isValid() bool {
 	return !(i.Supplier <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
 
-func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32) (bool, int64) {
+func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32, trans *sql.Tx) (bool, int64) {
 	if !i.isValid() {
 		return false, 0
+	}
+
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false, 0
+		}
+		///
 	}
 
 	i.InvoiceNumber = getNextPurchaseInvoiceNumber(i.BillingSeries, i.enterprise)
@@ -133,9 +144,10 @@ func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32) (bool, int64) {
 	i.InvoiceName = i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
 
 	sqlStatement := `INSERT INTO public.purchase_invoice(supplier, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`
-	row := db.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise)
+	row := trans.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false, 0
 	}
 
@@ -146,20 +158,33 @@ func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32) (bool, int64) {
 		insertTransactionalLog(i.enterprise, "purchase_invoice", int(invoiceId), userId, "I")
 	}
 
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, 0
+		}
+		///
+	}
+
 	return invoiceId > 0, invoiceId
 }
 
-func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32) bool {
+func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32, trans *sql.Tx) bool {
 	if i.Id <= 0 {
 		return false
 	}
 
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	// INVOICE DELETION POLICY
 	s := getSettingsRecordById(i.enterprise)
@@ -180,7 +205,7 @@ func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32) bool {
 
 	d := getPurchaseInvoiceDetail(i.Id, i.enterprise)
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deletePurchaseInvoiceDetail(userId)
+		ok := d[i].deletePurchaseInvoiceDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -190,19 +215,21 @@ func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32) bool {
 	insertTransactionalLog(inMemoryInvoice.enterprise, "purchase_invoice", int(i.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.purchase_invoice WHERE id=$1`
-	res, err := db.Exec(sqlStatement, i.Id)
+	res, err := trans.Exec(sqlStatement, i.Id)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
 
-	///
-	err = trans.Commit()
-	if err != nil {
-		return false
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
@@ -247,7 +274,6 @@ func makeAmendingPurchaseInvoice(invoiceId int64, enterpriseId int32, quantity f
 
 	sqlStatement := `INSERT INTO public.purchase_invoice(supplier, payment_method, billing_series, currency, currency_change, billing_address, enterprise, amending, amended_invoice, invoice_number, invoice_name, total_products, total_with_discount, vat_amount, total_amount, discount_percent, fix_discount, shipping_price, shipping_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, 0, 0, 0) RETURNING id`
 	row := db.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, enterpriseId, true, i.Id, invoiceNumber, invoiceName, -detailAmount, -detailAmount, -vatAmount, -quantity)
-
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false
@@ -279,31 +305,35 @@ func makeAmendingPurchaseInvoice(invoiceId int64, enterpriseId int32, quantity f
 
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsPurchaseInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
+func addTotalProductsPurchaseInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE purchase_invoice SET total_products=total_products+$2,vat_amount=vat_amount+$3 WHERE id = $1`
-	_, err := db.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
+	_, err := trans.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
-	return calcTotalsPurchaseInvoice(invoiceId, enterpriseId, userId)
+	return calcTotalsPurchaseInvoice(invoiceId, enterpriseId, userId, trans)
 }
 
 // Applies the logic to calculate the totals of the purchase invoice and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsPurchaseInvoice(invoiceId int64, enterpriseId int32, userId int32) bool {
+func calcTotalsPurchaseInvoice(invoiceId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE purchase_invoice SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err := db.Exec(sqlStatement, invoiceId)
+	_, err := trans.Exec(sqlStatement, invoiceId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	sqlStatement = `UPDATE purchase_invoice SET total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err = db.Exec(sqlStatement, invoiceId)
+	_, err = trans.Exec(sqlStatement, invoiceId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_invoice", int(invoiceId), userId, "U")
@@ -338,14 +368,14 @@ func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId i
 	}
 	///
 
-	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id, enterpriseId, userId)
+	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id, enterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	invoice.enterprise = enterpriseId
-	ok, invoiceId := invoice.insertPurchaseInvoice(userId)
+	ok, invoiceId := invoice.insertPurchaseInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -361,7 +391,7 @@ func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId i
 		invoiceDetail.TotalAmount = orderDetail.TotalAmount
 		invoiceDetail.VatPercent = orderDetail.VatPercent
 		invoiceDetail.enterprise = enterpriseId
-		ok = invoiceDetail.insertPurchaseInvoiceDetail(false, userId)
+		ok = invoiceDetail.insertPurchaseInvoiceDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -405,14 +435,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 	}
 	///
 
-	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id, enterpriseId, userId)
+	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id, enterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	invoice.enterprise = enterpriseId
-	ok, invoiceId := invoice.insertPurchaseInvoice(userId)
+	ok, invoiceId := invoice.insertPurchaseInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -428,7 +458,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 		invoiceDetail.TotalAmount = orderDetail.TotalAmount
 		invoiceDetail.VatPercent = orderDetail.VatPercent
 		invoiceDetail.enterprise = enterpriseId
-		ok = invoiceDetail.insertPurchaseInvoiceDetail(false, userId)
+		ok = invoiceDetail.insertPurchaseInvoiceDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false

@@ -156,9 +156,20 @@ func (n *SalesDeliveryNote) isValid() bool {
 	return !(len(n.Warehouse) == 0 || len(n.Warehouse) > 2 || n.Customer <= 0 || n.PaymentMethod <= 0 || len(n.BillingSeries) == 0 || len(n.BillingSeries) > 3 || n.ShippingAddress <= 0)
 }
 
-func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32) (bool, int64) {
+func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32, trans *sql.Tx) (bool, int64) {
 	if !n.isValid() {
 		return false, 0
+	}
+
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false, 0
+		}
+		///
 	}
 
 	n.DeliveryNoteNumber = getNextSaleDeliveryNoteNumber(n.BillingSeries, n.enterprise)
@@ -170,9 +181,10 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32) (bool, int64)
 	n.DeliveryNoteName = n.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", n.DeliveryNoteNumber)
 
 	sqlStatement := `INSERT INTO public.sales_delivery_note(warehouse, customer, payment_method, billing_series, shipping_address, delivery_note_number, delivery_note_name, currency, currency_change, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
-	row := db.QueryRow(sqlStatement, n.Warehouse, n.Customer, n.PaymentMethod, n.BillingSeries, n.ShippingAddress, n.DeliveryNoteNumber, n.DeliveryNoteName, n.Currency, n.CurrencyChange, n.enterprise)
+	row := trans.QueryRow(sqlStatement, n.Warehouse, n.Customer, n.PaymentMethod, n.BillingSeries, n.ShippingAddress, n.DeliveryNoteNumber, n.DeliveryNoteName, n.Currency, n.CurrencyChange, n.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false, 0
 	}
 
@@ -184,24 +196,37 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32) (bool, int64)
 		insertTransactionalLog(n.enterprise, "sales_delivery_note", int(noteId), userId, "I")
 	}
 
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, 0
+		}
+		///
+	}
+
 	return noteId > 0, noteId
 }
 
-func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32) bool {
+func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx) bool {
 	if n.Id <= 0 {
 		return false
 	}
 
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	d := getWarehouseMovementBySalesDeliveryNote(n.Id, n.enterprise)
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deleteWarehouseMovement(userId)
+		ok := d[i].deleteWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -211,25 +236,27 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32) bool {
 	insertTransactionalLog(n.enterprise, "sales_delivery_note", int(n.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.sales_delivery_note WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, n.Id, n.enterprise)
+	res, err := trans.Exec(sqlStatement, n.Id, n.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
 
-	///
-	err = trans.Commit()
-	if err != nil {
-		return false
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
 }
 
-func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) (bool, int64) {
+func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32, trans *sql.Tx) (bool, int64) {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	if saleOrder.enterprise != enterpriseId {
@@ -253,15 +280,19 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 	n.BillingSeries = saleOrder.BillingSeries
 	n.Warehouse = saleOrder.Warehouse
 
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false, 0
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false, 0
+		}
+		///
 	}
-	///
 
 	n.enterprise = enterpriseId
-	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId)
+	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false, 0
@@ -279,17 +310,22 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		movement.Price = orderDetail.Price
 		movement.VatPercent = orderDetail.VatPercent
 		movement.enterprise = enterpriseId
-		ok = movement.insertWarehouseMovement(userId)
+		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false, 0
 		}
 	}
 
-	///
-	transErr = trans.Commit()
-	return transErr == nil, deliveryNoteId
-	///
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, 0
+		}
+		///
+	}
+	return true, deliveryNoteId
 }
 
 func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId int32, userId int32) bool {
@@ -328,7 +364,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 	///
 
 	n.enterprise = enterpriseId
-	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId)
+	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -346,7 +382,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 		movement.Price = orderDetail.Price
 		movement.VatPercent = orderDetail.VatPercent
 		movement.enterprise = enterpriseId
-		ok = movement.insertWarehouseMovement(userId)
+		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -452,29 +488,36 @@ func getSalesDeliveryNoteShippings(noteId int64) []Shipping {
 
 // Adds a total amount to the delivery note total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsSalesDeliveryNote(noteId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
+func addTotalProductsSalesDeliveryNote(noteId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE sales_delivery_note SET total_products=total_products+$2, vat_amount=vat_amount+$3 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
+	_, err := trans.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
-	return calcTotalsSaleDeliveryNote(noteId, enterpriseId, userId)
+	return calcTotalsSaleDeliveryNote(noteId, enterpriseId, userId, trans)
 }
 
 // Applies the logic to calculate the totals of the sales delivery note.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsSaleDeliveryNote(noteId int64, enterpriseId int32, userId int32) bool {
+func calcTotalsSaleDeliveryNote(noteId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE sales_delivery_note SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err := db.Exec(sqlStatement, noteId)
+	_, err := trans.Exec(sqlStatement, noteId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	sqlStatement = `UPDATE sales_delivery_note SET total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err = db.Exec(sqlStatement, noteId)
+	_, err = trans.Exec(sqlStatement, noteId)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "sales_delivery_note", int(noteId), userId, "U")
 

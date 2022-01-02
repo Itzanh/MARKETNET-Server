@@ -241,6 +241,6 @@ func generateInvoiceAllSalesOrders() {
 
 	for i := 0; i < len(o.Orders); i++ {
 		invoiceAllSaleOrder(o.Orders[i].Id, 1, 0)
-		deliveryNoteAllSaleOrder(o.Orders[i].Id, 1, 0)
+		deliveryNoteAllSaleOrder(o.Orders[i].Id, 1, 0, nil)
 	}
 }

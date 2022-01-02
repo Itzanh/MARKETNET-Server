@@ -167,7 +167,7 @@ func (i *InsertNewSaleOrderDetail) posInsertNewSaleOrderDetail(enterpriseId int3
 	for i := 0; i < len(details); i++ {
 		if details[i].Product == product.Id {
 			details[i].Quantity++
-			return details[i].updateSalesOrderDetail(userId)
+			return details[i].updateSalesOrderDetail(userId).Ok
 		}
 	}
 
@@ -179,7 +179,7 @@ func (i *InsertNewSaleOrderDetail) posInsertNewSaleOrderDetail(enterpriseId int3
 		VatPercent: product.VatPercent,
 		enterprise: enterpriseId,
 	}
-	return d.insertSalesOrderDetail(userId)
+	return d.insertSalesOrderDetail(userId).Ok
 }
 
 type POSServeSaleOrder struct {
@@ -193,7 +193,7 @@ func posServeSaleOrder(orderId int64, enterpriseId int32, userId int32) POSServe
 		return POSServeSaleOrder{Ok: false}
 	}
 
-	ok, _ = deliveryNoteAllSaleOrder(orderId, enterpriseId, userId)
+	ok, _ = deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, nil)
 	if !ok {
 		return POSServeSaleOrder{Ok: false}
 	}

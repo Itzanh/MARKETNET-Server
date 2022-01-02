@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"strconv"
 	"time"
 )
@@ -230,25 +231,29 @@ func (m *WarehouseMovement) isValid() bool {
 	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1 || (m.Type != "I" && m.Type != "O" && m.Type != "R"))
 }
 
-func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
+func (m *WarehouseMovement) insertWarehouseMovement(userId int32, trans *sql.Tx) bool {
 	if !m.isValid() {
 		return false
 	}
 
 	m.TotalAmount = absf((m.Price * float64(m.Quantity)) * (1 + (m.VatPercent / 100)))
 
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if beginTransaction {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	// get the dragged stock
 	if m.Type != "R" {
 		var dragged_stock int32
 		sqlStatement := `SELECT dragged_stock FROM warehouse_movement WHERE warehouse=$1 AND product=$2 ORDER BY date_created DESC LIMIT 1`
-		row := db.QueryRow(sqlStatement, m.Warehouse, m.Product)
+		row := trans.QueryRow(sqlStatement, m.Warehouse, m.Product)
 		row.Scan(&dragged_stock)
 		m.DraggedStock = dragged_stock + m.Quantity
 	} else { // Inventory regularization
@@ -257,9 +262,10 @@ func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
 
 	// insert the movement
 	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`
-	row := db.QueryRow(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
+	row := trans.QueryRow(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -275,21 +281,21 @@ func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
 	insertTransactionalLog(m.enterprise, "warehouse_movement", int(warehouseMovementId), userId, "I")
 
 	// update the product quantity
-	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock, m.enterprise)
+	ok := setQuantityStock(m.Product, m.Warehouse, m.DraggedStock, m.enterprise, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 	// delivery notes generation
 	if m.SalesOrderDetail != nil {
-		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity), userId)
+		ok = addQuantityDeliveryNoteSalesOrderDetail(*m.SalesOrderDetail, abs(m.Quantity), userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
 	if m.PurchaseOrderDetail != nil {
-		ok = addQuantityDeliveryNotePurchaseOrderDetail(*m.PurchaseOrderDetail, abs(m.Quantity), m.enterprise, userId)
+		ok = addQuantityDeliveryNotePurchaseOrderDetail(*m.PurchaseOrderDetail, abs(m.Quantity), m.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -297,7 +303,7 @@ func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
 	}
 	// sales delivery note price
 	if m.SalesDeliveryNote != nil {
-		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent, m.enterprise, userId)
+		ok = addTotalProductsSalesDeliveryNote(*m.SalesDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent, m.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -305,20 +311,23 @@ func (m *WarehouseMovement) insertWarehouseMovement(userId int32) bool {
 	}
 	// purchase delivery note price
 	if m.PurchaseDeliveryNote != nil {
-		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent, m.enterprise, userId)
+		ok = addTotalProductsPurchaseDeliveryNote(*m.PurchaseDeliveryNote, absf(m.Price*float64(m.Quantity)), m.VatPercent, m.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
 
-	///
-	err := trans.Commit()
-	return err == nil
-	///
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		return err == nil
+		///
+	}
+	return true
 }
 
-func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
+func (m *WarehouseMovement) deleteWarehouseMovement(userId int32, trans *sql.Tx) bool {
 	if m.Id <= 0 {
 		return false
 	}
@@ -328,25 +337,31 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 		return false
 	}
 
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if beginTransaction {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	insertTransactionalLog(m.enterprise, "warehouse_movement", int(m.Id), userId, "D")
 
 	// delete the warehouse movement
 	sqlStatement := `DELETE FROM public.warehouse_movement WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, m.Id, m.enterprise)
+	res, err := trans.Exec(sqlStatement, m.Id, m.enterprise)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rowsCount, _ := res.RowsAffected()
 	if rowsCount == 0 {
+		trans.Rollback()
 		return false
 	}
 
@@ -356,33 +371,67 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 		draggedStock = inMemoryMovement.DraggedStock - inMemoryMovement.Quantity
 	} else {
 		sqlStatement := `SELECT dragged_stock FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created<=$3 ORDER BY date_created DESC LIMIT 1`
-		row := db.QueryRow(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
+		row := trans.QueryRow(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
 		row.Scan(&draggedStock)
 	}
+	/*
+		sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC, id ASC`
+		rows, err := db.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+		defer rows.Close()
 
+		for rows.Next() {
+			var movementId int64
+			var quantity int32
+			var movementType string
+			rows.Scan(&movementId, &quantity, &movementType)
+
+			if movementType == "R" {
+				draggedStock = quantity
+			} else {
+				draggedStock += quantity
+			}
+
+			sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
+			_, err := trans.Exec(sqlStatement, movementId, draggedStock)
+			if err != nil {
+				log("DB", err.Error())
+				trans.Rollback()
+				return false
+			}
+		}
+	*/
+	var draggedStocks []WarehouseMovementDraggedStock = make([]WarehouseMovementDraggedStock, 0)
 	sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC, id ASC`
-	rows, err := db.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
+	rows, err := trans.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
-	defer rows.Close()
 
 	for rows.Next() {
-		var movementId int64
-		var quantity int32
-		var movementType string
-		rows.Scan(&movementId, &quantity, &movementType)
+		draggedStock := WarehouseMovementDraggedStock{}
+		rows.Scan(&draggedStock.MovementId, &draggedStock.Quantity, &draggedStock.MovementType)
+		draggedStocks = append(draggedStocks, draggedStock)
+	}
+	rows.Close()
 
-		if movementType == "R" {
-			draggedStock = quantity
+	for i := 0; i < len(draggedStocks); i++ {
+		d := draggedStocks[i]
+
+		if d.MovementType == "R" {
+			draggedStock = d.Quantity
 		} else {
-			draggedStock += quantity
+			draggedStock += d.Quantity
 		}
 
 		sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
-		_, err := db.Exec(sqlStatement, movementId, draggedStock)
+		_, err := trans.Exec(sqlStatement, d.MovementId, draggedStock)
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
@@ -390,22 +439,24 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 		}
 	}
 
+	///
+
 	// update the product quantity
-	ok := setQuantityStock(inMemoryMovement.Product, inMemoryMovement.Warehouse, draggedStock, m.enterprise)
+	ok := setQuantityStock(inMemoryMovement.Product, inMemoryMovement.Warehouse, draggedStock, m.enterprise, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 	// delivery note generation
 	if inMemoryMovement.SalesOrderDetail != nil {
-		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity), userId)
+		ok = addQuantityDeliveryNoteSalesOrderDetail(*inMemoryMovement.SalesOrderDetail, -abs(inMemoryMovement.Quantity), userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
 	if inMemoryMovement.PurchaseOrderDetail != nil {
-		ok = addQuantityDeliveryNotePurchaseOrderDetail(*inMemoryMovement.PurchaseOrderDetail, -abs(inMemoryMovement.Quantity), m.enterprise, userId)
+		ok = addQuantityDeliveryNotePurchaseOrderDetail(*inMemoryMovement.PurchaseOrderDetail, -abs(inMemoryMovement.Quantity), m.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -413,7 +464,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 	}
 	// sales delivery note price
 	if inMemoryMovement.SalesDeliveryNote != nil {
-		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent, m.enterprise, userId)
+		ok = addTotalProductsSalesDeliveryNote(*inMemoryMovement.SalesDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent, m.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -421,21 +472,29 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32) bool {
 	}
 	// purchase delivery note price
 	if inMemoryMovement.PurchaseDeliveryNote != nil {
-		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent, inMemoryMovement.enterprise, userId)
+		ok = addTotalProductsPurchaseDeliveryNote(*inMemoryMovement.PurchaseDeliveryNote, -absf(inMemoryMovement.Price*float64(inMemoryMovement.Quantity)), inMemoryMovement.VatPercent, inMemoryMovement.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
 		}
 	}
 
-	///
-	err = trans.Commit()
-	if err != nil {
-		return false
+	if beginTransaction {
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	return rowsCount > 0
+}
+
+type WarehouseMovementDraggedStock struct {
+	MovementId   int64
+	Quantity     int32
+	MovementType string
 }
 
 func regenerateDraggedStock(warehouseId string, enterpriseId int32) bool {
@@ -489,7 +548,7 @@ func regenerateDraggedStock(warehouseId string, enterpriseId int32) bool {
 			}
 
 			sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
-			_, err := db.Exec(sqlStatement, movementId, draggedStock)
+			_, err := trans.Exec(sqlStatement, movementId, draggedStock)
 			if err != nil {
 				log("DB", err.Error())
 				trans.Rollback()

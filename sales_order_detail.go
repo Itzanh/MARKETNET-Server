@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -60,6 +61,20 @@ func getSalesOrderDetailRow(detailId int64) SalesOrderDetail {
 	return d
 }
 
+func getSalesOrderDetailRowTransaction(detailId int64, trans sql.Tx) SalesOrderDetail {
+	sqlStatement := `SELECT * FROM sales_order_detail WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, detailId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return SalesOrderDetail{}
+	}
+
+	d := SalesOrderDetail{}
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise)
+
+	return d
+}
+
 // Used for purchases
 func getSalesOrderDetailWaitingForPurchaseOrder(productId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
@@ -104,58 +119,77 @@ func (s *SalesOrderDetail) isValid() bool {
 	return !(s.Order <= 0 || s.Product <= 0 || s.Quantity <= 0 || s.VatPercent < 0)
 }
 
-func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) bool {
+// 1. the product is deactivated
+// 2. there is aleady a detail with this product
+func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeReturn {
 	if !s.isValid() {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	p := getProductRow(s.Product)
-	if p.Id <= 0 || p.Off {
-		return false
+	if p.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if p.Off {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 	s.Status = "_"
 
+	// the product and sale order are unique, there can't exist another detail for the same product in the same order
+	sqlStatement := `SELECT COUNT(sales_order_detail) FROM public.sales_order_detail WHERE "order" = $1 AND product = $2`
+	row := db.QueryRow(sqlStatement, s.Order, s.Product)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var countProductInSaleOrder int16
+	row.Scan(&countProductInSaleOrder)
+	if countProductInSaleOrder > 0 {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+	}
+
 	///
 	trans, err := db.Begin()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging, ps_id, wc_id, sy_draft_id, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`
-	row := db.QueryRow(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity, s.prestaShopId, s.wooCommerceId, s.shopifyDraftId, s.enterprise)
+	sqlStatement = `INSERT INTO public.sales_order_detail("order", product, price, quantity, vat_percent, total_amount, status, quantity_pending_packaging, ps_id, wc_id, sy_draft_id, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`
+	row = trans.QueryRow(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Status, s.Quantity, s.prestaShopId, s.wooCommerceId, s.shopifyDraftId, s.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	var detail int64
 	row.Scan(&detail)
 	s.Id = detail
 
-	ok := addTotalProductsSalesOrder(s.enterprise, s.Order, userId, s.Price*float64(s.Quantity), s.VatPercent)
+	ok := addTotalProductsSalesOrder(s.enterprise, s.Order, userId, s.Price*float64(s.Quantity), s.VatPercent, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
-	ok = setSalesOrderState(s.enterprise, s.Order, userId)
+	ok = setSalesOrderState(s.enterprise, s.Order, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
-	ok = addSalesOrderLinesNumber(s.enterprise, s.Order, userId)
+	ok = addSalesOrderLinesNumber(s.enterprise, s.Order, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	err = trans.Commit()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
@@ -163,66 +197,92 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) bool {
 		insertTransactionalLog(s.enterprise, "sales_order_detail", int(detail), userId, "I")
 	}
 
-	return detail > 0
+	return OkAndErrorCodeReturn{Ok: detail > 0}
 }
 
-func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) bool {
+// 1. the product is deactivated
+// 2. there is aleady a detail with this product
+// 3. can't update an invoiced sale order detail
+func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeReturn {
 	if s.Id <= 0 || !s.isValid() {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	trans, err := db.Begin()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
+	p := getProductRow(s.Product)
+	if p.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if p.Off {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+	}
+
+	// the product and sale order are unique, there can't exist another detail for the same product in the same order
+	sqlStatement := `SELECT COUNT(sales_order_detail) FROM public.sales_order_detail WHERE "order" = $1 AND product = $2 AND id != $3` // don't count the existing detail
+	row := db.QueryRow(sqlStatement, s.Order, s.Product, s.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var countProductInSaleOrder int16
+	row.Scan(&countProductInSaleOrder)
+	if countProductInSaleOrder > 0 { // we are not counting this existing detail
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+	}
+
 	inMemoryDetail := getSalesOrderDetailRow(s.Id)
 	if inMemoryDetail.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if inMemoryDetail.QuantityInvoiced > 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
 	}
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
-	sqlStatement := `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5,total_amount=$6,sy_id=$7 WHERE id=$1 AND enterprise=$8`
-	res, err := db.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.shopifyId, s.enterprise)
-	rows, _ := res.RowsAffected()
+	sqlStatement = `UPDATE sales_order_detail SET product=$2,price=$3,quantity=$4,vat_percent=$5,total_amount=$6,sy_id=$7 WHERE id=$1 AND enterprise=$8`
+	res, err := trans.Exec(sqlStatement, s.Id, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.shopifyId, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
 	}
+	rows, _ := res.RowsAffected()
 
 	if rows == 0 {
 		///
 		err = trans.Commit()
 		if err != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 
-		return rows > 0
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	// take out the old value
-	ok := addTotalProductsSalesOrder(s.enterprise, inMemoryDetail.Order, userId, -(inMemoryDetail.Price * float64(inMemoryDetail.Quantity)), inMemoryDetail.VatPercent)
+	ok := addTotalProductsSalesOrder(s.enterprise, inMemoryDetail.Order, userId, -(inMemoryDetail.Price * float64(inMemoryDetail.Quantity)), inMemoryDetail.VatPercent, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	// add the new value
-	ok = addTotalProductsSalesOrder(s.enterprise, s.Order, userId, s.Price*float64(s.Quantity), s.VatPercent)
+	ok = addTotalProductsSalesOrder(s.enterprise, s.Order, userId, s.Price*float64(s.Quantity), s.VatPercent, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	err = trans.Commit()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
@@ -230,36 +290,124 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) bool {
 		insertTransactionalLog(s.enterprise, "sales_order_detail", int(s.Id), userId, "U")
 	}
 
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
-// Deletes an order detail, substracting the stock and the amount from the order total. All the operations are done under a transaction.
-func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32) bool {
+// Deletes an order detail, substracting the stock and the amount from the order total. All the operations are done under a single transaction.
+//
+// ERROR CODES:
+// 1. the detail is already invoiced
+// 2. the detail has a delivery note generated
+// 3. there are complex manufacturing orders already created
+// 4. there are manufacturing orders already created
+// 5. there is digital product data that must be deleted first
+// 6. the product has been packaged
+func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) OkAndErrorCodeReturn {
 	if s.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	///
-	trans, err := db.Begin()
-	if err != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if beginTransaction {
+		///
+		var err error
+		trans, err = db.Begin()
+		if err != nil {
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+		///
 	}
-	///
 
 	detailInMemory := getSalesOrderDetailRow(s.Id)
-	if detailInMemory.Id <= 0 || detailInMemory.QuantityInvoiced > 0 || detailInMemory.QuantityDeliveryNote > 0 {
+	if detailInMemory.Id <= 0 || detailInMemory.enterprise != s.enterprise {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if detailInMemory.QuantityInvoiced > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+	}
+	if detailInMemory.QuantityDeliveryNote > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+	}
+
+	// check for complex_manufacturing_order_manufacturing_order
+	sqlStatement := `SELECT COUNT(complex_manufacturing_order_manufacturing_order) FROM public.complex_manufacturing_order_manufacturing_order WHERE sale_order_detail = $1`
+	row := db.QueryRow(sqlStatement, s.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var complexManufacturingOrderManufacturingOrderRows int16
+	row.Scan(&complexManufacturingOrderManufacturingOrderRows)
+
+	if complexManufacturingOrderManufacturingOrderRows > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+	}
+
+	// check for manufacturing_order
+	sqlStatement = `SELECT COUNT(manufacturing_order) FROM public.manufacturing_order WHERE order_detail = $1`
+	row = db.QueryRow(sqlStatement, s.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var manufacturingOrderRows int16
+	row.Scan(&manufacturingOrderRows)
+
+	if manufacturingOrderRows > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 4}
+	}
+
+	// check for sales_order_detail_digital_product_data
+	sqlStatement = `SELECT COUNT(sales_order_detail_digital_product_data) FROM public.sales_order_detail_digital_product_data WHERE detail = $1`
+	row = db.QueryRow(sqlStatement, s.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var salesOrderDetailDigitalProductDataRows int16
+	row.Scan(&salesOrderDetailDigitalProductDataRows)
+
+	if salesOrderDetailDigitalProductDataRows > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 5}
+	}
+
+	// check for sales_order_detail_packaged
+	sqlStatement = `SELECT COUNT(sales_order_detail_packaged) FROM public.sales_order_detail_packaged WHERE order_detail = $1`
+	row = db.QueryRow(sqlStatement, s.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var salesOrderDetailPackagedRows int16
+	row.Scan(&salesOrderDetailPackagedRows)
+
+	if salesOrderDetailPackagedRows > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 6}
 	}
 
 	insertTransactionalLog(s.enterprise, "sales_order_detail", int(s.Id), userId, "D")
 
-	sqlStatement := `DELETE FROM public.sales_order_detail WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, s.Id, s.enterprise)
+	sqlStatement = `DELETE FROM public.sales_order_detail WHERE id=$1 AND enterprise=$2`
+	res, err := trans.Exec(sqlStatement, s.Id, s.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	rows, _ := res.RowsAffected()
@@ -267,71 +415,78 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32) bool {
 		///
 		err = trans.Rollback()
 		if err != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	ok := addTotalProductsSalesOrder(s.enterprise, detailInMemory.Order, userId, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent)
+	ok := addTotalProductsSalesOrder(s.enterprise, detailInMemory.Order, userId, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
-	ok = setSalesOrderState(detailInMemory.enterprise, detailInMemory.Order, userId)
+	ok = setSalesOrderState(detailInMemory.enterprise, detailInMemory.Order, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
-	ok = removeSalesOrderLinesNumber(detailInMemory.enterprise, detailInMemory.Order, userId)
+	ok = removeSalesOrderLinesNumber(detailInMemory.enterprise, detailInMemory.Order, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	///
-	err = trans.Commit()
-	if err != nil {
-		return false
+	if beginTransaction {
+		///
+		err = trans.Commit()
+		if err != nil {
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+		///
 	}
-	///
 
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
 // Adds an invoiced quantity to the sale order detail. This function will subsctract from the quantity if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId int32) bool {
-	detailBefore := getSalesOrderDetailRow(detailId)
+func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId int32, trans sql.Tx) bool {
+	detailBefore := getSalesOrderDetailRowTransaction(detailId, trans)
 	if detailBefore.Id <= 0 {
 		return false
 	}
 	salesOrder := getSalesOrderRow(detailBefore.Order)
-
-	sqlStatement := `UPDATE sales_order_detail SET quantity_invoiced=quantity_invoiced+$2 WHERE id = $1`
-	res, err := db.Exec(sqlStatement, detailId, quantity)
-	rows, _ := res.RowsAffected()
-	if err != nil && rows == 0 {
-		log("DB", err.Error())
+	if salesOrder.Id <= 0 {
 		return false
 	}
 
-	detailAfter := getSalesOrderDetailRow(detailId)
+	sqlStatement := `UPDATE sales_order_detail SET quantity_invoiced=quantity_invoiced+$2 WHERE id = $1`
+	res, err := trans.Exec(sqlStatement, detailId, quantity)
+	rows, _ := res.RowsAffected()
+	if err != nil && rows == 0 {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	detailAfter := getSalesOrderDetailRowTransaction(detailId, trans)
 	if detailAfter.Id <= 0 {
 		return false
 	}
 
 	var ok bool
 	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity { // set as invoced
-		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, detailBefore.Quantity, detailBefore.enterprise)
+		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, detailBefore.Quantity, detailBefore.enterprise, trans)
 		// set the order detail state applying the workflow logic
 		if ok {
-			status, purchaseOrderDetail := detailBefore.computeStatus(userId)
+			status, purchaseOrderDetail := detailBefore.computeStatus(userId, trans)
 			sqlStatement := `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1`
-			_, err := db.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
+			_, err := trans.Exec(sqlStatement, detailId, status, purchaseOrderDetail)
 			if err != nil {
 				log("DB", err.Error())
+				trans.Rollback()
 				return false
 			}
 
@@ -339,32 +494,33 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 		if !ok {
 			return false
 		}
-		ok = addSalesOrderInvoicedLines(salesOrder.enterprise, detailBefore.Order, userId)
+		ok = addSalesOrderInvoicedLines(salesOrder.enterprise, detailBefore.Order, userId, trans)
 		if !ok {
 			return false
 		}
 	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity { // undo invoiced
-		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, -detailBefore.Quantity, detailBefore.enterprise)
+		ok = addQuantityPendingServing(detailBefore.Product, salesOrder.Warehouse, -detailBefore.Quantity, detailBefore.enterprise, trans)
 		// reset order detail state to "Waiting for Payment"
 		if ok {
 			sqlStatement = `UPDATE sales_order_detail SET status='_',purchase_order_detail=NULL WHERE id=$1`
-			_, err := db.Exec(sqlStatement, detailId)
+			_, err := trans.Exec(sqlStatement, detailId)
 			if err != nil {
 				log("DB", err.Error())
+				trans.Rollback()
 				return false
 			}
 		}
 		if !ok {
 			return false
 		}
-		ok = removeSalesOrderInvoicedLines(salesOrder.enterprise, detailBefore.Order, userId)
+		ok = removeSalesOrderInvoicedLines(salesOrder.enterprise, detailBefore.Order, userId, trans)
 		if !ok {
 			return false
 		}
 
 		// reset relations
 		if detailBefore.PurchaseOrderDetail != nil {
-			ok := addQuantityAssignedSalePurchaseOrder(*detailBefore.PurchaseOrderDetail, detailBefore.Quantity, detailBefore.enterprise, userId)
+			ok := addQuantityAssignedSalePurchaseOrder(*detailBefore.PurchaseOrderDetail, detailBefore.Quantity, detailBefore.enterprise, userId, trans)
 			if !ok {
 				return false
 			}
@@ -375,21 +531,22 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 				continue
 			}
 
-			ok := orders[i].deleteManufacturingOrder(userId)
+			ok := orders[i].deleteManufacturingOrder(userId, &trans)
 			if !ok {
 				return false
 			}
 		}
 		sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET sale_order_detail = NULL WHERE sale_order_detail = $1`
-		_, err := db.Exec(sqlStatement, detailBefore.Id)
+		_, err := trans.Exec(sqlStatement, detailBefore.Id)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
 			return false
 		}
 		// -- reset relations
 	}
 
-	ok = setSalesOrderState(salesOrder.enterprise, salesOrder.Id, userId)
+	ok = setSalesOrderState(salesOrder.enterprise, salesOrder.Id, userId, trans)
 	if !ok {
 		return false
 	}
@@ -402,7 +559,7 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 }
 
 // returns: status, purchase order detail id
-func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
+func (s *SalesOrderDetail) computeStatus(userId int32, trans sql.Tx) (string, *int64) {
 	product := getProductRow(s.Product)
 	if product.Id <= 0 {
 		return "", nil
@@ -447,7 +604,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 					var quantityAssigned int32 = 0
 					for i := 0; i < len(orders); i++ {
 						sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET sale_order_detail=$2 WHERE id=$1`
-						_, err := db.Exec(sqlStatement, orders[i], s.Id)
+						_, err := trans.Exec(sqlStatement, orders[i], s.Id)
 						if err != nil {
 							log("DB", err.Error())
 							// fallback
@@ -492,7 +649,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 					var quantityAssigned int32 = 0
 					for i := 0; i < len(orders); i++ {
 						sqlStatement := `UPDATE public.manufacturing_order SET order_detail=$2, "order"=$3 WHERE id=$1`
-						_, err := db.Exec(sqlStatement, orders[i], s.Id, s.Order)
+						_, err := trans.Exec(sqlStatement, orders[i], s.Id, s.Order)
 						if err != nil {
 							log("DB", err.Error())
 							// fallback
@@ -522,7 +679,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 			}
 
 			// add quantity assigned to sale orders
-			ok := addQuantityAssignedSalePurchaseOrder(purchaseDetailId, s.Quantity, order.enterprise, userId)
+			ok := addQuantityAssignedSalePurchaseOrder(purchaseDetailId, s.Quantity, order.enterprise, userId, trans)
 			if !ok {
 				return "A", nil
 			}
@@ -534,14 +691,15 @@ func (s *SalesOrderDetail) computeStatus(userId int32) (string, *int64) {
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityPendingPackagingSaleOrderDetail(detailId int64, quantity int32, userId int32) bool {
+func addQuantityPendingPackagingSaleOrderDetail(detailId int64, quantity int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE sales_order_detail SET quantity_pending_packaging = quantity_pending_packaging + $2 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, detailId, quantity)
-	rows, _ := res.RowsAffected()
-
+	res, err := trans.Exec(sqlStatement, detailId, quantity)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
+	rows, _ := res.RowsAffected()
 
 	ok := rows > 0 && err == nil
 	if !ok {
@@ -556,20 +714,20 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int64, quantity int32, 
 		status = "E"
 	}
 	sqlStatement = `UPDATE sales_order_detail SET status=$2 WHERE id=$1`
-	res, err = db.Exec(sqlStatement, detailId, status)
-	rows, _ = res.RowsAffected()
-
+	res, err = trans.Exec(sqlStatement, detailId, status)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
+	rows, _ = res.RowsAffected()
 
 	ok = rows > 0 && err == nil
 	if !ok {
 		return false
 	}
 
-	if setSalesOrderState(detail.enterprise, detail.Order, userId) {
+	if setSalesOrderState(detail.enterprise, detail.Order, userId, trans) {
 		insertTransactionalLog(detail.enterprise, "sales_order_detail", int(detailId), userId, "U")
 		return true
 	}
@@ -577,35 +735,35 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int64, quantity int32, 
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityDeliveryNoteSalesOrderDetail(detailId int64, quantity int32, userId int32) bool {
+func addQuantityDeliveryNoteSalesOrderDetail(detailId int64, quantity int32, userId int32, trans sql.Tx) bool {
 
-	detailBefore := getSalesOrderDetailRow(detailId)
+	detailBefore := getSalesOrderDetailRowTransaction(detailId, trans)
 	if detailBefore.Id <= 0 {
 		return false
 	}
 
 	sqlStatement := `UPDATE sales_order_detail SET quantity_delivery_note = quantity_delivery_note + $2 WHERE id = $1`
-	res, err := db.Exec(sqlStatement, detailId, quantity)
-	rows, _ := res.RowsAffected()
-
+	res, err := trans.Exec(sqlStatement, detailId, quantity)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
+	rows, _ := res.RowsAffected()
 
-	detailAfter := getSalesOrderDetailRow(detailId)
+	detailAfter := getSalesOrderDetailRowTransaction(detailId, trans)
 	if detailAfter.Id <= 0 {
 		return false
 	}
 
 	var ok bool
 	if detailBefore.QuantityDeliveryNote != detailBefore.Quantity && detailAfter.QuantityDeliveryNote == detailAfter.Quantity { // set as delivery note generated
-		ok = addSalesOrderDeliveryNoteLines(detailBefore.enterprise, detailBefore.Order, userId)
+		ok = addSalesOrderDeliveryNoteLines(detailBefore.enterprise, detailBefore.Order, userId, trans)
 		if !ok {
 			return false
 		}
 	} else if detailBefore.QuantityDeliveryNote == detailBefore.Quantity && detailAfter.QuantityDeliveryNote != detailAfter.Quantity { // undo delivery note generated
-		ok = removeSalesOrderDeliveryNoteLines(detailBefore.enterprise, detailBefore.Order, userId)
+		ok = removeSalesOrderDeliveryNoteLines(detailBefore.enterprise, detailBefore.Order, userId, trans)
 		if !ok {
 			return false
 		}
@@ -625,27 +783,42 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 		return false
 	}
 
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return false
+	}
+	///
+
 	if !detail.Cancelled {
 		if detail.Quantity <= 0 || detail.QuantityInvoiced < 0 || detail.QuantityDeliveryNote > 0 {
 			return false
 		}
 
 		sqlStatement := `UPDATE public.sales_order_detail SET quantity_invoiced=quantity, quantity_delivery_note=quantity, status='Z', cancelled=true WHERE id=$1 AND enterprise=$2`
-		_, err := db.Exec(sqlStatement, detailId, enterpriseId)
-
+		_, err := trans.Exec(sqlStatement, detailId, enterpriseId)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
 			return false
 		}
 
-		ok := setSalesOrderState(enterpriseId, detail.Order, userId)
+		ok := setSalesOrderState(enterpriseId, detail.Order, userId, *trans)
 		if !ok {
+			trans.Rollback()
 			return false
 		}
 
 		if err != nil {
 			insertTransactionalLog(detail.enterprise, "sales_order_detail", int(detailId), userId, "U")
 		}
+
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 
 		return err == nil
 	} else {
@@ -654,20 +827,23 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 		}
 
 		sqlStatement := `UPDATE public.sales_order_detail SET quantity_invoiced=0, quantity_delivery_note=0, cancelled=false WHERE id=$1 AND enterprise=$2`
-		_, err := db.Exec(sqlStatement, detailId, enterpriseId)
-
+		_, err := trans.Exec(sqlStatement, detailId, enterpriseId)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
+			return false
 		}
 
-		status, purchaseOrderDetail := detail.computeStatus(userId)
+		status, purchaseOrderDetail := detail.computeStatus(userId, *trans)
 		sqlStatement = `UPDATE sales_order_detail SET status=$2,purchase_order_detail=$3 WHERE id=$1 AND enterprise=$4`
-		_, err = db.Exec(sqlStatement, detailId, status, purchaseOrderDetail, enterpriseId)
+		_, err = trans.Exec(sqlStatement, detailId, status, purchaseOrderDetail, enterpriseId)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
+			return false
 		}
 
-		ok := setSalesOrderState(enterpriseId, detail.Order, userId)
+		ok := setSalesOrderState(enterpriseId, detail.Order, userId, *trans)
 		if !ok {
 			return false
 		}
@@ -675,6 +851,13 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 		if err != nil {
 			insertTransactionalLog(detail.enterprise, "sales_order_detail", int(detailId), userId, "U")
 		}
+
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 
 		return err == nil
 	}

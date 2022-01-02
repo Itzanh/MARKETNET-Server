@@ -248,13 +248,13 @@ func TestAccountingMovementInsertDelete(t *testing.T) {
 		enterprise:   1,
 	}
 
-	ok := am.insertAccountingMovement(0)
+	ok := am.insertAccountingMovement(0, nil)
 	if !ok {
 		t.Error("Insert error, can't insert accounting movement")
 		return
 	}
 
-	ok = am.deleteAccountingMovement(0)
+	ok = am.deleteAccountingMovement(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete accounting movement")
 		return
@@ -378,7 +378,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		BillingAddress: 1,
 		enterprise:     1,
 	}
-	_, invoiceId := i.insertSalesInvoice(0)
+	_, invoiceId := i.insertSalesInvoice(0, nil)
 	d := SalesInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product,
@@ -387,7 +387,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertSalesInvoiceDetail(true, 0)
+	d.insertSalesInvoiceDetail(nil, 0)
 	d = SalesInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product2,
@@ -396,7 +396,7 @@ func TestSalesPostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertSalesInvoiceDetail(true, 0)
+	d.insertSalesInvoiceDetail(nil, 0)
 	i = getSalesInvoiceRow(invoiceId)
 
 	// post sale invoice
@@ -577,14 +577,14 @@ func TestSalesPostInvoices(t *testing.T) {
 	}
 
 	// delete accounting movement
-	ok = am.deleteAccountingMovement(0)
+	ok = am.deleteAccountingMovement(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete accounting movement")
 		return
 	}
 
 	// delete invoioce and details
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, can't delete sale invoice")
 		return
@@ -610,7 +610,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		BillingAddress: 1,
 		enterprise:     1,
 	}
-	_, invoiceId := i.insertPurchaseInvoice(0)
+	_, invoiceId := i.insertPurchaseInvoice(0, nil)
 	d := PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product,
@@ -619,7 +619,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertPurchaseInvoiceDetail(true, 0)
+	d.insertPurchaseInvoiceDetail(0, nil)
 	d = PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
 		Product:    &product2,
@@ -628,7 +628,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 		VatPercent: 21,
 		enterprise: 1,
 	}
-	d.insertPurchaseInvoiceDetail(true, 0)
+	d.insertPurchaseInvoiceDetail(0, nil)
 	i = getPurchaseInvoiceRow(invoiceId)
 
 	// post purchase invoice
@@ -808,13 +808,13 @@ func TestPurchasePostInvoices(t *testing.T) {
 	}
 
 	// delete accounting movement
-	ok = am.deleteAccountingMovement(0)
+	ok = am.deleteAccountingMovement(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete accounting movement")
 	}
 
 	// delete invoioce and details
-	ok = i.deletePurchaseInvoice(0)
+	ok = i.deletePurchaseInvoice(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete purchase invoice")
 	}

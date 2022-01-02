@@ -141,7 +141,6 @@ func (a *Account) deleteAccount() bool {
 
 	sqlStatement := `DELETE FROM public.account WHERE id=$1 AND enterprise=$2`
 	_, err := db.Exec(sqlStatement, a.Id, a.enterprise)
-
 	if err != nil {
 		log("DB", err.Error())
 	}
@@ -297,16 +296,16 @@ func locateAccountForBanks(enterpriseId int32) []AccountLocate {
 
 // Will add or take out credit and debit (if given a negative amount)
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (a *Account) addCreditAndDebit(credit float64, debit float64) bool {
+func (a *Account) addCreditAndDebit(credit float64, debit float64, trans sql.Tx) bool {
 	if a.Id <= 0 {
 		return false
 	}
 
 	sqlStatement := `UPDATE public.account SET debit=debit+$2,credit=credit+$3 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, a.Id, debit, credit)
-
+	_, err := trans.Exec(sqlStatement, a.Id, debit, credit)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 	}
 
 	return err == nil

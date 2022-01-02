@@ -1028,7 +1028,7 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 	}
 
 	// test insert
-	ok = d.insertSalesOrderDetail(0)
+	ok = d.insertSalesOrderDetail(0).Ok
 	if ok {
 		t.Error("Insert error, sale order detail inserted with an off product")
 		return
@@ -1042,7 +1042,7 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 
 	o.Id = orderId
 	o.enterprise = 1
-	ok = o.deleteSalesOrder(1)
+	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Delete error, can't delete the temp sale order")
 		return
@@ -1117,7 +1117,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	}
 
 	// test insert
-	ok = d.insertSalesOrderDetail(0)
+	ok = d.insertSalesOrderDetail(0).Ok
 	if !ok {
 		t.Error("Insert error, sale order detail not inserted")
 		return
@@ -1190,7 +1190,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	inv.deleteSalesInvoice(0)
 
 	details[0].enterprise = 1
-	ok = details[0].deleteSalesOrderDetail(1)
+	ok = details[0].deleteSalesOrderDetail(1, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale order detail not deleted")
 		return

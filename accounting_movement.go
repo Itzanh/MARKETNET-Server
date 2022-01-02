@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"sort"
 	"time"
@@ -75,7 +76,7 @@ func (a *AccountingMovement) isValid() bool {
 	return !((a.Type != "O" && a.Type != "N" && a.Type != "V" && a.Type != "R" && a.Type != "C") || len(a.BillingSerie) != 3)
 }
 
-func (a *AccountingMovement) insertAccountingMovement(userId int32) bool {
+func (a *AccountingMovement) insertAccountingMovement(userId int32, trans *sql.Tx) bool {
 	if !a.isValid() {
 		return false
 	}
@@ -100,7 +101,7 @@ func (a *AccountingMovement) insertAccountingMovement(userId int32) bool {
 	return movementId > 0
 }
 
-func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
+func (a *AccountingMovement) deleteAccountingMovement(userId int32, trans *sql.Tx) bool {
 	if a.Id <= 0 {
 		return false
 	}
@@ -111,17 +112,21 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
 		return false
 	}
 
-	///
-	trans, err := db.Begin()
-	if err != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	// cascade delete the collection operations
 	c := getColletionOperations(a.Id, a.enterprise)
 	for i := 0; i < len(c); i++ {
-		ok := c[i].deleteCollectionOperation(userId)
+		ok := c[i].deleteCollectionOperation(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -130,7 +135,7 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
 	// cascade delete the payment transactions
 	p := getPaymentTransactions(a.Id, a.enterprise)
 	for i := 0; i < len(p); i++ {
-		ok := p[i].deletePaymentTransaction(userId)
+		ok := p[i].deletePaymentTransaction(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -139,7 +144,7 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
 	// cascade delete the details
 	d := getAccountingMovementDetail(a.Id, a.enterprise)
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deleteAccountingMovementDetail(userId)
+		ok := d[i].deleteAccountingMovementDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -154,7 +159,7 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
 	row.Scan(&salesInvoiceId)
 
 	sqlStatement = `UPDATE sales_invoice SET accounting_movement=NULL WHERE accounting_movement=$1`
-	_, err = db.Exec(sqlStatement, a.Id)
+	_, err := trans.Exec(sqlStatement, a.Id)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -171,7 +176,7 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
 	row.Scan(&purchaseInvoiceId)
 
 	sqlStatement = `UPDATE purchase_invoice SET accounting_movement=NULL WHERE accounting_movement=$1`
-	_, err = db.Exec(sqlStatement, a.Id)
+	_, err = trans.Exec(sqlStatement, a.Id)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -184,30 +189,37 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32) bool {
 
 	// delete the movement
 	sqlStatement = `DELETE FROM public.accounting_movement WHERE id=$1`
-	_, err = db.Exec(sqlStatement, a.Id)
+	_, err = trans.Exec(sqlStatement, a.Id)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
 
-	///
-	err = trans.Commit()
-	return err == nil
-	///
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+	}
+	return true
 }
 
 // Will add or take out credit and debit (if given a negative amount)
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (a *AccountingMovement) addCreditAndDebit(credit float64, debit float64, userId int32) bool {
+func (a *AccountingMovement) addCreditAndDebit(credit float64, debit float64, userId int32, trans sql.Tx) bool {
 	if a.Id <= 0 {
 		return false
 	}
 
 	sqlStatement := `UPDATE public.accounting_movement SET amount_debit=amount_debit+$2, amount_credit=amount_credit+$3 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, a.Id, debit, credit)
+	_, err := trans.Exec(sqlStatement, a.Id, debit, credit)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
 	insertTransactionalLog(a.enterprise, "accounting_movement", int(a.Id), userId, "U")
@@ -277,7 +289,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		m.Type = "N"
 		m.BillingSerie = inv.BillingSeries
 		m.enterprise = inv.enterprise
-		ok := m.insertAccountingMovement(userId)
+		ok := m.insertAccountingMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return result
@@ -294,7 +306,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		dCust.DocumentName = inv.InvoiceName
 		dCust.PaymentMethod = inv.PaymentMethod
 		dCust.enterprise = enterpriseId
-		ok = dCust.insertAccountingMovementDetail(userId)
+		ok = dCust.insertAccountingMovementDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return result
@@ -313,7 +325,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 			co.PaymentMethod = inv.PaymentMethod
 			co.Bank = p.Bank
 			co.enterprise = enterpriseId
-			ok := co.insertCollectionOperation(userId)
+			ok := co.insertCollectionOperation(userId, trans)
 			if !ok {
 				trans.Rollback()
 				return result
@@ -364,7 +376,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 			dInc.DocumentName = inv.InvoiceName
 			dInc.PaymentMethod = inv.PaymentMethod
 			dInc.enterprise = enterpriseId
-			ok = dInc.insertAccountingMovementDetail(userId)
+			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
 				return result
@@ -380,7 +392,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 			dInc.DocumentName = inv.InvoiceName
 			dInc.PaymentMethod = inv.PaymentMethod
 			dInc.enterprise = enterpriseId
-			ok = dInc.insertAccountingMovementDetail(userId)
+			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
 				return result
@@ -431,7 +443,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 				dVat.DocumentName = inv.InvoiceName
 				dVat.PaymentMethod = inv.PaymentMethod
 				dVat.enterprise = enterpriseId
-				ok := dVat.insertAccountingMovementDetail(userId)
+				ok := dVat.insertAccountingMovementDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return result
@@ -444,7 +456,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 
 		// set the accounting movement on the invoice
 		sqlStatement := `UPDATE sales_invoice SET accounting_movement=$2 WHERE id=$1`
-		_, err := db.Exec(sqlStatement, invoiceIds[i], m.Id)
+		_, err := trans.Exec(sqlStatement, invoiceIds[i], m.Id)
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
@@ -523,7 +535,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		m.Type = "N"
 		m.BillingSerie = inv.BillingSeries
 		m.enterprise = inv.enterprise
-		ok := m.insertAccountingMovement(userId)
+		ok := m.insertAccountingMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return result
@@ -540,7 +552,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		dCust.DocumentName = inv.InvoiceName
 		dCust.PaymentMethod = inv.PaymentMethod
 		dCust.enterprise = enterpriseId
-		ok = dCust.insertAccountingMovementDetail(userId)
+		ok = dCust.insertAccountingMovementDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return result
@@ -559,7 +571,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 			pt.PaymentMethod = *s.PaymentMethod
 			pt.Bank = p.Bank
 			pt.enterprise = enterpriseId
-			ok := pt.insertPaymentTransaction(userId)
+			ok := pt.insertPaymentTransaction(userId, trans)
 			if !ok {
 				trans.Rollback()
 				return result
@@ -610,7 +622,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 			dInc.DocumentName = inv.InvoiceName
 			dInc.PaymentMethod = inv.PaymentMethod
 			dInc.enterprise = enterpriseId
-			ok = dInc.insertAccountingMovementDetail(userId)
+			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
 				return result
@@ -626,7 +638,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 			dInc.DocumentName = inv.InvoiceName
 			dInc.PaymentMethod = inv.PaymentMethod
 			dInc.enterprise = enterpriseId
-			ok = dInc.insertAccountingMovementDetail(userId)
+			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
 				return result
@@ -677,7 +689,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 				dVat.DocumentName = inv.InvoiceName
 				dVat.PaymentMethod = inv.PaymentMethod
 				dVat.enterprise = enterpriseId
-				ok := dVat.insertAccountingMovementDetail(userId)
+				ok := dVat.insertAccountingMovementDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return result
@@ -690,7 +702,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 
 		// set the accounting movement on the invoice
 		sqlStatement := `UPDATE purchase_invoice SET accounting_movement=$2 WHERE id=$1`
-		_, err := db.Exec(sqlStatement, invoiceIds[i], m.Id)
+		_, err := trans.Exec(sqlStatement, invoiceIds[i], m.Id)
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()

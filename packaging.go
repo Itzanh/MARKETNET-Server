@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+)
 
 type Packaging struct {
 	Id              int64                      `json:"id"`
@@ -97,7 +100,7 @@ func (p *Packaging) insertPackaging() bool {
 	}
 	p.Weight = _package.Weight
 	sqlStatement := `INSERT INTO public.packaging("package", sales_order, weight, pallet, enterprise) VALUES ($1, $2, $3, $4, $5)`
-	res, err := db.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight, p.Pallet, p.enterprise)
+	res, err := trans.Exec(sqlStatement, p.Package, p.SalesOrder, p.Weight, p.Pallet, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -111,7 +114,7 @@ func (p *Packaging) insertPackaging() bool {
 	}
 
 	s := getSalesOrderRow(p.SalesOrder)
-	addQuantityStock(_package.Product, s.Warehouse, -1, p.enterprise)
+	addQuantityStock(_package.Product, s.Warehouse, -1, p.enterprise, *trans)
 
 	///
 	transErr = trans.Commit()
@@ -140,7 +143,7 @@ func (p *Packaging) deletePackaging(enterpriseId int32, userId int32) bool {
 	detailsPackaged := getSalesOrderDetailPackaged(p.Id, enterpriseId)
 	for i := 0; i < len(detailsPackaged); i++ {
 		detailsPackaged[i].enterprise = enterpriseId
-		ok := detailsPackaged[i].deleteSalesOrderDetailPackaged(false, userId)
+		ok := detailsPackaged[i].deleteSalesOrderDetailPackaged(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -148,15 +151,16 @@ func (p *Packaging) deletePackaging(enterpriseId int32, userId int32) bool {
 	}
 
 	sqlStatement := `DELETE FROM packaging WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, p.Id, p.enterprise)
+	_, err := trans.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	_package := getPackagesRow(inMemoryPackaging.Package)
 	s := getSalesOrderRow(inMemoryPackaging.SalesOrder)
-	addQuantityStock(_package.Product, s.Warehouse, 1, p.enterprise)
+	addQuantityStock(_package.Product, s.Warehouse, 1, p.enterprise, *trans)
 
 	///
 	transErr = trans.Commit()
@@ -165,14 +169,15 @@ func (p *Packaging) deletePackaging(enterpriseId int32, userId int32) bool {
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addWeightPackaging(packagingId int64, weight float64) bool {
+func addWeightPackaging(packagingId int64, weight float64, trans sql.Tx) bool {
 	sqlStatement := `UPDATE packaging SET weight = weight + $2 WHERE id=$1`
 	res, err := db.Exec(sqlStatement, packagingId, weight)
-	rows, _ := res.RowsAffected()
-
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
+	rows, _ := res.RowsAffected()
 
 	return rows > 0 && err == nil
 }

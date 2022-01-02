@@ -1548,7 +1548,7 @@ func copyPsOrderDetails(enterpriseId int32) {
 
 		d.enterprise = enterpriseId
 		d.prestaShopId = detailId
-		ok := d.insertSalesOrderDetail(0)
+		ok := d.insertSalesOrderDetail(0).Ok
 
 		if ok {
 			found := false

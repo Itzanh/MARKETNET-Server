@@ -77,7 +77,7 @@ func (c *Payment) insertPayment(userId int32) bool {
 	c.AccountingMovementDetailDebit = pt.AccountingMovementDetail
 	c.Account = pt.Account
 
-	ok := pt.addQuantityCharges(c.Amount, userId)
+	ok := pt.addQuantityCharges(c.Amount, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -94,7 +94,7 @@ func (c *Payment) insertPayment(userId int32) bool {
 	m.Type = "N"
 	m.BillingSerie = am.BillingSerie
 	m.enterprise = c.enterprise
-	ok = m.insertAccountingMovement(userId)
+	ok = m.insertAccountingMovement(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -111,7 +111,7 @@ func (c *Payment) insertPayment(userId int32) bool {
 	dInc.Type = "N"
 	dInc.PaymentMethod = pt.PaymentMethod
 	dInc.enterprise = c.enterprise
-	ok = dInc.insertAccountingMovementDetail(userId)
+	ok = dInc.insertAccountingMovementDetail(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -133,7 +133,7 @@ func (c *Payment) insertPayment(userId int32) bool {
 	Supp.DocumentName = dSuppDebit.DocumentName
 	Supp.PaymentMethod = pt.PaymentMethod
 	Supp.enterprise = c.enterprise
-	ok = Supp.insertAccountingMovementDetail(userId)
+	ok = Supp.insertAccountingMovementDetail(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -142,7 +142,7 @@ func (c *Payment) insertPayment(userId int32) bool {
 
 	// insert row
 	sqlStatement := `INSERT INTO public.payments(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, payment_transaction, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.PaymentTransaction, c.enterprise)
+	row := trans.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.PaymentTransaction, c.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
@@ -188,7 +188,7 @@ func (c *Payment) deletePayment(userId int32) bool {
 	insertTransactionalLog(c.enterprise, "payments", int(c.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.payments WHERE id=$1 AND enterprise=$2`
-	_, err = db.Exec(sqlStatement, c.Id, c.enterprise)
+	_, err = trans.Exec(sqlStatement, c.Id, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -196,7 +196,7 @@ func (c *Payment) deletePayment(userId int32) bool {
 	}
 
 	// substract the paid amount
-	ok := pt.addQuantityCharges(-inMemoryPayment.Amount, userId)
+	ok := pt.addQuantityCharges(-inMemoryPayment.Amount, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -205,7 +205,7 @@ func (c *Payment) deletePayment(userId int32) bool {
 	// delete the associated account movement (credit)
 	amd := getAccountingMovementDetailRow(inMemoryPayment.AccountingMovementDetailCredit)
 	am := getAccountingMovementRow(amd.Movement)
-	ok = am.deleteAccountingMovement(userId)
+	ok = am.deleteAccountingMovement(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false

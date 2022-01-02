@@ -114,15 +114,27 @@ func (s *Shipping) isValid() bool {
 	return !(s.Order <= 0 || s.DeliveryAddress <= 0 || s.Carrier <= 0)
 }
 
-func (s *Shipping) insertShipping(userId int32) (bool, int64) {
+func (s *Shipping) insertShipping(userId int32, trans *sql.Tx) (bool, int64) {
 	if !s.isValid() {
 		return false, 0
 	}
 
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false, 0
+		}
+		///
+	}
+
 	sqlStatement := `INSERT INTO public.shipping("order", delivery_note, delivery_address, "national", carrier, incoterm, carrier_notes, description, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
-	row := db.QueryRow(sqlStatement, s.Order, s.DeliveryNote, s.DeliveryAddress, s.National, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description, s.enterprise)
+	row := trans.QueryRow(sqlStatement, s.Order, s.DeliveryNote, s.DeliveryAddress, s.National, s.Carrier, s.Incoterm, s.CarrierNotes, s.Description, s.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false, 0
 	}
 
@@ -132,6 +144,15 @@ func (s *Shipping) insertShipping(userId int32) (bool, int64) {
 
 	if shippingId > 0 {
 		insertTransactionalLog(s.enterprise, "shipping", int(shippingId), userId, "I")
+	}
+
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, 0
+		}
+		///
 	}
 
 	return shippingId > 0, shippingId
@@ -190,7 +211,7 @@ func (s *Shipping) deleteShipping(userId int32) bool {
 		detailsPackaged := packaging[i].DetailsPackaged
 		for j := 0; j < len(detailsPackaged); j++ {
 			sqlStatement := `UPDATE sales_order_detail SET status='E' WHERE id=$1`
-			_, err := db.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
+			_, err := trans.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
 			if err != nil {
 				log("DB", err.Error())
 				trans.Rollback()
@@ -200,7 +221,7 @@ func (s *Shipping) deleteShipping(userId int32) bool {
 			insertTransactionalLog(s.enterprise, "sales_order_detail", int(detailsPackaged[j].OrderDetail), userId, "U")
 
 			saleOrderDetail := getSalesOrderDetailRow(detailsPackaged[j].OrderDetail)
-			ok := setSalesOrderState(s.enterprise, saleOrderDetail.Order, userId)
+			ok := setSalesOrderState(s.enterprise, saleOrderDetail.Order, userId, *trans)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -208,7 +229,7 @@ func (s *Shipping) deleteShipping(userId int32) bool {
 		}
 
 		sqlStatement := `UPDATE packaging SET shipping=NULL WHERE id=$1`
-		_, err := db.Exec(sqlStatement, packaging[i].Id)
+		_, err := trans.Exec(sqlStatement, packaging[i].Id)
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
@@ -221,9 +242,10 @@ func (s *Shipping) deleteShipping(userId int32) bool {
 	insertTransactionalLog(s.enterprise, "shipping", int(s.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.shipping WHERE id=$1`
-	_, err := db.Exec(sqlStatement, s.Id)
+	_, err := trans.Exec(sqlStatement, s.Id)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -260,7 +282,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 	if len(saleDeliveryNotes) > 0 {
 		s.DeliveryNote = saleDeliveryNotes[0].Id
 	} else {
-		ok, noteId := deliveryNoteAllSaleOrder(orderId, enterpriseId, userId)
+		ok, noteId := deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, trans)
 		if !ok || noteId <= 0 {
 			trans.Rollback()
 			return false
@@ -269,13 +291,13 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 	}
 
 	s.enterprise = enterpriseId
-	ok, shippingId := s.insertShipping(userId)
+	ok, shippingId := s.insertShipping(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 	for i := 0; i < len(packaging); i++ {
-		ok := associatePackagingToShipping(packaging[i].Id, shippingId, enterpriseId, userId)
+		ok := associatePackagingToShipping(packaging[i].Id, shippingId, enterpriseId, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -285,7 +307,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 		detailsPackaged := packaging[i].DetailsPackaged
 		for j := 0; j < len(detailsPackaged); j++ {
 			sqlStatement := `UPDATE sales_order_detail SET status='F' WHERE id=$1`
-			_, err := db.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
+			_, err := trans.Exec(sqlStatement, detailsPackaged[j].OrderDetail)
 			if err != nil {
 				log("DB", err.Error())
 				trans.Rollback()
@@ -295,7 +317,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 			insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailsPackaged[j].OrderDetail), userId, "U")
 
 			saleOrderDetail := getSalesOrderDetailRow(detailsPackaged[j].OrderDetail)
-			ok := setSalesOrderState(enterpriseId, saleOrderDetail.Order, userId)
+			ok := setSalesOrderState(enterpriseId, saleOrderDetail.Order, userId, *trans)
 			if !ok {
 				trans.Rollback()
 				return false
@@ -310,11 +332,12 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 }
 
 // THIS FUNCION DOES NOT OPEN A TRANSACTION
-func associatePackagingToShipping(packagingId int64, shippingId int64, enterpriseId int32, userId int32) bool {
+func associatePackagingToShipping(packagingId int64, shippingId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.packaging SET shipping=$2 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, packagingId, shippingId)
+	_, err := trans.Exec(sqlStatement, packagingId, shippingId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -322,6 +345,7 @@ func associatePackagingToShipping(packagingId int64, shippingId int64, enterpris
 	row := db.QueryRow(sqlStatement, packagingId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -330,14 +354,15 @@ func associatePackagingToShipping(packagingId int64, shippingId int64, enterpris
 
 	sqlStatement = `UPDATE public.shipping SET weight=$2, packages_number=packages_number+1 WHERE id=$1`
 	_, err = db.Exec(sqlStatement, shippingId, weight)
-
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "shipping", int(shippingId), userId, "U")
 
-	return err == nil
+	return true
 }
 
 type ToggleShippingSent struct {
@@ -367,11 +392,12 @@ func toggleShippingSent(shippingId int64, enterpriseId int32, userId int32) Togg
 	_, err := db.Exec(sqlStatement, s.Id)
 	if err != nil {
 		log("DB", err.Error())
+		return ToggleShippingSent{Ok: false}
 	}
 
 	insertTransactionalLog(enterpriseId, "shipping", int(shippingId), userId, "U")
 
-	return ToggleShippingSent{Ok: err == nil}
+	return ToggleShippingSent{Ok: true}
 }
 
 func (s *Shipping) sendShipping(enterpriseId int32) (bool, *string) {
@@ -416,7 +442,7 @@ func setShippingCollected(shippings []int64, enterpriseId int32, userId int32) b
 			return false
 		}
 
-		_, err := db.Exec(sqlStatement, shippings[i])
+		_, err := trans.Exec(sqlStatement, shippings[i])
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
@@ -428,7 +454,7 @@ func setShippingCollected(shippings []int64, enterpriseId int32, userId int32) b
 		for j := 0; j < len(p); j++ {
 			for k := 0; k < len(p[j].DetailsPackaged); k++ {
 				sqlStatement := `UPDATE sales_order_detail SET status='G' WHERE id=$1`
-				_, err := db.Exec(sqlStatement, p[j].DetailsPackaged[k].OrderDetail)
+				_, err := trans.Exec(sqlStatement, p[j].DetailsPackaged[k].OrderDetail)
 				if err != nil {
 					log("DB", err.Error())
 					trans.Rollback()

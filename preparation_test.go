@@ -95,7 +95,7 @@ func TestPackaging(t *testing.T) {
 		t.Error("Can't scan packed details")
 		return
 	}
-	ok = detailsPackaged[0].deleteSalesOrderDetailPackaged(true, 0)
+	ok = detailsPackaged[0].deleteSalesOrderDetailPackaged(0, nil)
 	if !ok {
 		t.Error("Can't unpack a sale order detail")
 		return
@@ -238,7 +238,7 @@ func TestPackaging(t *testing.T) {
 		t.Error("Can't scan sale delivery notes")
 		return
 	}
-	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0)
+	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("Can't delete sale delivery note")
 		return
@@ -247,7 +247,7 @@ func TestPackaging(t *testing.T) {
 	details = getSalesOrderDetail(orderId, 1)
 	for i := 0; i < len(details); i++ {
 		details[i].enterprise = 1
-		ok = details[i].deleteSalesOrderDetail(1)
+		ok = details[i].deleteSalesOrderDetail(1, nil).Ok
 		if !ok {
 			t.Error("Can't delete sale order detail")
 			return
@@ -256,7 +256,7 @@ func TestPackaging(t *testing.T) {
 	// delete the sale order
 	o.Id = orderId
 	o.enterprise = 1
-	ok = o.deleteSalesOrder(1)
+	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Can't delete sale order")
 		return
@@ -381,7 +381,7 @@ func TestPackagingWithPallets(t *testing.T) {
 		t.Error("Can't scan packed details")
 		return
 	}
-	ok = detailsPackaged[0].deleteSalesOrderDetailPackaged(true, 0)
+	ok = detailsPackaged[0].deleteSalesOrderDetailPackaged(0, nil)
 	if !ok {
 		t.Error("Can't unpack a sale order detail")
 		return
@@ -533,7 +533,7 @@ func TestPackagingWithPallets(t *testing.T) {
 		t.Error("Can't scan sale delivery notes")
 		return
 	}
-	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0)
+	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("Can't delete sale delivery note")
 		return
@@ -542,7 +542,7 @@ func TestPackagingWithPallets(t *testing.T) {
 	details = getSalesOrderDetail(orderId, 1)
 	for i := 0; i < len(details); i++ {
 		details[i].enterprise = 1
-		ok = details[i].deleteSalesOrderDetail(1)
+		ok = details[i].deleteSalesOrderDetail(0, nil).Ok
 		if !ok {
 			t.Error("Can't delete sale order detail")
 			return
@@ -551,7 +551,7 @@ func TestPackagingWithPallets(t *testing.T) {
 	// delete the sale order
 	o.Id = orderId
 	o.enterprise = 1
-	ok = o.deleteSalesOrder(1)
+	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Can't delete sale order")
 		return
@@ -632,7 +632,7 @@ func TestPackWithjEAN13(t *testing.T) {
 		t.Error("Can't scan packed details")
 		return
 	}
-	ok = detailsPackaged[0].deleteSalesOrderDetailPackaged(true, 0)
+	ok = detailsPackaged[0].deleteSalesOrderDetailPackaged(0, nil)
 	if !ok {
 		t.Error("Can't unpack a sale order detail")
 		return
@@ -651,7 +651,7 @@ func TestPackWithjEAN13(t *testing.T) {
 	details = getSalesOrderDetail(orderId, 1)
 	for i := 0; i < len(details); i++ {
 		details[i].enterprise = 1
-		ok = details[i].deleteSalesOrderDetail(1)
+		ok = details[i].deleteSalesOrderDetail(0, nil).Ok
 		if !ok {
 			t.Error("Can't delete sale order detail")
 			return
@@ -660,7 +660,7 @@ func TestPackWithjEAN13(t *testing.T) {
 	// delete the sale order
 	o.Id = orderId
 	o.enterprise = 1
-	ok = o.deleteSalesOrder(1)
+	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Can't delete sale order")
 		return

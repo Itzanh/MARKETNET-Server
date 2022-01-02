@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"strconv"
 	"time"
 )
@@ -142,7 +143,7 @@ func getColletionOperationRow(collectionOperationId int32) CollectionOperation {
 	return o
 }
 
-func (c *CollectionOperation) insertCollectionOperation(userId int32) bool {
+func (c *CollectionOperation) insertCollectionOperation(userId int32, trans *sql.Tx) bool {
 	if c.Total <= 0 {
 		return false
 	}
@@ -153,10 +154,22 @@ func (c *CollectionOperation) insertCollectionOperation(userId int32) bool {
 	p := getPaymentMethodRow(c.PaymentMethod)
 	c.DateExpiration = time.Now().AddDate(0, 0, int(p.DaysExpiration))
 
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
+	}
+
 	sqlStatement := `INSERT INTO public.collection_operation(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod, c.enterprise)
+	row := trans.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod, c.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -168,38 +181,69 @@ func (c *CollectionOperation) insertCollectionOperation(userId int32) bool {
 		insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "I")
 	}
 
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+	}
+
 	return collectionOperationId > 0
 }
 
 // Adds or substracts the paid quantity on the collection operation
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (c *CollectionOperation) addQuantityCharges(charges float64, userId int32) bool {
+func (c *CollectionOperation) addQuantityCharges(charges float64, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.collection_operation SET paid=paid+$2, pending=pending-$2, status=(CASE WHEN pending-$2=0 THEN 'C' ELSE 'P' END) WHERE id=$1`
 	res, err := db.Exec(sqlStatement, c.Id, charges)
-	rows, _ := res.RowsAffected()
-
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
+	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "U")
 
 	return err == nil && rows > 0
 }
 
-func (c *CollectionOperation) deleteCollectionOperation(userId int32) bool {
+func (c *CollectionOperation) deleteCollectionOperation(userId int32, trans *sql.Tx) bool {
 	if c.Id <= 0 {
 		return false
+	}
+
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
 
 	insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, c.Id, c.enterprise)
-
+	_, err := trans.Exec(sqlStatement, c.Id, c.enterprise)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
-	return err == nil
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+	}
+
+	return true
 }

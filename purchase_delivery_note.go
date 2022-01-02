@@ -108,9 +108,20 @@ func (n *PurchaseDeliveryNote) isValid() bool {
 	return !(len(n.Warehouse) == 0 || len(n.Warehouse) > 2 || n.Supplier <= 0 || n.PaymentMethod <= 0 || len(n.BillingSeries) == 0 || len(n.BillingSeries) > 3 || n.ShippingAddress <= 0)
 }
 
-func (n *PurchaseDeliveryNote) insertPurchaseDeliveryNotes(userId int32) (bool, int64) {
+func (n *PurchaseDeliveryNote) insertPurchaseDeliveryNotes(userId int32, trans *sql.Tx) (bool, int64) {
 	if !n.isValid() {
 		return false, 0
+	}
+
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false, 0
+		}
+		///
 	}
 
 	n.DeliveryNoteNumber = getNextPurchaseDeliveryNoteNumber(n.BillingSeries, n.enterprise)
@@ -122,9 +133,10 @@ func (n *PurchaseDeliveryNote) insertPurchaseDeliveryNotes(userId int32) (bool, 
 	n.DeliveryNoteName = n.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", n.DeliveryNoteNumber)
 
 	sqlStatement := `INSERT INTO public.purchase_delivery_note(warehouse, supplier, payment_method, billing_series, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, delivery_note_number, delivery_note_name, currency, currency_change, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`
-	row := db.QueryRow(sqlStatement, n.Warehouse, n.Supplier, n.PaymentMethod, n.BillingSeries, n.ShippingAddress, n.DiscountPercent, n.FixDiscount, n.ShippingPrice, n.ShippingDiscount, n.DeliveryNoteNumber, n.DeliveryNoteName, n.Currency, n.CurrencyChange, n.enterprise)
+	row := trans.QueryRow(sqlStatement, n.Warehouse, n.Supplier, n.PaymentMethod, n.BillingSeries, n.ShippingAddress, n.DiscountPercent, n.FixDiscount, n.ShippingPrice, n.ShippingDiscount, n.DeliveryNoteNumber, n.DeliveryNoteName, n.Currency, n.CurrencyChange, n.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false, 0
 	}
 
@@ -136,20 +148,33 @@ func (n *PurchaseDeliveryNote) insertPurchaseDeliveryNotes(userId int32) (bool, 
 		insertTransactionalLog(n.enterprise, "purchase_delivery_note", int(noteId), userId, "I")
 	}
 
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, 0
+		}
+		///
+	}
+
 	return noteId > 0, noteId
 }
 
-func (n *PurchaseDeliveryNote) deletePurchaseDeliveryNotes(userId int32) bool {
+func (n *PurchaseDeliveryNote) deletePurchaseDeliveryNotes(userId int32, trans *sql.Tx) bool {
 	if n.Id <= 0 {
 		return false
 	}
 
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	inMemoryNote := getPurchaseDeliveryNoteRow(n.Id)
 	if inMemoryNote.enterprise != n.enterprise {
@@ -158,7 +183,7 @@ func (n *PurchaseDeliveryNote) deletePurchaseDeliveryNotes(userId int32) bool {
 
 	d := getWarehouseMovementByPurchaseDeliveryNote(n.Id, n.enterprise)
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deleteWarehouseMovement(userId)
+		ok := d[i].deleteWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -168,19 +193,21 @@ func (n *PurchaseDeliveryNote) deletePurchaseDeliveryNotes(userId int32) bool {
 	insertTransactionalLog(n.enterprise, "purchase_delivery_note", int(n.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.purchase_delivery_note WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, n.Id, n.enterprise)
+	res, err := trans.Exec(sqlStatement, n.Id, n.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
 
-	///
-	err = trans.Commit()
-	if err != nil {
-		return false
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
@@ -215,7 +242,7 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 	///
 
 	n.enterprise = enterpriseId
-	ok, deliveryNoteId := n.insertPurchaseDeliveryNotes(userId)
+	ok, deliveryNoteId := n.insertPurchaseDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false, 0
@@ -233,7 +260,7 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 		movement.Price = orderDetail.Price
 		movement.VatPercent = orderDetail.VatPercent
 		movement.enterprise = enterpriseId
-		ok = movement.insertWarehouseMovement(userId)
+		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false, 0
@@ -279,7 +306,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 	///
 
 	n.enterprise = enterpriseId
-	ok, deliveryNoteId := n.insertPurchaseDeliveryNotes(userId)
+	ok, deliveryNoteId := n.insertPurchaseDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -297,7 +324,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 		movement.Price = orderDetail.Price
 		movement.VatPercent = orderDetail.VatPercent
 		movement.enterprise = enterpriseId
-		ok = movement.insertWarehouseMovement(userId)
+		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -343,31 +370,35 @@ func getPurchaseDeliveryNoteOrders(noteId int32, enterpriseId int32) []PurchaseO
 
 // Adds a total amount to the delivery note total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsPurchaseDeliveryNote(noteId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32) bool {
+func addTotalProductsPurchaseDeliveryNote(noteId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE purchase_delivery_note SET total_products=total_products+$2,total_vat=total_vat+$3 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
+	_, err := trans.Exec(sqlStatement, noteId, totalAmount, (totalAmount/100)*vatPercent)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
-	return calcTotalsPurchaseDeliveryNote(noteId, enterpriseId, userId)
+	return calcTotalsPurchaseDeliveryNote(noteId, enterpriseId, userId, trans)
 }
 
 // Applies the logic to calculate the totals of the delivery note.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsPurchaseDeliveryNote(noteId int64, enterpriseId int32, userId int32) bool {
+func calcTotalsPurchaseDeliveryNote(noteId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE purchase_delivery_note SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+total_vat WHERE id=$1`
-	_, err := db.Exec(sqlStatement, noteId)
+	_, err := trans.Exec(sqlStatement, noteId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	sqlStatement = `UPDATE purchase_delivery_note SET total_amount=total_with_discount+total_vat WHERE id=$1`
-	_, err = db.Exec(sqlStatement, noteId)
+	_, err = trans.Exec(sqlStatement, noteId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
+		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_delivery_note", int(noteId), userId, "I")

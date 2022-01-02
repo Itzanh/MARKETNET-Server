@@ -59,7 +59,7 @@ func (d *SalesOrderDiscount) insertSalesOrderDiscount(userId int32) bool {
 	///
 
 	sqlStatement := `INSERT INTO public.sales_order_discount("order", name, value_tax_included, value_tax_excluded, enterprise) VALUES ($1, $2, $3, $4, $5)`
-	res, err := db.Exec(sqlStatement, d.Order, d.Name, d.ValueTaxIncluded, d.ValueTaxExcluded, d.enterprise)
+	res, err := trans.Exec(sqlStatement, d.Order, d.Name, d.ValueTaxIncluded, d.ValueTaxExcluded, d.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -71,7 +71,7 @@ func (d *SalesOrderDiscount) insertSalesOrderDiscount(userId int32) bool {
 		return false
 	}
 
-	ok := addDiscountsSalesOrder(d.enterprise, d.Order, userId, d.ValueTaxExcluded)
+	ok := addDiscountsSalesOrder(d.enterprise, d.Order, userId, d.ValueTaxExcluded, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -106,14 +106,14 @@ func (d *SalesOrderDiscount) deleteSalesOrderDiscount(userId int32) bool {
 	}
 
 	sqlStatement := `DELETE FROM public.sales_order_discount WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
+	res, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
 
-	ok := addDiscountsSalesOrder(d.enterprise, inMemoryDiscount.Order, userId, -inMemoryDiscount.ValueTaxExcluded)
+	ok := addDiscountsSalesOrder(d.enterprise, inMemoryDiscount.Order, userId, -inMemoryDiscount.ValueTaxExcluded, *trans)
 	if !ok {
 		trans.Rollback()
 		return false

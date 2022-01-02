@@ -69,7 +69,7 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) 
 	///
 
 	sqlStatement := `INSERT INTO public.sales_order_detail_packaged(order_detail, packaging, quantity, enterprise) VALUES ($1, $2, $3, $4)`
-	res, err := db.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity, p.enterprise)
+	res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -82,14 +82,14 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) 
 		return false
 	}
 
-	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, -p.Quantity, userId)
+	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, -p.Quantity, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	product := getProductRow(detail.Product)
-	ok = addWeightPackaging(p.Packaging, product.Weight)
+	ok = addWeightPackaging(p.Packaging, product.Weight, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -101,7 +101,7 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) 
 	///
 }
 
-func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransaction bool, userId int32) bool {
+func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(userId int32, trans *sql.Tx) bool {
 	if p.OrderDetail <= 0 || p.Packaging <= 0 {
 		return false
 	}
@@ -111,62 +111,54 @@ func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(openTransactio
 		return false
 	}
 
-	var trans *sql.Tx
-	if openTransaction {
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
 		///
-		trn, transErr := db.Begin()
+		var transErr error
+		trans, transErr = db.Begin()
 		if transErr != nil {
 			return false
 		}
-		trans = trn
 		///
 	}
 
 	sqlStatement := `DELETE FROM sales_order_detail_packaged WHERE order_detail=$1 AND packaging=$2 AND enterprise=$3`
-	res, err := db.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.enterprise)
+	res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		if openTransaction {
-			trans.Rollback()
-		}
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		if openTransaction {
-			trans.Rollback()
-		}
+		trans.Rollback()
 		return false
 	}
 
-	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, inMemoryPackage.Quantity, userId)
+	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, inMemoryPackage.Quantity, userId, *trans)
 	if !ok {
-		if openTransaction {
-			trans.Rollback()
-		}
+		trans.Rollback()
 		return false
 	}
 
 	detail := getSalesOrderDetailRow(p.OrderDetail)
 	product := getProductRow(detail.Product)
-	ok = addWeightPackaging(p.Packaging, -product.Weight)
+	ok = addWeightPackaging(p.Packaging, -product.Weight, *trans)
 	if !ok {
-		if openTransaction {
-			trans.Rollback()
-		}
+		trans.Rollback()
 		return false
 	}
 
-	if openTransaction {
+	if beginTransaction {
 		///
-		transErr := trans.Commit()
-		return transErr == nil
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
 		///
-	} else {
-		return true
 	}
-
+	return true
 }
 
 type SalesOrderDetailPackagedEAN13 struct {

@@ -120,11 +120,12 @@ func getComplexManufacturingOrderRow(complexManufacturingOrderId int64) ComplexM
 
 // Specify a negative number to substract
 // DOES NOT OPEN A TRANSACTION
-func addQuantityPendingManufactureComplexManufacturingOrder(complexManufacturingOrderId int64, quantity int32, enterpriseId int32, userId int32) bool {
+func addQuantityPendingManufactureComplexManufacturingOrder(complexManufacturingOrderId int64, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.complex_manufacturing_order SET quantity_pending_manufacture=$2 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, complexManufacturingOrderId, quantity)
+	_, err := trans.Exec(sqlStatement, complexManufacturingOrderId, quantity)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -135,11 +136,12 @@ func addQuantityPendingManufactureComplexManufacturingOrder(complexManufacturing
 
 // Specify a negative number to substract
 // DOES NOT OPEN A TRANSACTION
-func addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderId int64, quantity int32, enterpriseId int32, userId int32) bool {
+func addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderId int64, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.complex_manufacturing_order SET quantity_manufactured=$2 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, complexManufacturingOrderId, quantity)
+	_, err := trans.Exec(sqlStatement, complexManufacturingOrderId, quantity)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -177,6 +179,13 @@ func (orderInfo *OrderDetailGenerate) complexManufacturingOrderPartiallySaleOrde
 }
 
 func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpriseId int32, saleOrder SaleOrder, details []SalesOrderDetail) bool {
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
+
 	for i := 0; i < len(details); i++ {
 		if details[i].Status != "C" {
 			continue
@@ -201,6 +210,7 @@ func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpr
 			}
 		}
 		if component == nil {
+			trans.Rollback()
 			return false
 		}
 
@@ -210,8 +220,9 @@ func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpr
 				enterprise: enterpriseId,
 				Warehouse:  saleOrder.Warehouse,
 			}
-			ok, _ := cmo.insertComplexManufacturingOrder(1, true)
+			ok, _ := cmo.insertComplexManufacturingOrder(1, trans)
 			if !ok {
+				trans.Rollback()
 				return false
 			}
 
@@ -221,48 +232,54 @@ func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpr
 			}
 
 			sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET sale_order_detail=$2 WHERE id=$1`
-			_, err := db.Exec(sqlStatement, id, orderDetail.Id)
+			_, err := trans.Exec(sqlStatement, id, orderDetail.Id)
 			if err != nil {
 				log("DB", err.Error())
+				trans.Rollback()
 				return false
 			}
 
 			insertTransactionalLog(enterpriseId, "complex_manufacturing_order_manufacturing_order", int(*id), userId, "U")
 
 			sqlStatement = `UPDATE sales_order_detail SET status = 'D' WHERE id = $1`
-			_, err = db.Exec(sqlStatement, orderDetail.Id)
+			_, err = trans.Exec(sqlStatement, orderDetail.Id)
 			if err != nil {
 				log("DB", err.Error())
+				trans.Rollback()
 				return false
 			}
 
 			insertTransactionalLog(enterpriseId, "sales_order_detail", int(orderDetail.Id), userId, "U")
 
-			ok = setSalesOrderState(enterpriseId, saleOrderId, userId)
+			ok = setSalesOrderState(enterpriseId, saleOrderId, userId, *trans)
 			if !ok {
+				trans.Rollback()
 				return false
 			}
 		} // for j := 0; j < int(orderDetail.Quantity); j += int(component.Quantity) {
 	} // for i := 0; i < len(details); i++
 
-	return true
+	///
+	err := trans.Commit()
+	return err == nil
+	///
 }
 
 func (c *ComplexManufacturingOrder) isValid() bool {
 	return !(c.Type <= 0 || c.enterprise == 0)
 }
 
-func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32, beginTransaction bool) (bool, *int64) {
+func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32, trans *sql.Tx) (bool, *int64) {
 	if !c.isValid() {
 		return false, nil
 	}
 
-	var trans *sql.Tx
-	var err error
-	if beginTransaction {
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
 		///
-		trans, err = db.Begin()
-		if err != nil {
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
 			return false, nil
 		}
 		///
@@ -278,12 +295,10 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 	}
 
 	sqlStatement := `INSERT INTO public.complex_manufacturing_order(type, enterprise, warehouse, uuid, user_created) VALUES ($1, $2, $3, $4, $5) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.Type, c.enterprise, c.Warehouse, c.Uuid, userId)
+	row := trans.QueryRow(sqlStatement, c.Type, c.enterprise, c.Warehouse, c.Uuid, userId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
-		if beginTransaction {
-			trans.Rollback()
-		}
+		trans.Rollback()
 		return false, nil
 	}
 
@@ -303,9 +318,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 
 		manufacturingOrderTypeComponent := components[i]
 		if manufacturingOrderTypeComponent.Id <= 0 || manufacturingOrderTypeComponent.enterprise != c.enterprise || manufacturingOrderTypeComponent.Quantity <= 0 {
-			if beginTransaction {
-				trans.Rollback()
-			}
+			trans.Rollback()
 			return false, nil
 		}
 
@@ -319,7 +332,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 				Type:       "O",
 				enterprise: c.enterprise,
 			}
-			ok := wm.insertWarehouseMovement(userId)
+			ok := wm.insertWarehouseMovement(userId, trans)
 			if !ok {
 				if beginTransaction {
 					trans.Rollback()
@@ -351,8 +364,9 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 						Warehouse:  c.Warehouse,
 						enterprise: c.enterprise,
 					}
-					ok, recursiveComplexManufacturingOrderId := cmo.insertComplexManufacturingOrder(userId, beginTransaction) // RECURSIVITY
+					ok, recursiveComplexManufacturingOrderId := cmo.insertComplexManufacturingOrder(userId, trans) // RECURSIVITY
 					if !ok || recursiveComplexManufacturingOrderId == nil {
+						trans.Rollback()
 						return false, nil
 					}
 
@@ -367,6 +381,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 					}
 
 					if recursiveComponent == nil {
+						trans.Rollback()
 						return false, nil
 					}
 
@@ -405,12 +420,10 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 							subOrders = append(subOrders, c)
 							// set the manufacturing order as complex, so it doesn't count as stock
 							sqlStatement := `UPDATE public.manufacturing_order SET complex=true WHERE id=$1`
-							_, err := db.Exec(sqlStatement, manufacturingOrders[i].Id)
+							_, err := trans.Exec(sqlStatement, manufacturingOrders[i].Id)
 							if err != nil {
 								log("DB", err.Error())
-								if beginTransaction {
-									trans.Rollback()
-								}
+								trans.Rollback()
 								return false, nil
 							}
 							insertTransactionalLog(c.enterprise, "manufacturing_order", int(manufacturingOrders[i].Id), userId, "U")
@@ -430,7 +443,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 								Warehouse:  complexManufacturingOrder.Warehouse,
 								complex:    true,
 							}
-							mo.insertManufacturingOrder(userId)
+							mo.insertManufacturingOrder(userId, trans)
 							c := ComplexManufacturingOrderManufacturingOrder{
 								Type:                            "I",
 								ComplexManufacturingOrder:       complexManufacturingOrder.Id,
@@ -451,9 +464,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 				row := db.QueryRow(sqlStatement, manufacturingOrderTypeComponent.Product, manufacturingOrderTypeComponent.Quantity)
 				if row.Err() != nil {
 					log("DB", row.Err().Error())
-					if beginTransaction {
-						trans.Rollback()
-					}
+					trans.Rollback()
 					return false, nil
 				}
 
@@ -472,17 +483,13 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 
 				// there are no pending purchase order details, return error
 				if purchaseDetailId == 0 {
-					if beginTransaction {
-						trans.Rollback()
-					}
+					trans.Rollback()
 					return false, nil
 				} else {
 					// add quantity assigned to sale orders
-					ok := addQuantityAssignedSalePurchaseOrder(purchaseDetailId, manufacturingOrderTypeComponent.Quantity, complexManufacturingOrder.enterprise, userId)
+					ok := addQuantityAssignedSalePurchaseOrder(purchaseDetailId, manufacturingOrderTypeComponent.Quantity, complexManufacturingOrder.enterprise, userId, *trans)
 					if !ok {
-						if beginTransaction {
-							trans.Rollback()
-						}
+						trans.Rollback()
 						return false, nil
 					}
 				}
@@ -498,9 +505,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 
 		manufacturingOrderTypeComponent := components[i]
 		if manufacturingOrderTypeComponent.Id <= 0 || manufacturingOrderTypeComponent.enterprise != c.enterprise || manufacturingOrderTypeComponent.Quantity <= 0 {
-			if beginTransaction {
-				trans.Rollback()
-			}
+			trans.Rollback()
 			return false, nil
 		}
 
@@ -516,14 +521,21 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 	} // for i := 0; i < len(components); i++ {
 
 	for i := 0; i < len(subOrders); i++ {
-		ok := subOrders[i].insertComplexManufacturingOrderManufacturingOrder(userId)
+		ok := subOrders[i].insertComplexManufacturingOrderManufacturingOrder(userId, *trans)
 		if !ok {
-			if beginTransaction {
-				trans.Rollback()
-			}
+			trans.Rollback()
 			return false, nil
 		}
 	} // for i := 0; i < len(subOrders); i++ {
+
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false, nil
+		}
+		///
+	}
 
 	return true, &complexManufacturingOrderId
 }
@@ -541,14 +553,17 @@ func getPendingComplexManufacturingOrderOutputsWithoutSaleOrderDetail(productId 
 	return &id
 }
 
-func (c *ComplexManufacturingOrder) deleteComplexManufacturingOrder(userId int32) bool {
-
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
-		return false
+func (c *ComplexManufacturingOrder) deleteComplexManufacturingOrder(userId int32, trans *sql.Tx) bool {
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
 	}
-	///
 
 	orderInMemory := getComplexManufacturingOrderRow(c.Id)
 	if orderInMemory.Id <= 0 || orderInMemory.enterprise != c.enterprise {
@@ -558,7 +573,7 @@ func (c *ComplexManufacturingOrder) deleteComplexManufacturingOrder(userId int32
 	components := getComplexManufacturingOrderManufacturingOrder(c.Id, c.enterprise)
 
 	for i := 0; i < len(components); i++ {
-		ok := components[i].deleteComplexManufacturingOrderManufacturingOrder(userId)
+		ok := components[i].deleteComplexManufacturingOrderManufacturingOrder(userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return false
@@ -566,8 +581,7 @@ func (c *ComplexManufacturingOrder) deleteComplexManufacturingOrder(userId int32
 	}
 
 	sqlStatement := `DELETE FROM public.complex_manufacturing_order WHERE id=$1`
-	db.Exec(sqlStatement, c.Id)
-	_, err := db.Exec(sqlStatement, c.Id)
+	_, err := trans.Exec(sqlStatement, c.Id)
 	if err != nil {
 		trans.Rollback()
 		log("DB", err.Error())
@@ -576,10 +590,15 @@ func (c *ComplexManufacturingOrder) deleteComplexManufacturingOrder(userId int32
 
 	insertTransactionalLog(c.enterprise, "complex_manufacturing_order", int(c.Id), userId, "D")
 
-	///
-	transErr = trans.Commit()
-	return transErr == nil
-	///
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+	}
+	return true
 }
 
 func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, enterpriseId int32) bool {
@@ -598,21 +617,25 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 
 	inMemoryComplexManufacturingOrder := getComplexManufacturingOrderRow(orderid)
 	if inMemoryComplexManufacturingOrder.enterprise != enterpriseId {
+		trans.Rollback()
 		return false
 	}
 
 	// validation
 	if inMemoryComplexManufacturingOrder.Manufactured && inMemoryComplexManufacturingOrder.DateManufactured != nil && int64(time.Since(*inMemoryComplexManufacturingOrder.DateManufactured).Seconds()) > int64(settings.UndoManufacturingOrderSeconds) {
+		trans.Rollback()
 		return false
 	}
 	if !inMemoryComplexManufacturingOrder.Manufactured && inMemoryComplexManufacturingOrder.QuantityManufactured != inMemoryComplexManufacturingOrder.QuantityPendingManufacture {
+		trans.Rollback()
 		return false
 	}
 
 	sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET manufactured = $2 WHERE complex_manufacturing_order=$1 AND type = 'O'`
-	_, err := db.Exec(sqlStatement, orderid, !inMemoryComplexManufacturingOrder.Manufactured)
+	_, err := trans.Exec(sqlStatement, orderid, !inMemoryComplexManufacturingOrder.Manufactured)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -634,12 +657,13 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 				Type:       "O",
 				enterprise: enterpriseId,
 			}
-			wm.insertWarehouseMovement(userId)
+			wm.insertWarehouseMovement(userId, trans)
 
 			sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET warehouse_movement=$2 WHERE id=$1`
-			_, err := db.Exec(sqlStatement, cmomo[i].Id, wm.Id)
+			_, err := trans.Exec(sqlStatement, cmomo[i].Id, wm.Id)
 			if err != nil {
 				log("DB", err.Error())
+				trans.Rollback()
 				return false
 			}
 
@@ -658,9 +682,10 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 
 				if ordersPending == 0 {
 					sqlStatement = `UPDATE sales_order_detail SET status = 'E' WHERE id = $1`
-					_, err = db.Exec(sqlStatement, cmomo[i].SaleOrderDetail)
+					_, err = trans.Exec(sqlStatement, cmomo[i].SaleOrderDetail)
 					if err != nil {
 						log("DB", err.Error())
+						trans.Rollback()
 						return false
 					}
 
@@ -668,16 +693,18 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 				}
 			}
 
-			ok := addQuantityPendingManufacture(cmomo[i].Product, inMemoryComplexManufacturingOrder.Warehouse, -com.Quantity, inMemoryComplexManufacturingOrder.enterprise)
+			ok := addQuantityPendingManufacture(cmomo[i].Product, inMemoryComplexManufacturingOrder.Warehouse, -com.Quantity, inMemoryComplexManufacturingOrder.enterprise, *trans)
 			if !ok {
 				return false
 			}
 		} // for i := 0; i < len(cmomo); i++ {
 
 		sqlStatement := `UPDATE public.complex_manufacturing_order SET manufactured=true, date_manufactured=CURRENT_TIMESTAMP(3), user_manufactured=$2 WHERE id=$1`
-		_, err := db.Exec(sqlStatement, inMemoryComplexManufacturingOrder.Id, userId)
+		_, err := trans.Exec(sqlStatement, inMemoryComplexManufacturingOrder.Id, userId)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
+			return false
 		}
 
 		insertTransactionalLog(enterpriseId, "complex_manufacturing_order", int(inMemoryComplexManufacturingOrder.Id), userId, "U")
@@ -688,9 +715,10 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 			}
 
 			sqlStatement := `UPDATE public.complex_manufacturing_order_manufacturing_order SET warehouse_movement=NULL WHERE id=$1`
-			_, err := db.Exec(sqlStatement, cmomo[i].Id)
+			_, err := trans.Exec(sqlStatement, cmomo[i].Id)
 			if err != nil {
 				log("DB", err.Error())
+				trans.Rollback()
 				return false
 			}
 
@@ -698,7 +726,7 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 
 			if cmomo[i].WarehouseMovement != nil {
 				wm := getWarehouseMovementRow(*cmomo[i].WarehouseMovement)
-				ok := wm.deleteWarehouseMovement(userId)
+				ok := wm.deleteWarehouseMovement(userId, trans)
 				if !ok {
 					return false
 				}
@@ -706,7 +734,7 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 
 			if cmomo[i].SaleOrderDetail != nil {
 				sqlStatement = `UPDATE sales_order_detail SET status = 'D' WHERE id = $1`
-				_, err = db.Exec(sqlStatement, cmomo[i].SaleOrderDetail)
+				_, err = trans.Exec(sqlStatement, cmomo[i].SaleOrderDetail)
 				if err != nil {
 					log("DB", err.Error())
 					return false
@@ -716,14 +744,14 @@ func toggleManufactuedComplexManufacturingOrder(orderid int64, userId int32, ent
 			}
 
 			com := getManufacturingOrderTypeComponentRow(cmomo[i].ManufacturingOrderTypeComponent)
-			ok := addQuantityPendingManufacture(cmomo[i].Product, inMemoryComplexManufacturingOrder.Warehouse, com.Quantity, inMemoryComplexManufacturingOrder.enterprise)
+			ok := addQuantityPendingManufacture(cmomo[i].Product, inMemoryComplexManufacturingOrder.Warehouse, com.Quantity, inMemoryComplexManufacturingOrder.enterprise, *trans)
 			if !ok {
 				return false
 			}
 		} // for i := 0; i < len(cmomo); i++ {
 
 		sqlStatement := `UPDATE public.complex_manufacturing_order SET manufactured=false, date_manufactured=NULL, user_manufactured=NULL WHERE id=$1`
-		_, err := db.Exec(sqlStatement, inMemoryComplexManufacturingOrder.Id)
+		_, err := trans.Exec(sqlStatement, inMemoryComplexManufacturingOrder.Id)
 		if err != nil {
 			log("DB", err.Error())
 		}
@@ -795,35 +823,36 @@ func (c *ComplexManufacturingOrderManufacturingOrder) isValid() bool {
 }
 
 // DOES NOT OPEN A TRANSACTION
-func (c *ComplexManufacturingOrderManufacturingOrder) insertComplexManufacturingOrderManufacturingOrder(userId int32) bool {
+func (c *ComplexManufacturingOrderManufacturingOrder) insertComplexManufacturingOrderManufacturingOrder(userId int32, trans sql.Tx) bool {
 	if !c.isValid() {
 		return false
 	}
 
 	sqlStatement := `INSERT INTO public.complex_manufacturing_order_manufacturing_order(manufacturing_order, type, complex_manufacturing_order, enterprise, warehouse_movement, product, manufacturing_order_type_component, purchase_order_detail, sale_order_detail, manufactured, complex_manufacturing_order_manufacturing_order_output) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.ManufacturingOrder, c.Type, c.ComplexManufacturingOrder, c.enterprise, c.WarehouseMovement, c.Product, c.ManufacturingOrderTypeComponent, c.PurchaseOrderDetail, c.SaleOrderDetail, c.Manufactured, c.ComplexManufacturingOrderManufacturingOrderOutput)
+	row := trans.QueryRow(sqlStatement, c.ManufacturingOrder, c.Type, c.ComplexManufacturingOrder, c.enterprise, c.WarehouseMovement, c.Product, c.ManufacturingOrderTypeComponent, c.PurchaseOrderDetail, c.SaleOrderDetail, c.Manufactured, c.ComplexManufacturingOrderManufacturingOrderOutput)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
+		trans.Rollback()
 		return false
 	}
 
 	row.Scan(&c.Id)
 	insertTransactionalLog(c.enterprise, "complex_manufacturing_order_manufacturing_order", int(c.Id), userId, "I")
 
-	ok := addQuantityPendingManufactureComplexManufacturingOrder(c.ComplexManufacturingOrder, 1, c.enterprise, userId)
+	ok := addQuantityPendingManufactureComplexManufacturingOrder(c.ComplexManufacturingOrder, 1, c.enterprise, userId, trans)
 	if ok && c.WarehouseMovement != nil {
-		return addQuantityManufacturedComplexManufacturingOrder(c.ComplexManufacturingOrder, 1, c.enterprise, userId)
+		return addQuantityManufacturedComplexManufacturingOrder(c.ComplexManufacturingOrder, 1, c.enterprise, userId, trans)
 	}
 	if ok {
 		order := getComplexManufacturingOrderRow(c.ComplexManufacturingOrder)
 		com := getManufacturingOrderTypeComponentRow(c.ManufacturingOrderTypeComponent)
-		return addQuantityPendingManufacture(c.Product, order.Warehouse, com.Quantity, c.enterprise)
+		return addQuantityPendingManufacture(c.Product, order.Warehouse, com.Quantity, c.enterprise, trans)
 	}
 	return ok
 }
 
 // DOES NOT OPEN A TRANSACTION
-func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturingOrderManufacturingOrder(userId int32) bool {
+func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturingOrderManufacturingOrder(userId int32, trans sql.Tx) bool {
 	if c.Id <= 0 {
 		return false
 	}
@@ -834,22 +863,23 @@ func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturing
 	}
 
 	sqlStatement := `DELETE FROM public.complex_manufacturing_order_manufacturing_order WHERE id=$1`
-	_, err := db.Exec(sqlStatement, c.Id)
+	_, err := trans.Exec(sqlStatement, c.Id)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	insertTransactionalLog(c.enterprise, "complex_manufacturing_order_manufacturing_order", int(c.Id), userId, "D")
 
-	ok := addQuantityPendingManufactureComplexManufacturingOrder(c.ComplexManufacturingOrder, -1, c.enterprise, userId)
+	ok := addQuantityPendingManufactureComplexManufacturingOrder(c.ComplexManufacturingOrder, -1, c.enterprise, userId, trans)
 	if !ok {
 		return false
 	}
 
 	if comInMemory.ManufacturingOrder != nil {
 		mo := getManufacturingOrderRow(*comInMemory.ManufacturingOrder)
-		ok := mo.deleteManufacturingOrder(userId)
+		ok := mo.deleteManufacturingOrder(userId, &trans)
 		if !ok {
 			return false
 		}
@@ -857,7 +887,7 @@ func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturing
 
 	if comInMemory.WarehouseMovement != nil {
 		wm := getWarehouseMovementRow(*comInMemory.WarehouseMovement)
-		ok := wm.deleteWarehouseMovement(userId)
+		ok := wm.deleteWarehouseMovement(userId, &trans)
 		if !ok {
 			return false
 		}
@@ -865,7 +895,7 @@ func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturing
 
 	if comInMemory.PurchaseOrderDetail != nil {
 		component := getManufacturingOrderTypeComponentRow(comInMemory.ManufacturingOrderTypeComponent)
-		ok := addQuantityAssignedSalePurchaseOrder(*comInMemory.PurchaseOrderDetail, component.Quantity, comInMemory.enterprise, userId)
+		ok := addQuantityAssignedSalePurchaseOrder(*comInMemory.PurchaseOrderDetail, component.Quantity, comInMemory.enterprise, userId, trans)
 		if !ok {
 			return false
 		}
@@ -873,15 +903,16 @@ func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturing
 
 	if comInMemory.SaleOrderDetail != nil {
 		sqlStatement = `UPDATE sales_order_detail SET status = 'C' WHERE id = $1`
-		_, err := db.Exec(sqlStatement, comInMemory.SaleOrderDetail)
+		_, err := trans.Exec(sqlStatement, comInMemory.SaleOrderDetail)
 		if err != nil {
 			log("DB", err.Error())
+			trans.Rollback()
 			return false
 		}
 
 		insertTransactionalLog(c.enterprise, "sales_order_detail", int(*comInMemory.SaleOrderDetail), userId, "U")
 
-		ok := setSalesOrderState(c.enterprise, *comInMemory.SaleOrderDetail, userId)
+		ok := setSalesOrderState(c.enterprise, *comInMemory.SaleOrderDetail, userId, trans)
 		if !ok {
 			return false
 		}
@@ -890,7 +921,7 @@ func (c *ComplexManufacturingOrderManufacturingOrder) deleteComplexManufacturing
 	return true
 }
 
-func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrderId int64, manufactured bool, enterpriseId int32, userId int32) bool {
+func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrderId int64, manufactured bool, enterpriseId int32, userId int32, trans *sql.Tx) bool {
 	sqlStatement := `SELECT id, complex_manufacturing_order, manufactured FROM public.complex_manufacturing_order_manufacturing_order WHERE manufacturing_order=$1 AND type = 'O'`
 	row := db.QueryRow(sqlStatement, manufacturingOrderId)
 	if row.Err() != nil {
@@ -907,11 +938,23 @@ func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrd
 		return false
 	}
 
+	var beginTransaction bool = (trans == nil)
+	if trans == nil {
+		///
+		var transErr error
+		trans, transErr = db.Begin()
+		if transErr != nil {
+			return false
+		}
+		///
+	}
+
 	// update the sub-order
 	sqlStatement = `UPDATE public.complex_manufacturing_order_manufacturing_order SET manufactured = $2 WHERE manufacturing_order=$1 AND type = 'O'`
-	_, err := db.Exec(sqlStatement, manufacturingOrderId, manufactured)
+	_, err := trans.Exec(sqlStatement, manufacturingOrderId, manufactured)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
@@ -919,12 +962,12 @@ func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrd
 
 	// update the quantities
 	if !orderManufactured == manufactured {
-		ok := addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderId, 1, enterpriseId, userId)
+		ok := addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderId, 1, enterpriseId, userId, *trans)
 		if !ok {
 			return false
 		}
 	} else if orderManufactured == !manufactured {
-		ok := addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderId, -1, enterpriseId, userId)
+		ok := addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderId, -1, enterpriseId, userId, *trans)
 		if !ok {
 			return false
 		}
@@ -933,13 +976,22 @@ func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrd
 	// recursivity
 	cmomo := getComplexManufacturingOrderManufacturingOrderRow(id)
 	if cmomo.ComplexManufacturingOrderManufacturingOrderOutput != nil {
-		ok := setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrderId, manufactured, enterpriseId, userId)
+		ok := setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrderId, manufactured, enterpriseId, userId, trans)
 		if !ok {
 			return false
 		}
 	}
 
-	return false
+	if beginTransaction {
+		///
+		err := trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+	}
+
+	return true
 }
 
 func complexManufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int32) bool {

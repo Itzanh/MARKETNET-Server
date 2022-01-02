@@ -231,7 +231,7 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o.enterprise = 1
-	ok = o.deleteSalesOrder(1)
+	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Delete error, sale order not deleted.")
 		return
@@ -437,7 +437,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// test insert
-	ok := d.insertSalesOrderDetail(0)
+	ok := d.insertSalesOrderDetail(0).Ok
 	if !ok {
 		t.Error("Insert error, sale order detail not inserted")
 		return
@@ -470,7 +470,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	// attemp to update quantity
 	details[0].Quantity = 4
 	details[0].enterprise = 1
-	ok = details[0].updateSalesOrderDetail(1)
+	ok = details[0].updateSalesOrderDetail(1).Ok
 	if !ok {
 		t.Error("Update error, sale order detail not updated")
 		return
@@ -537,7 +537,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 
 	// attempt delete
 	details[0].enterprise = 1
-	ok = details[0].deleteSalesOrderDetail(1)
+	ok = details[0].deleteSalesOrderDetail(1, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale order detail not deleted")
 		return
@@ -656,14 +656,14 @@ func TestSaleInvoiceInsertUpdateDelete(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertSalesInvoice(0)
+	ok, invoiceId := i.insertSalesInvoice(0, nil)
 	if !ok {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
 	}
 
 	i.Id = invoiceId
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the invoice could not be deleted")
 		return
@@ -738,7 +738,7 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deleteSalesInvoice(0)
+	ok = invoice.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
@@ -746,7 +746,7 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 
 	// delete created order
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(1)
@@ -828,7 +828,7 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deleteSalesInvoice(0)
+	ok = invoice.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
@@ -836,7 +836,7 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 
 	// delete created order
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(1)
@@ -950,7 +950,7 @@ func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertSalesInvoice(0)
+	ok, invoiceId := i.insertSalesInvoice(0, nil)
 	if !ok {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
@@ -975,7 +975,7 @@ func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
 		return
 	}
 
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the invoice could not be deleted")
 		return
@@ -1054,7 +1054,7 @@ func TestSaleInvoiceSimplifiedInvoiceNational(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertSalesInvoice(0)
+	ok, invoiceId := i.insertSalesInvoice(0, nil)
 	if !ok {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
@@ -1066,7 +1066,7 @@ func TestSaleInvoiceSimplifiedInvoiceNational(t *testing.T) {
 	}
 
 	i.Id = invoiceId
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the invoice could not be deleted")
 		return
@@ -1145,7 +1145,7 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithoutTaxId(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertSalesInvoice(0)
+	ok, invoiceId := i.insertSalesInvoice(0, nil)
 	if !ok {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
@@ -1157,7 +1157,7 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithoutTaxId(t *testing.T) {
 	}
 
 	i.Id = invoiceId
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the invoice could not be deleted")
 		return
@@ -1238,7 +1238,7 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithTaxId(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertSalesInvoice(0)
+	ok, invoiceId := i.insertSalesInvoice(0, nil)
 	if !ok {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
@@ -1250,7 +1250,7 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithTaxId(t *testing.T) {
 	}
 
 	i.Id = invoiceId
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the invoice could not be deleted")
 		return
@@ -1329,7 +1329,7 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertSalesInvoice(0)
+	ok, invoiceId := i.insertSalesInvoice(0, nil)
 	if !ok {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
@@ -1351,7 +1351,7 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 		enterprise: 1,
 	}
 
-	ok = d.insertSalesInvoiceDetail(true, 0)
+	ok = d.insertSalesInvoiceDetail(nil, 0).Ok
 	if !ok {
 		t.Error("Insert error, sale invoice detail not inserted")
 		return
@@ -1399,13 +1399,13 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 	}
 
 	// delete
-	ok = amendingInvoiceDetails[0].deleteSalesInvoiceDetail(0)
+	ok = amendingInvoiceDetails[0].deleteSalesInvoiceDetail(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale invoice detail not deleted")
 		return
 	}
 
-	ok = amendingInv.deleteSalesInvoice(0)
+	ok = amendingInv.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the amending invoice could not be deleted")
 		return
@@ -1413,13 +1413,13 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 
 	// delete detail
 	details := getSalesInvoiceDetail(invoiceId, 1)
-	ok = details[0].deleteSalesInvoiceDetail(0)
+	ok = details[0].deleteSalesInvoiceDetail(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale invoice detail not deleted")
 		return
 	}
 
-	ok = i.deleteSalesInvoice(0)
+	ok = i.deleteSalesInvoice(0).Ok
 	if !ok {
 		t.Error("Delete error, the invoice could not be deleted")
 		return
@@ -1488,7 +1488,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		enterprise:     1,
 	}
 
-	_, invoiceId := i.insertSalesInvoice(0)
+	_, invoiceId := i.insertSalesInvoice(0, nil)
 
 	d := SalesInvoiceDetail{
 		Invoice:    invoiceId,
@@ -1499,7 +1499,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		enterprise: 1,
 	}
 
-	ok := d.insertSalesInvoiceDetail(true, 0)
+	ok := d.insertSalesInvoiceDetail(nil, 0).Ok
 	if !ok {
 		t.Error("Insert error, sale invoice detail not inserted")
 		return
@@ -1515,7 +1515,7 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete detail
 	details = getSalesInvoiceDetail(invoiceId, 1)
-	ok = details[0].deleteSalesInvoiceDetail(0)
+	ok = details[0].deleteSalesInvoiceDetail(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale invoice detail not deleted")
 		return
@@ -1660,14 +1660,14 @@ func TestSalesDeliveryNoteInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	ok, noteId := n.insertSalesDeliveryNotes(0)
+	ok, noteId := n.insertSalesDeliveryNotes(0, nil)
 	if !ok || noteId <= 0 {
 		t.Error("Insert error, delivey note not inserted")
 		return
 	}
 
 	n.Id = noteId
-	ok = n.deleteSalesDeliveryNotes(0)
+	ok = n.deleteSalesDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("Delete error, delivey note not deleted")
 		return
@@ -1707,7 +1707,7 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 
 	d.insertSalesOrderDetail(0)
 
-	ok, noteId := deliveryNoteAllSaleOrder(orderId, 1, 0)
+	ok, noteId := deliveryNoteAllSaleOrder(orderId, 1, 0, nil)
 	if !ok {
 		t.Error("Could not delivery note all sale order")
 		return
@@ -1742,7 +1742,7 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deleteSalesDeliveryNotes(0)
+	ok = note.deleteSalesDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
@@ -1750,7 +1750,7 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 
 	// delete created order
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(1)
@@ -1832,7 +1832,7 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deleteSalesDeliveryNotes(0)
+	ok = note.deleteSalesDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
@@ -1840,7 +1840,7 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 
 	// delete created order
 	details[0].enterprise = 1
-	details[0].deleteSalesOrderDetail(1)
+	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
 	o.enterprise = 1
 	o.deleteSalesOrder(1)
@@ -1918,7 +1918,7 @@ func TestSaleOrderDiscount(t *testing.T) {
 	}
 
 	// test insert
-	ok := d.insertSalesOrderDetail(0)
+	ok := d.insertSalesOrderDetail(0).Ok
 	if !ok {
 		t.Error("Insert error, sale order detail not inserted")
 		return
@@ -1971,7 +1971,7 @@ func TestSaleOrderDiscount(t *testing.T) {
 
 	// attempt delete
 	details := getSalesOrderDetail(orderId, 1)
-	ok = details[0].deleteSalesOrderDetail(1)
+	ok = details[0].deleteSalesOrderDetail(1, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale order detail not deleted")
 		return

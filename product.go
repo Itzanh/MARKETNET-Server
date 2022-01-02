@@ -185,7 +185,7 @@ func (p *Product) deleteProduct(userId int32) bool {
 	///
 
 	sqlStatement := `DELETE FROM stock WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=stock.product)=$2`
-	_, err = db.Exec(sqlStatement, p.Id, p.enterprise)
+	_, err = trans.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -194,7 +194,7 @@ func (p *Product) deleteProduct(userId int32) bool {
 	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "D")
 
 	sqlStatement = `DELETE FROM public.product WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, p.Id, p.enterprise)
+	res, err := trans.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -638,7 +638,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
 				o.UserCreated = userId
 				o.enterprise = enterpriseId
-				ok := o.insertManufacturingOrder(userId)
+				ok := o.insertManufacturingOrder(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -661,7 +661,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				p.PaymentMethod = *d.PaymentMethod
 
 				p.enterprise = enterpriseId
-				ok, purchaseOrderId := p.insertPurchaseOrder(userId)
+				ok, purchaseOrderId := p.insertPurchaseOrder(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -672,7 +672,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				// generate the needs as a detail
 				product := getProductRow(productId)
 				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
-				ok, _ = det.insertPurchaseOrderDetail(false, userId)
+				ok, _ = det.insertPurchaseOrderDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -681,7 +681,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				// generate the needs as a detail
 				product := getProductRow(productId)
 				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
-				ok, _ = det.insertPurchaseOrderDetail(false, userId)
+				ok, _ = det.insertPurchaseOrderDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
 					return false
@@ -834,7 +834,7 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 				Type:       "R",
 				enterprise: enterpriseId,
 			}
-			wm.insertWarehouseMovement(userId)
+			wm.insertWarehouseMovement(userId, nil)
 		}
 	}
 	return true

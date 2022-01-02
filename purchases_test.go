@@ -107,7 +107,7 @@ func TestPurchaseOrderInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	ok, orderId := o.insertPurchaseOrder(0)
+	ok, orderId := o.insertPurchaseOrder(0, nil)
 	if !ok || orderId <= 0 {
 		t.Error("Insert error, purchase order not inserted")
 		return
@@ -224,7 +224,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder(0)
+	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -236,7 +236,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok, detailId := d.insertPurchaseOrderDetail(true, 0)
+	ok, detailId := d.insertPurchaseOrderDetail(0, nil)
 	if !ok || detailId <= 0 {
 		t.Error("Insert error, purchase order detail not inserted")
 		return
@@ -260,7 +260,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete
 	d.Id = detailId
-	ok = d.deletePurchaseOrderDetail(0)
+	ok = d.deletePurchaseOrderDetail(0, nil)
 	if !ok {
 		t.Error("Delete error, purchase order not deleted")
 		return
@@ -394,14 +394,14 @@ func TestPurchaseInvoiceInsertUpdateDelete(t *testing.T) {
 		enterprise:     1,
 	}
 
-	ok, invoiceId := i.insertPurchaseInvoice(0)
+	ok, invoiceId := i.insertPurchaseInvoice(0, nil)
 	if !ok || invoiceId <= 0 {
 		t.Error("Insert error, can't insert purchase invocice")
 		return
 	}
 
 	i.Id = invoiceId
-	ok = i.deletePurchaseInvoice(0)
+	ok = i.deletePurchaseInvoice(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete purchase invocice")
 		return
@@ -426,7 +426,7 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder(0)
+	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -437,7 +437,7 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true, 0)
+	d.insertPurchaseOrderDetail(0, nil)
 
 	ok := invoiceAllPurchaseOrder(orderId, 1, 0)
 	if !ok {
@@ -474,14 +474,14 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deletePurchaseInvoice(0)
+	ok = invoice.deletePurchaseInvoice(0, nil)
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail(0)
+	details[0].deletePurchaseOrderDetail(0, nil)
 	o.Id = orderId
 	o.deletePurchaseOrder(0)
 }
@@ -502,7 +502,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder(0)
+	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -513,7 +513,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true, 0)
+	d.insertPurchaseOrderDetail(0, nil)
 	details := getPurchaseOrderDetail(orderId, 1)
 
 	invoiceInfo := OrderDetailGenerate{
@@ -560,14 +560,14 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deletePurchaseInvoice(0)
+	ok = invoice.deletePurchaseInvoice(0, nil)
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail(0)
+	details[0].deletePurchaseOrderDetail(0, nil)
 	o.Id = orderId
 	o.deletePurchaseOrder(0)
 }
@@ -661,7 +661,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 		enterprise:     1,
 	}
 
-	_, invoiceId := i.insertPurchaseInvoice(0)
+	_, invoiceId := i.insertPurchaseInvoice(0, nil)
 
 	d := PurchaseInvoiceDetail{
 		Invoice:    invoiceId,
@@ -673,7 +673,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok := d.insertPurchaseInvoiceDetail(true, 0)
+	ok := d.insertPurchaseInvoiceDetail(0, nil)
 	if !ok {
 		t.Error("Insert error, can't insert purchase invocice detail")
 		return
@@ -689,7 +689,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete
 	i.Id = invoiceId
-	ok = i.deletePurchaseInvoice(0)
+	ok = i.deletePurchaseInvoice(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete purchase invocice detail")
 		return
@@ -797,14 +797,14 @@ func TestPurchaseDeliveryNoteInsertUpdateDelete(t *testing.T) {
 		enterprise:      1,
 	}
 
-	ok, noteId := i.insertPurchaseDeliveryNotes(0)
+	ok, noteId := i.insertPurchaseDeliveryNotes(0, nil)
 	if !ok || noteId <= 0 {
 		t.Error("Insert error, can't insert purchase delivery note")
 		return
 	}
 
 	i.Id = noteId
-	ok = i.deletePurchaseDeliveryNotes(0)
+	ok = i.deletePurchaseDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("Delete error, can't delete purchase delivery note")
 		return
@@ -829,7 +829,7 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder(0)
+	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -840,7 +840,7 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true, 0)
+	d.insertPurchaseOrderDetail(0, nil)
 
 	ok, noteId := deliveryNoteAllPurchaseOrder(orderId, 1, 0)
 	if !ok || noteId <= 0 {
@@ -877,14 +877,14 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deletePurchaseDeliveryNotes(0)
+	ok = note.deletePurchaseDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail(0)
+	details[0].deletePurchaseOrderDetail(0, nil)
 	o.Id = orderId
 	o.deletePurchaseOrder(0)
 }
@@ -905,7 +905,7 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 		enterprise:      1,
 	}
 
-	_, orderId := o.insertPurchaseOrder(0)
+	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
 		Order:      orderId,
@@ -916,7 +916,7 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 		enterprise: 1,
 	}
 
-	d.insertPurchaseOrderDetail(true, 0)
+	d.insertPurchaseOrderDetail(0, nil)
 	details := getPurchaseOrderDetail(orderId, 1)
 
 	invoiceInfo := OrderDetailGenerate{
@@ -963,14 +963,14 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deletePurchaseDeliveryNotes(0)
+	ok = note.deletePurchaseDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
 	}
 
 	// delete created order
-	details[0].deletePurchaseOrderDetail(0)
+	details[0].deletePurchaseOrderDetail(0, nil)
 	o.Id = orderId
 	o.deletePurchaseOrder(0)
 }

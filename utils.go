@@ -123,6 +123,7 @@ func Reverse(s string) string {
 }
 
 type OkAndErrorCodeReturn struct {
-	Ok       bool  `json:"ok"`
-	ErorCode uint8 `json:"errorCode"`
+	Ok        bool     `json:"ok"`
+	ErorCode  uint8    `json:"errorCode"`
+	ExtraData []string `json:"extraData"`
 }
