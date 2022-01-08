@@ -2906,6 +2906,17 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(ApiKeyPermissions{})
+	case "VAT_NUMBER_CHECK":
+		if !permissions.Masters {
+			return
+		}
+		var check CheckVatNumber
+		json.Unmarshal([]byte(message), &check)
+		if !check.isValid() {
+			data, _ = json.Marshal(OkAndErrorCodeReturn{Ok: false})
+		} else {
+			data, _ = json.Marshal(checkVatNumber(check.CountryIsoCode2, check.VATNumber))
+		}
 	}
 	ws.WriteMessage(mt, data)
 
