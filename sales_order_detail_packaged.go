@@ -68,18 +68,44 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) 
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.sales_order_detail_packaged(order_detail, packaging, quantity, enterprise) VALUES ($1, $2, $3, $4)`
-	res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
+	sqlStatement := `SELECT COUNT(*) FROM public.sales_order_detail_packaged WHERE order_detail = $1 AND packaging = $2`
+	row := db.QueryRow(sqlStatement, p.OrderDetail, p.Packaging)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		trans.Rollback()
-		return false
+	var rowCount int32
+	row.Scan(&rowCount)
+
+	if rowCount == 0 {
+		sqlStatement := `INSERT INTO public.sales_order_detail_packaged(order_detail, packaging, quantity, enterprise) VALUES ($1, $2, $3, $4)`
+		res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity, p.enterprise)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		rows, _ := res.RowsAffected()
+		if rows == 0 {
+			trans.Rollback()
+			return false
+		}
+	} else {
+		sqlStatement := `UPDATE public.sales_order_detail_packaged SET quantity = quantity + $3 WHERE order_detail=$1 AND packaging=$2`
+		res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		rows, _ := res.RowsAffected()
+		if rows == 0 {
+			trans.Rollback()
+			return false
+		}
 	}
 
 	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, -p.Quantity, userId, *trans)
@@ -89,7 +115,7 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) 
 	}
 
 	product := getProductRow(detail.Product)
-	ok = addWeightPackaging(p.Packaging, product.Weight, *trans)
+	ok = addWeightPackaging(p.Packaging, product.Weight*float64(p.Quantity), *trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -144,7 +170,7 @@ func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(userId int32, 
 
 	detail := getSalesOrderDetailRow(p.OrderDetail)
 	product := getProductRow(detail.Product)
-	ok = addWeightPackaging(p.Packaging, -product.Weight, *trans)
+	ok = addWeightPackaging(p.Packaging, -product.Weight*float64(inMemoryPackage.Quantity), *trans)
 	if !ok {
 		trans.Rollback()
 		return false

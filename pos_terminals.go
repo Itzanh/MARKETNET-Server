@@ -188,13 +188,13 @@ type POSServeSaleOrder struct {
 }
 
 func posServeSaleOrder(orderId int64, enterpriseId int32, userId int32) POSServeSaleOrder {
-	ok := invoiceAllSaleOrder(orderId, enterpriseId, userId)
+	ok := invoiceAllSaleOrder(orderId, enterpriseId, userId).Ok
 	if !ok {
 		return POSServeSaleOrder{Ok: false}
 	}
 
-	ok, _ = deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, nil)
-	if !ok {
+	okAndErr, _ := deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, nil)
+	if !okAndErr.Ok {
 		return POSServeSaleOrder{Ok: false}
 	}
 

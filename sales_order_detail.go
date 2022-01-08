@@ -891,3 +891,12 @@ func getPurchasesOrderDetailsFromSaleOrderDetail(detailId int32, enterpriseId in
 
 	return salePurchasesOrderDetail
 }
+
+func filterSalesOrderDetails(input []SalesOrderDetail, test func(SalesOrderDetail) bool) (output []SalesOrderDetail) {
+	for _, s := range input {
+		if test(s) {
+			output = append(output, s)
+		}
+	}
+	return
+}

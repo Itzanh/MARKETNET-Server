@@ -703,7 +703,7 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 
 	d.insertSalesOrderDetail(0)
 
-	ok := invoiceAllSaleOrder(orderId, 1, 0)
+	ok := invoiceAllSaleOrder(orderId, 1, 0).Ok
 	if !ok {
 		t.Error("Could not invoice all sale order")
 		return
@@ -793,7 +793,7 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.invoicePartiallySaleOrder(1, 0)
+	ok := invoiceInfo.invoicePartiallySaleOrder(1, 0).Ok
 	if !ok {
 		t.Error("Could not invoice partially sale order")
 		return
@@ -1667,7 +1667,7 @@ func TestSalesDeliveryNoteInsertUpdateDelete(t *testing.T) {
 	}
 
 	n.Id = noteId
-	ok = n.deleteSalesDeliveryNotes(0, nil)
+	ok = n.deleteSalesDeliveryNotes(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, delivey note not deleted")
 		return
@@ -1707,8 +1707,8 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 
 	d.insertSalesOrderDetail(0)
 
-	ok, noteId := deliveryNoteAllSaleOrder(orderId, 1, 0, nil)
-	if !ok {
+	okAndErr, noteId := deliveryNoteAllSaleOrder(orderId, 1, 0, nil)
+	if !okAndErr.Ok {
 		t.Error("Could not delivery note all sale order")
 		return
 	}
@@ -1742,7 +1742,7 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deleteSalesDeliveryNotes(0, nil)
+	ok := note.deleteSalesDeliveryNotes(0, nil).Ok
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
@@ -1797,8 +1797,8 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.deliveryNotePartiallySaleOrder(1, 0)
-	if !ok {
+	okAndErr := invoiceInfo.deliveryNotePartiallySaleOrder(1, 0)
+	if !okAndErr.Ok {
 		t.Error("Could not delivery note partially sale order")
 		return
 	}
@@ -1832,7 +1832,7 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deleteSalesDeliveryNotes(0, nil)
+	ok := note.deleteSalesDeliveryNotes(0, nil).Ok
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return

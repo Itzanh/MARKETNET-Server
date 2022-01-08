@@ -165,7 +165,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 				d.VatPercent = supplierNeeds[j].product.VatPercent
 				d.enterprise = enterpriseId
 				ok, detailId := d.insertPurchaseOrderDetail(userId, trans)
-				if !ok {
+				if !ok.Ok {
 					trans.Rollback()
 					return false, 0
 				}

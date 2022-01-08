@@ -255,15 +255,28 @@ func (s *Shipping) deleteShipping(userId int32) bool {
 	///
 }
 
-func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. No carrier selected in the order
+// 2. A detail has not been completely packaged
+// 3. Can't generate delivery note
+func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	saleOrder := getSalesOrderRow(orderId)
 	if saleOrder.enterprise != enterpriseId {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	packaging := getPackaging(orderId, enterpriseId)
+	if saleOrder.Id <= 0 || len(packaging) == 0 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if saleOrder.Carrier == nil || *saleOrder.Carrier <= 0 {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+	}
 
-	if saleOrder.Id <= 0 || len(packaging) == 0 || saleOrder.Carrier == nil || *saleOrder.Carrier <= 0 {
-		return false
+	details := getSalesOrderDetail(orderId, enterpriseId)
+	for i := 0; i < len(details); i++ {
+		if details[i].QuantityPendingPackaging > 0 {
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{details[i].ProductName}}
+		}
 	}
 
 	s := Shipping{}
@@ -274,7 +287,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
@@ -283,9 +296,9 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 		s.DeliveryNote = saleDeliveryNotes[0].Id
 	} else {
 		ok, noteId := deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, trans)
-		if !ok || noteId <= 0 {
+		if !ok.Ok || noteId <= 0 {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
 		}
 		s.DeliveryNote = noteId
 	}
@@ -294,13 +307,13 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 	ok, shippingId := s.insertShipping(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(packaging); i++ {
 		ok := associatePackagingToShipping(packaging[i].Id, shippingId, enterpriseId, userId, *trans)
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 	for i := 0; i < len(packaging); i++ {
@@ -311,7 +324,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 			if err != nil {
 				log("DB", err.Error())
 				trans.Rollback()
-				return false
+				return OkAndErrorCodeReturn{Ok: false}
 			}
 
 			insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailsPackaged[j].OrderDetail), userId, "U")
@@ -320,14 +333,14 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 			ok := setSalesOrderState(enterpriseId, saleOrderDetail.Order, userId, *trans)
 			if !ok {
 				trans.Rollback()
-				return false
+				return OkAndErrorCodeReturn{Ok: false}
 			}
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 

@@ -114,7 +114,7 @@ func TestPurchaseOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o.Id = orderId
-	ok = o.deletePurchaseOrder(0)
+	ok = o.deletePurchaseOrder(0).Ok
 	if !ok {
 		t.Error("Delete error, purchase order not deleted")
 		return
@@ -236,8 +236,8 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok, detailId := d.insertPurchaseOrderDetail(0, nil)
-	if !ok || detailId <= 0 {
+	okAndErr, detailId := d.insertPurchaseOrderDetail(0, nil)
+	if !okAndErr.Ok || detailId <= 0 {
 		t.Error("Insert error, purchase order detail not inserted")
 		return
 	}
@@ -260,7 +260,7 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete
 	d.Id = detailId
-	ok = d.deletePurchaseOrderDetail(0, nil)
+	ok := d.deletePurchaseOrderDetail(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, purchase order not deleted")
 		return
@@ -401,7 +401,7 @@ func TestPurchaseInvoiceInsertUpdateDelete(t *testing.T) {
 	}
 
 	i.Id = invoiceId
-	ok = i.deletePurchaseInvoice(0, nil)
+	ok = i.deletePurchaseInvoice(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, can't delete purchase invocice")
 		return
@@ -439,7 +439,7 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 
 	d.insertPurchaseOrderDetail(0, nil)
 
-	ok := invoiceAllPurchaseOrder(orderId, 1, 0)
+	ok := invoiceAllPurchaseOrder(orderId, 1, 0).Ok
 	if !ok {
 		t.Error("Could not invoice all purchase order")
 		return
@@ -474,7 +474,7 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deletePurchaseInvoice(0, nil)
+	ok = invoice.deletePurchaseInvoice(0, nil).Ok
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
@@ -525,7 +525,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.invoicePartiallyPurchaseOrder(1, 0)
+	ok := invoiceInfo.invoicePartiallyPurchaseOrder(1, 0).Ok
 	if !ok {
 		t.Error("Could not invoice partially purchase order")
 		return
@@ -560,7 +560,7 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created invoice
-	ok = invoice.deletePurchaseInvoice(0, nil)
+	ok = invoice.deletePurchaseInvoice(0, nil).Ok
 	if !ok {
 		t.Error("The invoice creted could not be deleted")
 		return
@@ -673,7 +673,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// insert
-	ok := d.insertPurchaseInvoiceDetail(0, nil)
+	ok := d.insertPurchaseInvoiceDetail(0, nil).Ok
 	if !ok {
 		t.Error("Insert error, can't insert purchase invocice detail")
 		return
@@ -689,7 +689,7 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 
 	// delete
 	i.Id = invoiceId
-	ok = i.deletePurchaseInvoice(0, nil)
+	ok = i.deletePurchaseInvoice(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, can't delete purchase invocice detail")
 		return
@@ -842,8 +842,8 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 
 	d.insertPurchaseOrderDetail(0, nil)
 
-	ok, noteId := deliveryNoteAllPurchaseOrder(orderId, 1, 0)
-	if !ok || noteId <= 0 {
+	okAndErr, noteId := deliveryNoteAllPurchaseOrder(orderId, 1, 0)
+	if !okAndErr.Ok || noteId <= 0 {
 		t.Error("Could not delivery note all purchase order")
 		return
 	}
@@ -877,7 +877,7 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deletePurchaseDeliveryNotes(0, nil)
+	ok := note.deletePurchaseDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return
@@ -928,8 +928,8 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 			},
 		},
 	}
-	ok := invoiceInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
-	if !ok {
+	okAndErr := invoiceInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
+	if !okAndErr.Ok {
 		t.Error("Could not deliveryNote partially purchase order")
 		return
 	}
@@ -963,7 +963,7 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	// delete created delivery note
-	ok = note.deletePurchaseDeliveryNotes(0, nil)
+	ok := note.deletePurchaseDeliveryNotes(0, nil)
 	if !ok {
 		t.Error("The delivery note creted could not be deleted")
 		return

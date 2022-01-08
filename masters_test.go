@@ -674,7 +674,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct(0)
+	ok := p.insertProduct(0).Ok
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -684,7 +684,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 	p = products[len(products)-1]
 
 	p.Name = "Wooden Office Desk"
-	ok = p.updateProduct(0)
+	ok = p.updateProduct(0).Ok
 	if !ok {
 		t.Error("Update error, could not update product")
 		return
@@ -696,7 +696,7 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		return
 	}
 
-	ok = p.deleteProduct(0)
+	ok = p.deleteProduct(0).Ok
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return
@@ -748,7 +748,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductSalesOrderDetails(products[i].Id, 1)
+		saleOrders := getProductSalesOrderDetails(ProductSalesOrderDetailsQuery{ProductId: products[i].Id}, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Sale orders with ID 0 on product")
@@ -760,7 +760,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductPurchaseOrderDetails(products[i].Id, 1)
+		saleOrders := getProductPurchaseOrderDetails(ProductPurchaseOrderDetailsQuery{ProductId: products[i].Id}, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Purchase orders with ID 0 on product")
@@ -772,7 +772,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductWarehouseMovement(products[i].Id, 1)
+		saleOrders := getProductWarehouseMovement(ProductPurchaseOrderDetailsQuery{ProductId: products[i].Id}, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Warehouse movement with ID 0 on product.")
@@ -784,7 +784,7 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductManufacturingOrders(products[i].Id, 1)
+		saleOrders := getProductManufacturingOrders(ProductManufacturingOrdersQuery{ProductId: products[i].Id}, 1)
 		if len(saleOrders) > 0 {
 			if saleOrders[0].Id <= 0 {
 				t.Error("Manufacturing orders with ID 0 on product.")
@@ -824,7 +824,7 @@ func TestGenerateBarcode(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct(0)
+	ok := p.insertProduct(0).Ok
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -845,7 +845,7 @@ func TestGenerateBarcode(t *testing.T) {
 		return
 	}
 
-	ok = p.deleteProduct(0)
+	ok = p.deleteProduct(0).Ok
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return
@@ -1012,7 +1012,7 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 		Off:               true,
 	}
 
-	ok := p.insertProduct(0)
+	ok := p.insertProduct(0).Ok
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -1034,7 +1034,7 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 		return
 	}
 
-	ok = p.deleteProduct(1)
+	ok = p.deleteProduct(1).Ok
 	if !ok {
 		t.Error("Delete error, can't delete the temp product")
 		return
@@ -1101,7 +1101,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 		DigitalProduct:    true,
 	}
 
-	ok := p.insertProduct(0)
+	ok := p.insertProduct(0).Ok
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return

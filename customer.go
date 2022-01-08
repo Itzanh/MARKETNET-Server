@@ -116,7 +116,7 @@ func getCustomerRow(customerId int32) Customer {
 }
 
 func (c *Customer) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 303 || len(c.Tradename) == 0 || len(c.Tradename) > 150 || len(c.FiscalName) == 0 || len(c.FiscalName) > 150 || len(c.TaxId) > 25 || len(c.VatNumber) > 25 || len(c.Phone) > 25 || len(c.Email) > 100)
+	return !(len(c.Name) == 0 || len(c.Name) > 303 || len(c.Tradename) == 0 || len(c.Tradename) > 150 || len(c.FiscalName) == 0 || len(c.FiscalName) > 150 || len(c.TaxId) > 25 || len(c.VatNumber) > 25 || len(c.Phone) > 25 || len(c.Email) > 100 || (len(c.Email) > 0 && !emailIsValid(c.Email)) || (len(c.Phone) > 0 && !phoneIsValid(c.Phone)))
 }
 
 // 1 = Invalid

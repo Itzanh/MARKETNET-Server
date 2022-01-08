@@ -446,19 +446,25 @@ func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32, tr
 	return err == nil
 }
 
-func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. The order is already invoiced
+// 2. There are no details to invoice
+func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	if saleOrder.enterprise != enterpriseId {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if saleOrder.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
-		return false
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
-
-	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
-		return false
+	filterSalesOrderDetails(orderDetails, func(sod SalesOrderDetail) bool { return sod.QuantityInvoiced < sod.Quantity })
+	if len(orderDetails) == 0 {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
 	}
 
 	// create an invoice for that order
@@ -472,21 +478,21 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bo
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	invoice.enterprise = saleOrder.enterprise
 	ok, invoiceId := invoice.insertSalesInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(orderDetails); i++ {
 		orderDetail := orderDetails[i]
@@ -495,14 +501,14 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bo
 		invoiceDetal.OrderDetail = &orderDetail.Id
 		invoiceDetal.Price = orderDetail.Price
 		invoiceDetal.Product = &orderDetail.Product
-		invoiceDetal.Quantity = orderDetail.Quantity
+		invoiceDetal.Quantity = (orderDetail.Quantity - orderDetail.QuantityInvoiced)
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
 		invoiceDetal.enterprise = invoice.enterprise
 		ok := invoiceDetal.insertSalesInvoiceDetail(trans, userId)
 		if !ok.Ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
@@ -510,7 +516,7 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) bo
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 
@@ -524,21 +530,38 @@ type OrderDetailGenerateSelection struct {
 	Quantity int32 `json:"quantity"`
 }
 
-func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. The order is aleady invoiced
+// 2. The selected quantity is greater than the quantity in the detail
+// 3. The detail is already invoiced
+// 4. The selected quantity is greater than the quantity pending of invoicing in the detail
+func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(invoiceInfo.OrderId)
 	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(invoiceInfo.Selection) == 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
-		return false
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(invoiceInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(invoiceInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity || orderDetail.QuantityInvoiced >= orderDetail.Quantity {
-			return false
+		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 {
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+		if invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+		}
+		if orderDetail.QuantityInvoiced >= orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+		}
+		if (invoiceInfo.Selection[i].Quantity + orderDetail.QuantityInvoiced) > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)
 	}
@@ -554,21 +577,21 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	ok := setDatePaymentAcceptedSalesOrder(enterpriseId, saleOrder.Id, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	invoice.enterprise = saleOrder.enterprise
 	ok, invoiceId := invoice.insertSalesInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(saleOrderDetails); i++ {
 		orderDetail := saleOrderDetails[i]
@@ -584,7 +607,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 		ok = invoiceDetal.insertSalesInvoiceDetail(trans, userId).Ok
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
@@ -592,7 +615,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 

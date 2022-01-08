@@ -7,30 +7,26 @@ import (
 )
 
 type WarehouseMovement struct {
-	Id                    int64     `json:"id"`
-	Warehouse             string    `json:"warehouse"`
-	Product               int32     `json:"product"`
-	Quantity              int32     `json:"quantity"`
-	DateCreated           time.Time `json:"dateCreated"`
-	Type                  string    `json:"type"` // O = Out, I = In, R = Inventory regularization
-	SalesOrder            *int64    `json:"salesOrder"`
-	SalesOrderDetail      *int64    `json:"salesOrderDetail"`
-	SalesInvoice          *int64    `json:"salesInvoice"`
-	SalesInvoiceDetail    *int64    `json:"salesInvoiceDetail"`
-	SalesDeliveryNote     *int64    `json:"salesDeliveryNote"`
-	Description           string    `json:"description"`
-	PurchaseOrder         *int64    `json:"purchaseOrder"`
-	PurchaseOrderDetail   *int64    `json:"purchaseOrderDetail"`
-	PurchaseInvoice       *int64    `json:"purchaseInvoice"`
-	PurchaseInvoiceDetail *int64    `json:"purchaseInvoiceDetail"`
-	PurchaseDeliveryNote  *int64    `json:"purchaseDeliveryNote"`
-	DraggedStock          int32     `json:"draggedStock"`
-	ProductName           string    `json:"productName"`
-	Price                 float64   `json:"price"`
-	VatPercent            float64   `json:"vatPercent"`
-	TotalAmount           float64   `json:"totalAmount"`
-	WarehouseName         string    `json:"warehouseName"`
-	enterprise            int32
+	Id                   int64     `json:"id"`
+	Warehouse            string    `json:"warehouse"`
+	Product              int32     `json:"product"`
+	Quantity             int32     `json:"quantity"`
+	DateCreated          time.Time `json:"dateCreated"`
+	Type                 string    `json:"type"` // O = Out, I = In, R = Inventory regularization
+	SalesOrder           *int64    `json:"salesOrder"`
+	SalesOrderDetail     *int64    `json:"salesOrderDetail"`
+	SalesDeliveryNote    *int64    `json:"salesDeliveryNote"`
+	Description          string    `json:"description"`
+	PurchaseOrder        *int64    `json:"purchaseOrder"`
+	PurchaseOrderDetail  *int64    `json:"purchaseOrderDetail"`
+	PurchaseDeliveryNote *int64    `json:"purchaseDeliveryNote"`
+	DraggedStock         int32     `json:"draggedStock"`
+	ProductName          string    `json:"productName"`
+	Price                float64   `json:"price"`
+	VatPercent           float64   `json:"vatPercent"`
+	TotalAmount          float64   `json:"totalAmount"`
+	WarehouseName        string    `json:"warehouseName"`
+	enterprise           int32
 }
 
 type WarehouseMovements struct {
@@ -55,7 +51,7 @@ func (q *PaginationQuery) getWarehouseMovement() WarehouseMovements {
 
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		wm.Movements = append(wm.Movements, m)
 	}
 
@@ -88,7 +84,7 @@ func (w *WarehouseMovementByWarehouse) getWarehouseMovementByWarehouse() Warehou
 
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		wm.Movements = append(wm.Movements, m)
 	}
 
@@ -111,7 +107,7 @@ func getWarehouseMovementRow(movementId int64) WarehouseMovement {
 	}
 
 	m := WarehouseMovement{}
-	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise)
+	row.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise)
 
 	return m
 }
@@ -132,7 +128,7 @@ func getWarehouseMovementBySalesDeliveryNote(noteId int64, enterpriseId int32) [
 
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -155,7 +151,7 @@ func getWarehouseMovementByPurchaseDeliveryNote(noteId int64, enterpriseId int32
 
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
@@ -200,7 +196,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		wm.Movements = append(wm.Movements, m)
 	}
 
@@ -261,8 +257,8 @@ func (m *WarehouseMovement) insertWarehouseMovement(userId int32, trans *sql.Tx)
 	}
 
 	// insert the movement
-	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_invoice, sales_invoice_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_invoice, purchase_invoice_details, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`
-	row := trans.QueryRow(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesInvoice, m.SalesInvoiceDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseInvoice, m.PurchaseInvoiceDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
+	sqlStatement := `INSERT INTO public.warehouse_movement(warehouse, product, quantity, type, sales_order, sales_order_detail, sales_delivery_note, dsc, purchase_order, purchase_order_detail, purchase_delivery_note, dragged_stock, price, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`
+	row := trans.QueryRow(sqlStatement, m.Warehouse, m.Product, m.Quantity, m.Type, m.SalesOrder, m.SalesOrderDetail, m.SalesDeliveryNote, m.Description, m.PurchaseOrder, m.PurchaseOrderDetail, m.PurchaseDeliveryNote, m.DraggedStock, m.Price, m.VatPercent, m.TotalAmount, m.enterprise)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
@@ -374,37 +370,7 @@ func (m *WarehouseMovement) deleteWarehouseMovement(userId int32, trans *sql.Tx)
 		row := trans.QueryRow(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
 		row.Scan(&draggedStock)
 	}
-	/*
-		sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC, id ASC`
-		rows, err := db.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
-		if err != nil {
-			log("DB", err.Error())
-			trans.Rollback()
-			return false
-		}
-		defer rows.Close()
 
-		for rows.Next() {
-			var movementId int64
-			var quantity int32
-			var movementType string
-			rows.Scan(&movementId, &quantity, &movementType)
-
-			if movementType == "R" {
-				draggedStock = quantity
-			} else {
-				draggedStock += quantity
-			}
-
-			sqlStatement := `UPDATE warehouse_movement SET dragged_stock=$2 WHERE id=$1`
-			_, err := trans.Exec(sqlStatement, movementId, draggedStock)
-			if err != nil {
-				log("DB", err.Error())
-				trans.Rollback()
-				return false
-			}
-		}
-	*/
 	var draggedStocks []WarehouseMovementDraggedStock = make([]WarehouseMovementDraggedStock, 0)
 	sqlStatement = `SELECT id,quantity,type FROM warehouse_movement WHERE warehouse=$1 AND product=$2 AND date_created>=$3 ORDER BY date_created ASC, id ASC`
 	rows, err := trans.Query(sqlStatement, inMemoryMovement.Warehouse, inMemoryMovement.Product, inMemoryMovement.DateCreated)
@@ -563,4 +529,77 @@ func regenerateDraggedStock(warehouseId string, enterpriseId int32) bool {
 	err = trans.Commit()
 	return err == nil
 	///
+}
+
+type WarehouseMovementRelations struct {
+	PurchaseDeliveryNoteName   *string                     `json:"purchaseDeliveryNoteName"`
+	PurchaseOrderName          *string                     `json:"purchaseOrderName"`
+	SalesDeliveryNoteName      *string                     `json:"saleDeliveryNoteName"`
+	SalesOrderName             *string                     `json:"saleOrderName"`
+	ManufacturingOrders        []ManufacturingOrder        `json:"manufacturingOrders"`
+	ComplexManufacturingOrders []ComplexManufacturingOrder `json:"complexManufacturingOrders"`
+}
+
+func getWarehouseMovementRelations(warehouseMovementId int64, enterpriseId int32) WarehouseMovementRelations {
+	r := WarehouseMovementRelations{}
+	r.ManufacturingOrders = make([]ManufacturingOrder, 0)
+	r.ComplexManufacturingOrders = make([]ComplexManufacturingOrder, 0)
+
+	movement := getWarehouseMovementRow(warehouseMovementId)
+
+	if movement.PurchaseDeliveryNote != nil {
+		purchaseDeliveryNoteName := getPurchaseDeliveryNoteRow(*movement.PurchaseDeliveryNote).DeliveryNoteName
+		r.PurchaseDeliveryNoteName = &purchaseDeliveryNoteName
+	}
+	if movement.PurchaseOrder != nil {
+		purchaseOrderName := getPurchaseOrderRow(*movement.PurchaseOrder).OrderName
+		r.PurchaseOrderName = &purchaseOrderName
+	}
+	if movement.SalesDeliveryNote != nil {
+		salesDeliveryNoteName := getSalesDeliveryNoteRow(*movement.SalesDeliveryNote).DeliveryNoteName
+		r.SalesDeliveryNoteName = &salesDeliveryNoteName
+	}
+	if movement.SalesOrder != nil {
+		salesOrderName := getSalesOrderRow(*movement.SalesOrder).OrderName
+		r.SalesOrderName = &salesOrderName
+	}
+
+	// complex manufacturing orders
+	sqlStatement := `SELECT complex_manufacturing_order FROM complex_manufacturing_order_manufacturing_order WHERE warehouse_movement = $1`
+	rows, err := db.Query(sqlStatement, warehouseMovementId)
+	if err != nil {
+		log("DB", err.Error())
+		return r
+	}
+
+	for rows.Next() {
+		var complexManufacturingOrderId int64
+		rows.Scan(&complexManufacturingOrderId)
+
+		cmo := getComplexManufacturingOrderRow(complexManufacturingOrderId)
+		cmo.TypeName = getManufacturingOrderTypeRow(cmo.Type).Name
+		r.ComplexManufacturingOrders = append(r.ComplexManufacturingOrders, cmo)
+	}
+
+	// manufacturing orders
+	sqlStatement = `SELECT id FROM manufacturing_order WHERE warehouse_movement = $1`
+	rows, err = db.Query(sqlStatement, warehouseMovementId)
+	if err != nil {
+		log("DB", err.Error())
+		return r
+	}
+
+	for rows.Next() {
+		var manufacturingOrderId int64
+		rows.Scan(&manufacturingOrderId)
+
+		mo := getManufacturingOrderRow(manufacturingOrderId)
+		mo.TypeName = getManufacturingOrderTypeRow(mo.Type).Name
+		if mo.Order != nil {
+			mo.OrderName = getSalesOrderRow(*mo.Order).OrderName
+		}
+		r.ManufacturingOrders = append(r.ManufacturingOrders, mo)
+	}
+
+	return r
 }

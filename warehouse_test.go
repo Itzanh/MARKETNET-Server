@@ -169,7 +169,7 @@ func TestCreateStockRow(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct(0)
+	ok := p.insertProduct(0).Ok
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -215,7 +215,7 @@ func TestCreateStockRow(t *testing.T) {
 	}
 	///
 
-	ok = p.deleteProduct(0)
+	ok = p.deleteProduct(0).Ok
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return

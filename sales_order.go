@@ -188,6 +188,7 @@ func getSalesOrderStatus(status string, enterpriseId int32) []SaleOrder {
 	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE status = $1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, status)
 	if err != nil {
+		log("DB", err.Error())
 		return sales
 	}
 	defer rows.Close()

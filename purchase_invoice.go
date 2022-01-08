@@ -115,6 +115,22 @@ func getPurchaseInvoiceRow(invoiceId int64) PurchaseInvoice {
 	return i
 }
 
+func getPurchaseInvoiceRowTransaction(invoiceId int64, trans sql.Tx) PurchaseInvoice {
+	sqlStatement := `SELECT * FROM purchase_invoice WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, invoiceId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return PurchaseInvoice{}
+	}
+
+	i := PurchaseInvoice{}
+	row.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
+		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
+		&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice)
+
+	return i
+}
+
 func (i *PurchaseInvoice) isValid() bool {
 	return !(i.Supplier <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
 }
@@ -170,9 +186,32 @@ func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32, trans *sql.Tx) (bo
 	return invoiceId > 0, invoiceId
 }
 
-func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32, trans *sql.Tx) bool {
+// 1. can't delete details in posted invoices
+// 2. the invoice deletion is completely disallowed by policy
+// 3. it is only allowed to delete the latest invoice of the billing series
+func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32, trans *sql.Tx) OkAndErrorCodeReturn {
 	if i.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	invoice := getPurchaseInvoiceRow(i.Id)
+	if invoice.enterprise != i.enterprise {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if invoice.AccountingMovement != nil {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+	}
+
+	// INVOICE DELETION POLICY
+	s := getSettingsRecordById(i.enterprise)
+	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
+		invoice := getPurchaseInvoiceRow(i.Id)
+		invoiceNumber := getNextPurchaseInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
+		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+		}
 	}
 
 	var beginTransaction bool = (trans == nil)
@@ -181,58 +220,41 @@ func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32, trans *sql.Tx) boo
 		var transErr error
 		trans, transErr = db.Begin()
 		if transErr != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
 
-	// INVOICE DELETION POLICY
-	s := getSettingsRecordById(i.enterprise)
-	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
-		return false
-	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
-		invoice := getPurchaseInvoiceRow(i.Id)
-		invoiceNumber := getNextPurchaseInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
-		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
-			return false
-		}
-	}
-
-	inMemoryInvoice := getPurchaseInvoiceRow(i.Id)
-	if inMemoryInvoice.enterprise != i.enterprise {
-		return false
-	}
-
 	d := getPurchaseInvoiceDetail(i.Id, i.enterprise)
 	for i := 0; i < len(d); i++ {
-		ok := d[i].deletePurchaseInvoiceDetail(userId, trans)
+		ok := d[i].deletePurchaseInvoiceDetail(userId, trans).Ok
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
-	insertTransactionalLog(inMemoryInvoice.enterprise, "purchase_invoice", int(i.Id), userId, "D")
+	insertTransactionalLog(invoice.enterprise, "purchase_invoice", int(i.Id), userId, "D")
 
 	sqlStatement := `DELETE FROM public.purchase_invoice WHERE id=$1`
 	res, err := trans.Exec(sqlStatement, i.Id)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	if beginTransaction {
 		///
 		err := trans.Commit()
 		if err != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
 func makeAmendingPurchaseInvoice(invoiceId int64, enterpriseId int32, quantity float64, description string, userId int32) bool {
@@ -341,16 +363,25 @@ func calcTotalsPurchaseInvoice(invoiceId int64, enterpriseId int32, userId int32
 	return err == nil
 }
 
-func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. The order is already invoiced
+// 2. There are no details to invoice
+func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the purchase order and it's details
 	purchaseOrder := getPurchaseOrderRow(purchaseOrderId)
 	if purchaseOrder.enterprise != enterpriseId {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if purchaseOrder.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if purchaseOrder.InvoicedLines >= purchaseOrder.LinesNumber {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 	orderDetails := getPurchaseOrderDetail(purchaseOrderId, purchaseOrder.enterprise)
-
+	filterPurchaseOrderDetails(orderDetails, func(pod PurchaseOrderDetail) bool { return pod.QuantityInvoiced < pod.Quantity })
 	if purchaseOrder.Id <= 0 || len(orderDetails) == 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
 	}
 
 	// create an invoice for that order
@@ -364,21 +395,21 @@ func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId i
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id, enterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	invoice.enterprise = enterpriseId
 	ok, invoiceId := invoice.insertPurchaseInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(orderDetails); i++ {
 		orderDetail := orderDetails[i]
@@ -391,31 +422,51 @@ func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId i
 		invoiceDetail.TotalAmount = orderDetail.TotalAmount
 		invoiceDetail.VatPercent = orderDetail.VatPercent
 		invoiceDetail.enterprise = enterpriseId
-		ok = invoiceDetail.insertPurchaseInvoiceDetail(userId, trans)
+		ok = invoiceDetail.insertPurchaseInvoiceDetail(userId, trans).Ok
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 
-func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. The order is aleady invoiced
+// 2. The selected quantity is greater than the quantity in the detail
+// 3. The detail is already invoiced
+// 4. The selected quantity is greater than the quantity pending of invoicing in the detail
+func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the sale order and it's details
 	purchaseOrder := getPurchaseOrderRow(invoiceInfo.OrderId)
 	if purchaseOrder.Id <= 0 || purchaseOrder.enterprise != enterpriseId || len(invoiceInfo.Selection) == 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if purchaseOrder.InvoicedLines >= purchaseOrder.LinesNumber {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	var purchaseOrderDetails []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
 	for i := 0; i < len(invoiceInfo.Selection); i++ {
 		orderDetail := getPurchaseOrderDetailRow(invoiceInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 || invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
-			return false
+		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 {
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+		if invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+		}
+		if orderDetail.QuantityInvoiced >= orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+		}
+		if (invoiceInfo.Selection[i].Quantity + orderDetail.QuantityInvoiced) > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
 		}
 		purchaseOrderDetails = append(purchaseOrderDetails, orderDetail)
 	}
@@ -431,21 +482,21 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	ok := setDatePaymentAcceptedPurchaseOrder(purchaseOrder.Id, enterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	invoice.enterprise = enterpriseId
 	ok, invoiceId := invoice.insertPurchaseInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(purchaseOrderDetails); i++ {
 		orderDetail := purchaseOrderDetails[i]
@@ -458,16 +509,16 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 		invoiceDetail.TotalAmount = orderDetail.TotalAmount
 		invoiceDetail.VatPercent = orderDetail.VatPercent
 		invoiceDetail.enterprise = enterpriseId
-		ok = invoiceDetail.insertPurchaseInvoiceDetail(userId, trans)
+		ok = invoiceDetail.insertPurchaseInvoiceDetail(userId, trans).Ok
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 

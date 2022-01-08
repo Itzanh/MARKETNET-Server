@@ -67,7 +67,7 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 		UserCreated: 1,
 		enterprise:  1,
 	}
-	ok := mo.insertManufacturingOrder(0, nil)
+	ok := mo.insertManufacturingOrder(0, nil).Ok
 	if !ok {
 		t.Error("Insert error, manufacturing order not inserted")
 		return
@@ -262,7 +262,7 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct(0)
+	ok := p.insertProduct(0).Ok
 	if !ok {
 		t.Error("Insert error, could not insert product")
 		return
@@ -396,7 +396,7 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	o.enterprise = 1
 	o.deleteSalesOrder(0)
 
-	ok = p.deleteProduct(0)
+	ok = p.deleteProduct(0).Ok
 	if !ok {
 		t.Error("Delete error, could not delete product")
 		return

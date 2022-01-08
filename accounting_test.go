@@ -814,7 +814,7 @@ func TestPurchasePostInvoices(t *testing.T) {
 	}
 
 	// delete invoioce and details
-	ok = i.deletePurchaseInvoice(0, nil)
+	ok = i.deletePurchaseInvoice(0, nil).Ok
 	if !ok {
 		t.Error("Delete error, can't delete purchase invoice")
 	}

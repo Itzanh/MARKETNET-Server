@@ -238,38 +238,48 @@ func (p *PurchaseOrder) updatePurchaseOrder(userId int32) bool {
 	return rows > 0
 }
 
-func (p *PurchaseOrder) deletePurchaseOrder(userId int32) bool {
+// ERROR CODES:
+// 1. Alerady invoiced
+// 2. Delivery note generated
+// 3. Error deleting detail <product>: <error>
+func (p *PurchaseOrder) deletePurchaseOrder(userId int32) OkAndErrorCodeReturn {
 	if p.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	inMemoryOrder := getPurchaseOrderRow(p.Id)
 	if inMemoryOrder.enterprise != p.enterprise {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	d := getPurchaseOrderDetail(p.Id, p.enterprise)
 
+	// prevent the order to be deleted if there is an invoice or a delivery note
 	for i := 0; i < len(d); i++ {
-		if d[i].QuantityInvoiced > 0 || d[i].QuantityDeliveryNote > 0 {
+		if d[i].QuantityInvoiced > 0 {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		}
+		if d[i].QuantityDeliveryNote > 0 {
+			trans.Rollback()
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
 		}
 	}
 
+	// delete details
 	for i := 0; i < len(d); i++ {
 		d[i].enterprise = p.enterprise
 		ok := d[i].deletePurchaseOrderDetail(userId, trans)
-		if !ok {
+		if !ok.Ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{strconv.Itoa(int(ok.ErorCode)), d[i].ProductName}}
 		}
 	}
 
@@ -280,18 +290,18 @@ func (p *PurchaseOrder) deletePurchaseOrder(userId int32) bool {
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	err = trans.Commit()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
 // Adds a total amount to the order total. This function will subsctract from the total if the totalAmount is negative.
@@ -336,7 +346,7 @@ func calcTotalsPurchaseOrder(orderId int64, enterpriseId int32, userId int32, tr
 	}
 
 	sqlStatement = `UPDATE purchase_order SET total_amount=total_with_discount+total_vat WHERE id=$1`
-	_, err = db.Exec(sqlStatement, orderId)
+	_, err = trans.Exec(sqlStatement, orderId)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -497,7 +507,7 @@ func addPurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func removePurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.purchase_order SET delivery_note_lines=delivery_note_lines-1 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, orderId)
+	res, err := trans.Exec(sqlStatement, orderId)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()

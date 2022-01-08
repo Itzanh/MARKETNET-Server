@@ -117,15 +117,31 @@ func (p *Product) isValid() bool {
 	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0)
 }
 
-func (p *Product) insertProduct(userId int32) bool {
+func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
 	if !p.isValid() {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	// Check that the format for EAN13 barcodes is correct
 	if len(p.BarCode) == 13 {
 		if !checkEan13(p.BarCode) {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+	}
+
+	if len(p.BarCode) > 0 {
+		sqlStatement := `SELECT COUNT(*) FROM product WHERE barcode = $1 AND enterprise = $2`
+		row := db.QueryRow(sqlStatement, p.BarCode, p.enterprise)
+		if row.Err() != nil {
+			log("DB", row.Err().Error())
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+
+		var ean13AlreadyExists int16
+		row.Scan(ean13AlreadyExists)
+
+		if ean13AlreadyExists > 0 {
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 		}
 	}
 
@@ -133,7 +149,7 @@ func (p *Product) insertProduct(userId int32) bool {
 	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId, p.enterprise, p.DigitalProduct, p.PurchasePrice)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	var productId int32
@@ -144,18 +160,34 @@ func (p *Product) insertProduct(userId int32) bool {
 		insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "I")
 	}
 
-	return productId > 0
+	return OkAndErrorCodeReturn{Ok: productId > 0}
 }
 
-func (p *Product) updateProduct(userId int32) bool {
+func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
 	if p.Id <= 0 || !p.isValid() {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	// Check that the format for EAN13 barcodes is correct
 	if len(strings.Trim(p.BarCode, " ")) == 13 {
 		if !checkEan13(p.BarCode) {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+	}
+
+	if len(p.BarCode) > 0 {
+		sqlStatement := `SELECT COUNT(*) FROM product WHERE barcode = $1 AND id != $2 AND enterprise = $3`
+		row := db.QueryRow(sqlStatement, p.BarCode, p.Id, p.enterprise)
+		if row.Err() != nil {
+			log("DB", row.Err().Error())
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+
+		var ean13AlreadyExists int16
+		row.Scan(ean13AlreadyExists)
+
+		if ean13AlreadyExists > 0 {
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 		}
 	}
 
@@ -163,32 +195,187 @@ func (p *Product) updateProduct(userId int32) bool {
 	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock, p.enterprise, p.DigitalProduct, p.PurchasePrice)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "U")
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
-func (p *Product) deleteProduct(userId int32) bool {
+// ERROR CODES:
+// 1: The product has plurals
+func (p *Product) deleteProduct(userId int32) OkAndErrorCodeReturn {
 	if p.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	trans, err := db.Begin()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
-	sqlStatement := `DELETE FROM stock WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=stock.product)=$2`
+	// check plurals
+	var plurals []string = make([]string, 0)
+
+	sqlStatement := `SELECT COUNT(*) FROM complex_manufacturing_order_manufacturing_order WHERE product = $1 AND enterprise = $2`
+	row := db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	var rowsCount int32
+	row.Scan(&rowsCount)
+
+	if rowsCount > 0 {
+		plurals = append(plurals, "1")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM manufacturing_order WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "2")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM manufacturing_order_type_components WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "3")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM packages WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "4")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM product_account WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "5")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM product_image WHERE product = $1 AND (SELECT enterprise FROM product WHERE product.id = $1) = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "6")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM product_translation WHERE product = $1 AND (SELECT enterprise FROM product WHERE product.id = $1) = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "7")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM purchase_invoice_details WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "8")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM purchase_order_detail WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "9")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM sales_invoice_detail WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "10")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM sales_order_detail WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "11")
+	}
+
+	sqlStatement = `SELECT COUNT(*) FROM warehouse_movement WHERE product = $1 AND enterprise = $2`
+	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	row.Scan(&rowsCount)
+	if rowsCount > 0 {
+		plurals = append(plurals, "12")
+	}
+
+	if len(plurals) > 0 {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1, ExtraData: plurals}
+	}
+
+	sqlStatement = `DELETE FROM stock WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=stock.product)=$2`
 	_, err = trans.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "D")
@@ -197,18 +384,18 @@ func (p *Product) deleteProduct(userId int32) bool {
 	res, err := trans.Exec(sqlStatement, p.Id, p.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
 	err = trans.Commit()
 	if err != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
 func findProductByName(productName string, enterpriseId int32) []NameInt32 {
@@ -300,11 +487,42 @@ func getProductPurchaseOrderDetailsPending(productId int32, enterpriseId int32) 
 	return details
 }
 
+type ProductSalesOrderDetailsQuery struct {
+	StartDate *time.Time `json:"startDate"`
+	EndDate   *time.Time `json:"endDate"`
+	Status    string     `json:"status"`
+	ProductId int32      `json:"productId"`
+}
+
+func (q *ProductSalesOrderDetailsQuery) isValid() bool {
+	return !(q.ProductId <= 0 || (len(q.Status) > 1))
+}
+
 // Get the sales order details with the product specified.
-func getProductSalesOrderDetails(productId int32, enterpriseId int32) []SalesOrderDetail {
+func getProductSalesOrderDetails(query ProductSalesOrderDetailsQuery, enterpriseId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND enterprise=$2 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if !query.isValid() {
+		return details
+	}
+
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND enterprise=$2`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, query.ProductId)
+	interfaces = append(interfaces, enterpriseId)
+	if query.StartDate != nil {
+		sqlStatement += ` AND (SELECT date_created FROM sales_order WHERE sales_order.id = sales_order_detail."order") >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.StartDate)
+	}
+	if query.EndDate != nil {
+		sqlStatement += ` AND (SELECT date_created FROM sales_order WHERE sales_order.id = sales_order_detail."order") <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.EndDate)
+	}
+	if query.Status != "" {
+		sqlStatement += ` AND status = $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.Status)
+	}
+	sqlStatement += ` ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return details
@@ -320,11 +538,37 @@ func getProductSalesOrderDetails(productId int32, enterpriseId int32) []SalesOrd
 	return details
 }
 
+type ProductPurchaseOrderDetailsQuery struct {
+	StartDate *time.Time `json:"startDate"`
+	EndDate   *time.Time `json:"endDate"`
+	ProductId int32      `json:"productId"`
+}
+
+func (q *ProductPurchaseOrderDetailsQuery) isValid() bool {
+	return !(q.ProductId <= 0)
+}
+
 // Get the purchase order details with the product specified.
-func getProductPurchaseOrderDetails(productId int32, enterpriseId int32) []PurchaseOrderDetail {
+func getProductPurchaseOrderDetails(query ProductPurchaseOrderDetailsQuery, enterpriseId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND enterprise=$2 ORDER BY purchase_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if !query.isValid() {
+		return details
+	}
+
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND enterprise=$2`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, query.ProductId)
+	interfaces = append(interfaces, enterpriseId)
+	if query.StartDate != nil {
+		sqlStatement += ` AND (SELECT date_created FROM purchase_order WHERE purchase_order.id = purchase_order_detail."order") >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.StartDate)
+	}
+	if query.EndDate != nil {
+		sqlStatement += ` AND (SELECT date_created FROM purchase_order WHERE purchase_order.id = purchase_order_detail."order") <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.EndDate)
+	}
+	sqlStatement += ` ORDER BY purchase_order_detail.id DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return details
@@ -341,10 +585,26 @@ func getProductPurchaseOrderDetails(productId int32, enterpriseId int32) []Purch
 }
 
 // Get the warehouse movements with the product specified.
-func getProductWarehouseMovement(productId int32, enterpriseId int32) []WarehouseMovement {
+func getProductWarehouseMovement(query ProductPurchaseOrderDetailsQuery, enterpriseId int32) []WarehouseMovement {
 	var warehouseMovements []WarehouseMovement = make([]WarehouseMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM warehouse_movement WHERE product=$1 AND enterprise=$2 ORDER BY warehouse_movement.id DESC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if !query.isValid() {
+		return warehouseMovements
+	}
+
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM warehouse_movement WHERE product=$1 AND enterprise=$2`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, query.ProductId)
+	interfaces = append(interfaces, enterpriseId)
+	if query.StartDate != nil {
+		sqlStatement += ` AND warehouse_movement.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.StartDate)
+	}
+	if query.EndDate != nil {
+		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.EndDate)
+	}
+	sqlStatement += ` ORDER BY warehouse_movement.id DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return warehouseMovements
@@ -353,18 +613,53 @@ func getProductWarehouseMovement(productId int32, enterpriseId int32) []Warehous
 
 	for rows.Next() {
 		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesInvoice, &m.SalesInvoiceDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseInvoice, &m.PurchaseInvoiceDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
+		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
 		warehouseMovements = append(warehouseMovements, m)
 	}
 
 	return warehouseMovements
 }
 
+type ProductManufacturingOrdersQuery struct {
+	StartDate    *time.Time `json:"startDate"`
+	EndDate      *time.Time `json:"endDate"`
+	Manufactured string     `json:"manufactured"` // Y = Yes, N = No, Empty to search all
+	ProductId    int32      `json:"productId"`
+}
+
+func (q *ProductManufacturingOrdersQuery) isValid() bool {
+	return !(q.ProductId <= 0 || (q.Manufactured != "" && q.Manufactured != "Y" && q.Manufactured != "N"))
+}
+
 // Get the manufacturing orders with the product specified.
-func getProductManufacturingOrders(productId int32, enterpriseId int32) []ManufacturingOrder {
+func getProductManufacturingOrders(query ProductManufacturingOrdersQuery, enterpriseId int32) []ManufacturingOrder {
 	manufacturingOrders := make([]ManufacturingOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE product=$1 AND enterprise=$2 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if !query.isValid() {
+		return manufacturingOrders
+	}
+
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE product=$1 AND enterprise=$2`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, query.ProductId)
+	interfaces = append(interfaces, enterpriseId)
+	if query.StartDate != nil {
+		sqlStatement += ` AND manufacturing_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.StartDate)
+	}
+	if query.EndDate != nil {
+		sqlStatement += ` AND manufacturing_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.EndDate)
+	}
+	if query.Manufactured != "" {
+		sqlStatement += ` AND manufacturing_order.manufactured = $` + strconv.Itoa(len(interfaces)+1)
+		if query.Manufactured == "Y" {
+			interfaces = append(interfaces, true)
+		} else {
+			interfaces = append(interfaces, false)
+		}
+	}
+	sqlStatement += ` ORDER BY manufacturing_order.date_created DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return manufacturingOrders
@@ -381,10 +676,34 @@ func getProductManufacturingOrders(productId int32, enterpriseId int32) []Manufa
 }
 
 // Get the complex manufacturing orders with the product specified.
-func getProductComplexManufacturingOrders(productId int32, enterpriseId int32) []ComplexManufacturingOrder {
+func getProductComplexManufacturingOrders(query ProductManufacturingOrdersQuery, enterpriseId int32) []ComplexManufacturingOrder {
 	complexManufacturingOrders := make([]ComplexManufacturingOrder, 0)
-	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.*,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_tag_printed) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id WHERE complex_manufacturing_order_manufacturing_order.product = $1 AND complex_manufacturing_order.enterprise = $2 ORDER BY complex_manufacturing_order.date_created ASC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
+	if !query.isValid() {
+		return complexManufacturingOrders
+	}
+
+	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.*,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_tag_printed) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id WHERE complex_manufacturing_order_manufacturing_order.product = $1 AND complex_manufacturing_order.enterprise = $2`
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, query.ProductId)
+	interfaces = append(interfaces, enterpriseId)
+	if query.StartDate != nil {
+		sqlStatement += ` AND complex_manufacturing_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.StartDate)
+	}
+	if query.EndDate != nil {
+		sqlStatement += ` AND complex_manufacturing_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, query.EndDate)
+	}
+	if query.Manufactured != "" {
+		sqlStatement += ` AND complex_manufacturing_order.manufactured = $` + strconv.Itoa(len(interfaces)+1)
+		if query.Manufactured == "Y" {
+			interfaces = append(interfaces, true)
+		} else {
+			interfaces = append(interfaces, false)
+		}
+	}
+	sqlStatement += ` ORDER BY complex_manufacturing_order.date_created ASC`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return complexManufacturingOrders
@@ -638,7 +957,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
 				o.UserCreated = userId
 				o.enterprise = enterpriseId
-				ok := o.insertManufacturingOrder(userId, trans)
+				ok := o.insertManufacturingOrder(userId, trans).Ok
 				if !ok {
 					trans.Rollback()
 					return false
@@ -672,8 +991,8 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				// generate the needs as a detail
 				product := getProductRow(productId)
 				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
-				ok, _ = det.insertPurchaseOrderDetail(userId, trans)
-				if !ok {
+				okAndErr, _ := det.insertPurchaseOrderDetail(userId, trans)
+				if !okAndErr.Ok {
 					trans.Rollback()
 					return false
 				}
@@ -681,8 +1000,8 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				// generate the needs as a detail
 				product := getProductRow(productId)
 				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
-				ok, _ = det.insertPurchaseOrderDetail(userId, trans)
-				if !ok {
+				okAndErr, _ := det.insertPurchaseOrderDetail(userId, trans)
+				if !okAndErr.Ok {
 					trans.Rollback()
 					return false
 				}
@@ -814,7 +1133,7 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 			p.ManufacturingOrderType = &manufacturingOrderTypeId
 		}
 
-		ok := p.insertProduct(userId)
+		ok := p.insertProduct(userId).Ok
 		if !ok {
 			return false
 		}

@@ -82,7 +82,7 @@ func getSupplierRow(supplierId int32) Supplier {
 }
 
 func (s *Supplier) isValid() bool {
-	return !(len(s.Name) == 0 || len(s.Name) > 303 || len(s.Tradename) == 0 || len(s.Tradename) > 150 || len(s.FiscalName) == 0 || len(s.FiscalName) > 150 || len(s.TaxId) > 25 || len(s.VatNumber) > 25 || len(s.Phone) > 25 || len(s.Email) > 100)
+	return !(len(s.Name) == 0 || len(s.Name) > 303 || len(s.Tradename) == 0 || len(s.Tradename) > 150 || len(s.FiscalName) == 0 || len(s.FiscalName) > 150 || len(s.TaxId) > 25 || len(s.VatNumber) > 25 || len(s.Phone) > 25 || len(s.Email) > 100 || (len(s.Email) > 0 && !emailIsValid(s.Email)) || (len(s.Phone) > 0 && !phoneIsValid(s.Phone)))
 }
 
 // 1 = Invalid

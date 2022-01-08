@@ -54,6 +54,7 @@ func (d *SalesInvoiceDetail) isValid() bool {
 	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || (d.Product != nil && *d.Product <= 0) || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
+// ERROR CODES:
 // 1. the product is deactivated
 // 2. there is aleady a detail with this product
 // 3. can't add details to a posted invoice
@@ -153,6 +154,7 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 	return OkAndErrorCodeReturn{Ok: saleInvoiceDetailId > 0}
 }
 
+// ERROR CODES:
 // 1. can't delete posted invoices
 // 2. the invoice deletion is completely disallowed by policy
 // 3. it is only allowed to delete the latest invoice of the billing series

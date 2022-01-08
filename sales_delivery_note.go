@@ -208,9 +208,11 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32, trans *sql.Tx
 	return noteId > 0, noteId
 }
 
-func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx) bool {
+// ERROR CODES:
+// 1. A shipping is associated to this delivery note
+func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx) OkAndErrorCodeReturn {
 	if n.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	var beginTransaction bool = (trans == nil)
@@ -219,9 +221,15 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx
 		var transErr error
 		trans, transErr = db.Begin()
 		if transErr != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
+	}
+
+	shipping := getSalesDeliveryNoteShippings(n.Id)
+	if len(shipping) > 1 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	d := getWarehouseMovementBySalesDeliveryNote(n.Id, n.enterprise)
@@ -229,7 +237,7 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx
 		ok := d[i].deleteWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
@@ -240,35 +248,41 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	if beginTransaction {
 		///
 		err := trans.Commit()
 		if err != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	return OkAndErrorCodeReturn{Ok: rows > 0}
 }
 
-func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32, trans *sql.Tx) (bool, int64) {
+// ERROR CODES:
+// 1. The order already has a delivery note generated
+// 2. There are no details to generate the delivery note
+func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32, trans *sql.Tx) (OkAndErrorCodeReturn, int64) {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
 	if saleOrder.enterprise != enterpriseId {
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false}, 0
+	}
+	if saleOrder.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	if saleOrder.DeliveryNoteLines >= saleOrder.LinesNumber {
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}, 0
 	}
 	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
-
-	if saleOrder.Id <= 0 || len(orderDetails) == 0 {
-		return false, 0
+	filterSalesOrderDetails(orderDetails, func(sod SalesOrderDetail) bool { return sod.QuantityDeliveryNote < sod.Quantity })
+	if len(orderDetails) == 0 {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}, 0
 	}
 
 	// create a delivery note for that order
@@ -286,7 +300,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		var transErr error
 		trans, transErr = db.Begin()
 		if transErr != nil {
-			return false, 0
+			return OkAndErrorCodeReturn{Ok: false}, 0
 		}
 		///
 	}
@@ -295,7 +309,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	for i := 0; i < len(orderDetails); i++ {
 		orderDetail := orderDetails[i]
@@ -303,7 +317,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		movement.Type = "O"
 		movement.Warehouse = saleOrder.Warehouse
 		movement.Product = orderDetail.Product
-		movement.Quantity = -orderDetail.Quantity
+		movement.Quantity = -(orderDetail.Quantity - orderDetail.QuantityDeliveryNote)
 		movement.SalesDeliveryNote = &deliveryNoteId
 		movement.SalesOrderDetail = &orderDetail.Id
 		movement.SalesOrder = &saleOrder.Id
@@ -313,7 +327,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
-			return false, 0
+			return OkAndErrorCodeReturn{Ok: false}, 0
 		}
 	}
 
@@ -321,28 +335,45 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		///
 		err := trans.Commit()
 		if err != nil {
-			return false, 0
+			return OkAndErrorCodeReturn{Ok: false}, 0
 		}
 		///
 	}
-	return true, deliveryNoteId
+	return OkAndErrorCodeReturn{Ok: true}, deliveryNoteId
 }
 
-func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. The order already has a delivery note generated
+// 2. The selected quantity is greater than the quantity in the detail
+// 3. The detail has a delivery note generated
+// 4. The selected quantity is greater than the quantity pending of delivery note generation in the detail
+func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(noteInfo.OrderId)
 	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(noteInfo.Selection) == 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
-	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
-		return false
+	if saleOrder.DeliveryNoteLines >= saleOrder.LinesNumber {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(noteInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(noteInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 || noteInfo.Selection[i].Quantity > orderDetail.Quantity || orderDetail.QuantityDeliveryNote >= orderDetail.Quantity {
-			return false
+		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 {
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+		if noteInfo.Selection[i].Quantity > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+		}
+		if orderDetail.QuantityDeliveryNote >= orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+		}
+		if (noteInfo.Selection[i].Quantity + orderDetail.QuantityDeliveryNote) > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)
 	}
@@ -359,7 +390,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
@@ -367,7 +398,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 	ok, deliveryNoteId := n.insertSalesDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(saleOrderDetails); i++ {
 		orderDetail := saleOrderDetails[i]
@@ -385,13 +416,13 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 

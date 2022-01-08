@@ -188,7 +188,7 @@ func TestPackaging(t *testing.T) {
 	}
 
 	// now that all the sale order is packaged, attempt to generate shipping
-	ok = generateShippingFromSaleOrder(orderId, 1, 0)
+	ok = generateShippingFromSaleOrder(orderId, 1, 0).Ok
 	if !ok {
 		t.Error("Could not generate shipping from sale order")
 		return
@@ -238,7 +238,7 @@ func TestPackaging(t *testing.T) {
 		t.Error("Can't scan sale delivery notes")
 		return
 	}
-	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0, nil)
+	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0, nil).Ok
 	if !ok {
 		t.Error("Can't delete sale delivery note")
 		return
@@ -475,7 +475,7 @@ func TestPackagingWithPallets(t *testing.T) {
 	}
 
 	// now that all the sale order is packaged, attempt to generate shipping
-	ok = generateShippingFromSaleOrder(orderId, 1, 0)
+	ok = generateShippingFromSaleOrder(orderId, 1, 0).Ok
 	if !ok {
 		t.Error("Could not generate shipping from sale order")
 		return
@@ -533,7 +533,7 @@ func TestPackagingWithPallets(t *testing.T) {
 		t.Error("Can't scan sale delivery notes")
 		return
 	}
-	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0, nil)
+	ok = orderRelations.DeliveryNotes[0].deleteSalesDeliveryNotes(0, nil).Ok
 	if !ok {
 		t.Error("Can't delete sale delivery note")
 		return

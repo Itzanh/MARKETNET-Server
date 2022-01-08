@@ -162,9 +162,12 @@ func (o *ManufacturingOrder) isValid() bool {
 	return !((o.OrderDetail != nil && *o.OrderDetail <= 0) || o.Product <= 0 || (o.Order != nil && *o.Order <= 0))
 }
 
-func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.Tx) bool {
+// ERROR CODES:
+// 1. There is no manufacturing order type in the product
+// 2. The product is deactivated
+func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.Tx) OkAndErrorCodeReturn {
 	if !o.isValid() {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	var beginTransaction bool = (trans == nil)
@@ -173,7 +176,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 		var transErr error
 		trans, transErr = db.Begin()
 		if transErr != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
@@ -181,12 +184,21 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 	// generate uuid
 	o.Uuid = uuid.New().String()
 
+	product := getProductRow(o.Product)
+	if product.Id <= 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	// don't allow deactivated products
+	if product.Off {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+	}
 	// get type if it's not specified
 	if o.Type <= 0 {
-		product := getProductRow(o.Product)
-		if product.Id <= 0 || !product.Manufacturing || product.ManufacturingOrderType == nil {
+		if !product.Manufacturing || product.ManufacturingOrderType == nil {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 		}
 		o.Type = *product.ManufacturingOrderType
 	}
@@ -195,7 +207,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 	mType := getManufacturingOrderTypeRow(o.Type)
 	if mType.Id <= 0 || mType.enterprise != o.enterprise {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	o.QuantityManufactured = mType.QuantityManufactured
 
@@ -210,7 +222,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	var manufacturingOrderId int64
@@ -223,7 +235,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 
 		insertTransactionalLog(o.enterprise, "sales_order_detail", int(*o.OrderDetail), userId, "U")
@@ -231,21 +243,21 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 		ok := setSalesOrderState(o.enterprise, *o.Order, userId, *trans)
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
 	ok := addQuantityPendingManufacture(o.Product, o.Warehouse, 1, o.enterprise, *trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	if beginTransaction {
 		///
 		err := trans.Commit()
 		if err != nil {
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
@@ -254,7 +266,7 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 		insertTransactionalLog(o.enterprise, "manufacturing_order", int(manufacturingOrderId), userId, "I")
 	}
 
-	return manufacturingOrderId > 0
+	return OkAndErrorCodeReturn{Ok: manufacturingOrderId > 0}
 }
 
 func (o *ManufacturingOrder) deleteManufacturingOrder(userId int32, trans *sql.Tx) bool {
@@ -533,7 +545,7 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 				o.UserCreated = userId
 				o.enterprise = enterpriseId
 				o.Warehouse = saleOrder.Warehouse
-				ok := o.insertManufacturingOrder(userId, trans)
+				ok := o.insertManufacturingOrder(userId, trans).Ok
 				if !ok {
 					trans.Rollback()
 					return false
@@ -582,7 +594,7 @@ func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder(userI
 		o.UserCreated = userId
 		o.enterprise = enterpriseId
 		o.Warehouse = saleOrder.Warehouse
-		ok := o.insertManufacturingOrder(userId, trans)
+		ok := o.insertManufacturingOrder(userId, trans).Ok
 		if !ok {
 			trans.Rollback()
 			return false

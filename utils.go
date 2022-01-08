@@ -12,6 +12,19 @@ func emailIsValid(email string) bool {
 	return err == nil
 }
 
+func phoneIsValid(phone string) bool {
+	const VALID_CHARACTERS = "0123456789()-+. "
+	if len(phone) == 0 {
+		return false
+	}
+	for i := 0; i < len(phone); i++ {
+		if !strings.Contains(VALID_CHARACTERS, string(phone[i])) {
+			return false
+		}
+	}
+	return true
+}
+
 // Abs returns the absolute value of x.
 func abs(x int32) int32 {
 	if x < 0 {

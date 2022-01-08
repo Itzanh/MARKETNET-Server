@@ -548,7 +548,7 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		var salesDeliveryNote SalesDeliveryNote
 		salesDeliveryNote.Id = int64(id)
 		salesDeliveryNote.enterprise = enterpriseId
-		ok = salesDeliveryNote.deleteSalesDeliveryNotes(userId, nil)
+		ok = salesDeliveryNote.deleteSalesDeliveryNotes(userId, nil).Ok
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -630,7 +630,7 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		var purchaseOrder PurchaseOrder
 		purchaseOrder.Id = int64(id)
 		purchaseOrder.enterprise = enterpriseId
-		ok = purchaseOrder.deletePurchaseOrder(userId)
+		ok = purchaseOrder.deletePurchaseOrder(userId).Ok
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -681,14 +681,15 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 			var purchaseOrderDetail PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetail)
 			purchaseOrderDetail.enterprise = enterpriseId
-			ok, _ = purchaseOrderDetail.insertPurchaseOrderDetail(userId, nil)
+			okAndErr, _ := purchaseOrderDetail.insertPurchaseOrderDetail(userId, nil)
+			ok = okAndErr.Ok
 		} else if string(body[0]) == "[" {
 			var purchaseOrderDetails []PurchaseOrderDetail
 			json.Unmarshal(body, &purchaseOrderDetails)
 			for i := 0; i < len(purchaseOrderDetails); i++ {
 				purchaseOrderDetails[i].enterprise = enterpriseId
-				ok, _ = purchaseOrderDetails[i].insertPurchaseOrderDetail(userId, nil)
-				if !ok {
+				ok, _ := purchaseOrderDetails[i].insertPurchaseOrderDetail(userId, nil)
+				if !ok.Ok {
 					break
 				}
 			}
@@ -708,7 +709,7 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		var purchaseOrderDetail PurchaseOrderDetail
 		purchaseOrderDetail.Id = int64(id)
 		purchaseOrderDetail.enterprise = enterpriseId
-		ok = purchaseOrderDetail.deletePurchaseOrderDetail(userId, nil)
+		ok = purchaseOrderDetail.deletePurchaseOrderDetail(userId, nil).Ok
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -781,7 +782,7 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		var purchaseInvoice PurchaseInvoice
 		purchaseInvoice.Id = int64(id)
 		purchaseInvoice.enterprise = enterpriseId
-		ok = purchaseInvoice.deletePurchaseInvoice(userId, nil)
+		ok = purchaseInvoice.deletePurchaseInvoice(userId, nil).Ok
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -832,13 +833,13 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 			var purchaseInvoiceDetail PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetail)
 			purchaseInvoiceDetail.enterprise = enterpriseId
-			ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(userId, nil)
+			ok = purchaseInvoiceDetail.insertPurchaseInvoiceDetail(userId, nil).Ok
 		} else if string(body[0]) == "[" {
 			var purchaseInvoiceDetails []PurchaseInvoiceDetail
 			json.Unmarshal(body, &purchaseInvoiceDetails)
 			for i := 0; i < len(purchaseInvoiceDetails); i++ {
 				purchaseInvoiceDetails[i].enterprise = enterpriseId
-				ok = purchaseInvoiceDetails[i].insertPurchaseInvoiceDetail(userId, nil)
+				ok = purchaseInvoiceDetails[i].insertPurchaseInvoiceDetail(userId, nil).Ok
 				if !ok {
 					break
 				}
@@ -859,7 +860,7 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		var purchaseInvoiceDetail PurchaseInvoiceDetail
 		purchaseInvoiceDetail.Id = int64(id)
 		purchaseInvoiceDetail.enterprise = enterpriseId
-		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail(userId, nil)
+		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail(userId, nil).Ok
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1145,13 +1146,13 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 			var product Product
 			json.Unmarshal(body, &product)
 			product.enterprise = enterpriseId
-			ok = product.insertProduct(userId)
+			ok = product.insertProduct(userId).Ok
 		} else if string(body[0]) == "[" {
 			var products []Product
 			json.Unmarshal(body, &products)
 			for i := 0; i < len(products); i++ {
 				products[i].enterprise = enterpriseId
-				ok = products[i].insertProduct(userId)
+				ok = products[i].insertProduct(userId).Ok
 				if !ok {
 					break
 				}
@@ -1167,7 +1168,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		var product Product
 		json.Unmarshal(body, &product)
 		product.enterprise = enterpriseId
-		ok = product.updateProduct(userId)
+		ok = product.updateProduct(userId).Ok
 	case "DELETE":
 		if !permission.Suppliers.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -1181,7 +1182,7 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		var product Product
 		product.Id = int32(id)
 		product.enterprise = enterpriseId
-		ok = product.deleteProduct(userId)
+		ok = product.deleteProduct(userId).Ok
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2200,7 +2201,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(body, &manufacturingOrder)
 		manufacturingOrder.UserCreated = userId
 		manufacturingOrder.enterprise = enterpriseId
-		ok = manufacturingOrder.insertManufacturingOrder(userId, nil)
+		ok = manufacturingOrder.insertManufacturingOrder(userId, nil).Ok
 	case "DELETE":
 		if !permission.ManufacturingOrders.Delete {
 			w.WriteHeader(http.StatusUnauthorized)

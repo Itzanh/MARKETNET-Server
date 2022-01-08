@@ -213,16 +213,25 @@ func (n *PurchaseDeliveryNote) deletePurchaseDeliveryNotes(userId int32, trans *
 	return rows > 0
 }
 
-func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId int32) (bool, int64) {
+// ERROR CODES:
+// 1. The order already has a delivery note generated
+// 2. There are no details to generate the delivery note
+func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId int32) (OkAndErrorCodeReturn, int64) {
 	// get the purchase order and it's details
 	purchaseOrder := getPurchaseOrderRow(purchaseOrderId)
 	if purchaseOrder.enterprise != enterpriseId {
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false}, 0
+	}
+	if purchaseOrder.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}, 0
+	}
+	if purchaseOrder.DeliveryNoteLines >= purchaseOrder.LinesNumber {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}, 0
 	}
 	orderDetails := getPurchaseOrderDetail(purchaseOrderId, purchaseOrder.enterprise)
-
+	filterPurchaseOrderDetails(orderDetails, func(pod PurchaseOrderDetail) bool { return pod.QuantityDeliveryNote < pod.Quantity })
 	if purchaseOrder.Id <= 0 || len(orderDetails) == 0 {
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 
 	// create a delivery note for that order
@@ -237,7 +246,7 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	///
 
@@ -245,7 +254,7 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 	ok, deliveryNoteId := n.insertPurchaseDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false, 0
+		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	for i := 0; i < len(orderDetails); i++ {
 		orderDetail := orderDetails[i]
@@ -263,28 +272,48 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
-			return false, 0
+			return OkAndErrorCodeReturn{Ok: false}, 0
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil, deliveryNoteId
+	return OkAndErrorCodeReturn{Ok: transErr == nil}, deliveryNoteId
 	///
 }
 
-func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpriseId int32, userId int32) bool {
+// ERROR CODES:
+// 1. The order already has a delivery note generated
+// 2. The selected quantity is greater than the quantity in the detail
+// 3. The detail has a delivery note generated
+// 4. The selected quantity is greater than the quantity pending of delivery note generation in the detail
+func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the purchase order and it's details
 	purchaseOrder := getPurchaseOrderRow(noteInfo.OrderId)
 	if purchaseOrder.Id <= 0 || purchaseOrder.enterprise != enterpriseId || len(noteInfo.Selection) == 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if purchaseOrder.DeliveryNoteLines >= purchaseOrder.LinesNumber {
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
 	}
 
 	var purchaseOrderDetails []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
 	for i := 0; i < len(noteInfo.Selection); i++ {
 		orderDetail := getPurchaseOrderDetailRow(noteInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 || noteInfo.Selection[i].Quantity > orderDetail.Quantity {
-			return false
+		if orderDetail.Id <= 0 || orderDetail.Order != noteInfo.OrderId || noteInfo.Selection[i].Quantity == 0 {
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+		if noteInfo.Selection[i].Quantity > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+		}
+		if orderDetail.QuantityDeliveryNote >= orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+		}
+		if (noteInfo.Selection[i].Quantity + orderDetail.QuantityDeliveryNote) > orderDetail.Quantity {
+			product := getProductRow(orderDetail.Product)
+			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
 		}
 		purchaseOrderDetails = append(purchaseOrderDetails, orderDetail)
 	}
@@ -301,7 +330,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
@@ -309,7 +338,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 	ok, deliveryNoteId := n.insertPurchaseDeliveryNotes(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 	for i := 0; i < len(purchaseOrderDetails); i++ {
 		orderDetail := purchaseOrderDetails[i]
@@ -327,13 +356,13 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 		ok = movement.insertWarehouseMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
-			return false
+			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
 	///
 	transErr = trans.Commit()
-	return transErr == nil
+	return OkAndErrorCodeReturn{Ok: transErr == nil}
 	///
 }
 
