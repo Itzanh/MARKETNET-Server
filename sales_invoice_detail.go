@@ -199,9 +199,17 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 		}
 	}
 
+	sqlStatement := `UPDATE public.sales_order_discount SET sales_invoice_detail = NULL WHERE sales_invoice_detail=$1 AND enterprise=$2`
+	_, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
+	if err != nil {
+		trans.Rollback()
+		log("DB", err.Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
 	insertTransactionalLog(d.enterprise, "sales_invoice_detail", int(d.Id), userId, "D")
 
-	sqlStatement := `DELETE FROM public.sales_invoice_detail WHERE id=$1 AND enterprise=$2`
+	sqlStatement = `DELETE FROM public.sales_invoice_detail WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
 	if err != nil {
 		trans.Rollback()
@@ -213,7 +221,7 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 	// can't continue
 	if rows == 0 {
 		///
-		err = trans.Commit()
+		err = trans.Rollback()
 		if err != nil {
 			return OkAndErrorCodeReturn{Ok: false}
 		}

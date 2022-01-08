@@ -1,12 +1,15 @@
 package main
 
+import "database/sql"
+
 type SalesOrderDiscount struct {
-	Id               int32   `json:"id"`
-	Order            int64   `json:"order"`
-	Name             string  `json:"name"`
-	ValueTaxIncluded float64 `json:"valueTaxIncluded"`
-	ValueTaxExcluded float64 `json:"valueTaxExcluded"`
-	enterprise       int32
+	Id                 int32   `json:"id"`
+	Order              int64   `json:"order"`
+	Name               string  `json:"name"`
+	ValueTaxIncluded   float64 `json:"valueTaxIncluded"`
+	ValueTaxExcluded   float64 `json:"valueTaxExcluded"`
+	SalesInvoiceDetail *int32  `json:"salesInvoiceDetail"`
+	enterprise         int32
 }
 
 func getSalesOrderDiscounts(orderId int64, enterpriseId int32) []SalesOrderDiscount {
@@ -21,7 +24,7 @@ func getSalesOrderDiscounts(orderId int64, enterpriseId int32) []SalesOrderDisco
 
 	for rows.Next() {
 		d := SalesOrderDiscount{}
-		rows.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise)
+		rows.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise, &d.SalesInvoiceDetail)
 		discounts = append(discounts, d)
 	}
 
@@ -37,7 +40,7 @@ func getSalesOrderDiscountsRow(discountId int32) SalesOrderDiscount {
 	}
 
 	d := SalesOrderDiscount{}
-	row.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise)
+	row.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise, &d.SalesInvoiceDetail)
 
 	return d
 }
@@ -128,4 +131,44 @@ func (d *SalesOrderDiscount) deleteSalesOrderDiscount(userId int32) bool {
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
+}
+
+func invoiceSalesOrderDiscounts(orderId int64, invoiceId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
+	sqlStatement := `SELECT id,name,value_tax_excluded FROM public.sales_order_discount WHERE "order" = $1 AND enterprise = $2 AND sales_invoice_detail IS NULL ORDER BY id ASC`
+	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	for rows.Next() {
+		var id int32
+		var name string
+		var valueTaxExcluded float64
+		rows.Scan(&id, &name, &valueTaxExcluded)
+
+		invoiceDetal := SalesInvoiceDetail{}
+		invoiceDetal.Invoice = invoiceId
+		invoiceDetal.Description = name
+		invoiceDetal.Price = -valueTaxExcluded
+		invoiceDetal.Quantity = 1
+		invoiceDetal.TotalAmount = -valueTaxExcluded
+		invoiceDetal.VatPercent = 0
+		invoiceDetal.enterprise = enterpriseId
+		ok := invoiceDetal.insertSalesInvoiceDetail(&trans, userId)
+		if !ok.Ok {
+			trans.Rollback()
+			return false
+		}
+
+		sqlStatement := `UPDATE public.sales_order_discount SET sales_invoice_detail=$2 WHERE id=$1`
+		_, err := trans.Exec(sqlStatement, id, invoiceDetal.Id)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+	}
+
+	return true
 }

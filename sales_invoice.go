@@ -512,6 +512,8 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 		}
 	}
 
+	invoiceSalesOrderDiscounts(saleOrderId, invoiceId, enterpriseId, userId, *trans)
+
 	go ecommerceControllerupdateStatusPaymentAccepted(saleOrderId, invoice.enterprise)
 
 	///
@@ -610,6 +612,8 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
+
+	invoiceSalesOrderDiscounts(saleOrder.Id, invoiceId, enterpriseId, userId, *trans)
 
 	go ecommerceControllerupdateStatusPaymentAccepted(invoiceInfo.OrderId, invoice.enterprise)
 
