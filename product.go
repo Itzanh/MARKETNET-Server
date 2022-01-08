@@ -32,6 +32,7 @@ type Product struct {
 	TrackMinimumStock       bool      `json:"trackMinimumStock"`
 	DigitalProduct          bool      `json:"digitalProduct"`
 	PurchasePrice           float64   `json:"purchasePrice"`
+	MinimumPurchaseQuantity int32     `json:"minimumPurchaseQuantity"`
 	prestaShopId            int32
 	prestaShopCombinationId int32
 	wooCommerceId           int32
@@ -51,7 +52,7 @@ func getProduct(enterpriseId int32) []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -78,7 +79,7 @@ func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 	}
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.FamilyName)
 		products = append(products, p)
 	}
 
@@ -94,7 +95,7 @@ func getProductRow(productId int32) Product {
 	}
 
 	p := Product{}
-	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice)
+	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity)
 
 	return p
 }
@@ -114,7 +115,7 @@ func getProductByBarcode(ean13 string, enterpriseId int32) Product {
 }
 
 func (p *Product) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0 || p.MinimumPurchaseQuantity < 0)
 }
 
 func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
@@ -145,8 +146,8 @@ func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
 		}
 	}
 
-	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id, enterprise, digital_product, purchase_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29) RETURNING id`
-	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId, p.enterprise, p.DigitalProduct, p.PurchasePrice)
+	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id, enterprise, digital_product, purchase_price, minimum_purchase_quantity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30) RETURNING id`
+	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId, p.enterprise, p.DigitalProduct, p.PurchasePrice, p.MinimumPurchaseQuantity)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return OkAndErrorCodeReturn{Ok: false}
@@ -191,8 +192,8 @@ func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
 		}
 	}
 
-	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21, digital_product=$23, purchase_price=$24 WHERE id=$1 AND enterprise=$22`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock, p.enterprise, p.DigitalProduct, p.PurchasePrice)
+	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21, digital_product=$23, purchase_price=$24, minimum_purchase_quantity=$25 WHERE id=$1 AND enterprise=$22`
+	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock, p.enterprise, p.DigitalProduct, p.PurchasePrice, p.MinimumPurchaseQuantity)
 	if err != nil {
 		log("DB", err.Error())
 		return OkAndErrorCodeReturn{Ok: false}
@@ -430,20 +431,21 @@ func getNameProduct(id int32, enterpriseId int32) string {
 }
 
 type OrderDetailDefaults struct {
-	Price         float64 `json:"price"`
-	PurchasePrice float64 `json:"purchasePrice"`
-	VatPercent    float64 `json:"vatPercent"`
+	Price                   float64 `json:"price"`
+	PurchasePrice           float64 `json:"purchasePrice"`
+	VatPercent              float64 `json:"vatPercent"`
+	MinimumPurchaseQuantity int32   `json:"minimumPurchaseQuantity"`
 }
 
 func getOrderDetailDefaults(productId int32, enterpriseId int32) OrderDetailDefaults {
-	sqlStatement := `SELECT price, vat_percent, purchase_price FROM product WHERE id=$1 AND enterprise=$2`
+	sqlStatement := `SELECT price, vat_percent, purchase_price, minimum_purchase_quantity FROM product WHERE id=$1 AND enterprise=$2`
 	row := db.QueryRow(sqlStatement, productId, enterpriseId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return OrderDetailDefaults{}
 	}
 	s := OrderDetailDefaults{}
-	row.Scan(&s.Price, &s.VatPercent, &s.PurchasePrice)
+	row.Scan(&s.Price, &s.VatPercent, &s.PurchasePrice, &s.MinimumPurchaseQuantity)
 	return s
 }
 
