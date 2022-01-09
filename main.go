@@ -31,11 +31,17 @@ var db *sql.DB
 // List of all the concurrent websocket connections to the server.
 var connections []Connection
 
+// MUTEX FOR var connections []Connection: List of all the concurrent websocket connections to the server.
+var connectionsMutex sync.Mutex
+
 // Global cron instance
 var c *cron.Cron
 
 // List of all cron IDs. Key= Enterprise Id, Value= Array of objects with cron IDs.
 var runningCrons map[int32]EnterpriseCronInfo = make(map[int32]EnterpriseCronInfo)
+
+// MUTEX FOR: var runningCrons map[int32]EnterpriseCronInfo: List of all cron IDs. Key= Enterprise Id, Value= Array of objects with cron IDs.
+var runningCronsMutex sync.Mutex
 
 func main() {
 	// read settings

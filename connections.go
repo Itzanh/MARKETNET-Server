@@ -17,28 +17,35 @@ type Connection struct {
 }
 
 func (c *Connection) addConnection() {
+	connectionsMutex.Lock()
 	c.Id = uuid.New().String()
 	c.DateConnected = time.Now()
 
 	connections = append(connections, *c)
+	connectionsMutex.Unlock()
 }
 
 func (c *Connection) deleteConnection() {
+	connectionsMutex.Lock()
 	for i := 0; i < len(connections); i++ {
 		if connections[i].Id == c.Id {
 			connections = append(connections[:i], connections[i+1:]...)
 			break
 		}
 	}
+	connectionsMutex.Unlock()
 }
 
 func disconnectConnection(id string, enterpriseId int32) bool {
+	connectionsMutex.Lock()
 	for i := 0; i < len(connections); i++ {
 		if connections[i].Id == id && connections[i].enterprise == enterpriseId {
 			connections[i].ws.Close()
+			connectionsMutex.Unlock()
 			return true
 		}
 	}
+	connectionsMutex.Unlock()
 	return false
 }
 
@@ -52,6 +59,7 @@ type ConnectionWeb struct {
 func getConnections(enterpriseId int32) []ConnectionWeb {
 	conn := make([]ConnectionWeb, 0)
 
+	connectionsMutex.Lock()
 	for i := 0; i < len(connections); i++ {
 		if connections[i].enterprise != enterpriseId {
 			continue
@@ -65,5 +73,6 @@ func getConnections(enterpriseId int32) []ConnectionWeb {
 		conn = append(conn, ConnectionWeb{Id: connections[i].Id, Address: connections[i].Address, User: userName, DateConnected: connections[i].DateConnected})
 	}
 
+	connectionsMutex.Unlock()
 	return conn
 }

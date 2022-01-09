@@ -299,6 +299,7 @@ type EnterpriseCronInfo struct {
 }
 
 func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
+	runningCronsMutex.Lock()
 	enterpriseCronInfo := runningCrons[oldSettings.Id]
 
 	if oldSettings.CronClearLabels != newSettings.CronClearLabels {
@@ -350,6 +351,7 @@ func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
 	}
 
 	runningCrons[oldSettings.Id] = enterpriseCronInfo
+	runningCronsMutex.Unlock()
 }
 
 func addEnterpriseFromParameters() bool {
