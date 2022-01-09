@@ -660,6 +660,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var query ProductManufacturingOrdersQuery
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(getProductComplexManufacturingOrders(query, enterpriseId))
+	case "REPORT_TEMPLATE_TRANSLATION":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getReportTemplateTranslations(enterpriseId))
 	default:
 		found = false
 	}
@@ -1011,7 +1016,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			ws.WriteMessage(mt, data)
 			return
 		}
-	}
+	} // Masters
 
 	if permissions.Masters {
 		switch command {
@@ -1446,6 +1451,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &d)
 		d.enterprise = enterpriseId
 		ok = d.insertProductAccount()
+	case "REPORT_TEMPLATE_TRANSLATION":
+		if !permissions.Admin {
+			return
+		}
+		var t ReportTemplateTranslation
+		json.Unmarshal(message, &t)
+		t.enterprise = enterpriseId
+		ok = t.insertReportTemplateTranslation()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1575,7 +1588,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 			json.Unmarshal(message, &productImage)
 			ok = productImage.updateProductImage(enterpriseId)
 		}
-	}
+	} // Masters
 
 	switch command {
 	case "WAREHOUSE":
@@ -1718,6 +1731,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &d)
 		d.enterprise = enterpriseId
 		ok = d.updateProductAccount()
+	case "REPORT_TEMPLATE_TRANSLATION":
+		if !permissions.Admin {
+			return
+		}
+		var t ReportTemplateTranslation
+		json.Unmarshal(message, &t)
+		t.enterprise = enterpriseId
+		ok = t.updateReportTemplateTranslation()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1777,6 +1798,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &p)
 		p.enterprise = enterpriseId
 		ok = p.deletePermissionDictionaryGroup()
+	case "REPORT_TEMPLATE_TRANSLATION":
+		if !permissions.Admin {
+			return
+		}
+		var t ReportTemplateTranslation
+		json.Unmarshal([]byte(message), &t)
+		t.enterprise = enterpriseId
+		ok = t.deleteReportTemplateTranslation()
 	default:
 		found = false
 	}

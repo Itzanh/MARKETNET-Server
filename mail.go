@@ -66,10 +66,11 @@ type EmailInfo struct {
 	Subject                string `json:"subject"`
 	ReportId               string `json:"reportId"`
 	ReportDataId           int32  `json:"reportDataId"`
+	Language               int32  `json:"language"` // can be 0
 }
 
 func (e *EmailInfo) isValid() bool {
-	return !(len(e.DestinationAddress) == 0 || len(e.DestinationAddressName) == 0 || len(e.Subject) == 0 || len(e.ReportId) == 0 || e.ReportDataId <= 0)
+	return !(len(e.DestinationAddress) == 0 || len(e.DestinationAddressName) == 0 || len(e.Subject) == 0 || len(e.ReportId) == 0 || e.ReportDataId <= 0 || e.Language < 0)
 }
 
 func (e *EmailInfo) sendEmail(enterpriseId int32) bool {
@@ -80,7 +81,7 @@ func (e *EmailInfo) sendEmail(enterpriseId int32) bool {
 	var report []byte
 	switch e.ReportId {
 	case "SALES_ORDER":
-		report = reportSalesOrder(int(e.ReportDataId), false, enterpriseId)
+		report = reportSalesOrder(int(e.ReportDataId), false, enterpriseId, e.Language)
 	case "SALES_INVOICE":
 		report = reportSalesInvoice(int(e.ReportDataId), false, enterpriseId)
 	case "SALES_DELIVERY_NOTE":

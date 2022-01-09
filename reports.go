@@ -18,7 +18,6 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 	if ok {
 		forcePrint = force_print[0] == "1"
 	}
-
 	token, ok := r.URL.Query()["token"]
 	if !ok || len(token[0]) != 36 {
 		return
@@ -31,6 +30,14 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	idLangString, ok := r.URL.Query()["lang"]
+	var idLang int
+	if ok {
+		idLang, err = strconv.Atoi(idLangString[0])
+		if err != nil {
+			return
+		}
+	}
 
 	ok, enterpriseId := consumeToken(token[0])
 	if !ok {
@@ -40,7 +47,7 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 
 	switch report[0] {
 	case "SALES_ORDER":
-		w.Write(reportSalesOrder(id, forcePrint, enterpriseId))
+		w.Write(reportSalesOrder(id, forcePrint, enterpriseId, int32(idLang)))
 	case "SALES_INVOICE":
 		w.Write(reportSalesInvoice(id, forcePrint, enterpriseId))
 	case "SALES_INVOICE_TICKET":
@@ -64,7 +71,7 @@ func getEnterpriseLogoBase64(enterpriseId int32) string {
 	return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(logo)
 }
 
-func reportSalesOrder(id int, forcePrint bool, enterpriseId int32) []byte {
+func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
 	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
@@ -126,6 +133,10 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	}
 
 	html = html[:strings.Index(html, "&&detail&&")] + detailsHtml + html[strings.Index(html, "&&--detail--&&")+len("&&--detail--&&"):]
+
+	if idLang != 0 {
+		html = translateReport(html, idLang, enterpriseId)
+	}
 
 	return []byte(html)
 }
