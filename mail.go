@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/tls"
+	"errors"
+	"net"
 	"net/smtp"
 	"strings"
 
@@ -22,7 +25,11 @@ func sendEmail(destinationAddress string, destinationAddressName string, subject
 	} else if s.Email == "S" {
 		sendEmailSendgrid(s.SendGridKey, s.EmailFrom, s.NameFrom, destinationAddress, destinationAddressName, subject, innerText)
 	} else if s.Email == "T" {
-		sendEmailSMTP(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText)
+		if s.SMTPSTARTTLS {
+			sendEmailSMTPwithSTARTTLS(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText)
+		} else {
+			sendEmailSMTPPlainAuth(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText)
+		}
 	}
 	return false
 }
@@ -41,7 +48,7 @@ func sendEmailSendgrid(key string, fromAddress string, fromAddressName string, d
 	return err == nil
 }
 
-func sendEmailSMTP(identiy string, username string, password string, smtpServer string, destinationAddress string, subject string, innerText string) bool {
+func sendEmailSMTPPlainAuth(identiy string, username string, password string, smtpServer string, destinationAddress string, subject string, innerText string) bool {
 	auth := smtp.PlainAuth(identiy, username, password, smtpServer[:strings.Index(smtpServer, ":")])
 
 	to := []string{destinationAddress}
@@ -59,6 +66,77 @@ func sendEmailSMTP(identiy string, username string, password string, smtpServer 
 
 	return err == nil
 }
+
+/* SMTP EMAIL WITH START TLS */
+
+type loginAuth struct {
+	username, password string
+}
+
+func LoginAuth(username, password string) smtp.Auth {
+	return &loginAuth{username, password}
+}
+
+func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", []byte(a.username), nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		switch string(fromServer) {
+		case "Username:":
+			return []byte(a.username), nil
+		case "Password:":
+			return []byte(a.password), nil
+		default:
+			return nil, errors.New("unknown from server")
+		}
+	}
+	return nil, nil
+}
+
+func sendEmailSMTPwithSTARTTLS(identiy string, username string, password string, smtpServer string, destinationAddress string, subject string, innerText string) bool {
+	conn, err := net.Dial("tcp", smtpServer)
+	if err != nil {
+		println(err)
+	}
+
+	c, err := smtp.NewClient(conn, smtpServer[:strings.Index(smtpServer, ":")])
+	if err != nil {
+		println(err)
+	}
+
+	tlsconfig := &tls.Config{
+		ServerName: smtpServer[:strings.Index(smtpServer, ":")],
+	}
+
+	if err = c.StartTLS(tlsconfig); err != nil {
+		println(err)
+	}
+
+	auth := LoginAuth(username, password)
+
+	if err = c.Auth(auth); err != nil {
+		println(err)
+	}
+
+	to := []string{destinationAddress}
+	msg := []byte("To: " + destinationAddress + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n" +
+		"\r\n" +
+		innerText + "\r\n")
+
+	err = smtp.SendMail(smtpServer, auth, username, to, msg)
+	if err != nil {
+		log("SMTP", err.Error())
+		return false
+	}
+
+	return err == nil
+}
+
+/*/ SMTP EMAIL WITH START TLS /*/
 
 type EmailInfo struct {
 	DestinationAddress     string `json:"destinationAddress"`
