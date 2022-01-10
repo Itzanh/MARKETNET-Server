@@ -185,6 +185,12 @@ func checkApiKey(r *http.Request) (bool, int32, int32, *ApiKeyPermissions) {
 }
 
 func checkMaxRequestsPerEnterprise(enterpriseId int32) bool {
+	// Is the enterprise activated? If the enterprise does not exist or there are no license to connect client, give up
+	s := getSettingsRecordById(enterpriseId)
+	if s.Id <= 0 || s.MaxConnections <= 0 {
+		return false
+	}
+
 	requestsMade, ok := requestsPerMinuteEnterprise[enterpriseId]
 	if !ok {
 		requestsPerMinuteEnterprise[enterpriseId] = 1
