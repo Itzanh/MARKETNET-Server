@@ -26,9 +26,9 @@ func sendEmail(destinationAddress string, destinationAddressName string, subject
 		sendEmailSendgrid(s.SendGridKey, s.EmailFrom, s.NameFrom, destinationAddress, destinationAddressName, subject, innerText)
 	} else if s.Email == "T" {
 		if s.SMTPSTARTTLS {
-			sendEmailSMTPwithSTARTTLS(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText)
+			sendEmailSMTPwithSTARTTLS(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText, s.SMTPReplyTo)
 		} else {
-			sendEmailSMTPPlainAuth(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText)
+			sendEmailSMTPPlainAuth(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText, s.SMTPReplyTo)
 		}
 	}
 	return false
@@ -48,12 +48,18 @@ func sendEmailSendgrid(key string, fromAddress string, fromAddressName string, d
 	return err == nil
 }
 
-func sendEmailSMTPPlainAuth(identiy string, username string, password string, smtpServer string, destinationAddress string, subject string, innerText string) bool {
+func sendEmailSMTPPlainAuth(identiy, username, password, smtpServer, destinationAddress, subject, innerText, replyTo string) bool {
 	auth := smtp.PlainAuth(identiy, username, password, smtpServer[:strings.Index(smtpServer, ":")])
 
+	if len(replyTo) > 0 {
+		replyTo = "Reply-To: " + replyTo + "\r\n"
+	}
+
 	to := []string{destinationAddress}
-	msg := []byte("To: " + destinationAddress + "\r\n" +
+	msg := []byte("From: " + username + "\r\n" +
+		"To: " + destinationAddress + "\r\n" +
 		"Subject: " + subject + "\r\n" +
+		replyTo +
 		"MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n" +
 		"\r\n" +
 		innerText + "\r\n")
@@ -95,10 +101,14 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	return nil, nil
 }
 
-func sendEmailSMTPwithSTARTTLS(identiy string, username string, password string, smtpServer string, destinationAddress string, subject string, innerText string) bool {
+func sendEmailSMTPwithSTARTTLS(identiy, username, password, smtpServer, destinationAddress, subject, innerText, replyTo string) bool {
 	conn, err := net.Dial("tcp", smtpServer)
 	if err != nil {
 		println(err)
+	}
+
+	if len(replyTo) > 0 {
+		replyTo = "Reply-To: " + replyTo + "\r\n"
 	}
 
 	c, err := smtp.NewClient(conn, smtpServer[:strings.Index(smtpServer, ":")])
@@ -121,8 +131,10 @@ func sendEmailSMTPwithSTARTTLS(identiy string, username string, password string,
 	}
 
 	to := []string{destinationAddress}
-	msg := []byte("To: " + destinationAddress + "\r\n" +
+	msg := []byte("From: " + username + "\r\n" +
+		"To: " + destinationAddress + "\r\n" +
 		"Subject: " + subject + "\r\n" +
+		replyTo +
 		"MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n" +
 		"\r\n" +
 		innerText + "\r\n")

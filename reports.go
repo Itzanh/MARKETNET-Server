@@ -68,7 +68,7 @@ func generateReport(w http.ResponseWriter, r *http.Request) {
 
 func getEnterpriseLogoBase64(enterpriseId int32) string {
 	logo, mimeType := getEnterpriseLogo(enterpriseId)
-	return "data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(logo)
+	return "data:" + mimeType + ";base64," + chunkSplit(base64.StdEncoding.EncodeToString(logo), 76, "\n")
 }
 
 func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32) []byte {

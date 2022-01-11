@@ -140,3 +140,34 @@ type OkAndErrorCodeReturn struct {
 	ErorCode  uint8    `json:"errorCode"`
 	ExtraData []string `json:"extraData"`
 }
+
+// https://www.socketloop.com/tutorials/golang-chunk-split-or-divide-a-string-into-smaller-chunk-example
+// Does the same as the chunk_split PHP funtion
+// Formats data for the RFC 2045 semantics
+func chunkSplit(body string, limit int, end string) string {
+	var charSlice []rune
+
+	// push characters to slice
+	for _, char := range body {
+		charSlice = append(charSlice, char)
+	}
+	var result string = ""
+
+	for len(charSlice) >= 1 {
+		// convert slice/array back to string
+		// but insert end at specified limit
+		result = result + string(charSlice[:limit]) + end
+
+		// discard the elements that were copied over to result
+		charSlice = charSlice[limit:]
+
+		// change the limit
+		// to cater for the last few words in
+		// charSlice
+		if len(charSlice) < limit {
+			limit = len(charSlice)
+		}
+	}
+
+	return result
+}
