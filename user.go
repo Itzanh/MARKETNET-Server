@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -324,6 +325,8 @@ type UserLoginResult struct {
 	Permissions         *Permissions `json:"permissions"`
 	Language            string       `json:"language"`
 	GoogleAuthenticator bool         `json:"googleAuthenticator"`
+	Reason              uint8        `json:"reason"` // 0 = Incorrect login, 1 = Connection filtered, 2 = Maximum number of connections reached
+	ExtraData           []string     `json:"extraData"`
 }
 
 // Result, user id, enterprise id
@@ -354,6 +357,32 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int32, int32) {
 		user.setUserFailedLoginAttemps(true)
 		return UserLoginResult{Ok: false}, 0, 0
 	}
+}
+
+func (r *UserLoginResult) checkUserConnection(userId int32, remoteAddr string, enterpriseId int32) bool {
+	okFilter, filterName := userConnection(userId, remoteAddr, enterpriseId)
+	if !okFilter {
+		r.reset()
+		r.Reason = 1
+		r.ExtraData = []string{filterName}
+		return false
+	}
+	s := getSettingsRecordById(enterpriseId)
+	if len(getConnections(enterpriseId)) >= int(s.MaxConnections) {
+		r.reset()
+		r.Reason = 2
+		r.ExtraData = []string{strconv.Itoa(int(s.MaxConnections))}
+		return false
+	}
+	return true
+}
+
+func (r *UserLoginResult) reset() {
+	r.Ok = false
+	r.Token = ""
+	r.Permissions = nil
+	r.Language = ""
+	r.GoogleAuthenticator = false
 }
 
 func comparePasswords(passwordInput []byte, passwordOutput []byte) bool {

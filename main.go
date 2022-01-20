@@ -178,14 +178,6 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 	// AUTHENTICATION
 	ok, userId, permissions, enterpriseId := authentication(ws, r.RemoteAddr)
 	if !ok || permissions == nil {
-		return
-	}
-	okFilter := userConnection(userId, r.RemoteAddr, enterpriseId)
-	if !okFilter {
-		return
-	}
-	s := getSettingsRecordById(enterpriseId)
-	if len(getConnections(enterpriseId)) >= int(s.MaxConnections) {
 		ws.Close()
 		return
 	}
@@ -270,18 +262,36 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int32, *Permis
 			} else {
 				// Return result to client (Ok + Token)
 				data, _ := json.Marshal(result)
-				ws.WriteMessage(mt, data)
 				if result.Ok {
-					return true, userId, result.Permissions, enterpriseId
+					if result.checkUserConnection(userId, remoteAddr, enterpriseId) {
+						ws.WriteMessage(mt, data)
+						return true, userId, result.Permissions, enterpriseId
+					} else {
+						data, _ := json.Marshal(result)
+						ws.WriteMessage(mt, data)
+						// END AUTHENTICATION
+						return false, 0, nil, 0
+					}
+				} else {
+					ws.WriteMessage(mt, data)
 				}
 			}
 		} else {
 
 			// Return result to client (Ok + Token)
 			data, _ := json.Marshal(result)
-			ws.WriteMessage(mt, data)
 			if result.Ok {
-				return true, userId, result.Permissions, enterpriseId
+				if result.checkUserConnection(userId, remoteAddr, enterpriseId) {
+					ws.WriteMessage(mt, data)
+					return true, userId, result.Permissions, enterpriseId
+				} else {
+					data, _ := json.Marshal(result)
+					ws.WriteMessage(mt, data)
+					// END AUTHENTICATION
+					return false, 0, nil, 0
+				}
+			} else {
+				ws.WriteMessage(mt, data)
 			}
 
 		}

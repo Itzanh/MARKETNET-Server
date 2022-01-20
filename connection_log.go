@@ -58,10 +58,10 @@ func (l *ConnectionLog) insertConnectionLog() {
 // Called during the client login.
 // 1. Logs the user connection
 // 2. Filters the user connection
-func userConnection(userId int32, ipAddress string, enterpriseId int32) bool {
+func userConnection(userId int32, ipAddress string, enterpriseId int32) (bool, string) {
 	s := getSettingsRecordById(enterpriseId)
 	if !s.ConnectionLog {
-		return true
+		return true, ""
 	}
 
 	// Remote the port from the address
@@ -74,7 +74,7 @@ func userConnection(userId int32, ipAddress string, enterpriseId int32) bool {
 	if userId == 1 {
 		l.Ok = true
 		l.insertConnectionLog()
-		return true
+		return true, ""
 	}
 
 	if s.FilterConnections {
@@ -84,7 +84,7 @@ func userConnection(userId int32, ipAddress string, enterpriseId int32) bool {
 				if *filters[i].IpAddress != ipAddress {
 					l.Ok = false
 					l.insertConnectionLog()
-					return false
+					return false, filters[i].Name
 				}
 			} else if filters[i].Type == "S" {
 				now := time.Now()
@@ -93,7 +93,7 @@ func userConnection(userId int32, ipAddress string, enterpriseId int32) bool {
 				if time.Before(*filters[i].TimeStart) || time.After(*filters[i].TimeEnd) {
 					l.Ok = false
 					l.insertConnectionLog()
-					return false
+					return false, filters[i].Name
 				}
 			}
 		}
@@ -101,7 +101,7 @@ func userConnection(userId int32, ipAddress string, enterpriseId int32) bool {
 
 	l.Ok = true
 	l.insertConnectionLog()
-	return true
+	return true, ""
 }
 
 func userDisconnected(user int32) {
