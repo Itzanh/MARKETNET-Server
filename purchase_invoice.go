@@ -8,30 +8,38 @@ import (
 )
 
 type PurchaseInvoice struct {
-	Id                 int64     `json:"id"`
-	Supplier           int32     `json:"supplier"`
-	DateCreated        time.Time `json:"dateCreated"`
-	PaymentMethod      int32     `json:"paymentMethod"`
-	BillingSeries      string    `json:"billingSeries"`
-	Currency           int32     `json:"currency"`
-	CurrencyChange     float64   `json:"currencyChange"`
-	BillingAddress     int32     `json:"billingAddress"`
-	TotalProducts      float64   `json:"totalProducts"`
-	DiscountPercent    float64   `json:"discountPercent"`
-	FixDiscount        float64   `json:"fixDiscount"`
-	ShippingPrice      float64   `json:"shippingPrice"`
-	ShippingDiscount   float64   `json:"shippingDiscount"`
-	TotalWithDiscount  float64   `json:"totalWithDiscount"`
-	VatAmount          float64   `json:"vatAmount"`
-	TotalAmount        float64   `json:"totalAmount"`
-	LinesNumber        int16     `json:"linesNumber"`
-	InvoiceNumber      int32     `json:"invoiceNumber"`
-	InvoiceName        string    `json:"invoiceName"`
-	AccountingMovement *int64    `json:"accountingMovement"`
-	SupplierName       string    `json:"supplierName"`
-	Amending           bool      `json:"amending"`
-	AmendedInvoice     *int64    `json:"amendedInvoice"`
-	enterprise         int32
+	Id                  int64     `json:"id"`
+	Supplier            int32     `json:"supplier"`
+	DateCreated         time.Time `json:"dateCreated"`
+	PaymentMethod       int32     `json:"paymentMethod"`
+	BillingSeries       string    `json:"billingSeries"`
+	Currency            int32     `json:"currency"`
+	CurrencyChange      float64   `json:"currencyChange"`
+	BillingAddress      int32     `json:"billingAddress"`
+	TotalProducts       float64   `json:"totalProducts"`
+	DiscountPercent     float64   `json:"discountPercent"`
+	FixDiscount         float64   `json:"fixDiscount"`
+	ShippingPrice       float64   `json:"shippingPrice"`
+	ShippingDiscount    float64   `json:"shippingDiscount"`
+	TotalWithDiscount   float64   `json:"totalWithDiscount"`
+	VatAmount           float64   `json:"vatAmount"`
+	TotalAmount         float64   `json:"totalAmount"`
+	LinesNumber         int16     `json:"linesNumber"`
+	InvoiceNumber       int32     `json:"invoiceNumber"`
+	InvoiceName         string    `json:"invoiceName"`
+	AccountingMovement  *int64    `json:"accountingMovement"`
+	SupplierName        string    `json:"supplierName"`
+	Amending            bool      `json:"amending"`
+	AmendedInvoice      *int64    `json:"amendedInvoice"`
+	IncomeTax           bool      `json:"incomeTax"`
+	IncomeTaxBase       float64   `json:"incomeTaxBase"`
+	IncomeTaxPercentage float64   `json:"incomeTaxPercentage"`
+	IncomeTaxValue      float64   `json:"incomeTaxValue"`
+	Rent                bool      `json:"rent"`
+	RentBase            float64   `json:"rentBase"`
+	RentPercentage      float64   `json:"rentPercentage"`
+	RentValue           float64   `json:"rentValue"`
+	enterprise          int32
 }
 
 func getPurchaseInvoices(enterpriseId int32) []PurchaseInvoice {
@@ -48,7 +56,8 @@ func getPurchaseInvoices(enterpriseId int32) []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.SupplierName)
+			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
+			&i.RentPercentage, &i.RentValue, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -92,7 +101,8 @@ func (s *OrderSearch) searchPurchaseInvoice() []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.SupplierName)
+			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
+			&i.RentPercentage, &i.RentValue, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 
@@ -110,7 +120,8 @@ func getPurchaseInvoiceRow(invoiceId int64) PurchaseInvoice {
 	i := PurchaseInvoice{}
 	row.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-		&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice)
+		&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
+		&i.RentPercentage, &i.RentValue)
 
 	return i
 }
@@ -126,13 +137,14 @@ func getPurchaseInvoiceRowTransaction(invoiceId int64, trans sql.Tx) PurchaseInv
 	i := PurchaseInvoice{}
 	row.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-		&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice)
+		&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
+		&i.RentPercentage, &i.RentValue)
 
 	return i
 }
 
 func (i *PurchaseInvoice) isValid() bool {
-	return !(i.Supplier <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
+	return !(i.Supplier <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0 || i.IncomeTaxBase < 0 || i.IncomeTaxPercentage < 0 || i.RentBase < 0 || i.RentPercentage < 0)
 }
 
 func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32, trans *sql.Tx) (bool, int64) {
@@ -159,8 +171,8 @@ func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32, trans *sql.Tx) (bo
 	now := time.Now()
 	i.InvoiceName = i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
 
-	sqlStatement := `INSERT INTO public.purchase_invoice(supplier, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`
-	row := trans.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise)
+	sqlStatement := `INSERT INTO public.purchase_invoice(supplier, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise, income_tax, income_tax_percentage, rent, rent_percentage) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id`
+	row := trans.QueryRow(sqlStatement, i.Supplier, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise, i.IncomeTax, i.IncomeTaxPercentage, i.Rent, i.RentPercentage)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
@@ -350,7 +362,15 @@ func calcTotalsPurchaseInvoice(invoiceId int64, enterpriseId int32, userId int32
 		return false
 	}
 
-	sqlStatement = `UPDATE purchase_invoice SET total_amount=total_with_discount+vat_amount WHERE id = $1`
+	sqlStatement = `UPDATE public.purchase_invoice SET income_tax_value = CASE WHEN income_tax THEN (income_tax_base/100)*income_tax_percentage ELSE 0 END, rent_value = CASE WHEN rent THEN (rent_base/100)*rent_percentage ELSE 0 END WHERE id = $1`
+	_, err = trans.Exec(sqlStatement, invoiceId)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	sqlStatement = `UPDATE purchase_invoice SET total_amount = total_with_discount + vat_amount - income_tax_value - rent_value WHERE id = $1`
 	_, err = trans.Exec(sqlStatement, invoiceId)
 	if err != nil {
 		log("DB", err.Error())
@@ -361,6 +381,34 @@ func calcTotalsPurchaseInvoice(invoiceId int64, enterpriseId int32, userId int32
 	insertTransactionalLog(enterpriseId, "purchase_invoice", int(invoiceId), userId, "U")
 
 	return err == nil
+}
+
+// Adds a income tax base amount to the income tax base. This function will subsctract from the total if the totalAmount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addIncomeTaxBasePurchaseInvoice(invoiceId int64, totalAmount float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
+	sqlStatement := `UPDATE purchase_invoice SET income_tax_base=income_tax_base+$2 WHERE id = $1`
+	_, err := trans.Exec(sqlStatement, invoiceId, totalAmount)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	return calcTotalsPurchaseInvoice(invoiceId, enterpriseId, userId, trans)
+}
+
+// Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
+func addRentBaseProductsPurchaseInvoice(invoiceId int64, totalAmount float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
+	sqlStatement := `UPDATE purchase_invoice SET rent_base=rent_base+$2 WHERE id = $1`
+	_, err := trans.Exec(sqlStatement, invoiceId, totalAmount)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	return calcTotalsPurchaseInvoice(invoiceId, enterpriseId, userId, trans)
 }
 
 // ERROR CODES:

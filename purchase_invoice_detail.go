@@ -15,6 +15,8 @@ type PurchaseInvoiceDetail struct {
 	OrderDetail *int64  `json:"orderDetail"`
 	ProductName string  `json:"productName"`
 	Description string  `json:"description"`
+	IncomeTax   bool    `json:"incomeTax"`
+	Rent        bool    `json:"rent"`
 	enterprise  int32
 }
 
@@ -30,7 +32,7 @@ func getPurchaseInvoiceDetail(invoiceId int64, enterpriseId int32) []PurchaseInv
 
 	for rows.Next() {
 		d := PurchaseInvoiceDetail{}
-		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.ProductName)
+		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.IncomeTax, &d.Rent, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -45,7 +47,7 @@ func getPurchaseInvoiceDetailRow(detailId int64) PurchaseInvoiceDetail {
 		return PurchaseInvoiceDetail{}
 	}
 	d := PurchaseInvoiceDetail{}
-	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description)
+	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.IncomeTax, &d.Rent)
 
 	return d
 }
@@ -114,8 +116,8 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(userId int32, trans 
 		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
 	}
 
-	sqlStatement = `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
-	row = trans.QueryRow(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
+	sqlStatement = `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description, income_tax, rent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
+	row = trans.QueryRow(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description, s.IncomeTax, s.Rent)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		trans.Rollback()
@@ -135,6 +137,20 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(userId int32, trans 
 	}
 	if s.OrderDetail != nil && *s.OrderDetail != 0 {
 		ok := addQuantityInvoicedPurchaseOrderDetail(*s.OrderDetail, s.Quantity, s.enterprise, userId, *trans)
+		if !ok {
+			trans.Rollback()
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+	}
+	if s.IncomeTax {
+		ok = addIncomeTaxBasePurchaseInvoice(s.Invoice, s.Price*float64(s.Quantity), s.enterprise, userId, *trans)
+		if !ok {
+			trans.Rollback()
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+	}
+	if s.Rent {
+		ok = addRentBaseProductsPurchaseInvoice(s.Invoice, s.Price*float64(s.Quantity), s.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
@@ -219,6 +235,20 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail(userId int32, trans 
 	}
 	if detailInMemory.OrderDetail != nil && *detailInMemory.OrderDetail != 0 {
 		ok := addQuantityInvoicedPurchaseOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity, d.enterprise, userId, *trans)
+		if !ok {
+			trans.Rollback()
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+	}
+	if detailInMemory.IncomeTax {
+		ok = addIncomeTaxBasePurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), d.enterprise, userId, *trans)
+		if !ok {
+			trans.Rollback()
+			return OkAndErrorCodeReturn{Ok: false}
+		}
+	}
+	if detailInMemory.Rent {
+		ok = addRentBaseProductsPurchaseInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), d.enterprise, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
