@@ -24,6 +24,7 @@ func initialData(enterpriseId int32) {
 	initialUserGroup()
 	initialReportTemplate(enterpriseId)
 	initialPermissionDictionary(enterpriseId)
+	initialHSCodes()
 }
 
 func initialPaymentData(enterpriseId int32) {
@@ -532,5 +533,34 @@ func initialPermissionDictionary(enterpriseId int32) {
 		db.Exec(sqlStatement, perm[i].Key, enterpriseId)
 		sqlStatement = `DELETE FROM public.permission_dictionary WHERE enterprise = $1 AND key = $2`
 		db.Exec(sqlStatement, enterpriseId, perm[i].Key)
+	}
+}
+
+func initialHSCodes() {
+	sqlStatement := `SELECT COUNT(*) FROM hs_codes`
+	row := db.QueryRow(sqlStatement)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return
+	}
+
+	var rowCount int
+	row.Scan(&rowCount)
+
+	if rowCount > 0 {
+		return
+	}
+
+	content, err := ioutil.ReadFile("./initial_data/hs_codes.json")
+	if err != nil {
+		return
+	}
+
+	var codes []HSCode = make([]HSCode, 0)
+	json.Unmarshal(content, &codes)
+
+	sqlStatement = `INSERT INTO public.hs_codes(id, name) VALUES ($1, $2)`
+	for i := 0; i < len(codes); i++ {
+		db.Exec(sqlStatement, codes[i].Id, codes[i].Name)
 	}
 }

@@ -43,11 +43,13 @@ type Parcel struct {
 
 type ParcelItem struct {
 	Description   string  `json:"description"`
-	Quantity      int8    `json:"quantity"`
+	Quantity      int32   `json:"quantity"`
 	Weight        float64 `json:"weight"`
 	Value         float64 `json:"value"`
 	HSCode        string  `json:"hs_code"`
 	OriginCountry *string `json:"origin_country"`
+	SKU           *string `json:"sku"`
+	ProductId     string  `json:"product_id"`
 }
 
 type ParcelShipment struct {
@@ -123,17 +125,19 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 
 	// parcel items
 	p.ParcelItems = make([]ParcelItem, 0)
-	packaging := getPackagingByShipping(s.Id, enterpriseId)
-	for i := 0; i < len(packaging); i++ {
-		pi := ParcelItem{}
-		pi.Description = packaging[i].PackageName
-		pi.Weight = packaging[i].Weight
+	details := getSalesOrderDetail(s.Order, enterpriseId)
+	for i := 0; i < len(details); i++ {
+		product := getProductRow(details[i].Product)
 
-		details := getSalesOrderDetailPackaged(packaging[i].Id, enterpriseId)
-		for j := 0; j < len(details); j++ {
-			pi.Quantity += int8(details[j].Quantity)
-			pi.Value += getSalesOrderDetailRow(details[j].OrderDetail).Price * float64(details[j].Quantity)
-		}
+		pi := ParcelItem{}
+		pi.Description = details[i].ProductName
+		pi.Quantity = details[i].Quantity
+		pi.Weight = product.Weight * float64(details[i].Quantity)
+		pi.Value = details[i].TotalAmount
+		pi.HSCode = *product.HSCode
+		pi.OriginCountry = &product.OriginCountry
+		pi.SKU = &product.BarCode
+		pi.ProductId = strconv.Itoa(int(details[i].Product))
 
 		p.ParcelItems = append(p.ParcelItems, pi)
 	}
