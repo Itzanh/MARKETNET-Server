@@ -1011,3 +1011,30 @@ func complexManufacturingOrderTagPrinted(orderId int64, userId int32, enterprise
 
 	return err == nil
 }
+
+type MultipleComplexManufacturingOrders struct {
+	Order   ComplexManufacturingOrder `json:"order"`
+	Quantiy int                       `json:"quantity"`
+}
+
+func (o *MultipleComplexManufacturingOrders) insertMultipleComplexManufacturingOrders(userId int32) bool {
+	if !o.Order.isValid() || o.Quantiy <= 0 || o.Quantiy > 10000 {
+		return false
+	}
+
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+
+	for i := 0; i < o.Quantiy; i++ {
+		ok, _ := o.Order.insertComplexManufacturingOrder(userId, trans)
+		if !ok {
+			trans.Rollback()
+			return ok
+		}
+	}
+
+	trans.Commit()
+	return true
+}

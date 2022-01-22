@@ -1277,6 +1277,15 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		manufacturingOrder.UserCreated = userId
 		manufacturingOrder.enterprise = enterpriseId
 		returnData, _ = json.Marshal(manufacturingOrder.insertManufacturingOrder(userId, nil))
+	case "MULTIPLE_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing || getUserPermission("CANT_MANUALLY_CREATE_MANUFACTURING_ORDERS", enterpriseId, userId) {
+			return
+		}
+		var manufacturingOrder MultipleManufacturingOrders
+		json.Unmarshal(message, &manufacturingOrder)
+		manufacturingOrder.Order.UserCreated = userId
+		manufacturingOrder.Order.enterprise = enterpriseId
+		returnData, _ = json.Marshal(manufacturingOrder.insertMultipleManufacturingOrders(userId))
 	default:
 		found = false
 	}
@@ -1319,6 +1328,15 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		complexManufacturingOrder.UserCreated = userId
 		complexManufacturingOrder.enterprise = enterpriseId
 		ok, _ = complexManufacturingOrder.insertComplexManufacturingOrder(userId, nil)
+	case "MULTIPLE_COMPLEX_MANUFACTURING_ORDER":
+		if !permissions.Manufacturing || getUserPermission("CANT_MANUALLY_CREATE_MANUFACTURING_ORDERS", enterpriseId, userId) {
+			return
+		}
+		var complexManufacturingOrder MultipleComplexManufacturingOrders
+		json.Unmarshal(message, &complexManufacturingOrder)
+		complexManufacturingOrder.Order.UserCreated = userId
+		complexManufacturingOrder.Order.enterprise = enterpriseId
+		ok = complexManufacturingOrder.insertMultipleComplexManufacturingOrders(userId)
 	case "SALES_ORDER_PACKAGING":
 		if !permissions.Preparation {
 			return

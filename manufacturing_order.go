@@ -624,3 +624,30 @@ func manufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int3
 
 	return err == nil
 }
+
+type MultipleManufacturingOrders struct {
+	Order   ManufacturingOrder `json:"order"`
+	Quantiy int                `json:"quantity"`
+}
+
+func (o *MultipleManufacturingOrders) insertMultipleManufacturingOrders(userId int32) OkAndErrorCodeReturn {
+	if !o.Order.isValid() || o.Quantiy <= 0 || o.Quantiy > 10000 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	for i := 0; i < o.Quantiy; i++ {
+		ok := o.Order.insertManufacturingOrder(userId, trans)
+		if !ok.Ok {
+			trans.Rollback()
+			return ok
+		}
+	}
+
+	trans.Commit()
+	return OkAndErrorCodeReturn{Ok: true}
+}
