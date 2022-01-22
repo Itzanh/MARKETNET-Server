@@ -689,6 +689,14 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var query HSCodeQuery
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.getHSCodes())
+	case "REPORT_111":
+		var query Form111Query
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.execReportForm111(enterpriseId))
+	case "REPORT_115":
+		var query Form115Query
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.execReportForm115(enterpriseId))
 	default:
 		found = false
 	}
