@@ -411,3 +411,59 @@ func shippingByCarriers(enterpriseId int32) []ShippingByCarriers {
 
 	return quantity
 }
+
+type BenefitsStatisticsQuery struct {
+	DateStart time.Time `json:"dateStart"`
+	DateEnd   time.Time `json:"dateEnd"`
+	Sales     bool      `json:"sales"`
+	Purchases bool      `json:"purchases"`
+}
+
+type BenefitsStatistics struct {
+	Sales     []BenefitsStatisticsValue `json:"sales"`
+	Purchases []BenefitsStatisticsValue `json:"purchases"`
+}
+
+type BenefitsStatisticsValue struct {
+	Year  int16   `json:"year"`
+	Month int16   `json:"month"`
+	Value float64 `json:"value"`
+}
+
+func (q *BenefitsStatisticsQuery) benefitsStatistics(enterpriseId int32) BenefitsStatistics {
+	var benefits BenefitsStatistics = BenefitsStatistics{}
+	benefits.Sales = make([]BenefitsStatisticsValue, 0)
+	benefits.Purchases = make([]BenefitsStatisticsValue, 0)
+
+	if q.Purchases {
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created), EXTRACT(MONTH FROM date_created), SUM(total_amount) FROM purchase_invoice WHERE date_created >= $1 AND date_created <= $2 AND enterprise = $3 GROUP BY EXTRACT(YEAR FROM date_created), EXTRACT(MONTH FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created), EXTRACT(MONTH FROM date_created) ASC`
+		rows, err := db.Query(sqlStatement, q.DateStart, q.DateEnd, enterpriseId)
+		if err != nil {
+			log("DB", err.Error())
+			return benefits
+		}
+
+		for rows.Next() {
+			v := BenefitsStatisticsValue{}
+			rows.Scan(&v.Year, &v.Month, &v.Value)
+			benefits.Purchases = append(benefits.Purchases, v)
+		}
+	}
+
+	if q.Sales {
+		sqlStatement := `SELECT EXTRACT(YEAR FROM date_created), EXTRACT(MONTH FROM date_created), SUM(total_amount) FROM sales_invoice WHERE date_created >= $1 AND date_created <= $2 AND enterprise = $3 GROUP BY EXTRACT(YEAR FROM date_created), EXTRACT(MONTH FROM date_created) ORDER BY EXTRACT(YEAR FROM date_created), EXTRACT(MONTH FROM date_created) ASC`
+		rows, err := db.Query(sqlStatement, q.DateStart, q.DateEnd, enterpriseId)
+		if err != nil {
+			log("DB", err.Error())
+			return benefits
+		}
+
+		for rows.Next() {
+			v := BenefitsStatisticsValue{}
+			rows.Scan(&v.Year, &v.Month, &v.Value)
+			benefits.Sales = append(benefits.Sales, v)
+		}
+	}
+
+	return benefits
+}

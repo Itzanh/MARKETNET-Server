@@ -573,6 +573,10 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		data, _ = json.Marshal(dailyShippingQuantity(enterpriseId))
 	case "SHIPPING_BY_CARRIERS":
 		data, _ = json.Marshal(shippingByCarriers(enterpriseId))
+	case "BENEFITS_STATISTICS":
+		var benefitsStatisticsQuery BenefitsStatisticsQuery
+		json.Unmarshal([]byte(message), &benefitsStatisticsQuery)
+		data, _ = json.Marshal(benefitsStatisticsQuery.benefitsStatistics(enterpriseId))
 	case "API_KEYS":
 		if !permissions.Admin {
 			return
