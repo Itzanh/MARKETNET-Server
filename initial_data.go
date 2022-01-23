@@ -551,7 +551,7 @@ func initialHSCodes() {
 		return
 	}
 
-	content, err := ioutil.ReadFile("./initial_data/hs_codes.json")
+	/*content, err := ioutil.ReadFile("./initial_data/hs_codes.json")
 	if err != nil {
 		return
 	}
@@ -562,5 +562,5 @@ func initialHSCodes() {
 	sqlStatement = `INSERT INTO public.hs_codes(id, name) VALUES ($1, $2)`
 	for i := 0; i < len(codes); i++ {
 		db.Exec(sqlStatement, codes[i].Id, codes[i].Name)
-	}
+	}*/
 }
