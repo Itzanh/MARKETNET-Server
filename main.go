@@ -690,13 +690,24 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.getHSCodes())
 	case "REPORT_111":
+		if !permissions.Accounting {
+			return
+		}
 		var query Form111Query
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.execReportForm111(enterpriseId))
 	case "REPORT_115":
+		if !permissions.Accounting {
+			return
+		}
 		var query Form115Query
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.execReportForm115(enterpriseId))
+	case "INVENTORY":
+		if !permissions.Warehouse {
+			return
+		}
+		data, _ = json.Marshal(getInventories(enterpriseId))
 	default:
 		found = false
 	}
@@ -1012,6 +1023,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getWarehouseMovementRelations(int64(id), enterpriseId))
+	case "INVENTORY_PODUCTS":
+		if !permissions.Warehouse {
+			return
+		}
+		data, _ = json.Marshal(getInventoryProducts(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1509,6 +1525,13 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &t)
 		t.enterprise = enterpriseId
 		ok = t.insertReportTemplateTranslation()
+	case "INVENTORY":
+		if !permissions.Warehouse {
+			return
+		}
+		var i Inventory
+		json.Unmarshal(message, &i)
+		ok = i.insertInventory(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2229,6 +2252,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		d.Id = int32(id)
 		d.enterprise = enterpriseId
 		ok = d.deleteProductAccount()
+	case "INVENTORY":
+		if !permissions.Warehouse {
+			return
+		}
+		var i Inventory = Inventory{}
+		i.Id = int32(id)
+		i.enterprise = enterpriseId
+		ok = i.deleteInventory(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2996,6 +3027,46 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		} else {
 			data, _ = json.Marshal(checkVatNumber(check.CountryIsoCode2, check.VATNumber))
 		}
+	case "FINISH_INVENTORY":
+		if !permissions.Warehouse {
+			return
+		}
+		var i Inventory
+		json.Unmarshal([]byte(message), &i)
+		ok := i.finishInventory(userId, enterpriseId)
+		data, _ = json.Marshal(ok)
+	case "INSERT_UPDATE_DELETE_INVENTORY_PRODUCTS":
+		if !permissions.Warehouse {
+			return
+		}
+		var i InputInventoryProducts
+		json.Unmarshal([]byte(message), &i)
+		ok := i.insertUpdateDeleteInventoryProducts(enterpriseId)
+		data, _ = json.Marshal(ok)
+	case "INSERT_PRODUCT_FAMILY_INVENTORY_PRODUCTS":
+		if !permissions.Warehouse {
+			return
+		}
+		var i InputInventoryProducts
+		json.Unmarshal([]byte(message), &i)
+		ok := i.insertProductFamilyInventoryProducts(enterpriseId)
+		data, _ = json.Marshal(ok)
+	case "INSERT_ALL_PRODUCTS_INVENTORY_PRODUCTS":
+		if !permissions.Warehouse {
+			return
+		}
+		var i InputInventoryProducts
+		json.Unmarshal([]byte(message), &i)
+		ok := i.insertAllProductsInventoryProducts(enterpriseId)
+		data, _ = json.Marshal(ok)
+	case "DELETE_ALL_PRODUCTS_INVENTORY_PRODUCTS":
+		if !permissions.Warehouse {
+			return
+		}
+		var i InputInventoryProducts
+		json.Unmarshal([]byte(message), &i)
+		ok := i.deleteAllProductsInventoryProducts(enterpriseId)
+		data, _ = json.Marshal(ok)
 	}
 	ws.WriteMessage(mt, data)
 
