@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 /* REPORT 111 */
 
@@ -120,4 +123,65 @@ func (q *Form115Query) execReportForm115(enterpriseId int32) Form115Result {
 	}
 
 	return r
+}
+
+type InventoyValuationQuery struct {
+	Date          time.Time `json:"date"`
+	ProductFamily *int32    `json:"productFamily"`
+}
+
+type InventoyValuation struct {
+	Product     int32   `json:"product"`
+	ProductName string  `json:"productName"`
+	Quantity    int32   `json:"quantity"`
+	CostPrice   float64 `json:"costPrice"`
+	Value       float64 `json:"value"`
+}
+
+func (q *InventoyValuationQuery) getInventoyValuation(enterpriseId int32) []InventoyValuation {
+	var inventoyValuation []InventoyValuation = make([]InventoyValuation, 0)
+
+	var rows *sql.Rows
+	var err error
+	if q.ProductFamily == nil {
+		sqlStatement := `SELECT id, cost_price, name FROM product WHERE enterprise = $1 ORDER BY id ASC`
+		rows, err = db.Query(sqlStatement, enterpriseId)
+	} else {
+		sqlStatement := `SELECT id, cost_price, name FROM product WHERE enterprise = $1 AND family = $2 ORDER BY id ASC`
+		rows, err = db.Query(sqlStatement, enterpriseId, q.ProductFamily)
+	}
+
+	if err != nil {
+		log("DB", err.Error())
+		return inventoyValuation
+	}
+
+	sqlStatement := `SELECT dragged_stock FROM warehouse_movement WHERE product = $1 ORDER BY id DESC LIMIT 1`
+	var productId int32
+	var costPrice float64
+	var productName string
+	var draggedStock int32
+	for rows.Next() {
+		rows.Scan(&productId, &costPrice, &productName)
+
+		// get inventory at date:
+		row := db.QueryRow(sqlStatement, productId)
+		if row.Err() != nil {
+			log("DB", row.Err().Error())
+			draggedStock = 0
+		} else {
+			row.Scan(&draggedStock)
+		}
+
+		i := InventoyValuation{
+			Product:     productId,
+			ProductName: productName,
+			Quantity:    draggedStock,
+			CostPrice:   costPrice,
+			Value:       costPrice * float64(draggedStock),
+		}
+		inventoyValuation = append(inventoyValuation, i)
+	}
+
+	return inventoyValuation
 }

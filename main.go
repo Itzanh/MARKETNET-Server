@@ -708,6 +708,13 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getInventories(enterpriseId))
+	case "INVENTORY_VALUATION":
+		if !permissions.Accounting {
+			return
+		}
+		var query InventoyValuationQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.getInventoyValuation(enterpriseId))
 	default:
 		found = false
 	}
