@@ -32,27 +32,48 @@ type PurchaseDeliveryNote struct {
 	enterprise         int32
 }
 
-func getPurchaseDeliveryNotes(enterpriseId int32) []PurchaseDeliveryNote {
-	var notes []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
+type PurchaseDeliveryNotes struct {
+	Rows   int32                      `json:"rows"`
+	Notes  []PurchaseDeliveryNote     `json:"notes"`
+	Footer PurchaseDeliveryNoteFooter `json:"footer"`
+}
+
+type PurchaseDeliveryNoteFooter struct {
+	TotalProducts float64 `json:"totalProducts"`
+	TotalAmount   float64 `json:"totalAmount"`
+}
+
+func getPurchaseDeliveryNotes(enterpriseId int32) PurchaseDeliveryNotes {
+	dn := PurchaseDeliveryNotes{}
+	dn.Notes = make([]PurchaseDeliveryNote, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_delivery_note.supplier) FROM public.purchase_delivery_note WHERE enterprise=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
-		return notes
+		return dn
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		p := PurchaseDeliveryNote{}
 		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.enterprise, &p.SupplierName)
-		notes = append(notes, p)
+		dn.Notes = append(dn.Notes, p)
 	}
 
-	return notes
+	sqlStatement = `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_delivery_note WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return dn
+	}
+	row.Scan(&dn.Rows, &dn.Footer.TotalProducts, &dn.Footer.TotalAmount)
+
+	return dn
 }
 
-func (s *OrderSearch) searchPurchaseDeliveryNote() []PurchaseDeliveryNote {
-	var notes []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
+func (s *OrderSearch) searchPurchaseDeliveryNote() PurchaseDeliveryNotes {
+	dn := PurchaseDeliveryNotes{}
+	dn.Notes = make([]PurchaseDeliveryNote, 0)
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
@@ -77,17 +98,43 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() []PurchaseDeliveryNote {
 	}
 	if err != nil {
 		log("DB", err.Error())
-		return notes
+		return dn
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		p := PurchaseDeliveryNote{}
 		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.enterprise, &p.SupplierName)
-		notes = append(notes, p)
+		dn.Notes = append(dn.Notes, p)
 	}
 
-	return notes
+	var row *sql.Row
+	if err == nil {
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_delivery_note WHERE delivery_note_number=$1 AND enterprise=$2 ORDER BY date_created DESC`
+		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_delivery_note INNER JOIN suppliers ON suppliers.id=purchase_delivery_note.supplier WHERE suppliers.name ILIKE $1`
+		if s.DateStart != nil {
+			sqlStatement += ` AND purchase_delivery_note.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND purchase_delivery_note.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		sqlStatement += ` AND purchase_delivery_note.enterprise = $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, s.enterprise)
+		row = db.QueryRow(sqlStatement, interfaces...)
+	}
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return dn
+	}
+	row.Scan(&dn.Rows, &dn.Footer.TotalProducts, &dn.Footer.TotalAmount)
+
+	return dn
 }
 
 func getPurchaseDeliveryNoteRow(deliveryNoteId int64) PurchaseDeliveryNote {

@@ -33,8 +33,14 @@ type SalesDeliveryNote struct {
 }
 
 type SalesDeliveryNotes struct {
-	Rows  int32               `json:"rows"`
-	Notes []SalesDeliveryNote `json:"notes"`
+	Rows   int32                   `json:"rows"`
+	Notes  []SalesDeliveryNote     `json:"notes"`
+	Footer SalesDeliveryNoteFooter `json:"footer"`
+}
+
+type SalesDeliveryNoteFooter struct {
+	TotalProducts float64 `json:"totalProducts"`
+	TotalAmount   float64 `json:"totalAmount"`
 }
 
 func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
@@ -58,9 +64,9 @@ func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
 		sd.Notes = append(sd.Notes, n)
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.sales_delivery_note WHERE enterprise=$1`
+	sqlStatement = `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM public.sales_delivery_note WHERE enterprise=$1`
 	row := db.QueryRow(sqlStatement, q.enterprise)
-	row.Scan(&sd.Rows)
+	row.Scan(&sd.Rows, &sd.Footer.TotalProducts, &sd.Footer.TotalAmount)
 
 	return sd
 }
@@ -125,12 +131,12 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 	var row *sql.Row
 	orderNumber, err = strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT COUNT(*) FROM sales_delivery_note WHERE delivery_note_number=$1`
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM sales_delivery_note WHERE delivery_note_number=$1`
 		row = db.QueryRow(sqlStatement, orderNumber)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT COUNT(*) FROM sales_delivery_note INNER JOIN customer ON customer.id=sales_delivery_note.customer WHERE customer.name ILIKE $1`
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM sales_delivery_note INNER JOIN customer ON customer.id=sales_delivery_note.customer WHERE customer.name ILIKE $1`
 		if s.DateStart != nil {
 			sqlStatement += ` AND sales_delivery_note.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -147,7 +153,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 		log("DB", row.Err().Error())
 		return sd
 	}
-	row.Scan(&sd.Rows)
+	row.Scan(&sd.Rows, &sd.Footer.TotalProducts, &sd.Footer.TotalAmount)
 
 	return sd
 }

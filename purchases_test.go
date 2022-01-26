@@ -14,7 +14,7 @@ func TestGetPurchaseOrder(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getPurchaseOrder(1)
+	o := getPurchaseOrder(1).Orders
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -31,7 +31,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 
 	// search all
 	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
-	o := q.searchPurchaseOrder()
+	o := q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -42,7 +42,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 
 	// search for ID
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
-	o = q.searchPurchaseOrder()
+	o = q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -53,7 +53,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 
 	// search for customer name
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
-	o = q.searchPurchaseOrder()
+	o = q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -66,7 +66,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
-	o = q.searchPurchaseOrder()
+	o = q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -140,7 +140,7 @@ func TestGetPurchaseOrderRelations(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getPurchaseOrder(1)
+	o := getPurchaseOrder(1).Orders
 
 	var checkInvoices int8 = 0      // 0 = Not checked, 1 = OK, 2 = Error
 	var checkDeliveryNotes int8 = 0 // 0 = Not checked, 1 = OK, 2 = Error
@@ -277,7 +277,7 @@ func TestGetSalesOrderDetailsFromPurchaseOrderDetail(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getPurchaseOrder(1)
+	o := getPurchaseOrder(1).Orders
 	for i := 0; i < len(o); i++ {
 		d := getPurchaseOrderDetail(o[i].Id, 1)
 		for j := 0; j < len(d); j++ {
@@ -303,7 +303,7 @@ func TestGetPurchaseInvoices(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getPurchaseInvoices(1)
+	o := getPurchaseInvoices(1).Invoices
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -320,7 +320,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 
 	// search all
 	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
-	o := q.searchPurchaseInvoice()
+	o := q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -331,7 +331,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 
 	// search for ID
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
-	o = q.searchPurchaseInvoice()
+	o = q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -342,7 +342,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 
 	// search for customer name
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
-	o = q.searchPurchaseInvoice()
+	o = q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -355,7 +355,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
-	o = q.searchPurchaseInvoice()
+	o = q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -577,7 +577,7 @@ func TestGetPurchaseInvoiceRelations(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getPurchaseInvoices(1)
+	o := getPurchaseInvoices(1).Invoices
 
 	var checkOrders int8 = 0   // 0 = Not checked, 1 = OK, 2 = Error
 	var checkInvoices int8 = 0 // 0 = Not checked, 1 = OK, 2 = Error
@@ -705,7 +705,7 @@ func TestGetPurchaseDeliveryNote(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	o := getPurchaseDeliveryNotes(1)
+	o := getPurchaseDeliveryNotes(1).Notes
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -722,7 +722,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 
 	// search all
 	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
-	o := q.searchPurchaseDeliveryNote()
+	o := q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -733,7 +733,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 
 	// search for ID
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
-	o = q.searchPurchaseDeliveryNote()
+	o = q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -744,7 +744,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 
 	// search for customer name
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
-	o = q.searchPurchaseDeliveryNote()
+	o = q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {
@@ -757,7 +757,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
 	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
-	o = q.searchPurchaseDeliveryNote()
+	o = q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
 		if o[i].Id <= 0 {

@@ -42,13 +42,25 @@ type PurchaseOrder struct {
 	enterprise        int32
 }
 
-func getPurchaseOrder(enterpriseId int32) []PurchaseOrder {
-	var purchases []PurchaseOrder = make([]PurchaseOrder, 0)
+type PurchaseOrders struct {
+	Rows   int32               `json:"rows"`
+	Orders []PurchaseOrder     `json:"orders"`
+	Footer PurchaseOrderFooter `json:"footer"`
+}
+
+type PurchaseOrderFooter struct {
+	TotalProducts float64 `json:"totalProducts"`
+	TotalAmount   float64 `json:"totalAmount"`
+}
+
+func getPurchaseOrder(enterpriseId int32) PurchaseOrders {
+	o := PurchaseOrders{}
+	o.Orders = make([]PurchaseOrder, 0)
 	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order WHERE enterprise=$1 ORDER BY date_created DESC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
-		return purchases
+		return o
 	}
 	defer rows.Close()
 
@@ -57,14 +69,23 @@ func getPurchaseOrder(enterpriseId int32) []PurchaseOrder {
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
 			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.enterprise, &s.SupplierName)
-		purchases = append(purchases, s)
+		o.Orders = append(o.Orders, s)
 	}
 
-	return purchases
+	sqlStatement = `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_order WHERE enterprise=$1`
+	row := db.QueryRow(sqlStatement, enterpriseId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return o
+	}
+	row.Scan(&o.Rows, &o.Footer.TotalProducts, &o.Footer.TotalAmount)
+
+	return o
 }
 
-func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
-	var purchases []PurchaseOrder = make([]PurchaseOrder, 0)
+func (s *OrderSearch) searchPurchaseOrder() PurchaseOrders {
+	o := PurchaseOrders{}
+	o.Orders = make([]PurchaseOrder, 0)
 	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
@@ -89,7 +110,7 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 	}
 	if err != nil {
 		log("DB", err.Error())
-		return purchases
+		return o
 	}
 	defer rows.Close()
 
@@ -98,10 +119,36 @@ func (s *OrderSearch) searchPurchaseOrder() []PurchaseOrder {
 		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
 			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
 			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.enterprise, &s.SupplierName)
-		purchases = append(purchases, s)
+		o.Orders = append(o.Orders, s)
 	}
 
-	return purchases
+	var row *sql.Row
+	if err == nil {
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_order WHERE order_number=$1 AND enterprise=$2`
+		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
+	} else {
+		var interfaces []interface{} = make([]interface{}, 0)
+		interfaces = append(interfaces, "%"+s.Search+"%")
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_order INNER JOIN suppliers ON suppliers.id=purchase_order.supplier WHERE (suppliers.name ILIKE $1 OR purchase_order.supplier_reference ILIKE $1)`
+		if s.DateStart != nil {
+			sqlStatement += ` AND purchase_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateStart)
+		}
+		if s.DateEnd != nil {
+			sqlStatement += ` AND purchase_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
+			interfaces = append(interfaces, s.DateEnd)
+		}
+		sqlStatement += ` AND purchase_order.enterprise = $` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, s.enterprise)
+		row = db.QueryRow(sqlStatement, interfaces...)
+	}
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return o
+	}
+	row.Scan(&o.Rows, &o.Footer.TotalProducts, &o.Footer.TotalAmount)
+
+	return o
 }
 
 func getPurchaseOrderRow(orderId int64) PurchaseOrder {

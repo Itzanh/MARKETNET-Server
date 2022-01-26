@@ -36,8 +36,14 @@ type SalesInvoice struct {
 }
 
 type SaleInvoices struct {
-	Rows     int32          `json:"rows"`
-	Invoices []SalesInvoice `json:"invoices"`
+	Rows     int32              `json:"rows"`
+	Invoices []SalesInvoice     `json:"invoices"`
+	Footer   SaleInvoicesFooter `json:"footer"`
+}
+
+type SaleInvoicesFooter struct {
+	TotalProducts float64 `json:"totalProducts"`
+	TotalAmount   float64 `json:"totalAmount"`
 }
 
 func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
@@ -63,9 +69,9 @@ func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
 		si.Invoices = append(si.Invoices, i)
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.sales_invoice WHERE enterprise=$1`
+	sqlStatement = `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM public.sales_invoice WHERE enterprise=$1`
 	row := db.QueryRow(sqlStatement, q.enterprise)
-	row.Scan(&si.Rows)
+	row.Scan(&si.Rows, &si.Footer.TotalProducts, &si.Footer.TotalAmount)
 
 	return si
 }
@@ -128,12 +134,12 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 	var row *sql.Row
 	orderNumber, err = strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT COUNT(*) FROM sales_invoice WHERE invoice_number=$1 AND enterprise=$2`
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM sales_invoice WHERE invoice_number=$1 AND enterprise=$2`
 		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
 		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT COUNT(*) FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
 		if s.DateStart != nil {
 			sqlStatement += ` AND sales_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
 			interfaces = append(interfaces, s.DateStart)
@@ -153,7 +159,7 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 		log("DB", row.Err().Error())
 		return si
 	}
-	row.Scan(&si.Rows)
+	row.Scan(&si.Rows, &si.Footer.TotalProducts, &si.Footer.TotalAmount)
 
 	return si
 }
