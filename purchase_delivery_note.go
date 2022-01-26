@@ -110,7 +110,7 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() PurchaseDeliveryNotes {
 
 	var row *sql.Row
 	if err == nil {
-		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_delivery_note WHERE delivery_note_number=$1 AND enterprise=$2 ORDER BY date_created DESC`
+		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_delivery_note WHERE delivery_note_number=$1 AND enterprise=$2`
 		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
 	} else {
 		var interfaces []interface{} = make([]interface{}, 0)
