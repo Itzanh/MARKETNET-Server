@@ -34,6 +34,8 @@ type ServerSettings struct {
 	CronClearLogs                  string                              `json:"cronClearLogs"`
 	MaxRequestsPerMinuteEnterprise int32                               `json:"maxRequestsPerMinuteEnterprise"`
 	SaaSAccessToken                string                              `json:"SaaSAccessToken"`
+	MaxWebHooksPerEnterprise       uint16                              `json:"maxWebHooksPerEnterprise"`
+	MaxQueueSizePerWebHook         int32                               `json:"maxQueueSizePerWebHook"`
 	TLS                            ServerSettingsTLS                   `json:"tls"`
 	Activation                     map[string]ServerSettingsActivation `json:"activation"`
 }

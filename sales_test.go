@@ -1357,7 +1357,7 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 		return
 	}
 
-	ok = makeAmendingSaleInvoice(i.Id, 1, 20, "TEST")
+	ok = makeAmendingSaleInvoice(i.Id, 1, 20, "TEST", 1)
 	if !ok {
 		t.Error("Can't make an amending invoice")
 		return

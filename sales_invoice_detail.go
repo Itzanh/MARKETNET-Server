@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 )
 
 type SalesInvoiceDetail struct {
@@ -149,6 +150,8 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 
 	if saleInvoiceDetailId > 0 {
 		insertTransactionalLog(s.enterprise, "sales_invoice_detail", int(saleInvoiceDetailId), userId, "I")
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_invoice_detail", "POST", string(json))
 	}
 
 	return OkAndErrorCodeReturn{Ok: saleInvoiceDetailId > 0}
@@ -208,6 +211,8 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 	}
 
 	insertTransactionalLog(d.enterprise, "sales_invoice_detail", int(d.Id), userId, "D")
+	json, _ := json.Marshal(d)
+	go fireWebHook(d.enterprise, "sales_invoice_detail", "DELETE", string(json))
 
 	sqlStatement = `DELETE FROM public.sales_invoice_detail WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, d.Id, d.enterprise)

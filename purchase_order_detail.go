@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -126,18 +127,20 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 	row.Scan(&detailId)
 	s.Id = detailId
 
-	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "I")
-
 	if detailId <= 0 {
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
+
+	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "I")
+	jsn, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "purchase_order_detail", "POST", string(jsn))
 
 	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
-	ok = addPurchaseOrderLinesNumber(s.Order, *trans)
+	ok = addPurchaseOrderLinesNumber(s.Order, s.enterprise, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
@@ -158,6 +161,8 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 	}
 
 	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "U")
+	jsn, _ = json.Marshal(s)
+	go fireWebHook(s.enterprise, "purchase_order_detail", "POST", string(jsn))
 
 	// add quantity pending receiving
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
@@ -281,6 +286,8 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 	}
 
 	insertTransactionalLog(detailInMemory.enterprise, "purchase_order_detail", int(s.Id), userId, "D")
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "purchase_order_detail", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.purchase_order_detail WHERE id=$1`
 	_, err := trans.Exec(sqlStatement, s.Id)
@@ -295,7 +302,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-	ok = removePurchaseOrderLinesNumber(detailInMemory.Order, *trans)
+	ok = removePurchaseOrderLinesNumber(detailInMemory.Order, detailInMemory.enterprise, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
@@ -340,6 +347,9 @@ func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32, enterp
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+	s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
 
 	return true
 }
@@ -362,6 +372,9 @@ func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32, ente
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+	s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
 
 	detailAfter := getPurchaseOrderDetailRow(detailId)
 	if detailAfter.Id <= 0 {
@@ -403,6 +416,9 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, 
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+	s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
 
 	detailAfter := getPurchaseOrderDetailRowTransaction(detailId, trans)
 	if detailAfter.Id <= 0 {
@@ -453,6 +469,9 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseI
 		rows.Scan(&orderId)
 		setSalesOrderState(enterpriseId, orderId, userId, trans)
 		insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailId), userId, "U")
+		s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 	}
 
 	return err == nil
@@ -490,6 +509,9 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 	for i := 0; i < len(orderIds); i++ {
 		setSalesOrderState(enterpriseId, orderIds[i], userId, trans)
 		insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailId), userId, "U")
+		s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 	}
 
 	return err == nil

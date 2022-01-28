@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -151,6 +152,20 @@ func getPurchaseDeliveryNoteRow(deliveryNoteId int64) PurchaseDeliveryNote {
 	return p
 }
 
+func getPurchaseDeliveryNoteRowTransaction(deliveryNoteId int64, trans sql.Tx) PurchaseDeliveryNote {
+	sqlStatement := `SELECT * FROM public.purchase_delivery_note WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, deliveryNoteId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return PurchaseDeliveryNote{}
+	}
+
+	p := PurchaseDeliveryNote{}
+	row.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.enterprise)
+
+	return p
+}
+
 func (n *PurchaseDeliveryNote) isValid() bool {
 	return !(len(n.Warehouse) == 0 || len(n.Warehouse) > 2 || n.Supplier <= 0 || n.PaymentMethod <= 0 || len(n.BillingSeries) == 0 || len(n.BillingSeries) > 3 || n.ShippingAddress <= 0)
 }
@@ -193,6 +208,8 @@ func (n *PurchaseDeliveryNote) insertPurchaseDeliveryNotes(userId int32, trans *
 
 	if noteId > 0 {
 		insertTransactionalLog(n.enterprise, "purchase_delivery_note", int(noteId), userId, "I")
+		json, _ := json.Marshal(n)
+		go fireWebHook(n.enterprise, "purchase_delivery_note", "POST", string(json))
 	}
 
 	if beginTransaction {
@@ -238,6 +255,8 @@ func (n *PurchaseDeliveryNote) deletePurchaseDeliveryNotes(userId int32, trans *
 	}
 
 	insertTransactionalLog(n.enterprise, "purchase_delivery_note", int(n.Id), userId, "D")
+	json, _ := json.Marshal(n)
+	go fireWebHook(n.enterprise, "purchase_delivery_note", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.purchase_delivery_note WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, n.Id, n.enterprise)
@@ -477,7 +496,10 @@ func calcTotalsPurchaseDeliveryNote(noteId int64, enterpriseId int32, userId int
 		return false
 	}
 
-	insertTransactionalLog(enterpriseId, "purchase_delivery_note", int(noteId), userId, "I")
+	insertTransactionalLog(enterpriseId, "purchase_delivery_note", int(noteId), userId, "U")
+	n := getPurchaseDeliveryNoteRowTransaction(noteId, trans)
+	json, _ := json.Marshal(n)
+	go fireWebHook(n.enterprise, "purchase_delivery_note", "PUT", string(json))
 
 	return err == nil
 }

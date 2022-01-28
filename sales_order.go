@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -227,6 +228,22 @@ func getSalesOrderRow(id int64) SaleOrder {
 	return s
 }
 
+func getSalesOrderRowTransaction(id int64, trans sql.Tx) SaleOrder {
+	sqlStatement := `SELECT * FROM sales_order WHERE id = $1 ORDER BY date_created DESC`
+	row := trans.QueryRow(sqlStatement, id)
+	if row.Err() != nil {
+		return SaleOrder{}
+	}
+
+	s := SaleOrder{}
+	row.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
+		&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
+		&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.prestaShopId,
+		&s.wooCommerceId, &s.shopifyId, &s.shopifyDraftId, &s.enterprise)
+
+	return s
+}
+
 func (s *SaleOrder) isValid() bool {
 	return !(len(s.Warehouse) == 0 || len(s.Reference) > 15 || s.Customer <= 0 || s.PaymentMethod <= 0 || len(s.BillingSeries) == 0 || s.Currency <= 0 || s.BillingAddress <= 0 || s.ShippingAddress <= 0 || len(s.Notes) > 250)
 }
@@ -256,6 +273,8 @@ func (s *SaleOrder) insertSalesOrder(userId int32) (bool, int64) {
 
 	if orderId > 0 {
 		insertTransactionalLog(s.enterprise, "sales_order", int(orderId), userId, "I")
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order", "POST", string(json))
 	}
 
 	return orderId > 0, orderId
@@ -318,6 +337,8 @@ func (s *SaleOrder) updateSalesOrder(userId int32) bool {
 
 	if rows > 0 {
 		insertTransactionalLog(s.enterprise, "sales_order", int(s.Id), userId, "U")
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 	}
 
 	return rows > 0
@@ -403,6 +424,9 @@ func (s *SaleOrder) deleteSalesOrder(userId int32) OkAndErrorCodeReturn {
 	}
 
 	insertTransactionalLog(s.enterprise, "sales_order", int(s.Id), userId, "D")
+	inMemoryOrder := getSalesOrderRow(s.Id)
+	json, _ := json.Marshal(inMemoryOrder)
+	go fireWebHook(s.enterprise, "sales_order", "DELETE", string(json))
 
 	// delete sale order
 	sqlStatement = `DELETE FROM public.sales_order WHERE id=$1 AND enterprise=$2`
@@ -465,6 +489,9 @@ func setDatePaymentAcceptedSalesOrder(enterpriseId int32, orderId int64, userId 
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil
 }
@@ -489,6 +516,9 @@ func calcTotalsSaleOrder(enterpriseId int32, orderId int64, userId int32, trans 
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil
 }
@@ -711,6 +741,9 @@ func addSalesOrderLinesNumber(enterpriseId int32, orderId int64, userId int32, t
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -728,6 +761,9 @@ func removeSalesOrderLinesNumber(enterpriseId int32, orderId int64, userId int32
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -745,6 +781,9 @@ func addSalesOrderInvoicedLines(enterpriseId int32, orderId int64, userId int32,
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -762,6 +801,9 @@ func removeSalesOrderInvoicedLines(enterpriseId int32, orderId int64, userId int
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -779,6 +821,9 @@ func addSalesOrderDeliveryNoteLines(enterpriseId int32, orderId int64, userId in
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -796,6 +841,9 @@ func removeSalesOrderDeliveryNoteLines(enterpriseId int32, orderId int64, userId
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "sales_order", int(orderId), userId, "U")
+	s := getSalesOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }

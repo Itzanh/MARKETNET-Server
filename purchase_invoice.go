@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -234,6 +235,8 @@ func (i *PurchaseInvoice) insertPurchaseInvoice(userId int32, trans *sql.Tx) (bo
 
 	if invoiceId > 0 {
 		insertTransactionalLog(i.enterprise, "purchase_invoice", int(invoiceId), userId, "I")
+		json, _ := json.Marshal(i)
+		go fireWebHook(i.enterprise, "purchase_invoice", "POST", string(json))
 	}
 
 	if beginTransaction {
@@ -297,6 +300,8 @@ func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32, trans *sql.Tx) OkA
 	}
 
 	insertTransactionalLog(invoice.enterprise, "purchase_invoice", int(i.Id), userId, "D")
+	json, _ := json.Marshal(i)
+	go fireWebHook(i.enterprise, "purchase_invoice", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.purchase_invoice WHERE id=$1`
 	res, err := trans.Exec(sqlStatement, i.Id)
@@ -365,9 +370,12 @@ func makeAmendingPurchaseInvoice(invoiceId int64, enterpriseId int32, quantity f
 
 	var amendingInvoiceId int64
 	row.Scan(&amendingInvoiceId)
+	i.Id = amendingInvoiceId
 
 	if amendingInvoiceId > 0 {
 		insertTransactionalLog(enterpriseId, "purchase_invoice", int(amendingInvoiceId), userId, "I")
+		json, _ := json.Marshal(i)
+		go fireWebHook(i.enterprise, "purchase_invoice", "POST", string(json))
 	}
 
 	sqlStatement = `INSERT INTO public.purchase_invoice_details(invoice, description, price, quantity, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
@@ -382,6 +390,9 @@ func makeAmendingPurchaseInvoice(invoiceId int64, enterpriseId int32, quantity f
 
 	if amendingInvoiceDetailId > 0 {
 		insertTransactionalLog(enterpriseId, "purchase_invoice_details", int(amendingInvoiceDetailId), userId, "I")
+		d := getPurchaseInvoiceRow(amendingInvoiceDetailId)
+		json, _ := json.Marshal(d)
+		go fireWebHook(d.enterprise, "purchase_invoice_details", "POST", string(json))
 	}
 
 	return amendingInvoiceId > 0
@@ -429,6 +440,9 @@ func calcTotalsPurchaseInvoice(invoiceId int64, enterpriseId int32, userId int32
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_invoice", int(invoiceId), userId, "U")
+	i := getPurchaseInvoiceRowTransaction(invoiceId, trans)
+	json, _ := json.Marshal(i)
+	go fireWebHook(i.enterprise, "purchase_invoice", "PUT", string(json))
 
 	return err == nil
 }

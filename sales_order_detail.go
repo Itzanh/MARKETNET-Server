@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -195,6 +196,8 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeRe
 
 	if detail > 0 {
 		insertTransactionalLog(s.enterprise, "sales_order_detail", int(detail), userId, "I")
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "POST", string(json))
 	}
 
 	return OkAndErrorCodeReturn{Ok: detail > 0}
@@ -288,6 +291,8 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 
 	if rows > 0 {
 		insertTransactionalLog(s.enterprise, "sales_order_detail", int(s.Id), userId, "U")
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 	}
 
 	return OkAndErrorCodeReturn{Ok: rows > 0}
@@ -401,6 +406,8 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) O
 	}
 
 	insertTransactionalLog(s.enterprise, "sales_order_detail", int(s.Id), userId, "D")
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.enterprise, "sales_order_detail", "DELETE", string(json))
 
 	sqlStatement = `DELETE FROM public.sales_order_detail WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, s.Id, s.enterprise)
@@ -553,6 +560,9 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 
 	if err == nil {
 		insertTransactionalLog(detailBefore.enterprise, "sales_order_detail", int(detailId), userId, "U")
+		s := getSalesOrderRowTransaction(detailId, trans)
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 	}
 
 	return err == nil
@@ -729,6 +739,9 @@ func addQuantityPendingPackagingSaleOrderDetail(detailId int64, quantity int32, 
 
 	if setSalesOrderState(detail.enterprise, detail.Order, userId, trans) {
 		insertTransactionalLog(detail.enterprise, "sales_order_detail", int(detailId), userId, "U")
+		s := getSalesOrderDetailRow(detailId)
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 		return true
 	}
 	return false
@@ -773,6 +786,9 @@ func addQuantityDeliveryNoteSalesOrderDetail(detailId int64, quantity int32, use
 		return false
 	} else {
 		insertTransactionalLog(detailBefore.enterprise, "sales_order_detail", int(detailId), userId, "U")
+		s := getSalesOrderDetailRow(detailId)
+		json, _ := json.Marshal(s)
+		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 		return true
 	}
 }
@@ -811,6 +827,9 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 
 		if err != nil {
 			insertTransactionalLog(detail.enterprise, "sales_order_detail", int(detailId), userId, "U")
+			s := getSalesOrderDetailRow(detailId)
+			json, _ := json.Marshal(s)
+			go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 		}
 
 		///
@@ -850,6 +869,9 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 
 		if err != nil {
 			insertTransactionalLog(detail.enterprise, "sales_order_detail", int(detailId), userId, "U")
+			s := getSalesOrderDetailRow(detailId)
+			json, _ := json.Marshal(s)
+			go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 		}
 
 		///

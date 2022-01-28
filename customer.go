@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -149,6 +150,8 @@ func (c *Customer) insertCustomer(userId int32) OperationResult {
 
 	if customerId > 0 {
 		insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "I")
+		json, _ := json.Marshal(c)
+		go fireWebHook(c.enterprise, "customer", "POST", string(json))
 	}
 
 	return OperationResult{Id: int64(customerId)}
@@ -177,6 +180,8 @@ func (c *Customer) updateCustomer(userId int32) bool {
 	}
 
 	insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "U")
+	json, _ := json.Marshal(c)
+	go fireWebHook(c.enterprise, "customer", "PUT", string(json))
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
@@ -188,6 +193,8 @@ func (c *Customer) deleteCustomer(userId int32) bool {
 	}
 
 	insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "D")
+	json, _ := json.Marshal(c)
+	go fireWebHook(c.enterprise, "customer", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.customer WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)

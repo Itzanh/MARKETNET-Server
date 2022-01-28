@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -263,6 +264,8 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *sql.Tx) (bool, in
 
 	if invoiceId > 0 {
 		insertTransactionalLog(i.enterprise, "sales_invoice", int(invoiceId), userId, "I")
+		json, _ := json.Marshal(i)
+		go fireWebHook(i.enterprise, "sales_invoice", "POST", string(json))
 	}
 
 	if beginTransaction {
@@ -319,6 +322,8 @@ func (i *SalesInvoice) deleteSalesInvoice(userId int32) OkAndErrorCodeReturn {
 	}
 
 	insertTransactionalLog(i.enterprise, "sales_invoice", int(i.Id), userId, "D")
+	json, _ := json.Marshal(i)
+	go fireWebHook(i.enterprise, "sales_invoice", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.sales_invoice WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, i.Id, i.enterprise)
@@ -348,6 +353,9 @@ func toggleSimplifiedInvoiceSalesInvoice(invoiceId int64, enterpriseId int32, us
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
+	i := getSalesInvoiceRow(invoiceId)
+	json, _ := json.Marshal(i)
+	go fireWebHook(i.enterprise, "sales_invoice", "PUT", string(json))
 
 	rows, _ := res.RowsAffected()
 	return rows > 0
@@ -359,7 +367,7 @@ type MakeAmendingInvoice struct {
 	Description string  `json:"description"`
 }
 
-func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float64, description string) bool {
+func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float64, description string, userId int32) bool {
 	i := getSalesInvoiceRow(invoiceId)
 	if i.Id <= 0 || i.enterprise != enterpriseId {
 		return false
@@ -406,12 +414,27 @@ func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float
 	var amendingInvoiceId int64
 	row.Scan(&amendingInvoiceId)
 
-	sqlStatement = `INSERT INTO public.sales_invoice_detail(invoice, description, price, quantity, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := db.Exec(sqlStatement, amendingInvoiceId, description, -detailAmount, 1, vatPercent, -quantity, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	sqlStatement = `INSERT INTO public.sales_invoice_detail(invoice, description, price, quantity, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	row = db.QueryRow(sqlStatement, amendingInvoiceId, description, -detailAmount, 1, vatPercent, -quantity, enterpriseId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
 	}
-	return err == nil
+
+	var amendingInvoiceDetailId int64
+	row.Scan(&amendingInvoiceDetailId)
+
+	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "I")
+	inv := getSalesInvoiceRow(amendingInvoiceId)
+	jsn, _ := json.Marshal(inv)
+	go fireWebHook(inv.enterprise, "sales_invoice", "PUT", string(jsn))
+
+	insertTransactionalLog(enterpriseId, "sales_invoice_detail", int(amendingInvoiceDetailId), userId, "I")
+	det := getSalesInvoiceDetailRow(amendingInvoiceDetailId)
+	jsn, _ = json.Marshal(det)
+	go fireWebHook(det.enterprise, "sales_invoice_detail", "PUT", string(jsn))
+
+	return true
 }
 
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
@@ -448,6 +471,9 @@ func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32, tr
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
+	i := getSalesInvoiceRowTransaction(invoiceId, trans)
+	json, _ := json.Marshal(i)
+	go fireWebHook(i.enterprise, "sales_invoice", "PUT", string(json))
 
 	return err == nil
 }

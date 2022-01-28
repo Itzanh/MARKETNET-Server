@@ -14,6 +14,8 @@
         "cronClearLogs": "@monthly",
         "maxRequestsPerMinuteEnterprise": 120,
         "SaaSAccessToken": "56d25b9a-378b-4c98-94b8-b5074ef15ad4",
+        "maxWebHooksPerEnterprise": 3,
+        "maxQueueSizePerWebHook": 500,
         "tls": {
             "useTLS": false,
             "crtPath": "./certificates/fullchain.pem",

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -163,6 +164,8 @@ func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
 
 	if productId > 0 {
 		insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "I")
+		json, _ := json.Marshal(p)
+		go fireWebHook(p.enterprise, "product", "POST", string(json))
 	}
 
 	return OkAndErrorCodeReturn{Ok: productId > 0}
@@ -204,6 +207,8 @@ func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
 	}
 
 	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "U")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "product", "PUT", string(json))
 
 	rows, _ := res.RowsAffected()
 	return OkAndErrorCodeReturn{Ok: rows > 0}
@@ -384,6 +389,8 @@ func (p *Product) deleteProduct(userId int32) OkAndErrorCodeReturn {
 	}
 
 	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "D")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "product", "DELETE", string(json))
 
 	sqlStatement = `DELETE FROM public.product WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, p.Id, p.enterprise)
@@ -919,6 +926,9 @@ func calculateMinimumStock(enterpriseId int32, userId int32) bool {
 		}
 
 		insertTransactionalLog(enterpriseId, "product", int(productId), userId, "U")
+		p := getProductRow(productId)
+		json, _ := json.Marshal(p)
+		go fireWebHook(p.enterprise, "product", "PUT", string(json))
 	}
 
 	///

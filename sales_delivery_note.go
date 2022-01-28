@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -74,6 +75,20 @@ func (q *PaginationQuery) getSalesDeliveryNotes() SalesDeliveryNotes {
 func getSalesDeliveryNoteRow(deliveryNoteId int64) SalesDeliveryNote {
 	sqlStatement := `SELECT * FROM public.sales_delivery_note WHERE id=$1`
 	row := db.QueryRow(sqlStatement, deliveryNoteId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return SalesDeliveryNote{}
+	}
+
+	n := SalesDeliveryNote{}
+	row.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.enterprise)
+
+	return n
+}
+
+func getSalesDeliveryNoteRowTransaction(deliveryNoteId int64, trans sql.Tx) SalesDeliveryNote {
+	sqlStatement := `SELECT * FROM public.sales_delivery_note WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, deliveryNoteId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return SalesDeliveryNote{}
@@ -200,6 +215,8 @@ func (n *SalesDeliveryNote) insertSalesDeliveryNotes(userId int32, trans *sql.Tx
 
 	if noteId > 0 {
 		insertTransactionalLog(n.enterprise, "sales_delivery_note", int(noteId), userId, "I")
+		json, _ := json.Marshal(n)
+		go fireWebHook(n.enterprise, "sales_delivery_note", "POST", string(json))
 	}
 
 	if beginTransaction {
@@ -248,6 +265,8 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx
 	}
 
 	insertTransactionalLog(n.enterprise, "sales_delivery_note", int(n.Id), userId, "D")
+	json, _ := json.Marshal(n)
+	go fireWebHook(n.enterprise, "sales_delivery_note", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.sales_delivery_note WHERE id=$1 AND enterprise=$2`
 	res, err := trans.Exec(sqlStatement, n.Id, n.enterprise)
@@ -557,6 +576,9 @@ func calcTotalsSaleDeliveryNote(noteId int64, enterpriseId int32, userId int32, 
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_delivery_note", int(noteId), userId, "U")
+	n := getSalesDeliveryNoteRowTransaction(noteId, trans)
+	json, _ := json.Marshal(n)
+	go fireWebHook(n.enterprise, "sales_delivery_note", "PUT", string(json))
 
 	return err == nil
 }

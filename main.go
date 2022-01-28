@@ -155,6 +155,7 @@ func main() {
 	c.AddFunc(settings.Server.CronClearLogs, clearLogs)
 	c.AddFunc("@every 1m", resetMaxRequestsPerEnterprise)
 	c.AddFunc("@every 1h", crashreporter)
+	c.AddFunc("@every 5m", attemptToSendQueuedWebHooks)
 	c.Start()
 	c.Run()
 
@@ -715,6 +716,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var query InventoyValuationQuery
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.getInventoyValuation(enterpriseId))
+	case "WEBHOOK_SETTINGS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getWebHookSettings(enterpriseId))
 	default:
 		found = false
 	}
@@ -1035,6 +1041,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getInventoryProducts(int32(id), enterpriseId))
+	case "WEBHOOK_QUEUE":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getWebHookRequestQueue(enterpriseId, int32(id)))
+	case "WEBHOOK_LOGS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getWebHookLogs(enterpriseId, int32(id)))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1539,6 +1555,13 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var i Inventory
 		json.Unmarshal(message, &i)
 		ok = i.insertInventory(enterpriseId)
+	case "WEBHOOK_SETTINGS":
+		if !permissions.Admin {
+			return
+		}
+		var s WebHookSettings
+		json.Unmarshal(message, &s)
+		ok = s.insertWebHookSettings(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1819,6 +1842,13 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal(message, &t)
 		t.enterprise = enterpriseId
 		ok = t.updateReportTemplateTranslation()
+	case "WEBHOOK_SETTINGS":
+		if !permissions.Admin {
+			return
+		}
+		var s WebHookSettings
+		json.Unmarshal(message, &s)
+		ok = s.updateWebHookSettings(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2267,6 +2297,13 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		i.Id = int32(id)
 		i.enterprise = enterpriseId
 		ok = i.deleteInventory(enterpriseId)
+	case "WEBHOOK_SETTINGS":
+		if !permissions.Admin {
+			return
+		}
+		var s WebHookSettings = WebHookSettings{}
+		s.Id = int32(id)
+		ok = s.deleteWebHookSettings(enterpriseId)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2952,7 +2989,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		}
 		var makeAmendingInvoice MakeAmendingInvoice
 		json.Unmarshal([]byte(message), &makeAmendingInvoice)
-		data, _ = json.Marshal(makeAmendingSaleInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description))
+		data, _ = json.Marshal(makeAmendingSaleInvoice(makeAmendingInvoice.InvoiceId, enterpriseId, makeAmendingInvoice.Quantity, makeAmendingInvoice.Description, userId))
 	case "MAKE_AMENDING_PURCHASE_INVOICE":
 		if !permissions.Sales {
 			return
@@ -3073,6 +3110,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var i InputInventoryProducts
 		json.Unmarshal([]byte(message), &i)
 		ok := i.deleteAllProductsInventoryProducts(enterpriseId)
+		data, _ = json.Marshal(ok)
+	case "WEBHOOK_SETTINGS_RENEW_AUTH_TOKEN":
+		if !permissions.Admin {
+			return
+		}
+		var s WebHookSettings
+		json.Unmarshal([]byte(message), &s)
+		ok := s.renewAuthToken(enterpriseId)
 		data, _ = json.Marshal(ok)
 	}
 	ws.WriteMessage(mt, data)

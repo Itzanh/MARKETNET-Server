@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -167,6 +168,22 @@ func getPurchaseOrderRow(orderId int64) PurchaseOrder {
 	return p
 }
 
+func getPurchaseOrderRowTransaction(orderId int64, trans sql.Tx) PurchaseOrder {
+	sqlStatement := `SELECT * FROM purchase_order WHERE id=$1`
+	row := db.QueryRow(sqlStatement, orderId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return PurchaseOrder{}
+	}
+
+	p := PurchaseOrder{}
+	row.Scan(&p.Id, &p.Warehouse, &p.SupplierReference, &p.Supplier, &p.DateCreated, &p.DatePaid, &p.PaymentMethod, &p.BillingSeries, &p.Currency, &p.CurrencyChange,
+		&p.BillingAddress, &p.ShippingAddress, &p.LinesNumber, &p.InvoicedLines, &p.DeliveryNoteLines, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount,
+		&p.TotalWithDiscount, &p.VatAmount, &p.TotalAmount, &p.Description, &p.Notes, &p.Off, &p.Cancelled, &p.OrderNumber, &p.BillingStatus, &p.OrderName, &p.enterprise)
+
+	return p
+}
+
 func (p *PurchaseOrder) isValid() bool {
 	return !(len(p.Warehouse) == 0 || len(p.SupplierReference) > 40 || p.Supplier <= 0 || p.PaymentMethod <= 0 || len(p.BillingSeries) == 0 || p.Currency <= 0 || p.BillingAddress <= 0 || p.ShippingAddress <= 0 || len(p.Notes) > 250)
 }
@@ -209,6 +226,8 @@ func (p *PurchaseOrder) insertPurchaseOrder(userId int32, trans *sql.Tx) (bool, 
 
 	if invoiceId > 0 {
 		insertTransactionalLog(p.enterprise, "purchase_order", int(invoiceId), userId, "I")
+		json, _ := json.Marshal(p)
+		go fireWebHook(p.enterprise, "purchase_order", "POST", string(json))
 	}
 
 	if beginTransaction {
@@ -280,6 +299,8 @@ func (p *PurchaseOrder) updatePurchaseOrder(userId int32) bool {
 
 	if rows > 0 {
 		insertTransactionalLog(p.enterprise, "purchase_order", int(p.Id), userId, "U")
+		json, _ := json.Marshal(p)
+		go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 	}
 
 	return rows > 0
@@ -331,6 +352,8 @@ func (p *PurchaseOrder) deletePurchaseOrder(userId int32) OkAndErrorCodeReturn {
 	}
 
 	insertTransactionalLog(inMemoryOrder.enterprise, "purchase_order", int(p.Id), userId, "D")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "DELETE", string(json))
 
 	sqlStatement := `DELETE FROM public.purchase_order WHERE id=$1`
 	res, err := trans.Exec(sqlStatement, p.Id)
@@ -377,6 +400,9 @@ func setDatePaymentAcceptedPurchaseOrder(orderId int64, enterpriseId int32, user
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return true
 }
@@ -401,6 +427,9 @@ func calcTotalsPurchaseOrder(orderId int64, enterpriseId int32, userId int32, tr
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return true
 }
@@ -471,7 +500,7 @@ func getPurchaseOrderDeliveryNotes(orderId int64, enterpriseId int32) []Purchase
 
 // Add an amount to the lines_number field in the purchase order. This number represents the total of lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addPurchaseOrderLinesNumber(orderId int64, trans sql.Tx) bool {
+func addPurchaseOrderLinesNumber(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.purchase_order SET lines_number=lines_number+1 WHERE id=$1`
 	res, err := trans.Exec(sqlStatement, orderId)
 	if err != nil {
@@ -481,12 +510,17 @@ func addPurchaseOrderLinesNumber(orderId int64, trans sql.Tx) bool {
 	}
 	rows, _ := res.RowsAffected()
 
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+
 	return err == nil && rows > 0
 }
 
 // Takes out an amount to the lines_number field in the purchase order. This number represents the total of lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func removePurchaseOrderLinesNumber(orderId int64, trans sql.Tx) bool {
+func removePurchaseOrderLinesNumber(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
 	sqlStatement := `UPDATE public.purchase_order SET lines_number=lines_number-1 WHERE id=$1`
 	res, err := trans.Exec(sqlStatement, orderId)
 	if err != nil {
@@ -495,6 +529,11 @@ func removePurchaseOrderLinesNumber(orderId int64, trans sql.Tx) bool {
 		return false
 	}
 	rows, _ := res.RowsAffected()
+
+	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -512,6 +551,9 @@ func addPurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -529,6 +571,9 @@ func removePurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId 
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -546,6 +591,9 @@ func addPurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
@@ -563,6 +611,9 @@ func removePurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, use
 	rows, _ := res.RowsAffected()
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+	p := getPurchaseOrderRowTransaction(orderId, trans)
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
 
 	return err == nil && rows > 0
 }
