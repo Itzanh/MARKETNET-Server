@@ -1595,7 +1595,7 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		returnData, _ = json.Marshal(salesOrderDetail.updateSalesOrderDetail(userId))
 		ok = true
 	case "PURCHASE_ORDER_DETAIL":
-		if !permissions.Sales {
+		if !permissions.Purchases {
 			return
 		}
 		var purchaseOrderDetail PurchaseOrderDetail
@@ -2939,6 +2939,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(cancelSalesOrderDetail(int64(id), enterpriseId, userId))
+	case "CANCEL_PURCHASE_ORDER_DETAIL":
+		if !permissions.Purchases {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(cancelPurchaseOrderDetail(int64(id), enterpriseId, userId))
 	case "API_KEYS":
 		if !permissions.Admin {
 			return

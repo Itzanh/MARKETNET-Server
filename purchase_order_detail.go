@@ -20,6 +20,7 @@ type PurchaseOrderDetail struct {
 	QuantityPendingPackaging int32   `json:"quantityPendingPackaging"`
 	QuantityAssignedSale     int32   `json:"quantityAssignedSale"`
 	ProductName              string  `json:"productName"`
+	Cancelled                bool    `json:"cancelled"`
 	enterprise               int32
 }
 
@@ -35,7 +36,7 @@ func getPurchaseOrderDetail(orderId int64, enterpriseId int32) []PurchaseOrderDe
 
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -51,7 +52,7 @@ func getPurchaseOrderDetailRow(detailId int64) PurchaseOrderDetail {
 	}
 
 	d := PurchaseOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise)
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled)
 
 	return d
 }
@@ -65,7 +66,7 @@ func getPurchaseOrderDetailRowTransaction(detailId int64, trans sql.Tx) Purchase
 	}
 
 	d := PurchaseOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise)
+	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled)
 
 	return d
 }
@@ -276,7 +277,7 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 		quantityAssignedSale := detailInMemory.QuantityAssignedSale
 
 		for i := 0; i < len(salesDetails); i++ {
-			_, err := db.Exec(sqlStatement, salesDetails[i].Id)
+			_, err := trans.Exec(sqlStatement, salesDetails[i].Id)
 			if err != nil {
 				log("DB", err.Error())
 				trans.Rollback()
@@ -533,6 +534,90 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, 
 		return setSalesOrderDetailStateAllPendingPurchaseOrder(detailId, enterpriseId, userId, trans) && setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId, enterpriseId, userId, trans)
 	} else { // the delivery note details has been removed, roll back the sales order detail status
 		return undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId, enterpriseId, userId, trans) && undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId, enterpriseId, userId, trans)
+	}
+}
+
+func cancelPurchaseOrderDetail(detailId int64, enterpriseId int32, userId int32) bool {
+	detail := getPurchaseOrderDetailRow(detailId)
+	if detail.Id <= 0 {
+		return false
+	}
+
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return false
+	}
+	///
+
+	if !detail.Cancelled {
+		if detail.Quantity <= 0 || detail.QuantityInvoiced < 0 || detail.QuantityDeliveryNote > 0 {
+			return false
+		}
+
+		sqlStatement := `UPDATE public.purchase_order_detail SET quantity_invoiced=quantity, quantity_delivery_note=quantity, cancelled=true WHERE id=$1 AND enterprise=$2`
+		_, err := trans.Exec(sqlStatement, detailId, enterpriseId)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		if err != nil {
+			insertTransactionalLog(detail.enterprise, "purchase_order_detail", int(detailId), userId, "U")
+			s := getSalesOrderDetailRow(detailId)
+			json, _ := json.Marshal(s)
+			go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
+		}
+
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+
+		return err == nil
+	} else {
+		if detail.Quantity <= 0 || detail.QuantityInvoiced == 0 || detail.QuantityDeliveryNote == 0 {
+			return false
+		}
+
+		sqlStatement := `UPDATE public.purchase_order_detail SET quantity_invoiced=0, quantity_delivery_note=0, cancelled=false, quantity_assigned_sale=0 WHERE id=$1 AND enterprise=$2`
+		_, err := trans.Exec(sqlStatement, detailId, enterpriseId)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		salesDetails := getSalesOrderDetailsFromPurchaseOrderDetail(detail.Id, detail.enterprise)
+
+		sqlStatement = `UPDATE public.sales_order_detail SET status='A', purchase_order_detail=NULL WHERE id=$1`
+		for i := 0; i < len(salesDetails); i++ {
+			_, err := trans.Exec(sqlStatement, salesDetails[i].Id)
+			if err != nil {
+				log("DB", err.Error())
+				trans.Rollback()
+				return false
+			}
+		}
+
+		if err != nil {
+			insertTransactionalLog(detail.enterprise, "purchase_order_detail", int(detailId), userId, "U")
+			s := getSalesOrderDetailRow(detailId)
+			json, _ := json.Marshal(s)
+			go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
+		}
+
+		///
+		err = trans.Commit()
+		if err != nil {
+			return false
+		}
+		///
+
+		return err == nil
 	}
 }
 
