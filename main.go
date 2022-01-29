@@ -1594,6 +1594,15 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		salesOrderDetail.enterprise = enterpriseId
 		returnData, _ = json.Marshal(salesOrderDetail.updateSalesOrderDetail(userId))
 		ok = true
+	case "PURCHASE_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		var purchaseOrderDetail PurchaseOrderDetail
+		json.Unmarshal(message, &purchaseOrderDetail)
+		purchaseOrderDetail.enterprise = enterpriseId
+		returnData, _ = json.Marshal(purchaseOrderDetail.updatePurchaseOrderDetail(userId))
+		ok = true
 	case "PRODUCT":
 		if getUserPermission("CANT_UPDATE_DELETE_PRODUCT", enterpriseId, userId) {
 			return

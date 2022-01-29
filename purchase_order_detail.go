@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"sort"
 	"time"
 )
 
@@ -231,6 +232,97 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, produc
 		}
 	}
 	return quantityAssignedSale
+}
+
+// ERROR CODES:
+// 1. the detail is already invoiced
+// 2. the detail has a delivery note generated
+func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndErrorCodeReturn {
+	if s.Id <= 0 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	///
+	trans, err := db.Begin()
+	if err != nil {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	///
+
+	detailInMemory := getPurchaseOrderDetailRow(s.Id)
+	if detailInMemory.Id <= 0 || detailInMemory.enterprise != s.enterprise {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if detailInMemory.QuantityInvoiced > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+	}
+	if detailInMemory.QuantityDeliveryNote > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+	}
+
+	if detailInMemory.Quantity < s.Quantity { // increased quantity
+		associatePurchaseOrderWithPendingSalesOrders(s.Id, s.Product, s.Quantity-detailInMemory.Quantity, s.enterprise, userId, *trans)
+		s.QuantityAssignedSale = detailInMemory.QuantityAssignedSale
+	} else if detailInMemory.Quantity > s.Quantity { // decreased quantity
+		salesDetails := getSalesOrderDetailsFromPurchaseOrderDetail(s.Id, s.enterprise)
+		sort.Slice(salesDetails, func(i, j int) bool { // sort by date_created ASC
+			return salesDetails[i].DateCreated.Before(salesDetails[j].DateCreated)
+		})
+
+		sqlStatement := `UPDATE public.sales_order_detail SET status='A', purchase_order_detail=NULL WHERE id=$1`
+		quantityAssignedSale := detailInMemory.QuantityAssignedSale
+
+		for i := 0; i < len(salesDetails); i++ {
+			_, err := db.Exec(sqlStatement, salesDetails[i].Id)
+			if err != nil {
+				log("DB", err.Error())
+				trans.Rollback()
+				return OkAndErrorCodeReturn{Ok: false}
+			}
+			quantityAssignedSale -= salesDetails[i].Quantity
+			if quantityAssignedSale <= s.Quantity {
+				break
+			}
+		}
+		s.QuantityAssignedSale = quantityAssignedSale
+	} else {
+		s.QuantityAssignedSale = detailInMemory.QuantityAssignedSale
+	}
+
+	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
+
+	ok := addTotalProductsPurchaseOrder(s.Order, -detailInMemory.Price*float64(detailInMemory.Quantity), detailInMemory.VatPercent, s.enterprise, userId, *trans)
+	if !ok {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	ok = addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId, *trans)
+	if !ok {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	sqlStatement := `UPDATE public.purchase_order_detail SET price = $2, quantity = $3, vat_percent = $4, total_amount = $5, quantity_assigned_sale = $6 WHERE id = $1`
+	_, err = trans.Exec(sqlStatement, s.Id, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.QuantityAssignedSale)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		log("DB", err.Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	///
+
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 // Deletes an order detail, substracting the stock and the amount from the order total. All the operations are done under a transaction.
