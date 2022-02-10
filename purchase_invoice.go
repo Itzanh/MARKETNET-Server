@@ -110,7 +110,9 @@ func (s *OrderSearch) searchPurchaseInvoice() PurchaseInvoices {
 		}
 		sqlStatement += ` AND purchase_invoice.enterprise = $` + strconv.Itoa(len(interfaces)+1)
 		interfaces = append(interfaces, s.enterprise)
-		sqlStatement += ` ORDER BY date_created DESC`
+		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
+		interfaces = append(interfaces, s.Offset)
+		interfaces = append(interfaces, s.Limit)
 		rows, err = db.Query(sqlStatement, interfaces...)
 	}
 	if err != nil {

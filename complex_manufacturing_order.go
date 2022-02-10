@@ -323,7 +323,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 		}
 
 		stock := getStockRow(manufacturingOrderTypeComponent.Product, complexManufacturingOrder.Warehouse, c.enterprise)
-		if stock.QuantityAvaialbe >= manufacturingOrderTypeComponent.Quantity {
+		if stock.QuantityAvaiable >= manufacturingOrderTypeComponent.Quantity {
 			// there is stock for the manufacturing, we make a manufacturing order to reserve the stock
 			wm := WarehouseMovement{
 				Warehouse:  complexManufacturingOrder.Warehouse,

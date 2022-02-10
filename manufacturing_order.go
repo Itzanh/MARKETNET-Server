@@ -18,7 +18,7 @@ type ManufacturingOrder struct {
 	DateLastUpdate       time.Time  `json:"dateLastUpdate"`
 	Manufactured         bool       `json:"manufactured"`
 	DateManufactured     *time.Time `json:"dateManufactured"`
-	UserManufactured     *int16     `json:"userManufactured"`
+	UserManufactured     *int32     `json:"userManufactured"`
 	UserCreated          int32      `json:"userCreated"`
 	TagPrinted           bool       `json:"tagPrinted"`
 	DateTagPrinted       *time.Time `json:"dateTagPrinted"`

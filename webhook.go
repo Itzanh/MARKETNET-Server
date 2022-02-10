@@ -94,8 +94,22 @@ func (s *WebHookSettings) deleteWebHookSettings(enterpriseId int32) bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.webhook_settings WHERE id = $1 AND enterprise = $2`
+	sqlStatement := `DELETE FROM public.webhook_logs WHERE webhook = $1 AND enterprise = $2`
 	_, err := db.Exec(sqlStatement, s.Id, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	sqlStatement = `DELETE FROM public.webhook_queue WHERE webhook = $1 AND enterprise = $2`
+	_, err = db.Exec(sqlStatement, s.Id, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return false
+	}
+
+	sqlStatement = `DELETE FROM public.webhook_settings WHERE id = $1 AND enterprise = $2`
+	_, err = db.Exec(sqlStatement, s.Id, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -131,7 +145,7 @@ func fireWebHook(enterpriseId int32, resource string, method string, data string
 		r := WebHookRequest{
 			enterprise: enterpriseId,
 			WebHook:    w.Id,
-			Url:        w.Url,
+			Url:        w.Url + "/" + resource,
 			AuthCode:   w.AuthCode,
 			AuthMethod: w.AuthMethod,
 			Send:       data,

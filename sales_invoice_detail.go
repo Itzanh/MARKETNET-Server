@@ -52,7 +52,7 @@ func getSalesInvoiceDetailRow(detailId int64) SalesInvoiceDetail {
 }
 
 func (d *SalesInvoiceDetail) isValid() bool {
-	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || (d.Product != nil && *d.Product <= 0) || d.Quantity <= 0 || d.VatPercent < 0)
+	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
 // ERROR CODES:
@@ -62,6 +62,10 @@ func (d *SalesInvoiceDetail) isValid() bool {
 func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int32) OkAndErrorCodeReturn {
 	if !s.isValid() {
 		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	if s.Product != nil && *s.Product <= 0 {
+		s.Product = nil
 	}
 
 	if s.Product != nil {

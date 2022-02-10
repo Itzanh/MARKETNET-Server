@@ -8,7 +8,7 @@ type Stock struct {
 	Quantity                   int32  `json:"quantity"`
 	QuantityPendingReceived    int32  `json:"quantityPendingReceived"`
 	QuantityPendingServed      int32  `json:"quantityPendingServed"`
-	QuantityAvaialbe           int32  `json:"quantityAvaialbe"`
+	QuantityAvaiable           int32  `json:"quantityAvaiable"`
 	QuantityPendingManufacture int32  `json:"quantityPendingManufacture"`
 	WarehouseName              string `json:"warehouseName"`
 	enterprise                 int32
@@ -26,7 +26,7 @@ func getStock(productId int32, enterpriseId int32) []Stock {
 
 	for rows.Next() {
 		s := Stock{}
-		rows.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaialbe, &s.QuantityPendingManufacture, &s.enterprise, &s.WarehouseName)
+		rows.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaiable, &s.QuantityPendingManufacture, &s.enterprise, &s.WarehouseName)
 		stock = append(stock, s)
 	}
 
@@ -42,7 +42,7 @@ func getStockRow(productId int32, warehouseId string, enterpriseId int32) Stock 
 	}
 
 	s := Stock{}
-	row.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaialbe, &s.QuantityPendingManufacture, &s.enterprise)
+	row.Scan(&s.Product, &s.Warehouse, &s.Quantity, &s.QuantityPendingReceived, &s.QuantityPendingServed, &s.QuantityAvaiable, &s.QuantityPendingManufacture, &s.enterprise)
 
 	return s
 }

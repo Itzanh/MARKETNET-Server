@@ -656,7 +656,7 @@ func getSalesOrderShippings(orderId int64, enterpriseId int32) []Shipping {
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
 func setSalesOrderState(enterpriseId int32, orderId int64, userId int32, trans sql.Tx) bool {
 	sqlStatement := `SELECT status FROM sales_order_detail WHERE "order" = $1 ORDER BY status ASC LIMIT 1`
-	row := db.QueryRow(sqlStatement, orderId)
+	row := trans.QueryRow(sqlStatement, orderId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return false

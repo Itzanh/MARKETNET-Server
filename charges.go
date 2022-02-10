@@ -50,7 +50,7 @@ func getChargesRow(chargesId int32) Charges {
 }
 
 func (c *Charges) isValid() bool {
-	return !(c.CollectionOperation <= 0 || len(c.Concept) > 50 || c.Amount <= 0)
+	return !(c.CollectionOperation <= 0 || len(c.Concept) > 140 || c.Amount <= 0)
 }
 
 func (c *Charges) insertCharges(userId int32) bool {

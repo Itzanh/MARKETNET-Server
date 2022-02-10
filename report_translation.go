@@ -3,15 +3,16 @@ package main
 import "strings"
 
 type ReportTemplateTranslation struct {
-	enterprise  int32
-	Key         string `json:"key"`
-	Language    int32  `json:"language"`
-	Translation string `json:"translation"`
+	enterprise   int32
+	Key          string `json:"key"`
+	Language     int32  `json:"language"`
+	Translation  string `json:"translation"`
+	LanguageName string `json:"languageName"`
 }
 
 func getReportTemplateTranslations(enterpriseId int32) []ReportTemplateTranslation {
 	var translations []ReportTemplateTranslation = make([]ReportTemplateTranslation, 0)
-	sqlStatement := `SELECT * FROM public.report_template_translation WHERE enterprise = $1 ORDER BY key ASC, language ASC`
+	sqlStatement := `SELECT *,(SELECT name FROM language WHERE language.id=report_template_translation.language) FROM public.report_template_translation WHERE enterprise = $1 ORDER BY key ASC, language ASC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -20,7 +21,7 @@ func getReportTemplateTranslations(enterpriseId int32) []ReportTemplateTranslati
 
 	for rows.Next() {
 		t := ReportTemplateTranslation{}
-		rows.Scan(&t.enterprise, &t.Key, &t.Language, &t.Translation)
+		rows.Scan(&t.enterprise, &t.Key, &t.Language, &t.Translation, &t.LanguageName)
 		translations = append(translations, t)
 	}
 	return translations

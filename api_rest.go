@@ -54,6 +54,7 @@ func addHttpHandlerFuncions() {
 	http.HandleFunc("/api/manufacturing_orders", apiManufacturingOrders)
 	http.HandleFunc("/api/manufacturing_order_types", apiManufacturingOrderTypes)
 	http.HandleFunc("/api/complex_manufacturing_orders", apiComplexManufacturingOrders)
+	http.HandleFunc("/api/complex_manufacturing_orders_components", apiComplexManufacturingOrdersComponents)
 	http.HandleFunc("/api/manufacturing_order_type_components", apiManufacturingOrderTypesComponents)
 	// preparation
 	http.HandleFunc("/api/shippings", apiShipping)
@@ -696,6 +697,15 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		} else {
 			ok = false
 		}
+	case "PUT":
+		if !permission.PurchaseOrders.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var purchaseOrderDetail PurchaseOrderDetail
+		json.Unmarshal(body, &purchaseOrderDetail)
+		purchaseOrderDetail.enterprise = enterpriseId
+		ok = purchaseOrderDetail.updatePurchaseOrderDetail(userId).Ok
 	case "DELETE":
 		if !permission.PurchaseOrderDetails.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -2189,7 +2199,7 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal(body, &manufacturingPaginationQuery)
-		data, _ := json.Marshal(manufacturingPaginationQuery.getAllManufacturingOrders(enterpriseId))
+		data, _ := json.Marshal(manufacturingPaginationQuery.getManufacturingOrder(enterpriseId))
 		w.Write(data)
 		return
 	case "POST":
@@ -2197,11 +2207,37 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		var manufacturingOrder ManufacturingOrder
-		json.Unmarshal(body, &manufacturingOrder)
-		manufacturingOrder.UserCreated = userId
-		manufacturingOrder.enterprise = enterpriseId
-		ok = manufacturingOrder.insertManufacturingOrder(userId, nil).Ok
+		if string(body[0]) == "{" {
+			var manufacturingOrder ManufacturingOrder
+			json.Unmarshal(body, &manufacturingOrder)
+			manufacturingOrder.UserCreated = userId
+			manufacturingOrder.enterprise = enterpriseId
+			ok = manufacturingOrder.insertManufacturingOrder(userId, nil).Ok
+		} else if string(body[0]) == "[" {
+			var manufacturingOrders []ManufacturingOrder
+			json.Unmarshal(body, &manufacturingOrders)
+			for i := 0; i < len(manufacturingOrders); i++ {
+				manufacturingOrders[i].UserCreated = userId
+				manufacturingOrders[i].enterprise = enterpriseId
+				ok = manufacturingOrders[i].insertManufacturingOrder(userId, nil).Ok
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
+	case "PUT":
+		if !permission.ManufacturingOrders.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		ok = toggleManufactuedManufacturingOrder(int64(id), userId, enterpriseId)
 	case "DELETE":
 		if !permission.ManufacturingOrders.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -2327,11 +2363,37 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		var complexManufacturingOrder ComplexManufacturingOrder
-		json.Unmarshal(body, &complexManufacturingOrder)
-		complexManufacturingOrder.UserCreated = userId
-		complexManufacturingOrder.enterprise = enterpriseId
-		ok, _ = complexManufacturingOrder.insertComplexManufacturingOrder(userId, nil)
+		if string(body[0]) == "{" {
+			var complexManufacturingOrder ComplexManufacturingOrder
+			json.Unmarshal(body, &complexManufacturingOrder)
+			complexManufacturingOrder.UserCreated = userId
+			complexManufacturingOrder.enterprise = enterpriseId
+			ok, _ = complexManufacturingOrder.insertComplexManufacturingOrder(userId, nil)
+		} else if string(body[0]) == "[" {
+			var complexManufacturingOrders []ComplexManufacturingOrder
+			json.Unmarshal(body, &complexManufacturingOrders)
+			for i := 0; i < len(complexManufacturingOrders); i++ {
+				complexManufacturingOrders[i].UserCreated = userId
+				complexManufacturingOrders[i].enterprise = enterpriseId
+				ok, _ = complexManufacturingOrders[i].insertComplexManufacturingOrder(userId, nil)
+				if !ok {
+					break
+				}
+			}
+		} else {
+			ok = false
+		}
+	case "PUT":
+		if !permission.ComplexManufacturingOrders.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		toggleManufactuedComplexManufacturingOrder(int64(id), userId, enterpriseId)
 	case "DELETE":
 		if !permission.ComplexManufacturingOrders.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -2352,6 +2414,45 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotAcceptable)
 	}
 	w.Write(resp)
+}
+
+func apiComplexManufacturingOrdersComponents(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId, permission := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		if !permission.ComplexManufacturingOrdersComponents.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getComplexManufacturingOrderManufacturingOrder(int64(id), enterpriseId))
+		w.Write(data)
+		return
+	}
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
 }
 
 func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request) {
@@ -2774,13 +2875,6 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
-	case "PUT":
-		if !permission.AccountingMovement.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	case "DELETE":
 		if !permission.AccountingMovement.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -2860,13 +2954,6 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
-	case "PUT":
-		if !permission.AccountingMovementDetail.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	case "DELETE":
 		if !permission.AccountingMovementDetail.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -2920,38 +3007,6 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 		}
 		data, _ := json.Marshal(getColletionOperations(int64(id), enterpriseId))
 		w.Write(data)
-		return
-	case "POST":
-		if !permission.CollectionOperation.Post {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		if string(body[0]) == "{" {
-			var collectionOperation CollectionOperation
-			json.Unmarshal(body, &collectionOperation)
-			collectionOperation.enterprise = enterpriseId
-			ok = collectionOperation.insertCollectionOperation(userId, nil)
-		} else if string(body[0]) == "[" {
-			var collectionOperation []CollectionOperation
-			json.Unmarshal(body, &collectionOperation)
-			for i := 0; i < len(collectionOperation); i++ {
-				collectionOperation[i].enterprise = enterpriseId
-				ok = collectionOperation[i].insertCollectionOperation(userId, nil)
-				if !ok {
-					w.WriteHeader(http.StatusNotAcceptable)
-					return
-				}
-			}
-		} else {
-			w.WriteHeader(http.StatusNotAcceptable)
-			return
-		}
-	case "PUT":
-		if !permission.CollectionOperation.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	case "DELETE":
 		if !permission.CollectionOperation.Delete {
@@ -3032,13 +3087,6 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
-	case "PUT":
-		if !permission.Charges.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	case "DELETE":
 		if !permission.Charges.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -3118,13 +3166,6 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
-	case "PUT":
-		if !permission.PaymentTransaction.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	case "DELETE":
 		if !permission.PaymentTransaction.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -3204,13 +3245,6 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
-	case "PUT":
-		if !permission.Payment.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	case "DELETE":
 		if !permission.Payment.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -3275,20 +3309,6 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		resp, _ := json.Marshal(result)
 		w.Write(resp)
 		return
-	case "PUT":
-		if !permission.PostSaleInvoice.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	case "DELETE":
-		if !permission.PostSaleInvoice.Delete {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	}
 	w.WriteHeader(http.StatusNotAcceptable)
 
@@ -3335,20 +3355,6 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		result := purchasePostInvoices(invoiceIds, enterpriseId, userId)
 		resp, _ := json.Marshal(result)
 		w.Write(resp)
-		return
-	case "PUT":
-		if !permission.PostPurchaseInvoice.Put {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	case "DELETE":
-		if !permission.PostPurchaseInvoice.Delete {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	w.WriteHeader(http.StatusNotAcceptable)

@@ -50,7 +50,7 @@ func getPaymentsRow(chargesId int32) Payment {
 }
 
 func (c *Payment) isValid() bool {
-	return !(c.PaymentTransaction <= 0 || len(c.Concept) > 50 || c.Amount <= 0)
+	return !(c.PaymentTransaction <= 0 || len(c.Concept) > 140 || c.Amount <= 0)
 }
 
 func (c *Payment) insertPayment(userId int32) bool {
