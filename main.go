@@ -182,6 +182,7 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		ws.Close()
 		return
 	}
+	setUserDateLastLogin(userId)
 	// END AUTHENTICATION
 	c := Connection{Address: r.RemoteAddr, User: userId, ws: ws, enterprise: enterpriseId}
 	c.addConnection()

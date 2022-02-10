@@ -420,6 +420,14 @@ func (u *User) setUserFailedLoginAttemps(addOrReset bool) bool {
 	return rows > 0
 }
 
+func setUserDateLastLogin(userId int32) {
+	sqlStatement := `UPDATE public."user" SET date_last_login=CURRENT_TIMESTAMP(3) WHERE id=$1`
+	_, err := db.Exec(sqlStatement, userId)
+	if err != nil {
+		log("DB", err.Error())
+	}
+}
+
 type SecureCloudResult struct {
 	PasswordComplexity      bool `json:"passwordComplexity"`
 	PasswordInBlacklist     bool `json:"passwordInBlacklist"`
