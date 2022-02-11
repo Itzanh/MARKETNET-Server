@@ -61,7 +61,7 @@ func (s *WebHookSettings) insertWebHookSettings(enterpriseId int32) bool {
 	}
 
 	webHooks := getWebHookSettings(enterpriseId)
-	if len(webHooks) > int(settings.Server.MaxWebHooksPerEnterprise) {
+	if settings.Server.MaxWebHooksPerEnterprise > 0 && len(webHooks) > int(settings.Server.MaxWebHooksPerEnterprise) {
 		return false
 	}
 

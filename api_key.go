@@ -196,7 +196,7 @@ func checkMaxRequestsPerEnterprise(enterpriseId int32) bool {
 		requestsPerMinuteEnterprise[enterpriseId] = 1
 		return true
 	}
-	if requestsMade >= settings.Server.MaxRequestsPerMinuteEnterprise {
+	if settings.Server.MaxRequestsPerMinuteEnterprise > 0 && requestsMade >= settings.Server.MaxRequestsPerMinuteEnterprise {
 		return false
 	} else {
 		requestsPerMinuteEnterprise[enterpriseId] = requestsPerMinuteEnterprise[enterpriseId] + 1

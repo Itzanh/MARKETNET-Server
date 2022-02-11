@@ -175,6 +175,7 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer ws.Close()
+	ws.SetReadLimit(settings.Server.MaxLengthWebSocketMessage)
 
 	// AUTHENTICATION
 	ok, userId, permissions, enterpriseId := authentication(ws, r.RemoteAddr)

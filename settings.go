@@ -36,6 +36,7 @@ type ServerSettings struct {
 	SaaSAccessToken                string                              `json:"SaaSAccessToken"`
 	MaxWebHooksPerEnterprise       uint16                              `json:"maxWebHooksPerEnterprise"`
 	MaxQueueSizePerWebHook         int32                               `json:"maxQueueSizePerWebHook"`
+	MaxLengthWebSocketMessage      int64                               `json:"maxLengthWebSocketMessage"`
 	TLS                            ServerSettingsTLS                   `json:"tls"`
 	Activation                     map[string]ServerSettingsActivation `json:"activation"`
 }
