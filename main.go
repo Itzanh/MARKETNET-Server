@@ -723,6 +723,14 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getWebHookSettings(enterpriseId))
+	case "TRANSFER_BETWEEN_WAREHOUSES":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehousesQuery
+		json.Unmarshal([]byte(message), &query)
+		query.enterprise = enterpriseId
+		data, _ = json.Marshal(query.searchTransferBetweenWarehouses())
 	default:
 		found = false
 	}
@@ -1053,6 +1061,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getWebHookLogs(enterpriseId, int32(id)))
+	case "TRANSFER_BETWEEN_WAREHOUSES_DETAIL":
+		if !permissions.Warehouse {
+			return
+		}
+		data, _ = json.Marshal(getTransferBetweenWarehousesDetail(int64(id), enterpriseId))
+	case "TRANSFER_BETWEEN_WAREHOUSES_WAREHOUSE_MOVEMENTS":
+		if !permissions.Warehouse {
+			return
+		}
+		data, _ = json.Marshal(getTransferBetweenWarehousesWarehouseMovements(int64(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1564,6 +1582,22 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		var s WebHookSettings
 		json.Unmarshal(message, &s)
 		ok = s.insertWebHookSettings(enterpriseId)
+	case "TRANSFER_BETWEEN_WAREHOUSES":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehouses
+		json.Unmarshal([]byte(message), &query)
+		query.enterprise = enterpriseId
+		ok = query.insertTransferBetweenWarehouses()
+	case "TRANSFER_BETWEEN_WAREHOUSES_DETAIL":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehousesDetail
+		json.Unmarshal([]byte(message), &query)
+		query.enterprise = enterpriseId
+		ok = query.insertTransferBetweenWarehousesDetail()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2315,6 +2349,22 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		var s WebHookSettings = WebHookSettings{}
 		s.Id = int32(id)
 		ok = s.deleteWebHookSettings(enterpriseId)
+	case "TRANSFER_BETWEEN_WAREHOUSES":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehouses = TransferBetweenWarehouses{}
+		query.Id = int64(id)
+		query.enterprise = enterpriseId
+		ok = query.deleteTransferBetweenWarehouses()
+	case "TRANSFER_BETWEEN_WAREHOUSES_DETAIL":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehousesDetail = TransferBetweenWarehousesDetail{}
+		query.Id = int64(id)
+		query.enterprise = enterpriseId
+		ok = query.deleteTransferBetweenWarehousesDetail(nil)
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -3139,6 +3189,20 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &s)
 		ok := s.renewAuthToken(enterpriseId)
 		data, _ = json.Marshal(ok)
+	case "TRANSFER_BETWEEN_WAREHOUSES_DETAIL_BARCODE":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehousesDetailBarCodeQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.transferBetweenWarehousesDetailBarCode(enterpriseId, userId))
+	case "TRANSFER_BETWEEN_WAREHOUSES_DETAIL_QUANTITY":
+		if !permissions.Warehouse {
+			return
+		}
+		var query TransferBetweenWarehousesDetailQuantityQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.transferBetweenWarehousesDetailQuantity(enterpriseId, userId))
 	}
 	ws.WriteMessage(mt, data)
 
