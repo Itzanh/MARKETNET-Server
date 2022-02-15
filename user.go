@@ -187,7 +187,7 @@ func (u *UserPassword) userPassword(enterpriseId int32) bool {
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
-	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1 AND config=$6`
+	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5, failed_login_attemps=0 WHERE id=$1 AND config=$6`
 	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, settings.Server.HashIterations, u.PwdNextLogin, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -227,7 +227,7 @@ func (u *UserAutoPassword) userAutoPassword(enterpriseId int32, userId int32) bo
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.NewPassword), settings.Server.HashIterations)
 
-	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5 WHERE id=$1 AND config=$6`
+	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5, failed_login_attemps=0 WHERE id=$1 AND config=$6`
 	res, err := db.Exec(sqlStatement, userId, passwd, salt, settings.Server.HashIterations, false, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
