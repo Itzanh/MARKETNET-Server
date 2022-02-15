@@ -74,6 +74,7 @@ func main() {
 		initialData(settingsRecords[i].Id)
 	}
 	if isParameterPresent("--install-only") {
+		fmt.Println("The parameter --install-only is set and the app will exit. All the operations were successfull.")
 		return
 	}
 	if isParameterPresent("--generate-demo-data") {
@@ -86,8 +87,10 @@ func main() {
 	if isParameterPresent("--add-enterprise") {
 		ok := addEnterpriseFromParameters()
 		if ok {
+			fmt.Println("Enterprise added successfully. Exiting.")
 			os.Exit(0)
 		} else {
+			fmt.Println("There was an error creating the enterprise.")
 			os.Exit(3)
 		}
 	}

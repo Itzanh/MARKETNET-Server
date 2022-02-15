@@ -35,6 +35,10 @@ func installDB() bool {
 			fmt.Println("Count not copy database schema", err)
 			return false
 		}
+
+		// truncate the file on successfull update
+		updateFile, _ := os.OpenFile("update.sql", os.O_RDWR, 0666)
+		updateFile.Truncate(0)
 	} else {
 		content, err := ioutil.ReadFile("update.sql")
 		if err != nil {

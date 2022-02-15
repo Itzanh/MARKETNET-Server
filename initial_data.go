@@ -19,9 +19,9 @@ func initialData(enterpriseId int32) {
 	initialJournals(enterpriseId)
 	initialAccount(enterpriseId)
 	initialConfig(enterpriseId)
-	initialUser(enterpriseId)
+	/*initialUser(enterpriseId)
 	initialGroup(enterpriseId)
-	initialUserGroup()
+	initialUserGroup()*/
 	initialReportTemplate(enterpriseId)
 	initialPermissionDictionary(enterpriseId)
 	initialHSCodes()
@@ -369,6 +369,7 @@ func initialConfig(enterpriseId int32) {
 func initialConfigCreateEnterprise(enterpriseName string, enterpriseDescription string, enterpriseKey string) (bool, int32) {
 	content, err := ioutil.ReadFile("./initial_data/config.json")
 	if err != nil {
+		fmt.Println(err)
 		return false, 0
 	}
 
@@ -382,6 +383,7 @@ func initialConfigCreateEnterprise(enterpriseName string, enterpriseDescription 
 	row := db.QueryRow(sqlStatement, config.DefaultVatPercent, nil, config.DateFormat, enterpriseName, enterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, nil, nil, nil, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, nil, nil, salesAccount, nil, nil, purchaseAccount, enterpriseKey)
 	if row.Err() != nil {
 		fmt.Println(row.Err())
+		return false, 0
 	}
 
 	var enterpriseId int32
@@ -389,7 +391,7 @@ func initialConfigCreateEnterprise(enterpriseName string, enterpriseDescription 
 	return true, enterpriseId
 }
 
-func initialUser(enterpriseId int32) {
+/*func initialUser(enterpriseId int32) {
 	sqlStatement := `SELECT COUNT(*) FROM "user" WHERE username='marketnet'`
 	row := db.QueryRow(sqlStatement)
 	var rows int32
@@ -442,7 +444,7 @@ func initialUserGroup() {
 
 		fmt.Println("INITIAL DATA: Added the admin user to the admin group")
 	}
-}
+}*/
 
 func initialReportTemplate(enterpriseId int32) {
 	content, err := ioutil.ReadFile("./reports/sales_order.html")
@@ -550,17 +552,4 @@ func initialHSCodes() {
 	if rowCount > 0 {
 		return
 	}
-
-	/*content, err := ioutil.ReadFile("./initial_data/hs_codes.json")
-	if err != nil {
-		return
-	}
-
-	var codes []HSCode = make([]HSCode, 0)
-	json.Unmarshal(content, &codes)
-
-	sqlStatement = `INSERT INTO public.hs_codes(id, name) VALUES ($1, $2)`
-	for i := 0; i < len(codes); i++ {
-		db.Exec(sqlStatement, codes[i].Id, codes[i].Name)
-	}*/
 }

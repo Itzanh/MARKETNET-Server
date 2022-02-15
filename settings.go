@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"strings"
@@ -362,26 +363,32 @@ func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
 func addEnterpriseFromParameters() bool {
 	enterpriseKey, ok := getParameterValue("enterprise_key")
 	if !ok {
+		fmt.Println("Error, parameter enterprise_key not present.")
 		return false
 	}
 	enterpriseName, ok := getParameterValue("enterprise_name")
 	if !ok {
+		fmt.Println("Error, parameter enterprise_name not present.")
 		return false
 	}
 	enterpriseDesc, ok := getParameterValue("enterprise_desc")
 	if !ok {
+		fmt.Println("Error, parameter enterprise_desc not present.")
 		return false
 	}
 	userPassword, ok := getParameterValue("user_password")
 	if !ok {
+		fmt.Println("Error, parameter user_password not present.")
 		return false
 	}
 	licenseCode, ok := getParameterValue("license_code")
 	if !ok {
+		fmt.Println("Error, parameter license_code not present.")
 		return false
 	}
 	licenseChance, ok := getParameterValue("license_chance")
 	if !ok {
+		fmt.Println("Error, parameter license_chance not present.")
 		return false
 	}
 
@@ -390,18 +397,24 @@ func addEnterpriseFromParameters() bool {
 
 func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpriseKey string, licenseCode string, licenseChance string, userPassword string) bool {
 	if len(enterpriseKey) == 0 || len(enterpriseName) == 0 || len(userPassword) < 8 || len(licenseCode) == 0 || len(licenseChance) == 0 {
+		fmt.Println("Error: Invalid data in parameters. Check all the parameters in the documentation.")
 		return false
 	}
 
 	ok, enterpriseId := initialConfigCreateEnterprise(enterpriseName, enterpriseDesc, strings.ToUpper(enterpriseKey))
 	if !ok || enterpriseId <= 0 {
+		fmt.Println("Error: Could not create the enterprise in the database.")
 		return false
 	}
 
 	initialData(enterpriseId)
 
 	sqlStatement := `UPDATE config SET default_warehouse=$1 WHERE id=$2`
-	db.Exec(sqlStatement, "W1", enterpriseId)
+	_, err := db.Exec(sqlStatement, "W1", enterpriseId)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
 
 	config := getSettingsRecordById(enterpriseId)
 	ecommerceExportSerie := "EXP"
@@ -419,6 +432,7 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 	config.ShopifyIntracommunitySerie = &ecommerceIntracommunitySerie
 	config.ShopifyInteriorSerie = &ecommerceInteriorSerie
 	if !config.updateSettingsRecord() {
+		fmt.Println("Error: Could not update the settings record.")
 		return false
 	}
 
@@ -429,6 +443,7 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 	settings.Server.Activation[enterpriseKey] = activation
 	settings.setBackendSettings()
 	if !activation.activateEnterprise(enterpriseId) {
+		fmt.Println("Error: Could not activate by license the new enterprise.")
 		return false
 	}
 
@@ -439,7 +454,10 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 		Language: "en",
 	}
 	if !insert.insertUser(enterpriseId) {
+		fmt.Println("Error: Cloud not create the new admin user.")
 		return false
+	} else {
+		fmt.Println("Generated admin user")
 	}
 
 	group := Group{
@@ -456,7 +474,10 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 		enterprise:    enterpriseId,
 	}
 	if !group.insertGroup() {
+		fmt.Println("Error: Could not create the admin group.")
 		return false
+	} else {
+		fmt.Println("Generated admin group")
 	}
 
 	users := getUser(enterpriseId)
@@ -466,5 +487,11 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 		User:  user.Id,
 		Group: group.Id,
 	}
-	return ug.insertUserGroup()
+	if !ug.insertUserGroup() {
+		fmt.Println("Error: Could not assign the admin user to the admin group.")
+		return false
+	} else {
+		fmt.Println("Added the admin user to the admin group")
+	}
+	return true
 }
