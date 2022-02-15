@@ -3184,6 +3184,14 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &i)
 		ok := i.deleteAllProductsInventoryProducts(enterpriseId)
 		data, _ = json.Marshal(ok)
+	case "INSERT_OR_COUNT_INVENTORY_PRODUCTS_BY_BARCODE":
+		if !permissions.Warehouse {
+			return
+		}
+		var i BarCodeInputInventoryProducts
+		json.Unmarshal([]byte(message), &i)
+		ok := i.insertOrCountInventoryProductsByBarcode(enterpriseId)
+		data, _ = json.Marshal(ok)
 	case "WEBHOOK_SETTINGS_RENEW_AUTH_TOKEN":
 		if !permissions.Admin {
 			return

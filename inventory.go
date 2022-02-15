@@ -355,3 +355,46 @@ func (input *InputInventoryProducts) deleteAllProductsInventoryProducts(enterpri
 	}
 	return true
 }
+
+type BarCodeInputInventoryProducts struct {
+	Inventory int32  `json:"inventory"`
+	BarCode   string `json:"barCode"`
+}
+
+func (input *BarCodeInputInventoryProducts) insertOrCountInventoryProductsByBarcode(enterpriseId int32) bool {
+	i := getInventoryRow(input.Inventory)
+	if i.Id <= 0 || i.enterprise != enterpriseId || i.Finished {
+		return false
+	}
+
+	product := getProductByBarcode(input.BarCode, enterpriseId)
+	if product.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `SELECT COUNT(*) FROM public.inventory_products WHERE inventory = $1 AND product =$2`
+	row := db.QueryRow(sqlStatement, input.Inventory, product.Id)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var rowCount int16
+	row.Scan(&rowCount)
+	if rowCount == 0 {
+		sqlStatement = `INSERT INTO public.inventory_products(inventory, product, enterprise, quantity) VALUES ($1, $2, $3, $4)`
+		_, err := db.Exec(sqlStatement, input.Inventory, product.Id, enterpriseId, 1)
+		if err != nil {
+			log("DB", err.Error())
+			return false
+		}
+	} else {
+		sqlStatement = `UPDATE public.inventory_products SET quantity = quantity + 1 WHERE inventory = $1 AND product = $2`
+		_, err := db.Exec(sqlStatement, input.Inventory, product.Id)
+		if err != nil {
+			log("DB", err.Error())
+			return false
+		}
+	}
+	return true
+}

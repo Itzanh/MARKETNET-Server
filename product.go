@@ -75,9 +75,9 @@ func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 	if search.TrackMinimumStock {
 		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE (name ILIKE $1 AND track_minimum_stock=true) AND (enterprise=$2) ORDER BY id ASC`
 	} else {
-		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE (name ILIKE $1) AND (enterprise=$2) ORDER BY id ASC`
+		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE ((name ILIKE $1) OR (barcode = $3)) AND (enterprise=$2) ORDER BY id ASC`
 	}
-	rows, err := db.Query(sqlStatement, "%"+search.Search+"%", enterpriseId)
+	rows, err := db.Query(sqlStatement, "%"+search.Search+"%", enterpriseId, search.Search)
 	if err != nil {
 		log("DB", err.Error())
 		return products
