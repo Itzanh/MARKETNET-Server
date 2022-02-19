@@ -144,6 +144,15 @@ func posInsertNewSaleOrder(terminal string, enterpriseId int32, userId int32) Sa
 	return o
 }
 
+func deletePOSTerminal(terminal string, enterpriseId int32) bool {
+	sqlStatement := `DELETE FROM public.pos_terminals WHERE uuid = $1 AND enterprise = $2`
+	_, err := db.Exec(sqlStatement, terminal, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+	}
+	return err == nil
+}
+
 type InsertNewSaleOrderDetail struct {
 	Terminal string `json:"terminal"`
 	Order    int64  `json:"order"`

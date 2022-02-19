@@ -1971,6 +1971,11 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &t)
 		t.enterprise = enterpriseId
 		ok = t.deleteReportTemplateTranslation()
+	case "POS_TERMINAL":
+		if !permissions.Admin {
+			return
+		}
+		ok = deletePOSTerminal(message, enterpriseId)
 	default:
 		found = false
 	}
