@@ -34,6 +34,9 @@ func getShippingTags(shippingId int64, enterpriseId int32) []ShippingTag {
 func (t *ShippingTag) insertShippingTag() bool {
 	sqlStatement := `INSERT INTO public.shipping_tag(shipping, label, enterprise) VALUES ($1, $2, $3)`
 	_, err := db.Exec(sqlStatement, t.Shipping, t.Label, t.enterprise)
+	if err != nil {
+		log("DB", err.Error())
+	}
 	return err == nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,12 +13,13 @@ import (
 const SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT = 75
 const SENDCLOUD_EMAIL_ALLOWED_CHARACTER_SET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.!#$%&'*+-/=?^_`{|}~@"
 const SENDCLOUD_COMMERCIAL_GOODS = int8(2)
+const SENDCLOUD_MIN_WEIGHT_PARCEL_ITEMS = 0.00099
 
 type Parcel struct {
 	Name                    string         `json:"name"`
 	CompanyName             string         `json:"company_name"`
 	Address                 string         `json:"address"`
-	Address_2               *string        `json:"address_2"`
+	Address_2               string         `json:"address_2"`
 	City                    string         `json:"city"`
 	PostalCode              string         `json:"postal_code"`
 	Country                 string         `json:"country"` // country ISO-2 code
@@ -95,7 +97,9 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 		if len(address2) > SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT {
 			address2 = address2[0:SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT]
 		}
-		p.Address_2 = &address2
+		p.Address_2 = address2
+	} else {
+		p.Address_2 = ""
 	}
 	p.City = a.City
 	p.PostalCode = a.ZipCode
@@ -124,6 +128,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	p.OrderNumber = &o.OrderName
 
 	// parcel items
+	var weight float64 = 0
 	p.ParcelItems = make([]ParcelItem, 0)
 	details := getSalesOrderDetail(s.Order, enterpriseId)
 	for i := 0; i < len(details); i++ {
@@ -132,9 +137,12 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 		pi := ParcelItem{}
 		pi.Description = details[i].ProductName
 		pi.Quantity = details[i].Quantity
-		pi.Weight = product.Weight * float64(details[i].Quantity)
+		pi.Weight = toFixed(math.Max(product.Weight*float64(details[i].Quantity), SENDCLOUD_MIN_WEIGHT_PARCEL_ITEMS), 3)
+		weight += pi.Weight
 		pi.Value = details[i].TotalAmount
-		pi.HSCode = *product.HSCode
+		if product.HSCode != nil {
+			pi.HSCode = *product.HSCode
+		}
 		pi.OriginCountry = &product.OriginCountry
 		pi.SKU = &product.BarCode
 		pi.ProductId = strconv.Itoa(int(details[i].Product))
@@ -143,7 +151,8 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	}
 
 	// weight
-	p.Weight = &s.Weight
+	weight = toFixed(weight, 3)
+	p.Weight = &weight
 
 	// shipment
 	p.Shipment = ParcelShipment{Id: carrier.SendcloudShippingMethod}
@@ -199,6 +208,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 			return false, nil
 		}
 		parcelError := *response.Error
+		log("SendCloud", string(jsonRequest)+parcelError.Message)
 		return false, &parcelError.Message
 	}
 	parcelResponse := *response.Parcel
@@ -213,19 +223,19 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 
 	sqlStatement := `UPDATE shipping SET sent = NOT sent, date_sent = CASE sent WHEN false THEN CURRENT_TIMESTAMP(3) ELSE NULL END, tracking_number=$2, shipping_number=$3 WHERE id = $1`
 	_, err = db.Exec(sqlStatement, s.Id, s.TrackingNumber, s.ShippingNumber)
-
 	if err != nil {
 		log("DB", err.Error())
 		return false, nil
 	}
 
 	// save the label
-	return parcelResponse.saveLabel(c, s.Id), nil
+	return parcelResponse.saveLabel(c, s.Id, s.enterprise), nil
 }
 
-func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64) bool {
+func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64, enterpriseId int32) bool {
 	req, err := http.NewRequest("GET", p.Label.LabelPrinter, nil)
 	if err != nil {
+		log("SendCloud", err.Error())
 		return false
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -234,17 +244,20 @@ func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64) bool {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log("SendCloud", err.Error())
 		return false
 	}
 	// get the response
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		log("SendCloud", err.Error())
 		return false
 	}
 
 	t := ShippingTag{}
 	t.Shipping = shippingId
 	t.Label = body
+	t.enterprise = enterpriseId
 	return t.insertShippingTag()
 }
 
