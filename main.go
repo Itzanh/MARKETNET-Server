@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"net/http"
 
@@ -112,10 +113,16 @@ func main() {
 	}
 
 	addHttpHandlerFuncions()
+	server := http.Server{
+		Addr:           ":" + strconv.Itoa(int(settings.Server.Port)),
+		ReadTimeout:    time.Duration(int64(settings.Server.WebSecurity.ReadTimeoutSeconds) * int64(time.Second)),
+		WriteTimeout:   time.Duration(int64(settings.Server.WebSecurity.WriteTimeoutSeconds) * int64(time.Second)),
+		MaxHeaderBytes: settings.Server.WebSecurity.MaxHeaderBytes,
+	}
 	if settings.Server.TLS.UseTLS {
-		go http.ListenAndServeTLS(":"+strconv.Itoa(int(settings.Server.Port)), settings.Server.TLS.CrtPath, settings.Server.TLS.KeyPath, nil)
+		go server.ListenAndServeTLS(settings.Server.TLS.CrtPath, settings.Server.TLS.KeyPath)
 	} else {
-		go http.ListenAndServe(":"+strconv.Itoa(int(settings.Server.Port)), nil)
+		go server.ListenAndServe()
 	}
 
 	// crons
@@ -178,7 +185,7 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer ws.Close()
-	ws.SetReadLimit(settings.Server.MaxLengthWebSocketMessage)
+	ws.SetReadLimit(settings.Server.WebSecurity.MaxLengthWebSocketMessage)
 
 	// AUTHENTICATION
 	ok, userId, permissions, enterpriseId := authentication(ws, r.RemoteAddr)

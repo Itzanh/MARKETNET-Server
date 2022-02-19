@@ -86,6 +86,12 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -101,6 +107,10 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && paginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(paginationQuery.getSalesOrder(enterpriseId))
 		w.Write(data)
 		return
@@ -150,6 +160,9 @@ func apiSaleOrders(w http.ResponseWriter, r *http.Request) {
 		saleOrder.Id = int64(id)
 		saleOrder.enterprise = enterpriseId
 		ok = saleOrder.deleteSalesOrder(userId).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -170,6 +183,12 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -237,6 +256,9 @@ func apiSaleOrderDetails(w http.ResponseWriter, r *http.Request) {
 		saleOrderDetail.Id = int64(id)
 		saleOrderDetail.enterprise = enterpriseId
 		ok = saleOrderDetail.deleteSalesOrderDetail(userId, nil).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -257,6 +279,12 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -320,6 +348,9 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 		var d SalesOrderDetailDigitalProductData
 		d.Id = enterpriseId
 		ok = d.deleteSalesOrderDetailDigitalProductData(enterpriseId)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -340,6 +371,12 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -356,6 +393,10 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && paginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(paginationQuery.getSalesInvoices())
 		w.Write(data)
 		return
@@ -396,6 +437,9 @@ func apiSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		salesInvoice.Id = int64(id)
 		salesInvoice.enterprise = enterpriseId
 		ok = salesInvoice.deleteSalesInvoice(userId).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -416,6 +460,12 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -474,6 +524,9 @@ func apiSaleInvoiceDetals(w http.ResponseWriter, r *http.Request) {
 		salesInvoiceDetail.Id = int64(id)
 		salesInvoiceDetail.enterprise = enterpriseId
 		ok = salesInvoiceDetail.deleteSalesInvoiceDetail(userId, nil).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -494,6 +547,12 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -510,6 +569,10 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && paginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(paginationQuery.getSalesDeliveryNotes())
 		w.Write(data)
 		return
@@ -550,6 +613,9 @@ func apiSaleDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		salesDeliveryNote.Id = int64(id)
 		salesDeliveryNote.enterprise = enterpriseId
 		ok = salesDeliveryNote.deleteSalesDeliveryNotes(userId, nil).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -570,6 +636,12 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -632,6 +704,9 @@ func apiPurchaseOrders(w http.ResponseWriter, r *http.Request) {
 		purchaseOrder.Id = int64(id)
 		purchaseOrder.enterprise = enterpriseId
 		ok = purchaseOrder.deletePurchaseOrder(userId).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -652,6 +727,12 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -720,6 +801,9 @@ func apiPurchaseOrderDetails(w http.ResponseWriter, r *http.Request) {
 		purchaseOrderDetail.Id = int64(id)
 		purchaseOrderDetail.enterprise = enterpriseId
 		ok = purchaseOrderDetail.deletePurchaseOrderDetail(userId, nil).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -740,6 +824,12 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -793,6 +883,9 @@ func apiPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		purchaseInvoice.Id = int64(id)
 		purchaseInvoice.enterprise = enterpriseId
 		ok = purchaseInvoice.deletePurchaseInvoice(userId, nil).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -813,6 +906,12 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -871,6 +970,9 @@ func apiPurchaseInvoiceDetails(w http.ResponseWriter, r *http.Request) {
 		purchaseInvoiceDetail.Id = int64(id)
 		purchaseInvoiceDetail.enterprise = enterpriseId
 		ok = purchaseInvoiceDetail.deletePurchaseInvoiceDetail(userId, nil).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -891,6 +993,12 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -944,6 +1052,9 @@ func apiPurchaseDeliveryNotes(w http.ResponseWriter, r *http.Request) {
 		purchaseDeliveryNote.Id = int64(id)
 		purchaseDeliveryNote.enterprise = enterpriseId
 		ok = purchaseDeliveryNote.deletePurchaseDeliveryNotes(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -964,6 +1075,12 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -980,6 +1097,10 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && paginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(paginationQuery.getCustomers())
 		w.Write(data)
 		return
@@ -1029,6 +1150,9 @@ func apiCustomers(w http.ResponseWriter, r *http.Request) {
 		customer.Id = int32(id)
 		customer.enterprise = enterpriseId
 		ok = customer.deleteCustomer(userId)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1049,6 +1173,12 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1111,6 +1241,9 @@ func apiSuppliers(w http.ResponseWriter, r *http.Request) {
 		supplier.Id = int32(id)
 		supplier.enterprise = enterpriseId
 		ok = supplier.deleteSupplier(userId)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1131,6 +1264,12 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1193,6 +1332,9 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		product.Id = int32(id)
 		product.enterprise = enterpriseId
 		ok = product.deleteProduct(userId).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1213,6 +1355,12 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1261,6 +1409,9 @@ func apiCountries(w http.ResponseWriter, r *http.Request) {
 		country.Id = int32(id)
 		country.enterprise = enterpriseId
 		ok = country.deleteCountry()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1281,6 +1432,12 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1329,6 +1486,9 @@ func apiStates(w http.ResponseWriter, r *http.Request) {
 		state.Id = int32(id)
 		state.enterprise = enterpriseId
 		ok = state.deleteState()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1349,6 +1509,12 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1397,6 +1563,9 @@ func apiColors(w http.ResponseWriter, r *http.Request) {
 		color.Id = int32(id)
 		color.enterprise = enterpriseId
 		ok = color.deleteColor()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1417,6 +1586,12 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1465,6 +1640,9 @@ func apiProductFamilies(w http.ResponseWriter, r *http.Request) {
 		productFamily.Id = int32(id)
 		productFamily.enterprise = enterpriseId
 		ok = productFamily.deleteProductFamily()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1485,6 +1663,12 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1501,6 +1685,10 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && paginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(paginationQuery.getAddresses())
 		w.Write(data)
 		return
@@ -1550,6 +1738,9 @@ func apiAddresses(w http.ResponseWriter, r *http.Request) {
 		address.Id = int32(id)
 		address.enterprise = enterpriseId
 		ok = address.deleteAddress()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1570,6 +1761,12 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1618,6 +1815,9 @@ func apiCarriers(w http.ResponseWriter, r *http.Request) {
 		carrier.Id = int32(id)
 		carrier.enterprise = enterpriseId
 		ok = carrier.deleteCarrier()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1638,6 +1838,12 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1681,6 +1887,9 @@ func apiBillingSeries(w http.ResponseWriter, r *http.Request) {
 		serie.Id = string(body)
 		serie.enterprise = enterpriseId
 		ok = serie.deleteBillingSerie()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1701,6 +1910,12 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1749,6 +1964,9 @@ func apiCurrencies(w http.ResponseWriter, r *http.Request) {
 		currency.Id = int32(id)
 		currency.enterprise = enterpriseId
 		ok = currency.deleteCurrency()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1769,6 +1987,12 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1817,6 +2041,9 @@ func apiPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		paymentMethod.Id = int32(id)
 		paymentMethod.enterprise = enterpriseId
 		ok = paymentMethod.deletePaymentMethod()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1837,6 +2064,12 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1885,6 +2118,9 @@ func apiLanguages(w http.ResponseWriter, r *http.Request) {
 		language.Id = int32(id)
 		language.enterprise = enterpriseId
 		ok = language.deleteLanguage()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1905,6 +2141,12 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -1952,6 +2194,9 @@ func apiPackages(w http.ResponseWriter, r *http.Request) {
 		var packages Packages
 		packages.Id = int32(id)
 		ok = packages.deletePackage()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -1972,6 +2217,12 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2020,6 +2271,9 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 		incoterm.Id = int32(id)
 		incoterm.enterprise = enterpriseId
 		ok = incoterm.deleteIncoterm()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2040,6 +2294,12 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2088,6 +2348,9 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 		warehouse.Id = string(body)
 		warehouse.enterprise = enterpriseId
 		ok = warehouse.deleteWarehouse()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2108,6 +2371,12 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2124,6 +2393,10 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		var paginationQuery PaginationQuery
 		json.Unmarshal(body, &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && paginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(paginationQuery.getWarehouseMovement())
 		w.Write(data)
 		return
@@ -2164,6 +2437,9 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		warehouseMovement.Id = int64(id)
 		warehouseMovement.enterprise = enterpriseId
 		ok = warehouseMovement.deleteWarehouseMovement(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2184,6 +2460,12 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2199,6 +2481,10 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal(body, &manufacturingPaginationQuery)
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && manufacturingPaginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(manufacturingPaginationQuery.getManufacturingOrder(enterpriseId))
 		w.Write(data)
 		return
@@ -2252,6 +2538,9 @@ func apiManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		manufacturingOrder.Id = int64(id)
 		manufacturingOrder.enterprise = enterpriseId
 		ok = manufacturingOrder.deleteManufacturingOrder(enterpriseId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2272,6 +2561,12 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2320,6 +2615,9 @@ func apiManufacturingOrderTypes(w http.ResponseWriter, r *http.Request) {
 		manufacturingOrderType.Id = int32(id)
 		manufacturingOrderType.enterprise = enterpriseId
 		ok = manufacturingOrderType.deleteManufacturingOrderType()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2340,6 +2638,12 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2355,6 +2659,10 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		var manufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal(body, &manufacturingPaginationQuery)
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && manufacturingPaginationQuery.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(manufacturingPaginationQuery.getAllComplexManufacturingOrders(enterpriseId))
 		w.Write(data)
 		return
@@ -2408,6 +2716,9 @@ func apiComplexManufacturingOrders(w http.ResponseWriter, r *http.Request) {
 		complexManufacturingOrder.Id = int64(id)
 		complexManufacturingOrder.enterprise = enterpriseId
 		ok = complexManufacturingOrder.deleteComplexManufacturingOrder(enterpriseId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2428,13 +2739,18 @@ func apiComplexManufacturingOrdersComponents(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return
 	}
 	// methods
-	ok = false
 	switch r.Method {
 	case "GET":
 		if !permission.ComplexManufacturingOrdersComponents.Get {
@@ -2449,9 +2765,9 @@ func apiComplexManufacturingOrdersComponents(w http.ResponseWriter, r *http.Requ
 		data, _ := json.Marshal(getComplexManufacturingOrderManufacturingOrder(int64(id), enterpriseId))
 		w.Write(data)
 		return
-	}
-	if !ok {
-		w.WriteHeader(http.StatusNotAcceptable)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 }
 
@@ -2467,6 +2783,12 @@ func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2520,6 +2842,9 @@ func apiManufacturingOrderTypesComponents(w http.ResponseWriter, r *http.Request
 		manufacturingOrderTypeComponent.Id = int32(id)
 		manufacturingOrderTypeComponent.enterprise = enterpriseId
 		ok = manufacturingOrderTypeComponent.deleteManufacturingOrderTypeComponents()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2540,6 +2865,12 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2588,6 +2919,9 @@ func apiShipping(w http.ResponseWriter, r *http.Request) {
 		shipping.Id = int64(id)
 		shipping.enterprise = enterpriseId
 		ok = shipping.deleteShipping(userId)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2608,13 +2942,18 @@ func apiShippingStatusHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return
 	}
 	// methods
-	ok = false
 	switch r.Method {
 	case "GET":
 		if !permission.ShippingStatusHistory.Get {
@@ -2629,12 +2968,10 @@ func apiShippingStatusHistory(w http.ResponseWriter, r *http.Request) {
 		data, _ := json.Marshal(getShippingStatusHistory(enterpriseId, int64(id)))
 		w.Write(data)
 		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-	resp, _ := json.Marshal(ok)
-	if !ok {
-		w.WriteHeader(http.StatusNotAcceptable)
-	}
-	w.Write(resp)
 }
 
 func apiStock(w http.ResponseWriter, r *http.Request) {
@@ -2649,6 +2986,12 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2669,8 +3012,10 @@ func apiStock(w http.ResponseWriter, r *http.Request) {
 		data, _ := json.Marshal(getStock(int32(id), enterpriseId))
 		w.Write(data)
 		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-	w.WriteHeader(http.StatusNotAcceptable)
 }
 
 func apiJournal(w http.ResponseWriter, r *http.Request) {
@@ -2685,6 +3030,12 @@ func apiJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2732,6 +3083,10 @@ func apiJournal(w http.ResponseWriter, r *http.Request) {
 		journal.Id = int32(id)
 		journal.enterprise = enterpriseId
 		ok = journal.deleteJournal()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2752,6 +3107,12 @@ func apiAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2815,6 +3176,9 @@ func apiAccount(w http.ResponseWriter, r *http.Request) {
 		account.Id = int32(id)
 		account.enterprise = enterpriseId
 		ok = account.deleteAccount()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2835,6 +3199,12 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2889,6 +3259,9 @@ func apiAccountingMovement(w http.ResponseWriter, r *http.Request) {
 		accountingMovement.Id = int64(id)
 		accountingMovement.enterprise = enterpriseId
 		ok = accountingMovement.deleteAccountingMovement(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2909,6 +3282,12 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -2968,6 +3347,9 @@ func apiAccountingMovementDetail(w http.ResponseWriter, r *http.Request) {
 		accountingMovementDetail.Id = int64(id)
 		accountingMovementDetail.enterprise = enterpriseId
 		ok = accountingMovementDetail.deleteAccountingMovementDetail(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -2988,6 +3370,12 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -3022,6 +3410,9 @@ func apiCollectionOperation(w http.ResponseWriter, r *http.Request) {
 		collectionOperation.Id = int32(id)
 		collectionOperation.enterprise = enterpriseId
 		ok = collectionOperation.deleteCollectionOperation(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -3042,6 +3433,12 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -3101,6 +3498,9 @@ func apiCharges(w http.ResponseWriter, r *http.Request) {
 		charges.Id = int32(id)
 		charges.enterprise = enterpriseId
 		ok = charges.deleteCharges(userId)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -3121,6 +3521,12 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -3180,6 +3586,9 @@ func apiPaymentTransaction(w http.ResponseWriter, r *http.Request) {
 		paymentTransaction.Id = int32(id)
 		paymentTransaction.enterprise = enterpriseId
 		ok = paymentTransaction.deletePaymentTransaction(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -3200,6 +3609,12 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -3259,6 +3674,9 @@ func apiPayments(w http.ResponseWriter, r *http.Request) {
 		payment.Id = int32(id)
 		payment.enterprise = enterpriseId
 		ok = payment.deletePayment(userId)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 	resp, _ := json.Marshal(ok)
 	if !ok {
@@ -3279,6 +3697,12 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -3295,6 +3719,10 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(body, &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		orderSearch.NotPosted = true
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && orderSearch.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(orderSearch.searchSalesInvoices())
 		w.Write(data)
 		return
@@ -3305,13 +3733,18 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 		}
 		var invoiceIds []int64
 		json.Unmarshal(body, &invoiceIds)
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && len(invoiceIds) > int(settings.Server.WebSecurity.MaxLimitApiQueries) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		result := salesPostInvoices(invoiceIds, enterpriseId, userId)
 		resp, _ := json.Marshal(result)
 		w.Write(resp)
 		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-	w.WriteHeader(http.StatusNotAcceptable)
-
 }
 
 func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
@@ -3326,6 +3759,12 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
 	// read body
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -3342,6 +3781,10 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(body, &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		orderSearch.NotPosted = true
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && orderSearch.Limit > settings.Server.WebSecurity.MaxLimitApiQueries {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		data, _ := json.Marshal(orderSearch.searchPurchaseInvoice())
 		w.Write(data)
 		return
@@ -3352,11 +3795,16 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 		}
 		var invoiceIds []int64
 		json.Unmarshal(body, &invoiceIds)
+		if settings.Server.WebSecurity.MaxLimitApiQueries > 0 && len(invoiceIds) > int(settings.Server.WebSecurity.MaxLimitApiQueries) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		result := purchasePostInvoices(invoiceIds, enterpriseId, userId)
 		resp, _ := json.Marshal(result)
 		w.Write(resp)
 		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-	w.WriteHeader(http.StatusNotAcceptable)
-
 }

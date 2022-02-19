@@ -5,16 +5,20 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/robfig/cron/v3"
 )
 
+const CONFIG_VER = "1.0"
+
 // Basic, static, server settings such as the DB password or the port.
 type BackendSettings struct {
-	Db     DatabaseSettings `json:"db"`
-	Server ServerSettings   `json:"server"`
+	Version string           `json:"version"`
+	Db      DatabaseSettings `json:"db"`
+	Server  ServerSettings   `json:"server"`
 }
 
 // Credentials for connecting to PostgreSQL.
@@ -37,9 +41,18 @@ type ServerSettings struct {
 	SaaSAccessToken                string                              `json:"SaaSAccessToken"`
 	MaxWebHooksPerEnterprise       uint16                              `json:"maxWebHooksPerEnterprise"`
 	MaxQueueSizePerWebHook         int32                               `json:"maxQueueSizePerWebHook"`
-	MaxLengthWebSocketMessage      int64                               `json:"maxLengthWebSocketMessage"`
+	WebSecurity                    ServerSettingsWebSecurity           `json:"webSecurity"`
 	TLS                            ServerSettingsTLS                   `json:"tls"`
 	Activation                     map[string]ServerSettingsActivation `json:"activation"`
+}
+
+type ServerSettingsWebSecurity struct {
+	ReadTimeoutSeconds        uint8 `json:"readTimeoutSeconds"`
+	WriteTimeoutSeconds       uint8 `json:"writeTimeoutSeconds"`
+	MaxLimitApiQueries        int64 `json:"maxLimitApiQueries"`
+	MaxHeaderBytes            int   `json:"maxHeaderBytes"`
+	MaxRequestBodyLength      int64 `json:"maxRequestBodyLength"`
+	MaxLengthWebSocketMessage int64 `json:"maxLengthWebSocketMessage"`
 }
 
 // SSL settings for the web server.
@@ -68,13 +81,64 @@ func getBackendSettings() (BackendSettings, bool) {
 	if err != nil {
 		return BackendSettings{}, false
 	}
+
+	if settings.isConfigUpgradeRequired() {
+		if !settings.upgradeConfig() {
+			return BackendSettings{}, false
+		}
+	}
+
 	return settings, true
 }
 
 func (s *BackendSettings) setBackendSettings() bool {
 	data, _ := json.MarshalIndent(s, "", "    ")
 	err := ioutil.WriteFile("config.json", data, 0700)
+	if err != nil {
+		fmt.Println(err)
+	}
 	return err == nil
+}
+
+func (s *BackendSettings) setBackupBackendSettings() bool {
+	data, _ := json.MarshalIndent(s, "", "    ")
+	err := ioutil.WriteFile("config.backup.json", data, 0700)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return err == nil
+}
+
+func (s *BackendSettings) isConfigUpgradeRequired() bool {
+	return s.Version != CONFIG_VER
+}
+
+func (s *BackendSettings) upgradeConfig() bool {
+	fmt.Println("Upgrading config.json file. You might want to take a look at the MARKETNET wiki and check out the new config.json properties.")
+	if !s.setBackupBackendSettings() {
+		fmt.Println("Could not back up JSON file. Error creating config.backup.json.")
+		return false
+	}
+	s.Server.WebSecurity = ServerSettingsWebSecurity{ // Default values
+		ReadTimeoutSeconds:        60,
+		WriteTimeoutSeconds:       60,
+		MaxLimitApiQueries:        1000,
+		MaxHeaderBytes:            50000,
+		MaxRequestBodyLength:      24000000,
+		MaxLengthWebSocketMessage: 24000000,
+	}
+	s.Version = CONFIG_VER
+	if !s.setBackendSettings() {
+		fmt.Println("Upgrade failed. Can't write config.json. Please, rename 'config.backup.json' to 'config.json' to restore the aplication's previous status.")
+		return false
+	} else {
+		err := os.Remove("config.backup.json")
+		if err != nil {
+			fmt.Println("WARNING: Can't delete the temporary backup file: 'config.backup.json'.", err)
+		}
+		fmt.Println("Successfully upgraded config.json.")
+		return true
+	}
 }
 
 // Advanced settings stored in the database. Configurable by final users.
