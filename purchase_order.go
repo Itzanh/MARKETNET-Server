@@ -185,7 +185,7 @@ func getPurchaseOrderRowTransaction(orderId int64, trans sql.Tx) PurchaseOrder {
 }
 
 func (p *PurchaseOrder) isValid() bool {
-	return !(len(p.Warehouse) == 0 || len(p.SupplierReference) > 40 || p.Supplier <= 0 || p.PaymentMethod <= 0 || len(p.BillingSeries) == 0 || p.Currency <= 0 || p.BillingAddress <= 0 || p.ShippingAddress <= 0 || len(p.Notes) > 250)
+	return !(len(p.Warehouse) == 0 || len(p.SupplierReference) > 40 || p.Supplier <= 0 || p.PaymentMethod <= 0 || len(p.BillingSeries) == 0 || p.Currency <= 0 || p.BillingAddress <= 0 || p.ShippingAddress <= 0 || len(p.Notes) > 250 || len(p.Description) > 3000)
 }
 
 func (p *PurchaseOrder) insertPurchaseOrder(userId int32, trans *sql.Tx) (bool, int64) {

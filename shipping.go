@@ -111,7 +111,7 @@ func getShippingsPendingCollected(enterpriseId int32) []Shipping {
 }
 
 func (s *Shipping) isValid() bool {
-	return !(s.Order <= 0 || s.DeliveryAddress <= 0 || s.Carrier <= 0)
+	return !(s.Order <= 0 || s.DeliveryAddress <= 0 || s.Carrier <= 0 || len(s.Description) > 3000)
 }
 
 func (s *Shipping) insertShipping(userId int32, trans *sql.Tx) (bool, int64) {

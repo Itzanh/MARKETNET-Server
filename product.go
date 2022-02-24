@@ -120,7 +120,7 @@ func getProductByBarcode(ean13 string, enterpriseId int32) Product {
 }
 
 func (p *Product) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0 || p.MinimumPurchaseQuantity < 0 || p.CostPrice < 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0 || p.MinimumPurchaseQuantity < 0 || p.CostPrice < 0 || len(p.Description) > 3000)
 }
 
 func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {

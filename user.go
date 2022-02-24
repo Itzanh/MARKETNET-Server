@@ -138,7 +138,7 @@ func (u *UserInsert) insertUser(enterpriseId int32) bool {
 }
 
 func (u *User) isValid() bool {
-	return !(len(u.Username) == 0 || len(u.Username) > 40 || len(u.FullName) > 150 || len(u.Email) > 100 || len(u.Language) != 2)
+	return !(len(u.Username) == 0 || len(u.Username) > 40 || len(u.FullName) > 150 || len(u.Email) > 100 || len(u.Language) != 2 || len(u.Description) > 3000)
 }
 
 func (u *User) updateUser() bool {

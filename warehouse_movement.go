@@ -224,7 +224,7 @@ func (w *WarehouseMovementSearch) searchWarehouseMovement() WarehouseMovements {
 }
 
 func (m *WarehouseMovement) isValid() bool {
-	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1 || (m.Type != "I" && m.Type != "O" && m.Type != "R"))
+	return !(len(m.Warehouse) == 0 || len(m.Warehouse) > 2 || m.Product <= 0 || m.Quantity == 0 || len(m.Type) != 1 || (m.Type != "I" && m.Type != "O" && m.Type != "R") || len(m.Description) > 3000)
 }
 
 func (m *WarehouseMovement) insertWarehouseMovement(userId int32, trans *sql.Tx) bool {

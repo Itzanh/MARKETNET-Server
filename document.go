@@ -137,7 +137,7 @@ func getDocumentRowById(id int32) Document {
 }
 
 func (d *Document) isValid() bool {
-	return !(len(d.Name) == 0 || len(d.Name) > 250 || d.Size <= 0 || d.Container <= 0)
+	return !(len(d.Name) == 0 || len(d.Name) > 250 || d.Size <= 0 || d.Container <= 0 || len(d.Description) > 3000)
 }
 
 func (d *Document) insertDocument() bool {

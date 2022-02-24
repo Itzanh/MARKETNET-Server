@@ -245,7 +245,7 @@ func getSalesOrderRowTransaction(id int64, trans sql.Tx) SaleOrder {
 }
 
 func (s *SaleOrder) isValid() bool {
-	return !(len(s.Warehouse) == 0 || len(s.Reference) > 15 || s.Customer <= 0 || s.PaymentMethod <= 0 || len(s.BillingSeries) == 0 || s.Currency <= 0 || s.BillingAddress <= 0 || s.ShippingAddress <= 0 || len(s.Notes) > 250)
+	return !(len(s.Warehouse) == 0 || len(s.Reference) > 15 || s.Customer <= 0 || s.PaymentMethod <= 0 || len(s.BillingSeries) == 0 || s.Currency <= 0 || s.BillingAddress <= 0 || s.ShippingAddress <= 0 || len(s.Notes) > 250 || len(s.Description) > 3000)
 }
 
 func (s *SaleOrder) insertSalesOrder(userId int32) (bool, int64) {
