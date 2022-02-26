@@ -222,27 +222,48 @@ func importFromShopify(enterpriseId int32) {
 	}
 
 	// get all data from Shopify, write it in tables like the ones that Shopify uses
-	importSyCustomers(enterpriseId)
-	importSyProducts(enterpriseId)
-	importSyDraftOrders(enterpriseId)
-	importSyOrders(enterpriseId)
+	if !importSyCustomers(enterpriseId) {
+		return
+	}
+	if !importSyProducts(enterpriseId) {
+		return
+	}
+	if !importSyDraftOrders(enterpriseId) {
+		return
+	}
+	if !importSyOrders(enterpriseId) {
+		return
+	}
 
 	// trasnfer the data form the Shopify tables to the ERP
-	copySyCustomers(enterpriseId)
-	copySyProducts(enterpriseId)
-	copySyDraftOrders(enterpriseId)
-	copySyOrders(enterpriseId)
+	if !copySyCustomers(enterpriseId) {
+		return
+	}
+	if !copySyProducts(enterpriseId) {
+		return
+	}
+	if !copySyDraftOrders(enterpriseId) {
+		return
+	}
+	if !copySyOrders(enterpriseId) {
+		return
+	}
 }
 
 // =====
 // COPY THE DATA FROM WOOCOMMERCE TO THE WC MARKETNET TABLES
 // =====
 
-func importSyCustomers(enterpriseId int32) {
+func importSyCustomers(enterpriseId int32) bool {
 	url := getShopifyAPI_URL("customers", enterpriseId)
 	jsonSY, err := getShopifyJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var customers SYCustomers
@@ -292,13 +313,20 @@ func importSyCustomers(enterpriseId int32) {
 	db.Exec(sqlStatement, enterpriseId)
 	sqlStatement = `DELETE FROM public.sy_addresses WHERE sy_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+
+	return true
 }
 
-func importSyProducts(enterpriseId int32) {
+func importSyProducts(enterpriseId int32) bool {
 	url := getShopifyAPI_URL("products", enterpriseId)
 	jsonSY, err := getShopifyJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var products SYProducts
@@ -348,13 +376,20 @@ func importSyProducts(enterpriseId int32) {
 	db.Exec(sqlStatement, enterpriseId)
 	sqlStatement = `DELETE FROM public.sy_variants WHERE sy_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement)
+
+	return true
 }
 
-func importSyDraftOrders(enterpriseId int32) {
+func importSyDraftOrders(enterpriseId int32) bool {
 	url := getShopifyAPI_URL("draft_orders", enterpriseId)
 	jsonSY, err := getShopifyJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var orders SYDraftOrders
@@ -403,13 +438,20 @@ func importSyDraftOrders(enterpriseId int32) {
 	db.Exec(sqlStatement, enterpriseId)
 	sqlStatement = `DELETE FROM public.sy_draft_order_line_item WHERE sy_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+
+	return true
 }
 
-func importSyOrders(enterpriseId int32) {
+func importSyOrders(enterpriseId int32) bool {
 	url := getShopifyAPI_URL("orders", enterpriseId)
 	jsonSY, err := getShopifyJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var orders SYOrders
@@ -458,19 +500,27 @@ func importSyOrders(enterpriseId int32) {
 	db.Exec(sqlStatement, enterpriseId)
 	sqlStatement = `DELETE FROM public.sy_order_line_item WHERE sy_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+
+	return true
 }
 
 // =====
 // TRANSFER THE DATA TO THE ERP TABLES
 // =====
 
-func copySyCustomers(enterpriseId int32) {
+func copySyCustomers(enterpriseId int32) bool {
 	sqlStatement := `SELECT id FROM public.sy_customers WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var syCustomerId int64
@@ -485,8 +535,9 @@ func copySyCustomers(enterpriseId int32) {
 		sqlStatement = `SELECT id, email, first_name, last_name, phone, default_address_id FROM public.sy_customers WHERE id=$1 AND enterprise=$2 LIMIT 1`
 		row := db.QueryRow(sqlStatement, syCustomerId, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
+			continue
 		}
 
 		var id int64
@@ -508,8 +559,9 @@ func copySyCustomers(enterpriseId int32) {
 			sqlStatement := `SELECT company FROM public.sy_addresses WHERE id=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, defaultAddressId, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
-				return
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
+				continue
 			}
 			var company string
 
@@ -532,8 +584,9 @@ func copySyCustomers(enterpriseId int32) {
 			sqlStatement = `SELECT id, address1, address2, city, province, zip, country_code FROM public.sy_addresses WHERE customer_id=$1 AND enterprise=$2`
 			rows, err := db.Query(sqlStatement, id, enterpriseId)
 			if err != nil {
-				log("DB", rows.Err().Error())
-				return
+				log("Shopify", rows.Err().Error())
+				errors = append(errors, row.Err().Error())
+				continue
 			}
 			defer rows.Close()
 
@@ -552,6 +605,8 @@ func copySyCustomers(enterpriseId int32) {
 				sqlStatement := `SELECT id FROM public.country WHERE (iso_2=$1 OR iso_3=$1) AND enterprise=$2 LIMIT 1`
 				row := db.QueryRow(sqlStatement, countryCode, enterpriseId)
 				if row.Err() != nil {
+					log("Shopify", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 				row.Scan(&countryId)
@@ -561,6 +616,8 @@ func copySyCustomers(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM public.state WHERE name=$1 AND enterprise=$2 LIMIT 1`
 				row = db.QueryRow(sqlStatement, province, enterpriseId)
 				if row.Err() != nil {
+					log("Shopify", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -592,6 +649,8 @@ func copySyCustomers(enterpriseId int32) {
 			sqlStatement := `SELECT id FROM customer WHERE sy_id=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -610,8 +669,9 @@ func copySyCustomers(enterpriseId int32) {
 			sqlStatement = `SELECT company FROM public.sy_addresses WHERE id=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, defaultAddressId, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
-				return
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
+				continue
 			}
 			var company string
 
@@ -628,8 +688,9 @@ func copySyCustomers(enterpriseId int32) {
 			sqlStatement = `SELECT id, address1, address2, city, province, zip, country_code FROM public.sy_addresses WHERE customer_id=$1 AND enterprise=$2`
 			rows, err := db.Query(sqlStatement, id, enterpriseId)
 			if err != nil {
-				log("DB", rows.Err().Error())
-				return
+				log("Shopify", rows.Err().Error())
+				errors = append(errors, rows.Err().Error())
+				continue
 			}
 			defer rows.Close()
 
@@ -648,6 +709,8 @@ func copySyCustomers(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM public.country WHERE (iso_2=$1 OR iso_3=$1) AND enterprise=$2 LIMIT 1`
 				row := db.QueryRow(sqlStatement, countryCode, enterpriseId)
 				if row.Err() != nil {
+					log("Shopify", rows.Err().Error())
+					errors = append(errors, rows.Err().Error())
 					continue
 				}
 				row.Scan(&countryId)
@@ -657,6 +720,8 @@ func copySyCustomers(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM public.state WHERE name=$1 AND enterprise=$2 LIMIT 1`
 				row = db.QueryRow(sqlStatement, province, enterpriseId)
 				if row.Err() != nil {
+					log("Shopify", rows.Err().Error())
+					errors = append(errors, rows.Err().Error())
 					continue
 				}
 
@@ -713,17 +778,35 @@ func copySyCustomers(enterpriseId int32) {
 			} // for rows.Next()
 		}
 	} // for rows.Next()
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // copySyCustomers()
 
-func copySyProducts(enterpriseId int32) {
+func copySyProducts(enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
 	sqlStatement := `SELECT id FROM public.sy_products WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var syProductId int64
@@ -738,8 +821,9 @@ func copySyProducts(enterpriseId int32) {
 		sqlStatement = `SELECT id, title, body_html FROM public.sy_products WHERE id=$1 AND enterprise=$2 LIMIT 1`
 		row := db.QueryRow(sqlStatement, syProductId, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
+			continue
 		}
 
 		var id int64
@@ -751,8 +835,9 @@ func copySyProducts(enterpriseId int32) {
 		sqlStatement = `SELECT id, product_id, title, price, sku, option1, option2, option3, taxable, barcode, grams FROM public.sy_variants WHERE product_id=$1 AND enterprise=$2`
 		rowsVariants, err := db.Query(sqlStatement, id, enterpriseId)
 		if err != nil {
-			log("DB", err.Error())
-			return
+			log("Shopify", err.Error())
+			errors = append(errors, err.Error())
+			continue
 		}
 		defer rowsVariants.Close()
 
@@ -783,7 +868,11 @@ func copySyProducts(enterpriseId int32) {
 					p.VatPercent = 0
 				}
 				p.enterprise = enterpriseId
-				p.insertProduct(0)
+				result := p.insertProduct(0)
+				if !result.Ok {
+					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+				}
 			} else {
 				for i := 0; i < len(variants); i++ {
 					p := Product{}
@@ -810,7 +899,11 @@ func copySyProducts(enterpriseId int32) {
 						p.VatPercent = 0
 					}
 					p.enterprise = enterpriseId
-					p.insertProduct(0)
+					result := p.insertProduct(0)
+					if !result.Ok {
+						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
+							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+					}
 				}
 			}
 		} else { // if rows == 0
@@ -819,7 +912,8 @@ func copySyProducts(enterpriseId int32) {
 				sqlStatement := `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
 				row := db.QueryRow(sqlStatement, id, variants[0].Id, enterpriseId)
 				if row.Err() != nil {
-					log("DB", row.Err().Error())
+					log("Shopify", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -845,13 +939,18 @@ func copySyProducts(enterpriseId int32) {
 				} else {
 					p.VatPercent = 0
 				}
-				p.updateProduct(0)
+				result := p.updateProduct(0)
+				if !result.Ok {
+					errors = append(errors, "Error updating a simple product into MARKETNET. Product name "+
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+				}
 			} else {
 				for i := 0; i < len(variants); i++ {
 					sqlStatement := `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
 					row := db.QueryRow(sqlStatement, id, variants[i].Id, enterpriseId)
 					if row.Err() != nil {
-						log("DB", row.Err().Error())
+						log("Shopify", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 						continue
 					}
 
@@ -880,7 +979,11 @@ func copySyProducts(enterpriseId int32) {
 						} else {
 							p.VatPercent = 0
 						}
-						p.updateProduct(0)
+						result := p.updateProduct(0)
+						if !result.Ok {
+							errors = append(errors, "Error updating a product with combinations into MARKETNET. Product name "+
+								p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+						}
 					} else { // the variant does not exist
 						p := Product{}
 						p.shopifyId = id
@@ -906,23 +1009,45 @@ func copySyProducts(enterpriseId int32) {
 							p.VatPercent = 0
 						}
 						p.enterprise = enterpriseId
-						p.insertProduct(0)
+						result := p.insertProduct(0)
+						if !result.Ok {
+							errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
+								p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+						}
 					}
 				} // for
 			} // else
 		} // else
 	} // for rows.Next()
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // copySyProducts
 
-func copySyDraftOrders(enterpriseId int32) {
+func copySyDraftOrders(enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
 	sqlStatement := `SELECT id FROM public.sy_draft_orders WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var syDraftOrderId int64
@@ -937,8 +1062,9 @@ func copySyDraftOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id, currency, tax_exempt, name, shipping_address_1, shipping_address2, shipping_address_city, shipping_address_zip, shipping_address_country_code, billing_address_1, billing_address2, billing_address_city, billing_address_zip, billing_address_country_code, total_tax, customer_id FROM public.sy_draft_orders WHERE id=$1 AND enterprise=$2 LIMIT 1`
 		row := db.QueryRow(sqlStatement, syDraftOrderId, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
+			continue
 		}
 
 		var id int64
@@ -964,12 +1090,14 @@ func copySyDraftOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id FROM public.currency WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
 		row = db.QueryRow(sqlStatement, currency, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
 			continue
 		}
 
 		row.Scan(&currencyId)
 		if currencyId <= 0 {
+			errors = append(errors, "Can't import draft order. The currency does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 			continue
 		}
 
@@ -978,12 +1106,14 @@ func copySyDraftOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id FROM customer WHERE sy_id=$1 AND enterprise=$2 LIMIT 1`
 		row = db.QueryRow(sqlStatement, customerId, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
 			continue
 		}
 
 		row.Scan(&customerIdErp)
 		if customerIdErp <= 0 {
+			errors = append(errors, "Can't import draft order. The customer does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 			continue
 		}
 
@@ -993,12 +1123,14 @@ func copySyDraftOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id,(SELECT zone FROM country WHERE country.id=address.country) FROM public.address WHERE address=$1 AND address_2=$2 AND city=$3 AND zip_code=$4 AND (SELECT iso_2 FROM country WHERE country.id=address.country)=$5 AND enterprise=$6 LIMIT 1`
 		row = db.QueryRow(sqlStatement, billingAddress1, billingAddress2, billingAddressCity, billingAddressZip, billingAddressCountryCode, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
 			continue
 		}
 
 		row.Scan(&billingAddressId, &billingZone)
 		if billingAddressId <= 0 {
+			errors = append(errors, "Can't import draft order. The billing address does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 			continue
 		}
 
@@ -1007,12 +1139,14 @@ func copySyDraftOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id FROM public.address WHERE address=$1 AND address_2=$2 AND city=$3 AND zip_code=$4 AND (SELECT iso_2 FROM country WHERE country.id=address.country)=$5 AND enterprise=$6 LIMIT 1`
 		row = db.QueryRow(sqlStatement, shippingAddress1, shippingAddress2, shippingAddressCity, shippingAddressZip, shippingAddressCountryCode, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
 			continue
 		}
 
 		row.Scan(&shippingAddressId)
 		if shippingAddressId <= 0 {
+			errors = append(errors, "Can't import draft order. The shipping address does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 			continue
 		}
 
@@ -1038,6 +1172,7 @@ func copySyDraftOrders(enterpriseId int32) {
 			o.enterprise = enterpriseId
 			ok, orderId := o.insertSalesOrder(0)
 			if !ok {
+				errors = append(errors, "Can't import draft order. The order could not be created in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1052,8 +1187,9 @@ func copySyDraftOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id, variant_id, product_id, quantity, taxable, price FROM public.sy_draft_order_line_item WHERE draft_order_id=$1 AND enterprise=$2`
 			rows, err := db.Query(sqlStatement, id, enterpriseId)
 			if err != nil {
-				log("DB", err.Error())
-				return
+				log("Shopify", err.Error())
+				errors = append(errors, err.Error())
+				continue
 			}
 			defer rows.Close()
 
@@ -1069,13 +1205,15 @@ func copySyDraftOrders(enterpriseId int32) {
 				sqlStatement := `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
 				row := db.QueryRow(sqlStatement, productId, variantId, enterpriseId)
 				if row.Err() != nil {
-					log("DB", err.Error())
-					return
+					log("Shopify", err.Error())
+					errors = append(errors, row.Err().Error())
+					continue
 				}
 
 				var productIdErp int32
 				row.Scan(&productIdErp)
 				if productIdErp <= 0 {
+					errors = append(errors, "Can't import draft order detail. The product does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 					continue
 				}
 
@@ -1098,12 +1236,14 @@ func copySyDraftOrders(enterpriseId int32) {
 			sqlStatement := `SELECT id FROM sales_order WHERE sy_draft_id=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			row.Scan(&orderIdErp)
 			if orderIdErp <= 0 {
+				errors = append(errors, "Can't import draft order. The draft order does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1127,6 +1267,7 @@ func copySyDraftOrders(enterpriseId int32) {
 			o.enterprise = enterpriseId
 			ok := o.updateSalesOrder(0)
 			if !ok {
+				errors = append(errors, "Can't import draft order. Can't update the order in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1141,8 +1282,9 @@ func copySyDraftOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id, variant_id, product_id, quantity, taxable, price FROM public.sy_draft_order_line_item WHERE draft_order_id=$1 AND enterprise=$2`
 			rows, err := db.Query(sqlStatement, id, enterpriseId)
 			if err != nil {
-				log("DB", err.Error())
-				return
+				log("Shopify", err.Error())
+				errors = append(errors, err.Error())
+				continue
 			}
 			defer rows.Close()
 
@@ -1159,8 +1301,9 @@ func copySyDraftOrders(enterpriseId int32) {
 				sqlStatement := `SELECT id FROM sales_order_detail WHERE sy_draft_id=$1 AND enterprise=$2`
 				row := db.QueryRow(sqlStatement, id, enterpriseId)
 				if row.Err() != nil {
-					log("DB", row.Err().Error())
-					return
+					log("Shopify", row.Err().Error())
+					errors = append(errors, row.Err().Error())
+					continue
 				}
 
 				row.Scan(&salesOrderDetailId)
@@ -1168,13 +1311,15 @@ func copySyDraftOrders(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
 				row = db.QueryRow(sqlStatement, productId, variantId, enterpriseId)
 				if row.Err() != nil {
-					log("DB", row.Err().Error())
-					return
+					log("Shopify", row.Err().Error())
+					errors = append(errors, row.Err().Error())
+					continue
 				}
 
 				var productIdErp int32
 				row.Scan(&productIdErp)
 				if productIdErp <= 0 {
+					errors = append(errors, "Can't import draft order detail. The product does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 					continue
 				}
 
@@ -1209,17 +1354,35 @@ func copySyDraftOrders(enterpriseId int32) {
 			} // for rows.Next()
 		} // else
 	} // for rows.Next()
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // copySyDraftOrders
 
-func copySyOrders(enterpriseId int32) {
+func copySyOrders(enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
 	sqlStatement := `SELECT id FROM public.sy_orders WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("Shopify", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var syOrderId int64
@@ -1234,8 +1397,9 @@ func copySyOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id, currency, current_total_discounts, total_shipping_price_set_amount, total_shipping_price_set_currency_code, tax_exempt, name, shipping_address_1, shipping_address2, shipping_address_city, shipping_address_zip, shipping_address_country_code, billing_address_1, billing_address2, billing_address_city, billing_address_zip, billing_address_country_code, total_tax, customer_id, gateway FROM public.sy_orders WHERE id=$1 AND enterprise=$2 LIMIT 1`
 		row := db.QueryRow(sqlStatement, syOrderId, enterpriseId)
 		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return
+			log("Shopify", row.Err().Error())
+			errors = append(errors, row.Err().Error())
+			continue
 		}
 
 		var id int64
@@ -1268,12 +1432,14 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM public.currency WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
 			row = db.QueryRow(sqlStatement, currency, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			row.Scan(&currencyId)
 			if currencyId <= 0 {
+				errors = append(errors, "Can't import order. The currency does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1282,12 +1448,14 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM customer WHERE sy_id=$1 AND enterprise=$2 LIMIT 1`
 			row = db.QueryRow(sqlStatement, customerId, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			row.Scan(&customerIdErp)
 			if customerIdErp <= 0 {
+				errors = append(errors, "Can't import order. The customer does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1297,12 +1465,14 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id,(SELECT zone FROM country WHERE country.id=address.country) FROM public.address WHERE address=$1 AND address_2=$2 AND city=$3 AND zip_code=$4 AND (SELECT iso_2 FROM country WHERE country.id=address.country)=$5 AND enterprise=$6 LIMIT 1`
 			row = db.QueryRow(sqlStatement, billingAddress1, billingAddress2, billingAddressCity, billingAddressZip, billingAddressCountryCode, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			row.Scan(&billingAddressId, &billingZone)
 			if billingAddressId <= 0 {
+				errors = append(errors, "Can't import order. The billiong addresses does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1311,12 +1481,14 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM public.address WHERE address=$1 AND address_2=$2 AND city=$3 AND zip_code=$4 AND (SELECT iso_2 FROM country WHERE country.id=address.country)=$5 AND enterprise=$6 LIMIT 1`
 			row = db.QueryRow(sqlStatement, shippingAddress1, shippingAddress2, shippingAddressCity, shippingAddressZip, shippingAddressCountryCode, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			row.Scan(&shippingAddressId)
 			if shippingAddressId <= 0 {
+				errors = append(errors, "Can't import order. The shipping address does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1324,26 +1496,30 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement := `SELECT id FROM sy_draft_orders WHERE order_id=$1 AND enterprise=$2`
 			row := db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			var draftOrderId int64
 			row.Scan(&draftOrderId)
 			if draftOrderId <= 0 {
+				errors = append(errors, "Can't import order. The draft order does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
 			sqlStatement = `SELECT id FROM sales_order WHERE sy_draft_id=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, draftOrderId, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
 			var saleOrderIdErp int64
 			row.Scan(&saleOrderIdErp)
 			if saleOrderIdErp <= 0 {
+				errors = append(errors, "Can't import order. The sale order does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1352,7 +1528,8 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM payment_method WHERE shopify_module_name=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, gateway, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("Shopify", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				paymentMethod = *s.ShopifyDefaultPaymentMethod
 			} else {
 				row.Scan(&paymentMethod)
@@ -1383,6 +1560,7 @@ func copySyOrders(enterpriseId int32) {
 			o.enterprise = enterpriseId
 			ok := o.updateSalesOrder(0)
 			if !ok {
+				errors = append(errors, "Can't import order. Can't update the existing sale order in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 				continue
 			}
 
@@ -1397,8 +1575,9 @@ func copySyOrders(enterpriseId int32) {
 			sqlStatement = `SELECT id, variant_id, product_id, quantity, taxable, price FROM public.sy_order_line_item WHERE order_id=$1 AND enterprise=$2`
 			rows, err := db.Query(sqlStatement, id, enterpriseId)
 			if err != nil {
-				log("DB", err.Error())
-				return
+				log("Shopify", err.Error())
+				errors = append(errors, err.Error())
+				continue
 			}
 			defer rows.Close()
 
@@ -1416,13 +1595,15 @@ func copySyOrders(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM product WHERE sy_id=$1 AND sy_variant_id=$2 AND enterprise=$3 LIMIT 1`
 				row = db.QueryRow(sqlStatement, productId, variantId, enterpriseId)
 				if row.Err() != nil {
-					log("DB", err.Error())
-					return
+					log("Shopify", err.Error())
+					errors = append(errors, row.Err().Error())
+					continue
 				}
 
 				var productIdErp int32
 				row.Scan(&productIdErp)
 				if productIdErp <= 0 {
+					errors = append(errors, "Can't import order detail. The product does not exist in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
 					continue
 				}
 
@@ -1455,6 +1636,18 @@ func copySyOrders(enterpriseId int32) {
 			invoiceAllSaleOrder(o.Id, enterpriseId, 0)
 		} // if rows == 0
 	} // for rows.Next()
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // copySyOrders
 
 type SYFulfillmentContainer struct {

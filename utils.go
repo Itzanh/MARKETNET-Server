@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math"
 	"net/mail"
 	"os"
@@ -180,4 +181,9 @@ func round(num float64) int {
 func toFixed(num float64, precision int) float64 {
 	output := math.Pow(10, float64(precision))
 	return float64(round(num*output)) / output
+}
+
+func stringArrayToString(stringArray []string) string {
+	jsonData, _ := json.Marshal(stringArray)
+	return string(jsonData)
 }

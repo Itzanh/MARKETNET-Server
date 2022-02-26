@@ -104,7 +104,7 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 func sendEmailSMTPwithSTARTTLS(identiy, username, password, smtpServer, destinationAddress, subject, innerText, replyTo string) bool {
 	conn, err := net.Dial("tcp", smtpServer)
 	if err != nil {
-		println(err)
+		log("SMTP", err.Error())
 	}
 
 	if len(replyTo) > 0 {
@@ -113,7 +113,7 @@ func sendEmailSMTPwithSTARTTLS(identiy, username, password, smtpServer, destinat
 
 	c, err := smtp.NewClient(conn, smtpServer[:strings.Index(smtpServer, ":")])
 	if err != nil {
-		println(err)
+		log("SMTP", err.Error())
 	}
 
 	tlsconfig := &tls.Config{
@@ -121,13 +121,13 @@ func sendEmailSMTPwithSTARTTLS(identiy, username, password, smtpServer, destinat
 	}
 
 	if err = c.StartTLS(tlsconfig); err != nil {
-		println(err)
+		log("SMTP", err.Error())
 	}
 
 	auth := LoginAuth(username, password)
 
 	if err = c.Auth(auth); err != nil {
-		println(err)
+		log("SMTP", err.Error())
 	}
 
 	to := []string{destinationAddress}

@@ -172,11 +172,16 @@ func importFromWooCommerce(enterpriseId int32) {
 // COPY THE DATA FROM WOOCOMMERCE TO THE WC MARKETNET TABLES
 // =====
 
-func importWcCustomers(enterpriseId int32) {
+func importWcCustomers(enterpriseId int32) bool {
 	url := getWooCommerceAPI_URL("customers", enterpriseId)
 	jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("WooCommerce", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var customers []WCCustomer
@@ -204,14 +209,22 @@ func importWcCustomers(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.wc_customers WHERE wc_exists=false WHERE enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+
+	return true
 }
 
-func importWcProducts(enterpriseId int32) {
+func importWcProducts(enterpriseId int32) bool {
 	url := getWooCommerceAPI_URL("products", enterpriseId)
 	jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("WooCommerce", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
+	var errors []string = make([]string, 0)
 
 	var products []WCProduct
 	json.Unmarshal(jsonWC, &products)
@@ -246,6 +259,7 @@ func importWcProducts(enterpriseId int32) {
 		url := getWooCommerceAPI_URL("products", enterpriseId) + "/" + strconv.Itoa(int(product.Id)) + "/variations/"
 		jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 		if err != nil {
+			errors = append(errors, err.Error())
 			continue
 		}
 
@@ -281,14 +295,32 @@ func importWcProducts(enterpriseId int32) {
 	db.Exec(sqlStatement, enterpriseId)
 	sqlStatement = `DELETE FROM public.wc_product_variations WHERE wc_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCOmmerce import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 }
 
-func importWcOrders(enterpriseId int32) {
+func importWcOrders(enterpriseId int32) bool {
 	url := getWooCommerceAPI_URL("orders", enterpriseId)
 	jsonWC, err := getWooCommerceJSON(url, enterpriseId)
 	if err != nil {
-		return
+		log("WooCommerce", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
+	var errors []string = make([]string, 0)
 
 	var orders []WCOrder
 	json.Unmarshal(jsonWC, &orders)
@@ -307,18 +339,22 @@ func importWcOrders(enterpriseId int32) {
 		if rows == 0 {
 			f_discount_tax, err := strconv.ParseFloat(order.DiscountTax, 32)
 			if err != nil {
+				errors = append(errors, "OrderId "+strconv.Itoa(int(order.Id))+" Error "+err.Error())
 				continue
 			}
 			f_shipping_total, err := strconv.ParseFloat(order.ShippingTotal, 32)
 			if err != nil {
+				errors = append(errors, "OrderId "+strconv.Itoa(int(order.Id))+" Error "+err.Error())
 				continue
 			}
 			f_shipping_tax, err := strconv.ParseFloat(order.ShippingTax, 32)
 			if err != nil {
+				errors = append(errors, "OrderId "+strconv.Itoa(int(order.Id))+" Error "+err.Error())
 				continue
 			}
 			f_total_tax, err := strconv.ParseFloat(order.TotalTax, 32)
 			if err != nil {
+				errors = append(errors, "OrderId "+strconv.Itoa(int(order.Id))+" Error "+err.Error())
 				continue
 			}
 
@@ -330,6 +366,7 @@ func importWcOrders(enterpriseId int32) {
 				lineItem := order.LineItems[j]
 				f_total_tax, err := strconv.ParseFloat(lineItem.TotalTax, 32)
 				if err != nil {
+					errors = append(errors, "OrderId "+strconv.Itoa(int(order.Id))+" Error "+err.Error())
 					continue
 				}
 
@@ -347,19 +384,37 @@ func importWcOrders(enterpriseId int32) {
 	db.Exec(sqlStatement, enterpriseId)
 	sqlStatement = `DELETE FROM public.wc_orders WHERE wc_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 }
 
 // =====
 // TRANSFER THE DATA TO THE ERP TABLES
 // =====
 
-func copyWcCustomers(enterpriseId int32) {
+func copyWcCustomers(enterpriseId int32) bool {
 	sqlStatement := `SELECT id FROM public.wc_customers WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("WooCommerce", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var wcCustomerId int32
@@ -374,7 +429,9 @@ func copyWcCustomers(enterpriseId int32) {
 		sqlStatement = `SELECT id, date_created, email, first_name, last_name, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, billing_phone, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, shipping_phone, billing_company FROM public.wc_customers WHERE id=$1 AND enterprise=$2 LIMIT 1`
 		row := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 		if row.Err() != nil {
-			return
+			log("WooCommerce", row.Err().Error())
+			errors = append(errors, row.Err().Error())
+			continue
 		}
 
 		var id int32
@@ -422,6 +479,7 @@ func copyWcCustomers(enterpriseId int32) {
 			res := c.insertCustomer(0)
 			ok, customerId := res.Id > 0, int32(res.Id)
 			if !ok {
+				errors = append(errors, "Can't insert customer into MARKETNET. "+c.Tradename+" WooComemrce ID "+strconv.Itoa(int(id)))
 				continue
 			}
 
@@ -441,7 +499,8 @@ func copyWcCustomers(enterpriseId int32) {
 					row.Scan(&countryId)
 					ba.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else if len(billingCountry) == 3 {
 				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -451,7 +510,8 @@ func copyWcCustomers(enterpriseId int32) {
 					row.Scan(&countryId)
 					ba.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else {
 				continue
@@ -467,7 +527,8 @@ func copyWcCustomers(enterpriseId int32) {
 						ba.State = &stateid
 					}
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			}
 			if len(billingCompany) == 0 {
@@ -494,7 +555,8 @@ func copyWcCustomers(enterpriseId int32) {
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else if len(shippingCountry) == 3 {
 				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -504,7 +566,8 @@ func copyWcCustomers(enterpriseId int32) {
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else {
 				continue
@@ -520,7 +583,8 @@ func copyWcCustomers(enterpriseId int32) {
 						sa.State = &stateid
 					}
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			}
 			if len(billingCompany) == 0 {
@@ -541,7 +605,8 @@ func copyWcCustomers(enterpriseId int32) {
 			sqlStatement := `SELECT id FROM public.customer WHERE wc_id=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 			if row.Err() != nil {
-				log("DB", row.Err().Error())
+				log("WooCommerce", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -565,7 +630,8 @@ func copyWcCustomers(enterpriseId int32) {
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
-						log("DB", row.Err().Error())
+						log("WooComemrce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else if len(billingCountry) == 3 {
 					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -573,7 +639,8 @@ func copyWcCustomers(enterpriseId int32) {
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else {
 					continue
@@ -589,7 +656,8 @@ func copyWcCustomers(enterpriseId int32) {
 							stateId = &id
 						}
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				}
 
@@ -621,7 +689,8 @@ func copyWcCustomers(enterpriseId int32) {
 						row.Scan(&countryId)
 						ba.Country = countryId
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else if len(billingCountry) == 3 {
 					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -631,7 +700,8 @@ func copyWcCustomers(enterpriseId int32) {
 						row.Scan(&countryId)
 						ba.Country = countryId
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else {
 					continue
@@ -647,7 +717,8 @@ func copyWcCustomers(enterpriseId int32) {
 							ba.State = &stateid
 						}
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				}
 				ba.enterprise = enterpriseId
@@ -666,7 +737,8 @@ func copyWcCustomers(enterpriseId int32) {
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else if len(shippingCountry) == 3 {
 					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -674,7 +746,8 @@ func copyWcCustomers(enterpriseId int32) {
 					if row.Err() == nil {
 						row.Scan(&countryId)
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else {
 					continue
@@ -690,7 +763,8 @@ func copyWcCustomers(enterpriseId int32) {
 							stateId = &id
 						}
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				}
 
@@ -722,7 +796,8 @@ func copyWcCustomers(enterpriseId int32) {
 						row.Scan(&countryId)
 						sa.Country = countryId
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else if len(shippingCountry) == 3 {
 					sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -732,7 +807,8 @@ func copyWcCustomers(enterpriseId int32) {
 						row.Scan(&countryId)
 						sa.Country = countryId
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				} else {
 					continue
@@ -748,7 +824,8 @@ func copyWcCustomers(enterpriseId int32) {
 							sa.State = &stateid
 						}
 					} else {
-						log("DB", row.Err().Error())
+						log("WooCommerce", row.Err().Error())
+						errors = append(errors, row.Err().Error())
 					}
 				}
 				sa.enterprise = enterpriseId
@@ -757,17 +834,35 @@ func copyWcCustomers(enterpriseId int32) {
 
 		} // else
 	} // for rows.Next()
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // copyWcCustomers
 
-func copyWcProducts(enterpriseId int32) {
+func copyWcProducts(enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
 	sqlStatement := `SELECT id FROM public.wc_products AND enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("WooCommerce", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var wcCustomerId int32
@@ -782,7 +877,8 @@ func copyWcProducts(enterpriseId int32) {
 		sqlStatement = `SELECT id, name, date_created, description, short_description, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, images, variations FROM public.wc_products WHERE id=$1 AND enterprise=$2 LIMIT 1`
 		row := db.QueryRow(sqlStatement, wcCustomerId, enterpriseId)
 		if row.Err() != nil {
-			return
+			errors = append(errors, row.Err().Error())
+			continue
 		}
 
 		var id int32
@@ -833,7 +929,11 @@ func copyWcProducts(enterpriseId int32) {
 				p.VatPercent = s.DefaultVatPercent
 				p.wooCommerceId = id
 				p.enterprise = enterpriseId
-				p.insertProduct(0)
+				result := p.insertProduct(0)
+				if !result.Ok {
+					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+				}
 
 				for i := 0; i < len(images); i++ {
 					pi := ProductImage{
@@ -848,6 +948,7 @@ func copyWcProducts(enterpriseId int32) {
 					sqlStatement := `SELECT id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes FROM public.wc_product_variations WHERE id=$1 AND enterprise=$2 LIMIT 1`
 					row := db.QueryRow(sqlStatement, variations[i], enterpriseId)
 					if row.Err() != nil {
+						errors = append(errors, row.Err().Error())
 						continue
 					}
 
@@ -894,7 +995,11 @@ func copyWcProducts(enterpriseId int32) {
 					p.wooCommerceId = id
 					p.wooCommerceVariationId = v_id
 					p.enterprise = enterpriseId
-					p.insertProduct(0)
+					result := p.insertProduct(0)
+					if !result.Ok {
+						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
+							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+					}
 
 					for i := 0; i < len(images); i++ {
 						pi := ProductImage{
@@ -911,6 +1016,7 @@ func copyWcProducts(enterpriseId int32) {
 				sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 AND enterprise=$3 LIMIT 1`
 				row := db.QueryRow(sqlStatement, id, 0, enterpriseId)
 				if row.Err() != nil {
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -941,12 +1047,17 @@ func copyWcProducts(enterpriseId int32) {
 				if err == nil {
 					p.Height = float64(f_height)
 				}
-				p.updateProduct(0)
+				result := p.updateProduct(0)
+				if !result.Ok {
+					errors = append(errors, "Error updating a simple product into MARKETNET. Product name "+
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+				}
 			} else { // if len(variations) == 0 {
 				for i := 0; i < len(variations); i++ {
 					sqlStatement := `SELECT id FROM product WHERE wc_id=$1 AND wc_variation_id=$2 AND enterprise=$3 LIMIT 1`
 					row := db.QueryRow(sqlStatement, id, variations[i], enterpriseId)
 					if row.Err() != nil {
+						errors = append(errors, row.Err().Error())
 						continue
 					}
 
@@ -957,6 +1068,7 @@ func copyWcProducts(enterpriseId int32) {
 					sqlStatement = `SELECT id, sku, price, weight, dimensions_length, dimensions_width, dimensions_height, attributes FROM public.wc_product_variations WHERE id=$1 AND enterprise=$2 LIMIT 1`
 					row = db.QueryRow(sqlStatement, variations[i], enterpriseId)
 					if row.Err() != nil {
+						errors = append(errors, row.Err().Error())
 						continue
 					}
 
@@ -994,22 +1106,44 @@ func copyWcProducts(enterpriseId int32) {
 					if err == nil {
 						p.Height = float64(f_height)
 					}
-					p.updateProduct(0)
+					result := p.updateProduct(0)
+					if !result.Ok {
+						errors = append(errors, "Error updating a product with combinations into MARKETNET. Product name "+
+							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+					}
 				} // for
 			} // else
 		} // else
 	} // for
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // copyWcProducts
 
-func copyWcOrders(enterpriseId int32) {
+func copyWcOrders(enterpriseId int32) bool {
 	settings := getSettingsRecordById(enterpriseId)
 
 	sqlStatement := `SELECT id, status, currency, date_created, discount_tax, shipping_total, shipping_tax, total_tax, customer_id, order_key, billing_address_1, billing_address_2, billing_city, billing_postcode, billing_country, billing_state, shipping_address_1, shipping_address_2, shipping_city, shipping_postcode, shipping_country, shipping_state, payment_method, billing_company FROM public.wc_orders WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("WooCommerce", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var id int32
@@ -1057,6 +1191,7 @@ func copyWcOrders(enterpriseId int32) {
 		row.Scan(&customer)
 
 		if customer == 0 { // don't continue if the customer doesn't exists
+			errors = append(errors, "Can't import order. The customer doesn't exists. Order id "+strconv.Itoa(int(id)))
 			continue
 		}
 
@@ -1070,6 +1205,7 @@ func copyWcOrders(enterpriseId int32) {
 
 		if erpPaymentMethod <= 0 { // attempt the default one in the settings (no payment method = likely a manual order)
 			if settings.WooCommerceDefaultPaymentMethod == nil { // don't continue if the payment method doesn't exists
+				errors = append(errors, "Can't import order. The payment method doesn't exists. Order id "+strconv.Itoa(int(id)))
 				continue
 			}
 			erpPaymentMethod = *settings.WooCommerceDefaultPaymentMethod
@@ -1084,6 +1220,7 @@ func copyWcOrders(enterpriseId int32) {
 		row.Scan(&erpCurrency)
 
 		if erpCurrency == 0 { // don't continue if the currency doesn't exists
+			errors = append(errors, "Can't import order. The currency doesn't exists. Order id "+strconv.Itoa(int(id)))
 			continue
 		}
 
@@ -1121,7 +1258,8 @@ func copyWcOrders(enterpriseId int32) {
 					row.Scan(&countryId)
 					ba.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else if len(billingCountry) == 3 {
 				sqlStatement := `SELECT id, zone FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -1131,7 +1269,8 @@ func copyWcOrders(enterpriseId int32) {
 					row.Scan(&countryId, &billingZone)
 					ba.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else {
 				continue
@@ -1147,7 +1286,8 @@ func copyWcOrders(enterpriseId int32) {
 						ba.State = &stateid
 					}
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			}
 			ba.enterprise = enterpriseId
@@ -1186,7 +1326,8 @@ func copyWcOrders(enterpriseId int32) {
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else if len(shippingCountry) == 3 {
 				sqlStatement := `SELECT id FROM public.country WHERE iso_3=$1 AND enterprise=$2 LIMIT 1`
@@ -1196,7 +1337,8 @@ func copyWcOrders(enterpriseId int32) {
 					row.Scan(&countryId)
 					sa.Country = countryId
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			} else {
 				continue
@@ -1212,7 +1354,8 @@ func copyWcOrders(enterpriseId int32) {
 						sa.State = &stateid
 					}
 				} else {
-					log("DB", row.Err().Error())
+					log("WooCommerce", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 				}
 			}
 			sa.enterprise = enterpriseId
@@ -1243,6 +1386,7 @@ func copyWcOrders(enterpriseId int32) {
 		s.enterprise = enterpriseId
 		ok, orderId := s.insertSalesOrder(0)
 		if !ok {
+			errors = append(errors, "Can't import order. The order could not be created in MARKETNET. Order id "+strconv.Itoa(int(id)))
 			continue
 		}
 
@@ -1260,7 +1404,8 @@ func copyWcOrders(enterpriseId int32) {
 		sqlStatement = `SELECT id, product_id, variation_id, quantity, total_tax, price FROM public.wc_order_details WHERE "order"=$1 AND enterprise=$2`
 		rows, err := db.Query(sqlStatement, id, enterpriseId)
 		if err != nil {
-			return
+			errors = append(errors, err.Error())
+			continue
 		}
 
 		for rows.Next() {
@@ -1281,6 +1426,7 @@ func copyWcOrders(enterpriseId int32) {
 			row.Scan(&product, &vatPercent)
 
 			if product <= 0 {
+				errors = append(errors, "Can't import order edtail. The product doesn't exists. Order id "+strconv.Itoa(int(id)))
 				continue
 			}
 
@@ -1310,6 +1456,18 @@ func copyWcOrders(enterpriseId int32) {
 		}
 
 	} // for rows.Next() {
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+	}
+
+	return true
 } // func copyWcOrders() {
 
 type WooCommerceStatusUpdate struct {

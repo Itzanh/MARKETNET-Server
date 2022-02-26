@@ -1,3 +1,5 @@
-DROP INDEX public.currency_sign;
-ALTER TABLE public.currency
-    ALTER COLUMN name TYPE character varying(150) COLLATE pg_catalog."default";
+ALTER TABLE public.config
+    ADD COLUMN email_send_error_ecommerce character varying(150) NOT NULL DEFAULT '';
+
+ALTER TABLE public.config
+    ADD COLUMN email_send_error_sendcloud character varying(150) NOT NULL DEFAULT '';

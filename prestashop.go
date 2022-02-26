@@ -256,42 +256,92 @@ func importFromPrestaShop(enterpriseId int32) {
 	}
 
 	// get all data from PrestaShop, write it in tables like the ones that PrestaShop uses
-	importPsZones(enterpriseId)
-	importPsCurrencies(enterpriseId)
-	importPsCountries(enterpriseId)
-	importPsStates(enterpriseId)
-	importPsCustomers(enterpriseId)
-	importPsAddresses(enterpriseId)
-	importPsProducts(enterpriseId)
-	importPsProductCombinations(enterpriseId)
-	importPsProductOptionValues(enterpriseId)
-	importPsLanguage(enterpriseId)
-	importPsCarriers(enterpriseId)
-	importPsOrders(enterpriseId)
-	importPsOrderDetails(enterpriseId)
+	if !importPsZones(enterpriseId) {
+		return
+	}
+	if !importPsCurrencies(enterpriseId) {
+		return
+	}
+	if !importPsCountries(enterpriseId) {
+		return
+	}
+	if !importPsStates(enterpriseId) {
+		return
+	}
+	if !importPsCustomers(enterpriseId) {
+		return
+	}
+	if !importPsAddresses(enterpriseId) {
+		return
+	}
+	if !importPsProducts(enterpriseId) {
+		return
+	}
+	if !importPsProductCombinations(enterpriseId) {
+		return
+	}
+	if !importPsProductOptionValues(enterpriseId) {
+		return
+	}
+	if !importPsLanguage(enterpriseId) {
+		return
+	}
+	if !importPsCarriers(enterpriseId) {
+		return
+	}
+	if !importPsOrders(enterpriseId) {
+		return
+	}
+	if !importPsOrderDetails(enterpriseId) {
+		return
+	}
 
 	// trasnfer the data form the PrestaShop tables to the ERP
-	copyPsCurrencies(enterpriseId)
-	copyPsCountries(enterpriseId)
-	copyPsStates(enterpriseId)
-	copyPsCustomers(enterpriseId)
-	copyPsAddresses(enterpriseId)
-	copyPsLanguages(enterpriseId)
-	copyPsCarriers(enterpriseId)
-	copyPsProducts(enterpriseId)
-	copyPsOrders(enterpriseId)
-	copyPsOrderDetails(enterpriseId)
+	if !copyPsCurrencies(enterpriseId) {
+		return
+	}
+	if !copyPsCountries(enterpriseId) {
+		return
+	}
+	if !copyPsStates(enterpriseId) {
+		return
+	}
+	if !copyPsCustomers(enterpriseId) {
+		return
+	}
+	if !copyPsAddresses(enterpriseId) {
+		return
+	}
+	if !copyPsLanguages(enterpriseId) {
+		return
+	}
+	if !copyPsCarriers(enterpriseId) {
+		return
+	}
+	if !copyPsProducts(enterpriseId) {
+		return
+	}
+	if !copyPsOrders(enterpriseId) {
+		return
+	}
+	if !copyPsOrderDetails(enterpriseId) {
+		return
+	}
 }
 
 // =====
 // COPY THE DATA FROM PRESTASHOP TO THE PS MARKETNET TABLES
 // =====
 
-func importPsZones(enterpriseId int32) {
+func importPsZones(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("zones", enterpriseId) + "&display=[id,name,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Zones</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var zones PSZones
@@ -320,13 +370,18 @@ func importPsZones(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_zone WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsCurrencies(enterpriseId int32) {
+func importPsCurrencies(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("currencies", enterpriseId) + "&display=[id,name,symbol,iso_code,numeric_iso_code,conversion_rate,deleted,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var currencies PSCurrencies
@@ -358,13 +413,18 @@ func importPsCurrencies(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_currency WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsCountries(enterpriseId int32) {
+func importPsCountries(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("countries", enterpriseId) + "&display=[id,id_zone,id_currency,iso_code,call_prefix,name,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var countries PSCountries
@@ -393,13 +453,18 @@ func importPsCountries(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_country WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsStates(enterpriseId int32) {
+func importPsStates(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("states", enterpriseId) + "&display=[id,id_zone,id_country,iso_code,name,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var states PSStates
@@ -428,13 +493,18 @@ func importPsStates(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_state WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsCustomers(enterpriseId int32) {
+func importPsCustomers(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("customers", enterpriseId) + "&display=[id,id_lang,company,firstname,lastname,email,note,active,deleted,date_add,date_upd]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var customers PSCustomers
@@ -463,13 +533,18 @@ func importPsCustomers(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_customer WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsAddresses(enterpriseId int32) {
+func importPsAddresses(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("addresses", enterpriseId) + "&display=[id,id_customer,id_country,id_state,alias,company,lastname,firstname,vat_number,address1,address2,postcode,city,other,phone,phone_mobile,dni,date_add,date_upd,deleted]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Addresses</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var addresses PSAddresses
@@ -501,13 +576,18 @@ func importPsAddresses(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_address WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsProducts(enterpriseId int32) {
+func importPsProducts(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("products", enterpriseId) + "&display=[id,name,description,on_sale,ean13,price,reference,active,date_add,date_upd]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var products PSProducts
@@ -536,13 +616,18 @@ func importPsProducts(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_product WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsProductCombinations(enterpriseId int32) {
+func importPsProductCombinations(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("combinations", enterpriseId) + "&display=full"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Product combinations</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var combinations PSProductCombinations
@@ -578,13 +663,18 @@ func importPsProductCombinations(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_product_combination WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsProductOptionValues(enterpriseId int32) {
+func importPsProductOptionValues(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("product_option_values", enterpriseId) + "&display=[id,name]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Product option values</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var values PSProductOptionValues
@@ -613,13 +703,18 @@ func importPsProductOptionValues(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.product_option_values WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsLanguage(enterpriseId int32) {
+func importPsLanguage(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("languages", enterpriseId) + "&display=[id,name,iso_code,active]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Language</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var languages PSLanguages
@@ -648,13 +743,18 @@ func importPsLanguage(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_language WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsCarriers(enterpriseId int32) {
+func importPsCarriers(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("carriers", enterpriseId) + "&display=[id,deleted,name,active,url,max_width,max_height,max_depth,max_weight]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Zones</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var carriers PSCarriers
@@ -683,13 +783,18 @@ func importPsCarriers(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_carrier WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsOrders(enterpriseId int32) {
+func importPsOrders(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("orders", enterpriseId) + "&display=[id,reference,id_carrier,id_lang,id_customer,id_currency,id_address_delivery,id_address_invoice,module,total_discounts_tax_excl,total_shipping_tax_excl,date_add,date_upd]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var orders PSOrders
@@ -720,13 +825,18 @@ func importPsOrders(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_order WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
-func importPsOrderDetails(enterpriseId int32) {
+func importPsOrderDetails(enterpriseId int32) bool {
 	url := getPrestaShopAPI_URL("order_details", enterpriseId) + "&display=[id,id_order,product_id,product_attribute_id,product_quantity,product_price]"
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
-		return
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Order details</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 
 	var details PSOrderDetails
@@ -755,17 +865,23 @@ func importPsOrderDetails(enterpriseId int32) {
 
 	sqlStatement = `DELETE FROM public.ps_order_detail WHERE ps_exists=false AND enterprise=$1`
 	db.Exec(sqlStatement, enterpriseId)
+	return true
 }
 
 // =====
 // TRANSFER THE DATA TO THE ERP TABLES
 // =====
 
-func copyPsCurrencies(enterpriseId int32) {
+func copyPsCurrencies(enterpriseId int32) bool {
 	sqlStatement := `SELECT iso_code FROM public.ps_currency WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
 
@@ -783,7 +899,12 @@ func copyPsCurrencies(enterpriseId int32) {
 			sqlStatement := `SELECT name,conversion_rate,symbol,numeric_iso_code FROM public.ps_currency WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 			if row.Err() != nil {
-				return
+				log("PrestaShop", row.Err().Error())
+				s := getSettingsRecordById(enterpriseId)
+				if len(s.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				}
+				return false
 			}
 
 			var name string
@@ -803,13 +924,19 @@ func copyPsCurrencies(enterpriseId int32) {
 			c.insertCurrency()
 		}
 	}
+	return true
 }
 
-func copyPsCountries(enterpriseId int32) {
+func copyPsCountries(enterpriseId int32) bool {
 	sqlStatement := `SELECT iso_code FROM public.ps_country WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
 
@@ -827,7 +954,12 @@ func copyPsCountries(enterpriseId int32) {
 			sqlStatement := `SELECT name,id_zone,id_currency FROM public.ps_country WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 			if row.Err() != nil {
-				return
+				log("PrestaShop", row.Err().Error())
+				s := getSettingsRecordById(enterpriseId)
+				if len(s.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				}
+				return false
 			}
 
 			var name string
@@ -838,7 +970,12 @@ func copyPsCountries(enterpriseId int32) {
 			sqlStatement = `SELECT zone FROM public.ps_zone WHERE id=$1 AND enterprise=$2 LIMIT 1`
 			row = db.QueryRow(sqlStatement, id_zone, enterpriseId)
 			if row.Err() != nil {
-				return
+				log("PrestaShop", row.Err().Error())
+				s := getSettingsRecordById(enterpriseId)
+				if len(s.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Contries</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				}
+				return false
 			}
 
 			var zone string
@@ -853,13 +990,19 @@ func copyPsCountries(enterpriseId int32) {
 			c.insertCountry()
 		}
 	}
+	return true
 }
 
-func copyPsStates(enterpriseId int32) {
+func copyPsStates(enterpriseId int32) bool {
 	sqlStatement := `SELECT iso_code FROM public.ps_state WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
 
@@ -877,7 +1020,12 @@ func copyPsStates(enterpriseId int32) {
 			sqlStatement := `SELECT name,iso_code,id_country FROM public.ps_state WHERE iso_code=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, isoCode, enterpriseId)
 			if row.Err() != nil {
-				return
+				log("PrestaShop", row.Err().Error())
+				s := getSettingsRecordById(enterpriseId)
+				if len(s.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				}
+				return false
 			}
 
 			var name string
@@ -888,7 +1036,12 @@ func copyPsStates(enterpriseId int32) {
 			sqlStatement = `SELECT iso_code FROM ps_country WHERE id=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, id_country, enterpriseId)
 			if row.Err() != nil {
-				return
+				log("PrestaShop", row.Err().Error())
+				s := getSettingsRecordById(enterpriseId)
+				if len(s.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				}
+				return false
 			}
 
 			var iso_country string
@@ -897,7 +1050,12 @@ func copyPsStates(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM country WHERE iso_2=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, iso_country, enterpriseId)
 			if row.Err() != nil {
-				return
+				log("PrestaShop", row.Err().Error())
+				s := getSettingsRecordById(enterpriseId)
+				if len(s.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				}
+				return false
 			}
 
 			var country int32
@@ -911,15 +1069,22 @@ func copyPsStates(enterpriseId int32) {
 			s.insertState()
 		}
 	}
+	return true
 }
 
-func copyPsCustomers(enterpriseId int32) {
+func copyPsCustomers(enterpriseId int32) bool {
 	sqlStatement := `SELECT id FROM public.ps_customer WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var id int32
@@ -928,6 +1093,11 @@ func copyPsCustomers(enterpriseId int32) {
 		// ¿does the row exist?
 		sqlStatement := `SELECT COUNT(*) FROM customer WHERE ps_id=$1 AND enterprise=$2`
 		row := db.QueryRow(sqlStatement, id, enterpriseId)
+		if row.Err() != nil {
+			log("PrestaShop", row.Err().Error())
+			errors = append(errors, row.Err().Error())
+			continue
+		}
 		var rows int32
 		row.Scan(&rows)
 
@@ -936,6 +1106,8 @@ func copyPsCustomers(enterpriseId int32) {
 			sqlStatement := `SELECT id_lang,company,firstname,lastname,email,date_add FROM public.ps_customer WHERE id=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
+				log("PrestaShop", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -953,6 +1125,8 @@ func copyPsCustomers(enterpriseId int32) {
 				sqlStatement := `SELECT iso_code FROM ps_language WHERE id=$1 AND enterprise=$2`
 				row := db.QueryRow(sqlStatement, id_lang, enterpriseId)
 				if row.Err() != nil {
+					log("PrestaShop", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -962,6 +1136,8 @@ func copyPsCustomers(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM language WHERE iso_2=$1 AND enterprise=$2`
 				row = db.QueryRow(sqlStatement, strings.ToUpper(iso_code), enterpriseId)
 				if row.Err() != nil {
+					log("PrestaShop", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -975,6 +1151,8 @@ func copyPsCustomers(enterpriseId int32) {
 			sqlStatement = `SELECT dni,vat_number FROM ps_address WHERE id_customer=$1 AND enterprise=$2 AND dni != '' ORDER BY id DESC LIMIT 1`
 			row = db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
+				log("PrestaShop", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -1003,15 +1181,35 @@ func copyPsCustomers(enterpriseId int32) {
 			c.insertCustomer(0)
 		}
 	}
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		}
+	}
+
+	return true
 }
 
-func copyPsAddresses(enterpriseId int32) {
+func copyPsAddresses(enterpriseId int32) bool {
 	sqlStatement := `SELECT id FROM public.ps_address WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Addresses</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var id int32
@@ -1028,6 +1226,8 @@ func copyPsAddresses(enterpriseId int32) {
 			sqlStatement := `SELECT id_country,id_state,id_customer,address1,address2,postcode,city,other,phone,vat_number,dni FROM public.ps_address WHERE id=$1 AND enterprise=$2 LIMIT 1`
 			row := db.QueryRow(sqlStatement, id, enterpriseId)
 			if row.Err() != nil {
+				log("PrestaShop", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -1048,6 +1248,8 @@ func copyPsAddresses(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM customer WHERE ps_id=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, id_customer, enterpriseId)
 			if row.Err() != nil {
+				log("PrestaShop", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -1058,6 +1260,8 @@ func copyPsAddresses(enterpriseId int32) {
 			sqlStatement = `SELECT iso_code FROM ps_country WHERE id=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, id_country, enterpriseId)
 			if row.Err() != nil {
+				log("PrestaShop", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -1067,6 +1271,8 @@ func copyPsAddresses(enterpriseId int32) {
 			sqlStatement = `SELECT id FROM country WHERE iso_2=$1 AND enterprise=$2`
 			row = db.QueryRow(sqlStatement, iso_code, enterpriseId)
 			if row.Err() != nil {
+				log("PrestaShop", row.Err().Error())
+				errors = append(errors, row.Err().Error())
 				continue
 			}
 
@@ -1079,6 +1285,8 @@ func copyPsAddresses(enterpriseId int32) {
 				sqlStatement := `SELECT iso_code FROM ps_state WHERE id=$1 AND enterprise=$2`
 				row = db.QueryRow(sqlStatement, id_state, enterpriseId)
 				if row.Err() != nil {
+					log("PrestaShop", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -1088,6 +1296,8 @@ func copyPsAddresses(enterpriseId int32) {
 				sqlStatement = `SELECT id FROM state WHERE iso_code=$1 AND enterprise=$2`
 				row = db.QueryRow(sqlStatement, iso_code, enterpriseId)
 				if row.Err() != nil {
+					log("PrestaShop", row.Err().Error())
+					errors = append(errors, row.Err().Error())
 					continue
 				}
 
@@ -1128,13 +1338,32 @@ func copyPsAddresses(enterpriseId int32) {
 			c.updateCustomer(0)
 		}
 	}
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		}
+	}
+
+	return true
 }
 
-func copyPsLanguages(enterpriseId int32) {
+func copyPsLanguages(enterpriseId int32) bool {
 	sqlStatement := `SELECT iso_code,name FROM public.ps_language WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Languages</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
 
@@ -1157,13 +1386,19 @@ func copyPsLanguages(enterpriseId int32) {
 			l.insertLanguage()
 		}
 	}
+	return true
 }
 
-func copyPsCarriers(enterpriseId int32) {
+func copyPsCarriers(enterpriseId int32) bool {
 	sqlStatement := `SELECT id,name,url,max_width,max_height,max_depth,max_weight FROM public.ps_carrier WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Carriers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
 
@@ -1196,15 +1431,22 @@ func copyPsCarriers(enterpriseId int32) {
 			c.insertCarrier()
 		}
 	}
+	return true
 }
 
-func copyPsProducts(enterpriseId int32) {
+func copyPsProducts(enterpriseId int32) bool {
 	sqlStatement := `SELECT id,name,ean13,reference,price,date_add,description FROM public.ps_product WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Prodocuts</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		}
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var ps_productId int32
@@ -1242,7 +1484,11 @@ func copyPsProducts(enterpriseId int32) {
 				p.Description = description
 				p.prestaShopId = ps_productId
 				p.enterprise = enterpriseId
-				p.insertProduct(0)
+				result := p.insertProduct(0)
+				if !result.Ok {
+					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+				}
 			} else {
 				p := getProductRow(productId)
 				p.Name = name
@@ -1251,14 +1497,19 @@ func copyPsProducts(enterpriseId int32) {
 				p.Price = price
 				p.DateCreated = dateAdd
 				p.Description = description
-				p.updateProduct(0)
+				result := p.updateProduct(0)
+				if !result.Ok {
+					errors = append(errors, "Error updating a simple product into MARKETNET. Product name "+
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+				}
 			}
 
 		} else { // it's a product with combinations
 			sqlStatement := `SELECT id,reference,ean13,product_option_values,price FROM ps_product_combination WHERE id_product=$1 AND enterprise=$2`
 			rows, err := db.Query(sqlStatement, ps_productId, enterpriseId)
 			if err != nil {
-				return
+				log("PrestaShop", err.Error())
+				return false
 			}
 
 			for rows.Next() {
@@ -1302,7 +1553,11 @@ func copyPsProducts(enterpriseId int32) {
 					p.prestaShopId = ps_productId
 					p.prestaShopCombinationId = combinationId
 					p.enterprise = enterpriseId
-					p.insertProduct(0)
+					result := p.insertProduct(0)
+					if !result.Ok {
+						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
+							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+					}
 				} else {
 					p := getProductRow(productId)
 					p.Name = combinationName
@@ -1311,7 +1566,11 @@ func copyPsProducts(enterpriseId int32) {
 					p.Price = combinationPrice
 					p.DateCreated = dateAdd
 					p.Description = description
-					p.updateProduct(0)
+					result := p.updateProduct(0)
+					if !result.Ok {
+						errors = append(errors, "Error updating a product with combinations into MARKETNET. Product name "+
+							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+					}
 				}
 			}
 
@@ -1319,17 +1578,33 @@ func copyPsProducts(enterpriseId int32) {
 		}
 
 	}
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+		}
+	}
+
+	return true
 }
 
-func copyPsOrders(enterpriseId int32) {
+func copyPsOrders(enterpriseId int32) bool {
 	settings := getSettingsRecordById(enterpriseId)
 
 	sqlStatement := `SELECT id,reference,id_carrier,id_lang,id_customer,id_currency,id_address_delivery,id_address_invoice,module,total_discounts_tax_excl,total_shipping_tax_excl,tax_included FROM public.ps_order WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	for rows.Next() {
 		var orderId int32
@@ -1365,6 +1640,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&carrier)
 
 		if carrier == 0 { // don't continue if the carrier doesn't exists
+			errors = append(errors, "Can't import order: The carrier does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1382,6 +1658,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&language)
 
 		if language == 0 { // don't continue if the language doesn't exists
+			errors = append(errors, "Can't import order. The language does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1393,6 +1670,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&customer)
 
 		if customer == 0 { // don't continue if the customer doesn't exists
+			errors = append(errors, "Can't import order. The customer does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1405,6 +1683,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&paymentMethod, &paidInAdvance)
 
 		if paymentMethod == 0 { // don't continue if the payment method doesn't exists
+			errors = append(errors, "Can't import order. The payment method does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1422,6 +1701,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&currency)
 
 		if currency == 0 { // don't continue if the currency doesn't exists
+			errors = append(errors, "Can't import order. The currency does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1434,6 +1714,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&billingAddress, &billingZone)
 
 		if billingAddress == 0 { // don't continue if the billing address doesn't exists
+			errors = append(errors, "Can't import order. The billing address does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1445,6 +1726,7 @@ func copyPsOrders(enterpriseId int32) {
 		row.Scan(&shippingAddress)
 
 		if shippingAddress == 0 { // don't continue if the shipping address doesn't exists
+			errors = append(errors, "Can't import order. The shipping address does not exist in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1467,7 +1749,9 @@ func copyPsOrders(enterpriseId int32) {
 		}
 
 		s.enterprise = enterpriseId
-		s.insertSalesOrder(0)
+		if ok, _ := s.insertSalesOrder(0); !ok {
+			errors = append(errors, "Can't import order. Error creating the order in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
+		}
 
 		// set the customer details if are empty
 		c := getCustomerRow(customer)
@@ -1477,17 +1761,34 @@ func copyPsOrders(enterpriseId int32) {
 		if c.BillingSeries == nil || *c.BillingSeries == "" {
 			c.BillingSeries = &s.BillingSeries
 		}
-		c.updateCustomer(0)
+		if !c.updateCustomer(0) {
+			errors = append(errors, "Can't update the customer data. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
+		}
 	}
+
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+		}
+	}
+	return true
 }
 
-func copyPsOrderDetails(enterpriseId int32) {
+func copyPsOrderDetails(enterpriseId int32) bool {
 	sqlStatement := `SELECT id,id_order,product_id,product_attribute_id,product_quantity,product_price,(SELECT tax_included FROM ps_order WHERE ps_order.id=ps_order_detail.id_order),(SELECT vat_percent FROM product WHERE product.ps_id=ps_order_detail.product_id AND product.ps_combination_id=ps_order_detail.product_attribute_id) FROM public.ps_order_detail WHERE enterprise=$1`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
-		return
+		log("PrestaShop", err.Error())
+		return false
 	}
 	defer rows.Close()
+	var errors []string = make([]string, 0)
 
 	orderIds := make([]int64, 0)
 
@@ -1520,6 +1821,7 @@ func copyPsOrderDetails(enterpriseId int32) {
 		row.Scan(&order)
 
 		if order <= 0 {
+			errors = append(errors, "Can't import order detail. The order does not exist in MARKETNET. Order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1531,6 +1833,7 @@ func copyPsOrderDetails(enterpriseId int32) {
 		row.Scan(&product)
 
 		if product <= 0 {
+			errors = append(errors, "Can't import order detail. The product does not exist in MARKETNET. Order id "+strconv.Itoa(int(orderId)))
 			continue
 		}
 
@@ -1579,6 +1882,19 @@ func copyPsOrderDetails(enterpriseId int32) {
 		}
 	}
 
+	if len(errors) > 0 {
+		var errorHtml string = ""
+		for i := 0; i < len(errors); i++ {
+			errorHtml += "<p>Error data:" + errors[i] + "</p>"
+		}
+
+		s := getSettingsRecordById(enterpriseId)
+		if len(s.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		}
+	}
+
+	return true
 }
 
 // =====
