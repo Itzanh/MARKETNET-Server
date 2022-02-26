@@ -16,6 +16,11 @@ type Log struct {
 	Stacktrace  string    `json:"stacktrace"`
 }
 
+type CrashReporter struct {
+	LicenseCode string `json:"licenseCode"`
+	Logs        []Log  `json:"logs"`
+}
+
 const CRASHREPORTER_URL = "https://license.marketneterp.io:12278/crash_reports"
 
 func crashreporter() {
@@ -38,7 +43,16 @@ func crashreporter() {
 		return
 	}
 
-	data, _ := json.Marshal(logs)
+	var enterpriseKey string
+	for k := range settings.Server.Activation {
+		enterpriseKey = k
+		break
+	}
+	crashreport := CrashReporter{
+		Logs:        logs,
+		LicenseCode: settings.Server.Activation[enterpriseKey].LicenseCode,
+	}
+	data, _ := json.Marshal(crashreport)
 	_, err = http.Post(CRASHREPORTER_URL, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		fmt.Println(err)

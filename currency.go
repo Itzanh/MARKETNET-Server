@@ -40,7 +40,7 @@ func getCurrencies(enterpriseId int32) []Currency {
 }
 
 func (c *Currency) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 75 || len([]rune(c.Sign)) > 3 || len(c.IsoCode) > 3 || c.IsoNum < 0 || c.Change < 0)
+	return !(len(c.Name) == 0 || len(c.Name) > 150 || len([]rune(c.Sign)) > 3 || len(c.IsoCode) > 3 || c.IsoNum < 0 || c.Change < 0)
 }
 
 func (c *Currency) insertCurrency() bool {
