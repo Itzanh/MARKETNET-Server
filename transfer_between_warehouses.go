@@ -139,7 +139,7 @@ type TransferBetweenWarehousesDetail struct {
 	TransferBetweenWarehouses int64  `json:"transferBetweenWarehouses"`
 	Product                   int32  `json:"product"`
 	Quantity                  int32  `json:"quantity"`
-	QuantityTransfered        int32  `json:"quantityTransfered"`
+	QuantityTransfered        int32  `json:"quantityTransferred"`
 	Finished                  bool   `json:"finished"`
 	ProductReference          string `json:"productReference"`
 	WarehouseMovementOut      *int64 `json:"warehouseMovementOut"`
@@ -287,7 +287,7 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 		q.BarCode = fmt.Sprintf("%013s", q.BarCode)
 	}
 
-	sqlStatement := `SELECT id FROM public.transfer_between_warehouses_detail WHERE enterprise = $1 AND transfer_between_warehouses = $2 AND quantity_transfered < quantity AND product = (SELECT id FROM product WHERE product.enterprise = $1 AND product.barCode = $3 LIMIT 1) ORDER BY id ASC LIMIT 1`
+	sqlStatement := `SELECT id FROM public.transfer_between_warehouses_detail WHERE enterprise = $1 AND transfer_between_warehouses = $2 AND quantity_transferred < quantity AND product = (SELECT id FROM product WHERE product.enterprise = $1 AND product.barCode = $3 LIMIT 1) ORDER BY id ASC LIMIT 1`
 	row := db.QueryRow(sqlStatement, enterpriseId, q.TransferBetweenWarehousesId, q.BarCode)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
@@ -312,7 +312,7 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 	}
 	///
 
-	sqlStatement = `UPDATE public.transfer_between_warehouses_detail SET quantity_transfered=quantity_transfered+1, finished=(quantity_transfered+1)=quantity WHERE id=$1`
+	sqlStatement = `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=quantity_transferred+1, finished=(quantity_transferred+1)=quantity WHERE id=$1`
 	_, err := trans.Exec(sqlStatement, transferBetweenWarehousesDetailId)
 	if err != nil {
 		log("DB", err.Error())
@@ -395,7 +395,7 @@ func (q *TransferBetweenWarehousesDetailQuantityQuery) transferBetweenWarehouses
 	}
 	///
 
-	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transfered=quantity_transfered+1, finished=(quantity_transfered+1)=quantity WHERE id=$1`
+	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=quantity_transferred+1, finished=(quantity_transferred+1)=quantity WHERE id=$1`
 	_, err := trans.Exec(sqlStatement, detail.Id)
 	if err != nil {
 		log("DB", err.Error())

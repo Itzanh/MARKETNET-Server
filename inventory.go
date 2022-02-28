@@ -5,18 +5,19 @@ import (
 )
 
 type Inventory struct {
-	Id           int32      `json:"id"`
-	Name         string     `json:"name"`
-	DateCreated  time.Time  `json:"dateCreated"`
-	Finished     bool       `json:"finished"`
-	DateFinished *time.Time `json:"dateFinished"`
-	Warehouse    string     `json:"warehouse"`
-	enterprise   int32
+	Id            int32      `json:"id"`
+	Name          string     `json:"name"`
+	DateCreated   time.Time  `json:"dateCreated"`
+	Finished      bool       `json:"finished"`
+	DateFinished  *time.Time `json:"dateFinished"`
+	Warehouse     string     `json:"warehouse"`
+	WarehouseName string     `json:"warehouseName"`
+	enterprise    int32
 }
 
 func getInventories(enterpriseId int32) []Inventory {
 	var inventory []Inventory = make([]Inventory, 0)
-	sqlStatement := `SELECT * FROM public.inventory WHERE enterprise = $1 ORDER BY id DESC`
+	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=inventory.warehouse AND warehouse.enterprise=inventory.enterprise) FROM public.inventory WHERE enterprise = $1 ORDER BY id DESC`
 	rows, err := db.Query(sqlStatement, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
@@ -25,7 +26,7 @@ func getInventories(enterpriseId int32) []Inventory {
 
 	for rows.Next() {
 		i := Inventory{}
-		rows.Scan(&i.Id, &i.enterprise, &i.Name, &i.DateCreated, &i.Finished, &i.DateFinished, &i.Warehouse)
+		rows.Scan(&i.Id, &i.enterprise, &i.Name, &i.DateCreated, &i.Finished, &i.DateFinished, &i.Warehouse, &i.WarehouseName)
 		inventory = append(inventory, i)
 	}
 
