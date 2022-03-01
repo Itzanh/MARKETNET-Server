@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"sort"
 	"time"
 )
 
@@ -197,15 +196,34 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
+func deassociatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
+	sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=NULL WHERE purchase_order_detail=$1`
+	_, err := trans.Exec(sqlStatement, purchaseDetailId)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Commit()
+		return false
+	}
+	return true
+}
+
+type AssociatePurchaseOrderWithPendingSalesOrders struct {
+	SalesDetailId int32
+	SalesQuantity int32
+	OrderId       int64
+}
+
+// THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, productId int32, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) int32 {
 	// associate pending sales order detail until there are no more quantity pending to be assigned, or there are no more pending sales order details
 	sqlStatement := `SELECT id,quantity,"order" FROM sales_order_detail WHERE product=$1 AND status='A' ORDER BY (SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail."order") ASC`
-	rows, err := db.Query(sqlStatement, productId)
+	rows, err := trans.Query(sqlStatement, productId)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return -1
 	}
-	defer rows.Close()
+	var associations []AssociatePurchaseOrderWithPendingSalesOrders = make([]AssociatePurchaseOrderWithPendingSalesOrders, 0)
 
 	var quantityAssignedSale int32
 	for quantityAssignedSale < quantity {
@@ -216,22 +234,35 @@ func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, produc
 			rows.Scan(&salesDetailId, &salesQuantity, &orderId)
 
 			if quantityAssignedSale+salesQuantity > quantity { // no more rows to proecss
-				return quantityAssignedSale
+				break
 			}
 
-			sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=$2 WHERE id=$1`
-			_, err := trans.Exec(sqlStatement, salesDetailId, purchaseDetailId)
-			if err == nil {
-				quantityAssignedSale += salesQuantity
-				setSalesOrderState(enterpriseId, orderId, userId, trans)
-				insertTransactionalLog(enterpriseId, "sales_order_detail", int(salesDetailId), userId, "U")
-			} else {
-				log("DB", err.Error())
-			}
-		} else { // no more rows to proecss
-			return quantityAssignedSale
+			quantityAssignedSale += salesQuantity
+			associations = append(associations, AssociatePurchaseOrderWithPendingSalesOrders{
+				SalesDetailId: salesDetailId,
+				SalesQuantity: salesQuantity,
+				OrderId:       orderId,
+			})
+		} else { // no more rows to process
+			break
 		}
 	}
+	rows.Close()
+
+	for i := 0; i < len(associations); i++ {
+		association := associations[i]
+		sqlStatement := `UPDATE sales_order_detail SET status='B', purchase_order_detail=$2 WHERE id=$1`
+		_, err := trans.Exec(sqlStatement, association.SalesDetailId, purchaseDetailId)
+		if err == nil {
+			setSalesOrderState(enterpriseId, association.OrderId, userId, trans)
+			insertTransactionalLog(enterpriseId, "sales_order_detail", int(association.SalesDetailId), userId, "U")
+		} else {
+			log("DB", err.Error())
+			trans.Rollback()
+			return -1
+		}
+	}
+
 	return quantityAssignedSale
 }
 
@@ -264,31 +295,15 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
 	}
 
-	if detailInMemory.Quantity < s.Quantity { // increased quantity
-		associatePurchaseOrderWithPendingSalesOrders(s.Id, s.Product, s.Quantity-detailInMemory.Quantity, s.enterprise, userId, *trans)
-		s.QuantityAssignedSale = detailInMemory.QuantityAssignedSale
-	} else if detailInMemory.Quantity > s.Quantity { // decreased quantity
-		salesDetails := getSalesOrderDetailsFromPurchaseOrderDetail(s.Id, s.enterprise)
-		sort.Slice(salesDetails, func(i, j int) bool { // sort by date_created ASC
-			return salesDetails[i].DateCreated.Before(salesDetails[j].DateCreated)
-		})
-
-		sqlStatement := `UPDATE public.sales_order_detail SET status='A', purchase_order_detail=NULL WHERE id=$1`
-		quantityAssignedSale := detailInMemory.QuantityAssignedSale
-
-		for i := 0; i < len(salesDetails); i++ {
-			_, err := trans.Exec(sqlStatement, salesDetails[i].Id)
-			if err != nil {
-				log("DB", err.Error())
-				trans.Rollback()
-				return OkAndErrorCodeReturn{Ok: false}
-			}
-			quantityAssignedSale -= salesDetails[i].Quantity
-			if quantityAssignedSale <= s.Quantity {
-				break
-			}
+	if detailInMemory.Quantity != s.Quantity {
+		if !deassociatePurchaseOrderWithPendingSalesOrders(s.Id, s.enterprise, userId, *trans) {
+			return OkAndErrorCodeReturn{Ok: false}
 		}
-		s.QuantityAssignedSale = quantityAssignedSale
+		s.QuantityAssignedSale = associatePurchaseOrderWithPendingSalesOrders(s.Id, s.Product, s.Quantity, s.enterprise, userId, *trans)
+		if s.QuantityAssignedSale < 0 {
+			trans.Rollback()
+			return OkAndErrorCodeReturn{Ok: false}
+		}
 	} else {
 		s.QuantityAssignedSale = detailInMemory.QuantityAssignedSale
 	}
@@ -625,7 +640,23 @@ func cancelPurchaseOrderDetail(detailId int64, enterpriseId int32, userId int32)
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
+	purchaseOrderDetail := getPurchaseOrderDetailRowTransaction(detailId, trans)
+
+	// Get the quantity that the orders are currently using
+	sqlStatement := `SELECT SUM(quantity) FROM sales_order_detail WHERE purchase_order_detail=$1 AND status!='B'`
+	row := db.QueryRow(sqlStatement, detailId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var quantityUsedDeliveryNote int32
+	row.Scan(&quantityUsedDeliveryNote)
+
+	// Get the quantity that the orders are not currently using + the added quantity
+	quantityAddedToDeliveryNote := purchaseOrderDetail.QuantityDeliveryNote - quantityUsedDeliveryNote
+
+	sqlStatement = `SELECT id,"order",quantity FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B' ORDER BY quantity ASC`
 	rows, err := db.Query(sqlStatement, detailId)
 	if err != nil {
 		log("DB", err.Error())
@@ -633,21 +664,37 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseI
 	}
 	defer rows.Close()
 
-	sqlStatement = `UPDATE sales_order_detail SET status='E' WHERE purchase_order_detail=$1 AND status='B'`
-	_, err = trans.Exec(sqlStatement, detailId)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
+	var quantityUsed int32
 
+	var salesOrderDetailId int64
+	var saleOrderId int64
+	var quantity int32
 	for rows.Next() {
-		var orderId int64
-		rows.Scan(&orderId)
-		setSalesOrderState(enterpriseId, orderId, userId, trans)
-		insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailId), userId, "U")
-		s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+		rows.Scan(&salesOrderDetailId, &saleOrderId, &quantity)
+
+		if quantityUsed+quantity > quantityAddedToDeliveryNote {
+			return true
+		}
+
+		quantityUsed += quantity
+
+		sqlStatement = `UPDATE sales_order_detail SET status='E' WHERE id=$1`
+		_, err = trans.Exec(sqlStatement, salesOrderDetailId)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
+
+		setSalesOrderState(enterpriseId, saleOrderId, userId, trans)
+		insertTransactionalLog(enterpriseId, "sales_order_detail", int(salesOrderDetailId), userId, "U")
+		s := getSalesOrderDetailRowTransaction(salesOrderDetailId, trans)
 		json, _ := json.Marshal(s)
+
+		if quantityUsed >= quantityAddedToDeliveryNote {
+			return true
+		}
+
 		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
 	}
 
@@ -659,36 +706,60 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseI
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `SELECT "order" FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B'`
-	rows, err := trans.Query(sqlStatement, detailId)
+	purchaseOrderDetail := getPurchaseOrderDetailRowTransaction(detailId, trans)
+
+	sqlStatement := `SELECT SUM(quantity) FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='E'`
+	row := db.QueryRow(sqlStatement, detailId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return false
+	}
+
+	var quantityUsedDeliveryNote int32
+	row.Scan(&quantityUsedDeliveryNote)
+
+	quantityToRemoveFromDeliveryNote := quantityUsedDeliveryNote - purchaseOrderDetail.QuantityDeliveryNote
+	// The sale orders are using less quantity that the one remaining in the purchase delivery note, do nothing.
+	if quantityToRemoveFromDeliveryNote <= 0 {
+		return true
+	}
+
+	var quantityDeleted int32
+
+	sqlStatement = `SELECT id,"order",quantity FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='E' ORDER BY quantity DESC`
+	rows, err := db.Query(sqlStatement, detailId)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
-	var orderIds []int64 = make([]int64, 0)
+	defer rows.Close()
 
+	var salesOrderDetailId int64
+	var saleOrderId int64
+	var quantity int32
 	for rows.Next() {
-		var orderId int64
-		rows.Scan(&orderId)
-		orderIds = append(orderIds, orderId)
-	}
-	rows.Close()
+		rows.Scan(&salesOrderDetailId, &saleOrderId, &quantity)
 
-	sqlStatement = `UPDATE sales_order_detail SET status='B' WHERE purchase_order_detail=$1 AND status='E'`
-	_, err = trans.Exec(sqlStatement, detailId)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
+		sqlStatement = `UPDATE sales_order_detail SET status='B' WHERE id=$1`
+		_, err = trans.Exec(sqlStatement, salesOrderDetailId)
+		if err != nil {
+			log("DB", err.Error())
+			trans.Rollback()
+			return false
+		}
 
-	for i := 0; i < len(orderIds); i++ {
-		setSalesOrderState(enterpriseId, orderIds[i], userId, trans)
-		insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailId), userId, "U")
-		s := getPurchaseOrderDetailRowTransaction(detailId, trans)
+		setSalesOrderState(enterpriseId, saleOrderId, userId, trans)
+		insertTransactionalLog(enterpriseId, "sales_order_detail", int(salesOrderDetailId), userId, "U")
+		s := getSalesOrderDetailRowTransaction(salesOrderDetailId, trans)
 		json, _ := json.Marshal(s)
 		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
+
+		quantityDeleted += quantity
+
+		if quantityDeleted >= quantityToRemoveFromDeliveryNote {
+			return true
+		}
 	}
 
 	return err == nil

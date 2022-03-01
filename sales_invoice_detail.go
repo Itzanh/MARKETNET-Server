@@ -251,9 +251,17 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		// if the detail had a purchase order pending, rollback the quantity assigned
-		if detail.Status == "B" {
+		if detail.PurchaseOrderDetail != nil {
 			ok = addQuantityAssignedSalePurchaseOrder(*detail.PurchaseOrderDetail, -detail.Quantity, detailInMemory.enterprise, userId, *trans)
 			if !ok {
+				trans.Rollback()
+				return OkAndErrorCodeReturn{Ok: false}
+			}
+			sqlStatement := `UPDATE sales_order_detail SET purchase_order_detail=NULL WHERE id = $1`
+			res, err := trans.Exec(sqlStatement, detail.Id)
+			rows, _ := res.RowsAffected()
+			if err != nil && rows == 0 {
+				log("DB", err.Error())
 				trans.Rollback()
 				return OkAndErrorCodeReturn{Ok: false}
 			}
