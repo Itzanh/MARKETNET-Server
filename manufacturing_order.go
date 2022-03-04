@@ -560,24 +560,17 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 	///
 }
 
-func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder(userId int32, enterpriseId int32) bool {
-	// get the sale order and it's details
-	saleOrder := getSalesOrderRow(orderInfo.OrderId)
-	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(orderInfo.Selection) == 0 {
-		return false
-	}
+type ManufacturingOrderGenerate struct {
+	Selection []ManufacturingOrderGenerateSelection `json:"selection"`
+}
 
-	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	for i := 0; i < len(orderInfo.Selection); i++ {
-		orderDetail := getSalesOrderDetailRow(orderInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != orderInfo.OrderId || orderInfo.Selection[i].Quantity == 0 || orderInfo.Selection[i].Quantity > orderDetail.Quantity {
-			return false
-		}
-		if orderDetail.Status == "C" {
-			saleOrderDetails = append(saleOrderDetails, orderDetail)
-		}
-	}
+type ManufacturingOrderGenerateSelection struct {
+	OrderId  int64 `json:"orderId"`
+	Id       int64 `json:"id"`
+	Quantity int32 `json:"quantity"`
+}
 
+func (orderInfo *ManufacturingOrderGenerate) manufacturingOrderPartiallySaleOrder(userId int32, enterpriseId int32) bool {
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
@@ -585,19 +578,34 @@ func (orderInfo *OrderDetailGenerate) manufacturingOrderPartiallySaleOrder(userI
 	}
 	///
 
-	for i := 0; i < len(saleOrderDetails); i++ {
-		orderDetail := saleOrderDetails[i]
-		o := ManufacturingOrder{}
-		o.Product = orderDetail.Product
-		o.OrderDetail = &orderDetail.Id
-		o.Order = &saleOrder.Id
-		o.UserCreated = userId
-		o.enterprise = enterpriseId
-		o.Warehouse = saleOrder.Warehouse
-		ok := o.insertManufacturingOrder(userId, trans).Ok
-		if !ok {
+	for i := 0; i < len(orderInfo.Selection); i++ {
+		orderInfoSelection := orderInfo.Selection[i]
+		// get the sale order and it's details
+		saleOrder := getSalesOrderRow(orderInfoSelection.OrderId)
+		if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(orderInfo.Selection) == 0 {
 			trans.Rollback()
 			return false
+		}
+
+		// get the details
+		orderDetail := getSalesOrderDetailRow(orderInfoSelection.Id)
+		if orderDetail.Id <= 0 || orderDetail.Order != orderInfoSelection.OrderId || orderInfoSelection.Quantity == 0 || orderInfoSelection.Quantity > orderDetail.Quantity {
+			trans.Rollback()
+			return false
+		}
+		if orderDetail.Status == "C" {
+			o := ManufacturingOrder{}
+			o.Product = orderDetail.Product
+			o.OrderDetail = &orderDetail.Id
+			o.Order = &orderDetail.Order
+			o.UserCreated = userId
+			o.enterprise = enterpriseId
+			o.Warehouse = saleOrder.Warehouse
+			ok := o.insertManufacturingOrder(userId, trans).Ok
+			if !ok {
+				trans.Rollback()
+				return false
+			}
 		}
 	}
 

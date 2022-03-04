@@ -741,6 +741,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		json.Unmarshal([]byte(message), &query)
 		query.enterprise = enterpriseId
 		data, _ = json.Marshal(query.searchTransferBetweenWarehouses())
+	case "SALES_ORDER_DETAIL_WAITING_FOR_MANUFACTURING_ORDERS":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getSalesOrderDetailWaitingForManufacturingOrders(enterpriseId))
 	default:
 		found = false
 	}
@@ -2734,7 +2739,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Sales {
 			return
 		}
-		var orderInfo OrderDetailGenerate
+		var orderInfo ManufacturingOrderGenerate
 		json.Unmarshal([]byte(message), &orderInfo)
 		data, _ = json.Marshal(orderInfo.manufacturingOrderPartiallySaleOrder(userId, enterpriseId) || orderInfo.complexManufacturingOrderPartiallySaleOrder(userId, enterpriseId))
 	case "DELETE_SALES_ORDER_DETAIL_PACKAGED":

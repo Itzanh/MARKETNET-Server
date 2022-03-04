@@ -152,22 +152,29 @@ func addQuantityManufacturedComplexManufacturingOrder(complexManufacturingOrderI
 
 func complexManufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseId int32) bool {
 	saleOrder := getSalesOrderRow(saleOrderId)
+	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId {
+		return false
+	}
 	details := getSalesOrderDetail(saleOrderId, enterpriseId)
-
-	return complexManufacturingOrerGeneration(saleOrderId, userId, enterpriseId, saleOrder, details)
-}
-
-func (orderInfo *OrderDetailGenerate) complexManufacturingOrderPartiallySaleOrder(userId int32, enterpriseId int32) bool {
-	// get the sale order and it's details
-	saleOrder := getSalesOrderRow(orderInfo.OrderId)
-	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(orderInfo.Selection) == 0 {
+	if len(details) == 0 {
 		return false
 	}
 
+	return complexManufacturingOrerGeneration(userId, enterpriseId, details)
+}
+
+func (orderInfo *ManufacturingOrderGenerate) complexManufacturingOrderPartiallySaleOrder(userId int32, enterpriseId int32) bool {
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(orderInfo.Selection); i++ {
-		orderDetail := getSalesOrderDetailRow(orderInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != orderInfo.OrderId || orderInfo.Selection[i].Quantity == 0 || orderInfo.Selection[i].Quantity > orderDetail.Quantity {
+		orderInfoSelection := orderInfo.Selection[i]
+		// get the sale order and it's details
+		saleOrder := getSalesOrderRow(orderInfoSelection.OrderId)
+		if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(orderInfo.Selection) == 0 {
+			return false
+		}
+
+		orderDetail := getSalesOrderDetailRow(orderInfoSelection.Id)
+		if orderDetail.Id <= 0 || orderDetail.Order != orderInfoSelection.OrderId || orderInfoSelection.Quantity == 0 || orderInfoSelection.Quantity > orderDetail.Quantity {
 			return false
 		}
 		if orderDetail.Status == "C" {
@@ -175,10 +182,10 @@ func (orderInfo *OrderDetailGenerate) complexManufacturingOrderPartiallySaleOrde
 		}
 	}
 
-	return complexManufacturingOrerGeneration(orderInfo.OrderId, userId, enterpriseId, saleOrder, saleOrderDetails)
+	return complexManufacturingOrerGeneration(userId, enterpriseId, saleOrderDetails)
 }
 
-func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpriseId int32, saleOrder SaleOrder, details []SalesOrderDetail) bool {
+func complexManufacturingOrerGeneration(userId int32, enterpriseId int32, details []SalesOrderDetail) bool {
 	///
 	trans, transErr := db.Begin()
 	if transErr != nil {
@@ -214,6 +221,7 @@ func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpr
 			return false
 		}
 
+		saleOrder := getSalesOrderRow(orderDetail.Order)
 		for j := 0; j < int(orderDetail.Quantity); j += int(component.Quantity) {
 			cmo := ComplexManufacturingOrder{
 				Type:       manufacturingOrderType.Id,
@@ -251,7 +259,7 @@ func complexManufacturingOrerGeneration(saleOrderId int64, userId int32, enterpr
 
 			insertTransactionalLog(enterpriseId, "sales_order_detail", int(orderDetail.Id), userId, "U")
 
-			ok = setSalesOrderState(enterpriseId, saleOrderId, userId, *trans)
+			ok = setSalesOrderState(enterpriseId, orderDetail.Order, userId, *trans)
 			if !ok {
 				trans.Rollback()
 				return false

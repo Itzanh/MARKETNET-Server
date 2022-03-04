@@ -200,7 +200,9 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	invoiceAllSaleOrder(orderId, 1, 0)
 
 	details := getSalesOrderDetail(orderId, 1)
-	odg := OrderDetailGenerate{OrderId: orderId, Selection: []OrderDetailGenerateSelection{{Id: details[0].Id, Quantity: 1}}}
+	odg := ManufacturingOrderGenerate{Selection: []ManufacturingOrderGenerateSelection{
+		{Id: details[0].Id, Quantity: 1, OrderId: orderId},
+	}}
 	ok := odg.manufacturingOrderPartiallySaleOrder(1, 1)
 	if !ok {
 		t.Error("Could not manufacturing order all sale order")

@@ -48,6 +48,31 @@ func getSalesOrderDetail(orderId int64, enterpriseId int32) []SalesOrderDetail {
 	return details
 }
 
+type SalesOrderDetailWaitingForManufacturingOrders struct {
+	SalesOrderDetail
+	OrderName    string `json:"orderName"`
+	CustomerName string `json:"customerName"`
+}
+
+func getSalesOrderDetailWaitingForManufacturingOrders(enterpriseId int32) []SalesOrderDetailWaitingForManufacturingOrders {
+	var details []SalesOrderDetailWaitingForManufacturingOrders = make([]SalesOrderDetailWaitingForManufacturingOrders, 0)
+	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product),(SELECT digital_product FROM product WHERE product.id=sales_order_detail.product),(SELECT order_name FROM sales_order WHERE sales_order.id=sales_order_detail."order"),(SELECT name FROM customer WHERE customer.id=(SELECT customer FROM sales_order WHERE sales_order.id=sales_order_detail."order")) FROM sales_order_detail WHERE enterprise=$1 AND status = 'C' ORDER BY id ASC LIMIT 300`
+	rows, err := db.Query(sqlStatement, enterpriseId)
+	if err != nil {
+		log("DB", err.Error())
+		return details
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		d := SalesOrderDetailWaitingForManufacturingOrders{}
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName, &d.DigitalProduct, &d.OrderName, &d.CustomerName)
+		details = append(details, d)
+	}
+
+	return details
+}
+
 func getSalesOrderDetailRow(detailId int64) SalesOrderDetail {
 	sqlStatement := `SELECT * FROM sales_order_detail WHERE id=$1`
 	row := db.QueryRow(sqlStatement, detailId)
