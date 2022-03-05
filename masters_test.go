@@ -670,7 +670,6 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 		ManufacturingOrderType: &manufacturingOrderType,
 		Supplier:               &supplier,
 		TrackMinimumStock:      true,
-		prestaShopId:           1,
 		enterprise:             1,
 	}
 
@@ -736,9 +735,9 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductPurchaseOrderDetailsPending(products[i].Id, 1)
-		if len(saleOrders) > 0 {
-			if saleOrders[0].Id <= 0 {
+		purchaseOrders := getProductPurchaseOrderDetailsPending(products[i].Id, 1)
+		if len(purchaseOrders) > 0 {
+			if purchaseOrders[0].Id <= 0 {
 				t.Error("Purchase orders with ID 0 on product")
 				return
 			} else {
@@ -760,9 +759,9 @@ func TestProductRelations(t *testing.T) {
 	}
 
 	for i := 0; i < len(products); i++ {
-		saleOrders := getProductPurchaseOrderDetails(ProductPurchaseOrderDetailsQuery{ProductId: products[i].Id}, 1)
-		if len(saleOrders) > 0 {
-			if saleOrders[0].Id <= 0 {
+		purchaseOrders := getProductPurchaseOrderDetails(ProductPurchaseOrderDetailsQuery{ProductId: products[i].Id}, 1)
+		if len(purchaseOrders) > 0 {
+			if purchaseOrders[0].Id <= 0 {
 				t.Error("Purchase orders with ID 0 on product")
 				return
 			} else {
@@ -997,7 +996,7 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 	p := Product{
 		Name:              "Glass Office Desk",
 		Reference:         "OF-DSK",
-		BarCode:           "1234067891236",
+		BarCode:           "",
 		ControlStock:      true,
 		Weight:            30,
 		Width:             160,
@@ -1086,7 +1085,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	p := Product{
 		Name:              "Glass Office Desk",
 		Reference:         "OF-DSK",
-		BarCode:           "1234067891236",
+		BarCode:           "",
 		ControlStock:      false,
 		Weight:            30,
 		Width:             160,

@@ -260,13 +260,12 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 		Manufacturing:          true,
 		ManufacturingOrderType: &manufacturingOrderType,
 		TrackMinimumStock:      true,
-		prestaShopId:           1,
 		enterprise:             1,
 	}
 
-	ok := p.insertProduct(0).Ok
-	if !ok {
-		t.Error("Insert error, could not insert product")
+	okAndErr := p.insertProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Insert error, could not insert product", okAndErr.ErorCode)
 		return
 	}
 
@@ -307,7 +306,7 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 		return
 	}
 
-	ok = manufacturingOrderAllSaleOrder(orderId, 1, 1)
+	ok := manufacturingOrderAllSaleOrder(orderId, 1, 1)
 	if !ok {
 		t.Error("Could not manufacturing order all sale order")
 		return
@@ -327,7 +326,10 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	}
 
 	// set the first as manufactured
-	toggleManufactuedManufacturingOrder(r.ManufacturingOrders[0].Id, 1, 1)
+	if !toggleManufactuedManufacturingOrder(r.ManufacturingOrders[0].Id, 1, 1) {
+		t.Error("Can't set a manufacturing order as manufactured: toggle error")
+		return
+	}
 	r = getSalesOrderRelations(orderId, 1)
 	if r.ManufacturingOrders[0].Manufactured == false {
 		t.Error("Can't set a manufacturing order as manufactured")

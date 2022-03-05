@@ -127,6 +127,7 @@ func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
 	if !p.isValid() {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
+	p.BarCode = strings.Trim(p.BarCode, " ")
 
 	// Check that the format for EAN13 barcodes is correct
 	if len(p.BarCode) == 13 {
@@ -175,9 +176,10 @@ func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
 	if p.Id <= 0 || !p.isValid() {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
+	p.BarCode = strings.Trim(p.BarCode, " ")
 
 	// Check that the format for EAN13 barcodes is correct
-	if len(strings.Trim(p.BarCode, " ")) == 13 {
+	if len(p.BarCode) == 13 {
 		if !checkEan13(p.BarCode) {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
@@ -493,7 +495,7 @@ func getProductPurchaseOrderDetailsPending(productId int32, enterpriseId int32) 
 
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -590,7 +592,7 @@ func getProductPurchaseOrderDetails(query ProductPurchaseOrderDetailsQuery, ente
 
 	for rows.Next() {
 		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.ProductName)
+		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled, &d.ProductName)
 		details = append(details, d)
 	}
 
@@ -733,7 +735,7 @@ func getProductComplexManufacturingOrders(query ProductManufacturingOrdersQuery,
 }
 
 func (p *Product) generateBarcode(enterpriseId int32) bool {
-	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE enterprise=$1 AND SUBSTRING(barcode,0,5)=$2 ORDER BY barcode DESC LIMIT 1`
+	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE enterprise=$1 AND SUBSTRING(barcode,0,LENGTH($2)+1)=$2 ORDER BY barcode DESC LIMIT 1`
 	row := db.QueryRow(sqlStatement, enterpriseId, getSettingsRecordById(enterpriseId).BarcodePrefix)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
@@ -748,6 +750,7 @@ func (p *Product) generateBarcode(enterpriseId int32) bool {
 
 	code, err := strconv.Atoi(barcode)
 	if err != nil {
+		log("EAN13", err.Error())
 		return false
 	}
 	code++
@@ -764,7 +767,12 @@ func (p *Product) generateBarcode(enterpriseId int32) bool {
 		checkCode += j
 	}
 
-	p.BarCode = barcode + strconv.Itoa(10-(checkCode%10))
+	if 10-(checkCode%10) == 10 {
+		checkCode = 0
+	} else {
+		checkCode = 10 - (checkCode % 10)
+	}
+	p.BarCode = barcode + strconv.Itoa(checkCode)
 	return true
 }
 

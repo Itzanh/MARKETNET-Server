@@ -760,7 +760,8 @@ func getAccountingMovementPurchaseInvoices(movementId int64) []PurchaseInvoice {
 		i := PurchaseInvoice{}
 		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
 			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.SupplierName)
+			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
+			&i.RentPercentage, &i.RentValue, &i.SupplierName)
 		invoices = append(invoices, i)
 	}
 

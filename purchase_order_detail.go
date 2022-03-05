@@ -167,7 +167,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 
 	// add quantity pending receiving
 	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
-	row = db.QueryRow(sqlStatement, s.Order)
+	row = trans.QueryRow(sqlStatement, s.Order)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		if beginTrans {
@@ -484,7 +484,7 @@ func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32, ente
 	json, _ := json.Marshal(s)
 	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
 
-	detailAfter := getPurchaseOrderDetailRow(detailId)
+	detailAfter := getPurchaseOrderDetailRowTransaction(detailId, trans)
 	if detailAfter.Id <= 0 {
 		return false
 	}

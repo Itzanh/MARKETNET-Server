@@ -535,7 +535,7 @@ func getSalesDeliveryNoteShippings(noteId int64) []Shipping {
 
 	for rows.Next() {
 		s := Shipping{}
-		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
+		rows.Scan(&s.Id, &s.Order, &s.DeliveryNote, &s.DeliveryAddress, &s.DateCreated, &s.DateSent, &s.Sent, &s.Collected, &s.National, &s.ShippingNumber, &s.TrackingNumber, &s.Carrier, &s.Weight, &s.PackagesNumber, &s.Incoterm, &s.CarrierNotes, &s.Description, &s.enterprise, &s.Delivered, &s.CustomerName, &s.SaleOrderName, &s.CarrierName)
 		shippings = append(shippings, s)
 	}
 

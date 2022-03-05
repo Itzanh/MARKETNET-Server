@@ -43,7 +43,12 @@ func TestWarehouseInsertUpdateDelete(t *testing.T) {
 
 	// update
 	warehouses := getWarehouses(1)
-	w = warehouses[len(warehouses)-1]
+	for i := 0; i < len(warehouses); i++ {
+		if warehouses[i].Id == w.Id {
+			w = warehouses[i]
+			break
+		}
+	}
 
 	w.Name = "Test test"
 	ok = w.updateWarehouse()
@@ -54,7 +59,12 @@ func TestWarehouseInsertUpdateDelete(t *testing.T) {
 
 	// check update
 	warehouses = getWarehouses(1)
-	w = warehouses[len(warehouses)-1]
+	for i := 0; i < len(warehouses); i++ {
+		if warehouses[i].Id == w.Id {
+			w = warehouses[i]
+			break
+		}
+	}
 
 	if w.Name != "Test test" {
 		t.Error("Update error, warehouse not successfully updated")
@@ -191,7 +201,12 @@ func TestCreateStockRow(t *testing.T) {
 		return
 	}
 	warehouses := getWarehouses(1)
-	w = warehouses[len(warehouses)-1]
+	for i := 0; i < len(warehouses); i++ {
+		if warehouses[i].Id == w.Id {
+			w = warehouses[i]
+			break
+		}
+	}
 
 	///
 	trans, transErr := db.Begin()
@@ -670,7 +685,12 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	}
 	w.insertWarehouse()
 	warehouses := getWarehouses(1)
-	w = warehouses[len(warehouses)-1]
+	for i := 0; i < len(warehouses); i++ {
+		if warehouses[i].Id == w.Id {
+			w = warehouses[i]
+			break
+		}
+	}
 
 	// test warehouse movements
 	// create an input movement
