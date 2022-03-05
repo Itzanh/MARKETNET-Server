@@ -73,7 +73,7 @@ func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
 	sqlStatement := ""
 	if search.TrackMinimumStock {
-		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE (name ILIKE $1 AND track_minimum_stock=true) AND (enterprise=$2) ORDER BY id ASC`
+		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE (((name ILIKE $1) OR (barcode = $3)) AND track_minimum_stock=true) AND (enterprise=$2) ORDER BY id ASC`
 	} else {
 		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE ((name ILIKE $1) OR (barcode = $3)) AND (enterprise=$2) ORDER BY id ASC`
 	}

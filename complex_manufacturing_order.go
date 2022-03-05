@@ -118,6 +118,21 @@ func getComplexManufacturingOrderRow(complexManufacturingOrderId int64) ComplexM
 	return c
 }
 
+func getComplexManufacturingOrderRowTransaction(complexManufacturingOrderId int64, trans sql.Tx) ComplexManufacturingOrder {
+	c := ComplexManufacturingOrder{}
+
+	sqlStatement := `SELECT * FROM public.complex_manufacturing_order WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, complexManufacturingOrderId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return c
+	}
+
+	row.Scan(&c.Id, &c.Type, &c.Manufactured, &c.DateManufactured, &c.UserManufactured, &c.enterprise, &c.QuantityPendingManufacture, &c.QuantityManufactured, &c.Warehouse, &c.DateCreated, &c.Uuid, &c.UserCreated, &c.TagPrinted, &c.DateTagPrinted, &c.UserTagPrinted)
+
+	return c
+}
+
 // Specify a negative number to substract
 // DOES NOT OPEN A TRANSACTION
 func addQuantityPendingManufactureComplexManufacturingOrder(complexManufacturingOrderId int64, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) bool {
@@ -312,7 +327,10 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 
 	var complexManufacturingOrderId int64
 	row.Scan(&complexManufacturingOrderId)
-	complexManufacturingOrder := getComplexManufacturingOrderRow(complexManufacturingOrderId)
+	if complexManufacturingOrderId <= 0 {
+		return false, nil
+	}
+	complexManufacturingOrder := getComplexManufacturingOrderRowTransaction(complexManufacturingOrderId, *trans)
 
 	insertTransactionalLog(c.enterprise, "complex_manufacturing_order", int(complexManufacturingOrderId), userId, "I")
 
@@ -330,11 +348,11 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 			return false, nil
 		}
 
-		stock := getStockRow(manufacturingOrderTypeComponent.Product, complexManufacturingOrder.Warehouse, c.enterprise)
+		stock := getStockRow(manufacturingOrderTypeComponent.Product, c.Warehouse, c.enterprise)
 		if stock.QuantityAvaiable >= manufacturingOrderTypeComponent.Quantity {
 			// there is stock for the manufacturing, we make a manufacturing order to reserve the stock
 			wm := WarehouseMovement{
-				Warehouse:  complexManufacturingOrder.Warehouse,
+				Warehouse:  c.Warehouse,
 				Product:    manufacturingOrderTypeComponent.Product,
 				Quantity:   manufacturingOrderTypeComponent.Quantity,
 				Type:       "O",
@@ -448,7 +466,7 @@ func (c *ComplexManufacturingOrder) insertComplexManufacturingOrder(userId int32
 								Product:    manufacturingOrderTypeComponent.Product,
 								Type:       manufacturingOrderTypeComponent.ManufacturingOrderType,
 								enterprise: complexManufacturingOrder.enterprise,
-								Warehouse:  complexManufacturingOrder.Warehouse,
+								Warehouse:  c.Warehouse,
 								complex:    true,
 							}
 							mo.insertManufacturingOrder(userId, trans)
@@ -852,8 +870,8 @@ func (c *ComplexManufacturingOrderManufacturingOrder) insertComplexManufacturing
 		return addQuantityManufacturedComplexManufacturingOrder(c.ComplexManufacturingOrder, 1, c.enterprise, userId, trans)
 	}
 	if ok {
-		order := getComplexManufacturingOrderRow(c.ComplexManufacturingOrder)
-		com := getManufacturingOrderTypeComponentRow(c.ManufacturingOrderTypeComponent)
+		order := getComplexManufacturingOrderRowTransaction(c.ComplexManufacturingOrder, trans)
+		com := getManufacturingOrderTypeComponentRowTransaction(c.ManufacturingOrderTypeComponent, trans)
 		return addQuantityPendingManufacture(c.Product, order.Warehouse, com.Quantity, c.enterprise, trans)
 	}
 	return ok

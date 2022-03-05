@@ -1,5 +1,7 @@
 package main
 
+import "database/sql"
+
 type ManufacturingOrderTypeComponents struct {
 	Id                     int32  `json:"id"`
 	ManufacturingOrderType int32  `json:"manufacturingOrderType"`
@@ -39,6 +41,20 @@ func getManufacturingOrderTypeComponentRow(manfuacturingOrderTypeId int32) Manuf
 
 	sqlStatement := `SELECT * FROM manufacturing_order_type_components WHERE id=$1`
 	row := db.QueryRow(sqlStatement, manfuacturingOrderTypeId)
+	if row.Err() != nil {
+		log("DB", row.Err().Error())
+		return c
+	}
+
+	row.Scan(&c.Id, &c.ManufacturingOrderType, &c.Type, &c.Product, &c.Quantity, &c.enterprise)
+	return c
+}
+
+func getManufacturingOrderTypeComponentRowTransaction(manfuacturingOrderTypeId int32, trans sql.Tx) ManufacturingOrderTypeComponents {
+	c := ManufacturingOrderTypeComponents{}
+
+	sqlStatement := `SELECT * FROM manufacturing_order_type_components WHERE id=$1`
+	row := trans.QueryRow(sqlStatement, manfuacturingOrderTypeId)
 	if row.Err() != nil {
 		log("DB", row.Err().Error())
 		return c

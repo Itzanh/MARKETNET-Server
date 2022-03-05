@@ -1,6 +1,8 @@
 package main
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Stock struct {
 	Product                    int32  `json:"product"`
@@ -144,12 +146,7 @@ func addQuantityPendingManufacture(productId int32, warehouseId string, quantity
 		}
 	}
 
-	ok := setQuantityAvailable(productId, warehouseId, enterpriseId, trans)
-	if !ok {
-		return false
-	}
-
-	return err == nil
+	return setQuantityAvailable(productId, warehouseId, enterpriseId, trans)
 }
 
 // Add an amount to the stock column on the stock row for this product.
