@@ -643,6 +643,21 @@ func TestGetNameProduct(t *testing.T) {
 	}
 }
 
+func TestGetProductsByManufacturingOrderType(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	p := getProductsByManufacturingOrderType(1, 1)
+
+	for i := 0; i < len(p); i++ {
+		if p[i].Id <= 0 {
+			t.Error("Scan error, products with ID 0.")
+			return
+		}
+	}
+}
+
 /* INSERT - UPDATE - DELETE */
 
 func TestProductInsertUpdateDelete(t *testing.T) {

@@ -1195,7 +1195,7 @@ func getProductsByManufacturingOrderType(manufacturingOrderTypeId int32, enterpr
 
 	for rows.Next() {
 		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.FamilyName)
+		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.OriginCountry, &p.HSCode, &p.CostPrice, &p.FamilyName)
 		products = append(products, p)
 	}
 

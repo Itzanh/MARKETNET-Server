@@ -432,10 +432,12 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	///
-	err = trans.Commit()
+	if beginTransaction {
+		///
+		err = trans.Commit()
+		///
+	}
 	return OkAndErrorCodeReturn{Ok: err == nil}
-	///
 }
 
 // Adds quantity to the field to prevent from other sale orders to use the quantity that is already reserved for order that are already waiting a purchase order.
