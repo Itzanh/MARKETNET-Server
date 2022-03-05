@@ -606,7 +606,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Manufacturing {
 			return
 		}
-		var complexManufacturingPaginationQuery ComplexManufacturingPaginationQuery
+		var complexManufacturingPaginationQuery ManufacturingPaginationQuery
 		json.Unmarshal([]byte(message), &complexManufacturingPaginationQuery)
 		data, _ = json.Marshal(complexManufacturingPaginationQuery.getComplexManufacturingOrder(enterpriseId))
 	case "CONNECTION_LOG":

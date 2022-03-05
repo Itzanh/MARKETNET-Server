@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,18 +30,13 @@ type ComplexManufacturingOrder struct {
 	enterprise                 int32
 }
 
-type ComplexManufacturingPaginationQuery struct {
-	PaginationQuery
-	OrderTypeId int32 `json:"orderTypeId"`
-}
-
 type ComplexManufacturingOrders struct {
 	Rows                       int64                       `json:"rows"`
 	ComplexManufacturingOrders []ComplexManufacturingOrder `json:"complexManufacturingOrder"`
 }
 
-func (q *ComplexManufacturingPaginationQuery) getComplexManufacturingOrder(enterpriseId int32) ComplexManufacturingOrders {
-	if q.OrderTypeId == 0 {
+func (q *ManufacturingPaginationQuery) getComplexManufacturingOrder(enterpriseId int32) ComplexManufacturingOrders {
+	if q.isDefault() {
 		return (q.PaginationQuery).getAllComplexManufacturingOrders(enterpriseId)
 	} else {
 		return q.getComplexManufacturingOrdersByType(enterpriseId)
@@ -75,11 +71,35 @@ func (q *PaginationQuery) getAllComplexManufacturingOrders(enterpriseId int32) C
 	return mo
 }
 
-func (q *ComplexManufacturingPaginationQuery) getComplexManufacturingOrdersByType(enterpriseId int32) ComplexManufacturingOrders {
+func (q *ManufacturingPaginationQuery) getComplexManufacturingOrdersByType(enterpriseId int32) ComplexManufacturingOrders {
 	mo := ComplexManufacturingOrders{}
 	mo.ComplexManufacturingOrders = make([]ComplexManufacturingOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_tag_printed) FROM public.complex_manufacturing_order WHERE type=$1 AND enterprise=$4 ORDER BY date_created DESC OFFSET $2 LIMIT $3`
-	rows, err := db.Query(sqlStatement, q.OrderTypeId, q.Offset, q.Limit, enterpriseId)
+
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, q.Offset)
+	interfaces = append(interfaces, q.Limit)
+	interfaces = append(interfaces, enterpriseId)
+
+	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_tag_printed) FROM public.complex_manufacturing_order WHERE enterprise=$3`
+	if q.OrderTypeId != 0 {
+		sqlStatement += ` AND type=$` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, q.OrderTypeId)
+	}
+	if q.DateStart != nil {
+		sqlStatement += ` AND date_created>=$` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, q.DateStart)
+	}
+	if q.DateEnd != nil {
+		sqlStatement += ` AND date_created<=$` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, q.DateEnd)
+	}
+	if q.Status == "M" {
+		sqlStatement += ` AND manufactured=true`
+	} else if q.Status == "N" {
+		sqlStatement += ` AND manufactured=false`
+	}
+	sqlStatement += ` ORDER BY date_created DESC OFFSET $1 LIMIT $2`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return mo
