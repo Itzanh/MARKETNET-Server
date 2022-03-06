@@ -945,8 +945,15 @@ func calculateMinimumStock(enterpriseId int32, userId int32) bool {
 	///
 }
 
-func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseId int32) bool {
-	s := getSettingsRecordById(enterpriseId)
+type GenerateManufacturingOrPurchaseOrdersMinimumStock struct {
+	Warehouse string `json:"warehouse"`
+}
+
+func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseId int32) bool {
+	if len(g.Warehouse) == 0 {
+		s := getSettingsRecordById(enterpriseId)
+		g.Warehouse = s.DefaultWarehouse
+	}
 	var generadedPurchaseOrders map[int32]PurchaseOrder = make(map[int32]PurchaseOrder) // Key: supplier ID, Value: generated purchase order
 
 	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2) AND product.enterprise=$1 AND off=false`
@@ -981,6 +988,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
 				o.UserCreated = userId
 				o.enterprise = enterpriseId
+				o.Warehouse = g.Warehouse
 				ok := o.insertManufacturingOrder(userId, trans).Ok
 				if !ok {
 					trans.Rollback()
@@ -995,7 +1003,7 @@ func generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseI
 					continue
 				}
 				p := PurchaseOrder{}
-				p.Warehouse = s.DefaultWarehouse
+				p.Warehouse = g.Warehouse
 				p.Supplier = *supplier
 				p.BillingSeries = *d.BillingSeries
 				p.Currency = *d.Currency

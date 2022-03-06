@@ -62,6 +62,11 @@ func (n PurchaseNeeds) Less(i, j int) bool {
 	return n[i].supplier.Id < n[j].supplier.Id
 }
 
+type PurchaseNeedsData struct {
+	Needs     []PurchaseNeed `json:"needs"`
+	Warehouse string         `json:"warehouse"`
+}
+
 // returns:
 // ok
 // error code:
@@ -74,9 +79,13 @@ func (n PurchaseNeeds) Less(i, j int) bool {
 // 6 = the supplier does not have a main shipping address
 // 7 = the supplier does not have a payment method
 // 8 = the supplier does not have a billing series
-func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, userId int32) (bool, uint8) {
+func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, userId int32) (bool, uint8) {
+	var needs []PurchaseNeed = n.Needs
 	if len(needs) == 0 {
 		return false, 1
+	}
+	if len(n.Warehouse) == 0 {
+		n.Warehouse = getPurchaseOrderDefaults(enterpriseId).Warehouse
 	}
 
 	///
@@ -147,7 +156,7 @@ func generatePurchaseOrdersFromNeeds(needs []PurchaseNeed, enterpriseId int32, u
 			o.ShippingAddress = *supplierNeeds[0].supplier.MainShippingAddress
 			o.PaymentMethod = *supplierNeeds[0].supplier.PaymentMethod
 			o.BillingSeries = *supplierNeeds[0].supplier.BillingSeries
-			o.Warehouse = getPurchaseOrderDefaults(enterpriseId).Warehouse
+			o.Warehouse = n.Warehouse
 			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
 			o.enterprise = enterpriseId
 			ok, orderId := o.insertPurchaseOrder(userId, trans)

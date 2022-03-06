@@ -935,7 +935,8 @@ func TestGenerateManufacturingOrPurchaseOrdersMinimumStock(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	ok := generateManufacturingOrPurchaseOrdersMinimumStock(1, 1)
+	g := GenerateManufacturingOrPurchaseOrdersMinimumStock{}
+	ok := g.generateManufacturingOrPurchaseOrdersMinimumStock(1, 1)
 	if !ok {
 		t.Error("Could not generate manufacturing or purchase orders to cover minumum stock")
 		return

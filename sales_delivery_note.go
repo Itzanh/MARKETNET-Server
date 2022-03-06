@@ -459,22 +459,22 @@ type SalesDeliveryNoteLocate struct {
 }
 
 func locateSalesDeliveryNotesBySalesOrder(orderId int64, enterpriseId int32) []SalesDeliveryNoteLocate {
-	var products []SalesDeliveryNoteLocate = make([]SalesDeliveryNoteLocate, 0)
-	sqlStatement := `SELECT DISTINCT sales_delivery_note.id,(SELECT name FROM customer WHERE id=sales_delivery_note.customer),sales_delivery_note.date_created,sales_delivery_note.delivery_note_name FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = $1 AND sales_delivery_note = $2`
+	var deliveryNotes []SalesDeliveryNoteLocate = make([]SalesDeliveryNoteLocate, 0)
+	sqlStatement := `SELECT DISTINCT sales_delivery_note.id,(SELECT name FROM customer WHERE id=sales_delivery_note.customer),sales_delivery_note.date_created,sales_delivery_note.delivery_note_name FROM sales_order_detail INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail = sales_order_detail.id INNER JOIN sales_delivery_note ON warehouse_movement.sales_delivery_note = sales_delivery_note.id WHERE sales_order_detail."order" = $1 AND sales_delivery_note.enterprise = $2`
 	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
-		return products
+		return deliveryNotes
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		p := SalesDeliveryNoteLocate{}
 		rows.Scan(&p.Id, &p.CustomerName, &p.DateCreated, &p.DeliveryNoteName)
-		products = append(products, p)
+		deliveryNotes = append(deliveryNotes, p)
 	}
 
-	return products
+	return deliveryNotes
 }
 
 func getNameSalesDeliveryNote(id int64, enterpriseId int32) string {

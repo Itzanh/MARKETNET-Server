@@ -2825,9 +2825,9 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Purchases {
 			return
 		}
-		var needs []PurchaseNeed
+		var needs PurchaseNeedsData
 		json.Unmarshal([]byte(message), &needs)
-		ok, errorCode := generatePurchaseOrdersFromNeeds(needs, enterpriseId, userId)
+		ok, errorCode := needs.generatePurchaseOrdersFromNeeds(enterpriseId, userId)
 		ret := OkAndErrorCodeReturn{
 			Ok:       ok,
 			ErorCode: errorCode,
@@ -2969,7 +2969,9 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Masters {
 			return
 		}
-		data, _ = json.Marshal(generateManufacturingOrPurchaseOrdersMinimumStock(userId, enterpriseId))
+		var g GenerateManufacturingOrPurchaseOrdersMinimumStock
+		json.Unmarshal([]byte(message), &g)
+		data, _ = json.Marshal(g.generateManufacturingOrPurchaseOrdersMinimumStock(userId, enterpriseId))
 	case "SALES_POST_INVOICES":
 		if !permissions.Accounting {
 			return
