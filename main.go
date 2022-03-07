@@ -3278,7 +3278,9 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Preparation {
 			return
 		}
-		data, _ = json.Marshal(searchShippings(message, enterpriseId))
+		var search SearchShippings
+		json.Unmarshal([]byte(message), &search)
+		data, _ = json.Marshal(search.searchShippings(enterpriseId))
 	case "SALES_ORDER":
 		if !permissions.Sales {
 			return

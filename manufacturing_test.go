@@ -407,6 +407,122 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	}
 }
 
+func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	family := int32(1)
+	manufacturingOrderType := int32(1)
+
+	p := Product{
+		Name:                   "Glass Office Desk",
+		Reference:              "OF-DSK",
+		BarCode:                "1234067891236",
+		ControlStock:           true,
+		Weight:                 30,
+		Family:                 &family,
+		Width:                  160,
+		Height:                 100,
+		Depth:                  40,
+		VatPercent:             21,
+		Price:                  65,
+		Manufacturing:          true,
+		ManufacturingOrderType: &manufacturingOrderType,
+		TrackMinimumStock:      true,
+		enterprise:             1,
+	}
+
+	okAndErr := p.insertProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Insert error, could not insert product", okAndErr.ErorCode)
+		return
+	}
+
+	products := getProduct(1)
+	p = products[len(products)-1]
+
+	// creare manufacturing order
+	mo := ManufacturingOrder{
+		Product:     p.Id,
+		UserCreated: 1,
+		complex:     false,
+		enterprise:  1,
+	}
+	okAndErr = mo.insertManufacturingOrder(0, nil)
+	if !okAndErr.Ok {
+		t.Error("Insert error, could not insert manufacturing order", okAndErr.ErorCode)
+		return
+	}
+
+	// create sale order
+	o := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		Description:     "",
+		Notes:           "",
+		enterprise:      1,
+	}
+
+	_, orderId := o.insertSalesOrder(0)
+
+	d := SalesOrderDetail{
+		Order:      orderId,
+		Product:    p.Id,
+		Price:      9.99,
+		Quantity:   1,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	d.insertSalesOrderDetail(0)
+
+	invoiceAllSaleOrder(orderId, 1, 0)
+
+	// has the order associated with the manufacturing order
+	details := getSalesOrderDetail(orderId, 1)
+	if details[0].Status != "D" {
+		t.Error("Error status ", details[0].Status)
+		return
+	}
+	mo = getManufacturingOrderRow(mo.Id)
+	if mo.OrderDetail == nil {
+		t.Error("Order not associated")
+		return
+	}
+
+	// delete manufacturing order
+	ok := mo.deleteManufacturingOrder(1, nil)
+	if !ok {
+		t.Error("Delete error, could not delete manufacturing order")
+		return
+	}
+
+	// delete created sale invoice
+	r := getSalesOrderRelations(orderId, 1)
+	r.Invoices[0].deleteSalesInvoice(0)
+
+	// delete created order
+	details = getSalesOrderDetail(orderId, 1)
+	details[0].enterprise = 1
+	details[0].deleteSalesOrderDetail(0, nil)
+	o.Id = orderId
+	o.enterprise = 1
+	o.deleteSalesOrder(0)
+
+	// delete product
+	okAndErr = p.deleteProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Delete error, could not delete product", okAndErr.ErorCode, okAndErr.ExtraData)
+		return
+	}
+}
+
 // ===== MANUFACTURING ORDER TYPE
 
 /* GET */

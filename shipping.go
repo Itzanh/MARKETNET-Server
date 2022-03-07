@@ -51,17 +51,43 @@ func getShippings(enterpriseId int32) []Shipping {
 	return shippings
 }
 
-func searchShippings(search string, enterpriseId int32) []Shipping {
+type SearchShippings struct {
+	Search    string     `json:"search"`
+	DateStart *time.Time `json:"dateStart"`
+	DateEnd   *time.Time `json:"dateEnd"`
+	Status    string     `json:"status"` // "" = All, "S" = Shipped, "N" = Not shipped
+}
+
+func (s *SearchShippings) searchShippings(enterpriseId int32) []Shipping {
 	var shippings []Shipping = make([]Shipping, 0)
-	var rows *sql.Rows
-	orderNumber, err := strconv.Atoi(search)
+	var sqlStatement string
+
+	var interfaces []interface{} = make([]interface{}, 0)
+	orderNumber, err := strconv.Atoi(s.Search)
+
 	if err == nil {
-		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON sales_order.id=shipping."order" WHERE sales_order.order_number=$1 AND shipping.enterorise=$2 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, orderNumber, enterpriseId)
+		sqlStatement = `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON sales_order.id=shipping."order" WHERE sales_order.order_number=$1 AND shipping.enterorise=$2`
+		interfaces = append(interfaces, orderNumber)
 	} else {
-		sqlStatement := `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON shipping."order"=sales_order.id INNER JOIN customer ON customer.id=sales_order.customer WHERE (customer.name ILIKE $1) AND (shipping.enterprise=$2) ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, "%"+search+"%", enterpriseId)
+		sqlStatement = `SELECT shipping.*,(SELECT name FROM customer WHERE id=(SELECT customer FROM sales_order WHERE id=shipping."order")),(SELECT order_name FROM sales_order WHERE id=shipping."order"),(SELECT name FROM carrier WHERE id=shipping.carrier),(SELECT webservice FROM carrier WHERE id=shipping.carrier) FROM shipping INNER JOIN sales_order ON shipping."order"=sales_order.id INNER JOIN customer ON customer.id=sales_order.customer WHERE (customer.name ILIKE $1) AND (shipping.enterprise=$2)`
+		interfaces = append(interfaces, "%"+s.Search+"%")
 	}
+	interfaces = append(interfaces, enterpriseId)
+	if s.DateStart != nil {
+		sqlStatement += ` AND date_created>=$` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, s.DateStart)
+	}
+	if s.DateEnd != nil {
+		sqlStatement += ` AND date_created<=$` + strconv.Itoa(len(interfaces)+1)
+		interfaces = append(interfaces, s.DateEnd)
+	}
+	if s.Status == "S" {
+		sqlStatement += ` AND sent=true`
+	} else if s.Status == "N" {
+		sqlStatement += ` AND sent=false`
+	}
+	sqlStatement += ` ORDER BY id DESC`
+	rows, err := db.Query(sqlStatement, interfaces...)
 	if err != nil {
 		log("DB", err.Error())
 		return shippings
