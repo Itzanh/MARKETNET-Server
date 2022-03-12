@@ -64,7 +64,7 @@ func (q *TransferBetweenWarehousesQuery) searchTransferBetweenWarehouses() []Tra
 	return transfers
 }
 
-func getTransferBetweenWarehouses(transferBetweenWarehousesId int64) TransferBetweenWarehouses {
+func getTransferBetweenWarehousesRow(transferBetweenWarehousesId int64) TransferBetweenWarehouses {
 	sqlStatement := `SELECT * FROM public.transfer_between_warehouses WHERE id = $1 LIMIT 1`
 	row := db.QueryRow(sqlStatement, transferBetweenWarehousesId)
 	if row.Err() != nil {
@@ -99,7 +99,7 @@ func (t *TransferBetweenWarehouses) deleteTransferBetweenWarehouses() bool {
 		return false
 	}
 
-	details := getTransferBetweenWarehousesDetail(t.Id, t.enterprise)
+	details := getTransferBetweenWarehousesDetails(t.Id, t.enterprise)
 	for i := 0; i < len(details); i++ {
 		if details[i].QuantityTransfered > 0 {
 			return false
@@ -148,7 +148,7 @@ type TransferBetweenWarehousesDetail struct {
 	enterprise                int32
 }
 
-func getTransferBetweenWarehousesDetail(transferBetweenWarehousesId int64, enterpriseId int32) []TransferBetweenWarehousesDetail {
+func getTransferBetweenWarehousesDetails(transferBetweenWarehousesId int64, enterpriseId int32) []TransferBetweenWarehousesDetail {
 	var details []TransferBetweenWarehousesDetail = make([]TransferBetweenWarehousesDetail, 0)
 
 	sqlStatement := `SELECT *,(SELECT reference FROM product WHERE product.id = transfer_between_warehouses_detail.product),(SELECT name FROM product WHERE product.id = transfer_between_warehouses_detail.product) FROM public.transfer_between_warehouses_detail WHERE transfer_between_warehouses = $1 AND enterprise = $2 ORDER BY product ASC, id ASC`
@@ -197,7 +197,7 @@ func (d *TransferBetweenWarehousesDetail) insertTransferBetweenWarehousesDetail(
 	}
 	///
 
-	transfer := getTransferBetweenWarehouses(d.TransferBetweenWarehouses)
+	transfer := getTransferBetweenWarehousesRow(d.TransferBetweenWarehouses)
 	if transfer.Id <= 0 || transfer.enterprise != d.enterprise || transfer.Finished {
 		return false
 	}
@@ -329,7 +329,7 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 			return false
 		}
 
-		transfer := getTransferBetweenWarehouses(detail.TransferBetweenWarehouses)
+		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehouses)
 		wmOut := WarehouseMovement{
 			Warehouse:  transfer.WarehouseOrigin,
 			Product:    detail.Product,
@@ -395,24 +395,24 @@ func (q *TransferBetweenWarehousesDetailQuantityQuery) transferBetweenWarehouses
 	}
 	///
 
-	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=quantity_transferred+1, finished=(quantity_transferred+1)=quantity WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, detail.Id)
+	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=quantity_transferred+$2, finished=(quantity_transferred+$2)=quantity WHERE id=$1`
+	_, err := trans.Exec(sqlStatement, detail.Id, q.Quantity)
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
 		return false
 	}
 
-	if detail.Quantity == detail.QuantityTransfered+1 {
-		sqlStatement := `UPDATE public.transfer_between_warehouses SET date_finished=CASE WHEN (lines_transfered+1=lines_total) THEN CURRENT_TIMESTAMP(3) ELSE NULL END, finished=lines_transfered+1=lines_total, lines_transfered=lines_transfered+1 WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, detail.TransferBetweenWarehouses)
+	if detail.Quantity == detail.QuantityTransfered+q.Quantity {
+		sqlStatement := `UPDATE public.transfer_between_warehouses SET date_finished=CASE WHEN (lines_transfered+$2=lines_total) THEN CURRENT_TIMESTAMP(3) ELSE NULL END, finished=lines_transfered+1=lines_total, lines_transfered=lines_transfered+$2 WHERE id=$1`
+		_, err = trans.Exec(sqlStatement, detail.TransferBetweenWarehouses, q.Quantity)
 		if err != nil {
 			log("DB", err.Error())
 			trans.Rollback()
 			return false
 		}
 
-		transfer := getTransferBetweenWarehouses(detail.TransferBetweenWarehouses)
+		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehouses)
 		wmOut := WarehouseMovement{
 			Warehouse:  transfer.WarehouseOrigin,
 			Product:    detail.Product,
@@ -458,12 +458,12 @@ func getTransferBetweenWarehousesWarehouseMovements(transferBetweenWarehousesId 
 		return movements
 	}
 
-	transfer := getTransferBetweenWarehouses(transferBetweenWarehousesId)
+	transfer := getTransferBetweenWarehousesRow(transferBetweenWarehousesId)
 	if transfer.Id <= 0 || transfer.enterprise != enterpriseId {
 		return movements
 	}
 
-	details := getTransferBetweenWarehousesDetail(transferBetweenWarehousesId, enterpriseId)
+	details := getTransferBetweenWarehousesDetails(transferBetweenWarehousesId, enterpriseId)
 	for i := 0; i < len(details); i++ {
 		if details[i].WarehouseMovementOut != nil {
 			m := getWarehouseMovementRow(*details[i].WarehouseMovementOut)

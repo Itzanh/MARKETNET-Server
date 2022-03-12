@@ -265,7 +265,7 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 
 	okAndErr := p.insertProduct(0)
 	if !okAndErr.Ok {
-		t.Error("Insert error, could not insert product", okAndErr.ErorCode)
+		t.Error("Insert error, could not insert product", okAndErr.ErrorCode)
 		return
 	}
 
@@ -435,7 +435,7 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 
 	okAndErr := p.insertProduct(0)
 	if !okAndErr.Ok {
-		t.Error("Insert error, could not insert product", okAndErr.ErorCode)
+		t.Error("Insert error, could not insert product", okAndErr.ErrorCode)
 		return
 	}
 
@@ -451,7 +451,7 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 	}
 	okAndErr = mo.insertManufacturingOrder(0, nil)
 	if !okAndErr.Ok {
-		t.Error("Insert error, could not insert manufacturing order", okAndErr.ErorCode)
+		t.Error("Insert error, could not insert manufacturing order", okAndErr.ErrorCode)
 		return
 	}
 
@@ -518,7 +518,7 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 	// delete product
 	okAndErr = p.deleteProduct(0)
 	if !okAndErr.Ok {
-		t.Error("Delete error, could not delete product", okAndErr.ErorCode, okAndErr.ExtraData)
+		t.Error("Delete error, could not delete product", okAndErr.ErrorCode, okAndErr.ExtraData)
 		return
 	}
 }

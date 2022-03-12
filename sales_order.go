@@ -366,11 +366,11 @@ func (s *SaleOrder) deleteSalesOrder(userId int32) OkAndErrorCodeReturn {
 	for i := 0; i < len(d); i++ {
 		if d[i].QuantityInvoiced > 0 {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 		if d[i].QuantityDeliveryNote > 0 {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 		}
 	}
 
@@ -380,7 +380,7 @@ func (s *SaleOrder) deleteSalesOrder(userId int32) OkAndErrorCodeReturn {
 		ok := d[i].deleteSalesOrderDetail(userId, trans)
 		if !ok.Ok {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{strconv.Itoa(int(ok.ErorCode)), d[i].ProductName}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{strconv.Itoa(int(ok.ErrorCode)), d[i].ProductName}}
 		}
 	}
 

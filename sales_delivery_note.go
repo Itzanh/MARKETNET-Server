@@ -252,7 +252,7 @@ func (n *SalesDeliveryNote) deleteSalesDeliveryNotes(userId int32, trans *sql.Tx
 	shipping := getSalesDeliveryNoteShippings(n.Id)
 	if len(shipping) > 1 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	d := getWarehouseMovementBySalesDeliveryNote(n.Id, n.enterprise)
@@ -302,12 +302,12 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	if saleOrder.DeliveryNoteLines >= saleOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}, 0
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}, 0
 	}
 	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
 	filterSalesOrderDetails(orderDetails, func(sod SalesOrderDetail) bool { return sod.QuantityDeliveryNote < sod.Quantity })
 	if len(orderDetails) == 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}, 0
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}, 0
 	}
 
 	// create a delivery note for that order
@@ -379,7 +379,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.DeliveryNoteLines >= saleOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
@@ -390,15 +390,15 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 		}
 		if noteInfo.Selection[i].Quantity > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{product.Name}}
 		}
 		if orderDetail.QuantityDeliveryNote >= orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{product.Name}}
 		}
 		if (noteInfo.Selection[i].Quantity + orderDetail.QuantityDeliveryNote) > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 4, ExtraData: []string{product.Name}}
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)
 	}

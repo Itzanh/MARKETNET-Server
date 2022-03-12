@@ -157,7 +157,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeRe
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if p.Off {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
@@ -174,7 +174,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	var countProductInSaleOrder int16
 	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	///
@@ -248,7 +248,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if p.Off {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// the product and sale order are unique, there can't exist another detail for the same product in the same order
@@ -262,7 +262,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	var countProductInSaleOrder int16
 	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 { // we are not counting this existing detail
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	inMemoryDetail := getSalesOrderDetailRow(s.Id)
@@ -270,7 +270,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if inMemoryDetail.QuantityInvoiced > 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 	}
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
@@ -355,11 +355,11 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) O
 	}
 	if detailInMemory.QuantityInvoiced > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 	if detailInMemory.QuantityDeliveryNote > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// check for complex_manufacturing_order_manufacturing_order
@@ -376,7 +376,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) O
 
 	if complexManufacturingOrderManufacturingOrderRows > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 	}
 
 	// check for manufacturing_order
@@ -393,7 +393,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) O
 
 	if manufacturingOrderRows > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 4}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 4}
 	}
 
 	// check for sales_order_detail_digital_product_data
@@ -410,7 +410,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) O
 
 	if salesOrderDetailDigitalProductDataRows > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 5}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 5}
 	}
 
 	// check for sales_order_detail_packaged
@@ -427,7 +427,7 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *sql.Tx) O
 
 	if salesOrderDetailPackagedRows > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 6}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 6}
 	}
 
 	insertTransactionalLog(s.enterprise, "sales_order_detail", int(s.Id), userId, "D")

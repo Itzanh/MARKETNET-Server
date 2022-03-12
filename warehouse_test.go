@@ -1163,3 +1163,809 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	p.deleteProduct(0)
 	w.deleteWarehouse()
 }
+
+// ===== INVENTORY
+
+/* GET */
+
+func TestGetInventories(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	inventories := getInventories(1)
+	if len(inventories) > 0 && inventories[0].Id <= 0 {
+		t.Error("Can't scan inventories")
+		return
+	}
+}
+
+func TestHetInventoryRow(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	inventory := getInventoryRow(1)
+	if inventory.Id <= 0 {
+		t.Error("Can't scan inventory row")
+		return
+	}
+}
+
+func TestGetInventoryProducts(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	inventoryProducts := getInventoryProducts(1, 1)
+	if len(inventoryProducts) > 0 && inventoryProducts[0].Inventory <= 0 {
+		t.Error("Can't scan invenrory products")
+		return
+	}
+}
+
+func TestGetInventoryProductsRow(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	inventoryProducts := getInventoryProducts(1, 1)
+	if len(inventoryProducts) > 0 {
+		row := getInventoryProductsRow(1, inventoryProducts[0].Product, 1)
+		if row.Product <= 0 {
+			t.Error("Can't scan invenrory product row")
+			return
+		}
+	}
+}
+
+/* INSERT - UPDATE - DELETE */
+
+func TestInsertDeleteInventoryAndDetails(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	// insert inventory
+
+	i := Inventory{
+		Name:       "Automatic test inventory",
+		Warehouse:  "W1",
+		enterprise: 1,
+	}
+	ok := i.insertInventory(1)
+	if !ok {
+		t.Error("Can't insert inventory")
+		return
+	}
+
+	inventories := getInventories(1)
+	i = inventories[0]
+
+	// add single product
+	input := InputInventoryProducts{
+		Inventory: i.Id,
+		InventoryProducts: []InventoryProducts{
+			{
+				Product:    1,
+				Inventory:  i.Id,
+				Quantity:   1,
+				enterprise: 1,
+			},
+		},
+	}
+	ok = input.insertUpdateDeleteInventoryProducts(1)
+	if !ok {
+		t.Error("Can't save products", i.Id)
+		return
+	}
+	inventoryProducts := getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) == 0 {
+		t.Error("Can't add products")
+		return
+	}
+
+	// delete a single product
+	input = InputInventoryProducts{
+		Inventory:         i.Id,
+		InventoryProducts: []InventoryProducts{},
+	}
+	ok = input.insertUpdateDeleteInventoryProducts(1)
+	if !ok {
+		t.Error("Can't save products")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) != 0 {
+		t.Error("Can't delete single product")
+		return
+	}
+
+	// add a family
+	input = InputInventoryProducts{
+		Inventory: i.Id,
+		FamilyId:  1,
+	}
+	ok = input.insertProductFamilyInventoryProducts(1)
+	if !ok {
+		t.Error("Can't insert product family")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) == 0 {
+		t.Error("Can't add product family")
+		return
+	}
+
+	// delete all
+	input = InputInventoryProducts{
+		Inventory: i.Id,
+	}
+	ok = input.deleteAllProductsInventoryProducts(1)
+	if !ok {
+		t.Error("Can't delete all")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) != 0 {
+		t.Error("Can't delete all")
+		return
+	}
+
+	// add all
+	input = InputInventoryProducts{
+		Inventory: i.Id,
+	}
+	ok = input.insertAllProductsInventoryProducts(1)
+	if !ok {
+		t.Error("Can't add all")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) == 0 {
+		t.Error("Can't add all")
+		return
+	}
+
+	// delete all
+	input = InputInventoryProducts{
+		Inventory: i.Id,
+	}
+	ok = input.deleteAllProductsInventoryProducts(1)
+	if !ok {
+		t.Error("Can't delete all")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) != 0 {
+		t.Error("Can't delete all")
+		return
+	}
+
+	// delete inventory
+	okAndErr := i.deleteInventory(1)
+	if !okAndErr.Ok {
+		t.Error("Can't delete inventory", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+}
+
+/* FUNCTIONALITY */
+
+func TestInventoryScanBarCode(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	// insert inventory
+
+	i := Inventory{
+		Name:       "Automatic test inventory",
+		Warehouse:  "W1",
+		enterprise: 1,
+	}
+	ok := i.insertInventory(1)
+	if !ok {
+		t.Error("Can't insert inventory")
+		return
+	}
+
+	inventories := getInventories(1)
+	i = inventories[0]
+
+	// add single product
+	input := InputInventoryProducts{
+		Inventory: i.Id,
+		InventoryProducts: []InventoryProducts{
+			{
+				Product:    1,
+				Inventory:  i.Id,
+				Quantity:   0,
+				enterprise: 1,
+			},
+		},
+	}
+	ok = input.insertUpdateDeleteInventoryProducts(1)
+	if !ok {
+		t.Error("Can't save products", i.Id)
+		return
+	}
+	inventoryProducts := getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) == 0 {
+		t.Error("Can't add products")
+		return
+	}
+
+	// test scan barcode
+	product := getProductRow(1)
+	inputBarCode := BarCodeInputInventoryProducts{
+		Inventory: i.Id,
+		BarCode:   product.BarCode,
+	}
+	res := inputBarCode.insertOrCountInventoryProductsByBarcode(1)
+	if !res.Ok {
+		t.Error("Error scanning barcode")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) > 0 && inventoryProducts[0].Quantity != 1 {
+		t.Error("Can't add quantity to products using barcode")
+		return
+	}
+
+	// delete all
+	input = InputInventoryProducts{
+		Inventory: i.Id,
+	}
+	ok = input.deleteAllProductsInventoryProducts(1)
+	if !ok {
+		t.Error("Can't delete all")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) != 0 {
+		t.Error("Can't delete all")
+		return
+	}
+
+	// delete inventory
+	okAndErr := i.deleteInventory(1)
+	if !okAndErr.Ok {
+		t.Error("Can't delete inventory", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+}
+
+func TestInventoryFinish(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	// insert inventory
+
+	i := Inventory{
+		Name:       "Automatic test inventory",
+		Warehouse:  "W1",
+		enterprise: 1,
+	}
+	ok := i.insertInventory(1)
+	if !ok {
+		t.Error("Can't insert inventory")
+		return
+	}
+
+	inventories := getInventories(1)
+	i = inventories[0]
+
+	// create a new product
+
+	family := int32(1)
+	manufacturingOrderType := int32(1)
+
+	p := Product{
+		Name:                   "Glass Office Desk",
+		Reference:              "OF-DSK",
+		BarCode:                "",
+		ControlStock:           true,
+		Weight:                 30,
+		Family:                 &family,
+		Width:                  160,
+		Height:                 100,
+		Depth:                  40,
+		VatPercent:             21,
+		Price:                  65,
+		Manufacturing:          true,
+		ManufacturingOrderType: &manufacturingOrderType,
+		TrackMinimumStock:      true,
+		enterprise:             1,
+	}
+
+	okAndErr := p.insertProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Insert error, could not insert product", okAndErr.ErrorCode)
+		return
+	}
+
+	// add single product
+	input := InputInventoryProducts{
+		Inventory: i.Id,
+		InventoryProducts: []InventoryProducts{
+			{
+				Product:    p.Id,
+				Inventory:  i.Id,
+				Quantity:   15,
+				enterprise: 1,
+			},
+		},
+	}
+	ok = input.insertUpdateDeleteInventoryProducts(1)
+	if !ok {
+		t.Error("Can't save products", i.Id)
+		return
+	}
+	inventoryProducts := getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) == 0 {
+		t.Error("Can't add products")
+		return
+	}
+
+	// finish inventory
+	ok = i.finishInventory(0, 1)
+	if !ok {
+		t.Error("Error finishing inventory")
+		return
+	}
+	stock := getStockRow(p.Id, i.Warehouse, 1)
+	if stock.Quantity != 15 {
+		t.Error("Stock not updated!!!")
+		return
+	}
+
+	// delete all
+	// FORCE DELETE
+	sqlStatement := `UPDATE inventory SET finished = false WHERE id = $1`
+	db.Exec(sqlStatement, i.Id)
+
+	input = InputInventoryProducts{
+		Inventory: i.Id,
+	}
+	ok = input.deleteAllProductsInventoryProducts(1)
+	if !ok {
+		t.Error("Can't delete all")
+		return
+	}
+	inventoryProducts = getInventoryProducts(i.Id, 1)
+	if len(inventoryProducts) != 0 {
+		t.Error("Can't delete all")
+		return
+	}
+
+	// delete inventory
+	okAndErr = i.deleteInventory(1)
+	if !okAndErr.Ok {
+		t.Error("Can't delete inventory", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// delete warehouse movement
+	wm := getProductWarehouseMovement(ProductPurchaseOrderDetailsQuery{
+		ProductId: p.Id,
+	}, 1)
+	if len(wm) > 0 {
+		ok = wm[0].deleteWarehouseMovement(0, nil)
+		if !ok {
+			t.Error("Can't delete warehouse movement")
+			return
+		}
+	}
+
+	// delete product
+	okAndErr = p.deleteProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Delete error, could not delete product", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+}
+
+// ===== TRANSFER BETWEEN WAREHOUSES
+
+/* GET */
+
+func TestSearchTransferBetweenWarehouses(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	q := TransferBetweenWarehousesQuery{
+		enterprise: 1,
+	}
+	transfers := q.searchTransferBetweenWarehouses()
+	if len(transfers) == 0 || transfers[0].Id <= 0 {
+		t.Error("Can't scan transfers")
+		return
+	}
+}
+
+func TestGetTransferBetweenWarehousesRow(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	transfer := getTransferBetweenWarehousesRow(1)
+	if transfer.Id <= 0 {
+		t.Error("Can't scan transfer row")
+		return
+	}
+}
+
+func TestGetTransferBetweenWarehousesDetails(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	details := getTransferBetweenWarehousesDetails(1, 1)
+	if len(details) == 0 || details[0].Id <= 0 {
+		t.Error("Can't scan transfer details")
+		return
+	}
+}
+
+func TestGetTransferBetweenWarehousesDetailRow(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	detail := getTransferBetweenWarehousesDetailRow(1)
+	if detail.Id <= 0 {
+		t.Error("Can't scan transfer row")
+		return
+	}
+}
+
+/* INSERT - UPDATE - DELETE */
+
+func TestInsertDeleteTransferBetweenWarehouses(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	transfer := TransferBetweenWarehouses{
+		WarehouseOrigin:      "W1",
+		WarehouseDestination: "WT",
+		Name:                 "Automatic test",
+		enterprise:           1,
+	}
+	ok := transfer.insertTransferBetweenWarehouses()
+	if !ok {
+		t.Error("Can't insert transfer between warehouses")
+		return
+	}
+
+	q := TransferBetweenWarehousesQuery{
+		enterprise: 1,
+	}
+	transfers := q.searchTransferBetweenWarehouses()
+	transfer = transfers[0]
+
+	d := TransferBetweenWarehousesDetail{
+		TransferBetweenWarehouses: transfer.Id,
+		Product:                   1,
+		Quantity:                  10,
+		enterprise:                1,
+	}
+	ok = d.insertTransferBetweenWarehousesDetail()
+	if !ok {
+		t.Error("Can't insert transfer between warehouses detail")
+		return
+	}
+
+	details := getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	if len(details) == 0 || details[0].Id <= 0 {
+		t.Error("Can't scan transfer details")
+		return
+	}
+	d = details[0]
+
+	ok = d.deleteTransferBetweenWarehousesDetail(nil)
+	if !ok {
+		t.Error("Can't delete transfer between warehouses detail")
+		return
+	}
+
+	// CLEAN UP
+
+	ok = transfer.deleteTransferBetweenWarehouses()
+	if !ok {
+		t.Error("Can't delete transfer between warehouses")
+		return
+	}
+}
+
+/* FUNCTIONALITY */
+
+func TestTransferBetweenWarehousesUsingQuantity(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	family := int32(1)
+	manufacturingOrderType := int32(1)
+
+	p := Product{
+		Name:                   "Glass Office Desk",
+		Reference:              "OF-DSK",
+		ControlStock:           true,
+		Weight:                 30,
+		Family:                 &family,
+		Width:                  160,
+		Height:                 100,
+		Depth:                  40,
+		VatPercent:             21,
+		Price:                  65,
+		Manufacturing:          true,
+		ManufacturingOrderType: &manufacturingOrderType,
+		TrackMinimumStock:      true,
+		enterprise:             1,
+	}
+
+	okAndErr := p.insertProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Insert error, could not insert product", okAndErr.ErrorCode)
+		return
+	}
+
+	products := getProduct(1)
+	p = products[len(products)-1]
+
+	transfer := TransferBetweenWarehouses{
+		WarehouseOrigin:      "W1",
+		WarehouseDestination: "WT",
+		Name:                 "Automatic test",
+		enterprise:           1,
+	}
+	ok := transfer.insertTransferBetweenWarehouses()
+	if !ok {
+		t.Error("Can't insert transfer between warehouses")
+		return
+	}
+
+	q := TransferBetweenWarehousesQuery{
+		enterprise: 1,
+	}
+	transfers := q.searchTransferBetweenWarehouses()
+	transfer = transfers[0]
+
+	d := TransferBetweenWarehousesDetail{
+		TransferBetweenWarehouses: transfer.Id,
+		Product:                   p.Id,
+		Quantity:                  10,
+		enterprise:                1,
+	}
+	ok = d.insertTransferBetweenWarehousesDetail()
+	if !ok {
+		t.Error("Can't insert transfer between warehouses detail")
+		return
+	}
+
+	details := getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	if len(details) == 0 || details[0].Id <= 0 {
+		t.Error("Can't scan transfer details")
+		return
+	}
+	d = details[0]
+
+	// add quantity
+	query := TransferBetweenWarehousesDetailQuantityQuery{
+		TransferBetweenWarehousesDetailId: d.Id,
+		Quantity:                          5,
+	}
+	ok = query.transferBetweenWarehousesDetailQuantity(1, 0)
+	if !ok {
+		t.Error("Can't add quantity transfer between warehouses detail")
+		return
+	}
+
+	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	d = details[0]
+	if d.Finished || d.QuantityTransfered != 5 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+		return
+	}
+
+	// add more quantity
+	query = TransferBetweenWarehousesDetailQuantityQuery{
+		TransferBetweenWarehousesDetailId: d.Id,
+		Quantity:                          5,
+	}
+	ok = query.transferBetweenWarehousesDetailQuantity(1, 0)
+	if !ok {
+		t.Error("Can't add quantity transfer between warehouses detail")
+		return
+	}
+
+	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	d = details[0]
+	if (!d.Finished) || d.QuantityTransfered != 10 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+		return
+	}
+
+	// CLEAN UP
+	// force undo
+	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=0, finished=false, warehouse_movement_out=NULL, warehouse_movement_in=NULL WHERE id=$1`
+	db.Exec(sqlStatement, d.Id)
+
+	ok = d.deleteTransferBetweenWarehousesDetail(nil)
+	if !ok {
+		t.Error("Can't delete transfer between warehouses detail")
+		return
+	}
+
+	ok = transfer.deleteTransferBetweenWarehouses()
+	if !ok {
+		t.Error("Can't delete transfer between warehouses")
+		return
+	}
+
+	// delete warehouse movement
+	wm := getProductWarehouseMovement(ProductPurchaseOrderDetailsQuery{
+		ProductId: p.Id,
+	}, 1)
+	for i := 0; i < len(wm); i++ {
+		ok = wm[i].deleteWarehouseMovement(0, nil)
+		if !ok {
+			t.Error("Can't delete warehouse movement")
+			return
+		}
+	}
+
+	// delete product
+	okAndErr = p.deleteProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Delete error, could not delete product", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+}
+
+func TestTransferBetweenWarehousesUsingBarCode(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	family := int32(1)
+	manufacturingOrderType := int32(1)
+
+	p := Product{
+		Name:                   "Glass Office Desk",
+		Reference:              "OF-DSK",
+		BarCode:                "1234067891236",
+		ControlStock:           true,
+		Weight:                 30,
+		Family:                 &family,
+		Width:                  160,
+		Height:                 100,
+		Depth:                  40,
+		VatPercent:             21,
+		Price:                  65,
+		Manufacturing:          true,
+		ManufacturingOrderType: &manufacturingOrderType,
+		TrackMinimumStock:      true,
+		enterprise:             1,
+	}
+
+	okAndErr := p.insertProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Insert error, could not insert product", okAndErr.ErrorCode)
+		return
+	}
+
+	products := getProduct(1)
+	p = products[len(products)-1]
+
+	transfer := TransferBetweenWarehouses{
+		WarehouseOrigin:      "W1",
+		WarehouseDestination: "WT",
+		Name:                 "Automatic test",
+		enterprise:           1,
+	}
+	ok := transfer.insertTransferBetweenWarehouses()
+	if !ok {
+		t.Error("Can't insert transfer between warehouses")
+		return
+	}
+
+	q := TransferBetweenWarehousesQuery{
+		enterprise: 1,
+	}
+	transfers := q.searchTransferBetweenWarehouses()
+	transfer = transfers[0]
+
+	d := TransferBetweenWarehousesDetail{
+		TransferBetweenWarehouses: transfer.Id,
+		Product:                   p.Id,
+		Quantity:                  2,
+		enterprise:                1,
+	}
+	ok = d.insertTransferBetweenWarehousesDetail()
+	if !ok {
+		t.Error("Can't insert transfer between warehouses detail")
+		return
+	}
+
+	details := getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	if len(details) == 0 || details[0].Id <= 0 {
+		t.Error("Can't scan transfer details")
+		return
+	}
+	d = details[0]
+
+	// add quantity
+	query := TransferBetweenWarehousesDetailBarCodeQuery{
+		TransferBetweenWarehousesId: transfer.Id,
+		BarCode:                     p.BarCode,
+	}
+	ok = query.transferBetweenWarehousesDetailBarCode(1, 0)
+	if !ok {
+		t.Error("Can't add quantity transfer between warehouses detail")
+		return
+	}
+
+	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	d = details[0]
+	if d.Finished || d.QuantityTransfered != 1 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+	}
+
+	// add more quantity
+	query = TransferBetweenWarehousesDetailBarCodeQuery{
+		TransferBetweenWarehousesId: transfer.Id,
+		BarCode:                     p.BarCode,
+	}
+	ok = query.transferBetweenWarehousesDetailBarCode(1, 0)
+	if !ok {
+		t.Error("Can't add quantity transfer between warehouses detail")
+		return
+	}
+
+	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
+	d = details[0]
+	if (!d.Finished) || d.QuantityTransfered != 2 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+	}
+
+	// CLEAN UP
+	// force undo
+	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=0, finished=false, warehouse_movement_out=NULL, warehouse_movement_in=NULL WHERE id=$1`
+	db.Exec(sqlStatement, d.Id)
+
+	ok = d.deleteTransferBetweenWarehousesDetail(nil)
+	if !ok {
+		t.Error("Can't delete transfer between warehouses detail")
+		return
+	}
+
+	ok = transfer.deleteTransferBetweenWarehouses()
+	if !ok {
+		t.Error("Can't delete transfer between warehouses")
+		return
+	}
+
+	// delete warehouse movement
+	wm := getProductWarehouseMovement(ProductPurchaseOrderDetailsQuery{
+		ProductId: p.Id,
+	}, 1)
+	for i := 0; i < len(wm); i++ {
+		ok = wm[i].deleteWarehouseMovement(0, nil)
+		if !ok {
+			t.Error("Can't delete warehouse movement")
+			return
+		}
+	}
+
+	// delete product
+	okAndErr = p.deleteProduct(0)
+	if !okAndErr.Ok {
+		t.Error("Delete error, could not delete product", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+}

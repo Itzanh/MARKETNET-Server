@@ -224,13 +224,13 @@ func (o *ManufacturingOrder) insertManufacturingOrder(userId int32, trans *sql.T
 	// don't allow deactivated products
 	if product.Off {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 	// get type if it's not specified
 	if o.Type <= 0 {
 		if !product.Manufacturing || product.ManufacturingOrderType == nil {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 		o.Type = *product.ManufacturingOrderType
 	}

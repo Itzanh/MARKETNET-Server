@@ -290,17 +290,17 @@ func (i *SalesInvoice) deleteSalesInvoice(userId int32) OkAndErrorCodeReturn {
 
 	invoice := getSalesInvoiceRow(i.Id)
 	if invoice.AccountingMovement != nil {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
 	s := getSettingsRecordById(i.enterprise)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
 		invoiceNumber := getNextSaleInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
 		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 	}
 
@@ -491,12 +491,12 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
 	filterSalesOrderDetails(orderDetails, func(sod SalesOrderDetail) bool { return sod.QuantityInvoiced < sod.Quantity })
 	if len(orderDetails) == 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// create an invoice for that order
@@ -576,7 +576,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
@@ -587,15 +587,15 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 		}
 		if invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{product.Name}}
 		}
 		if orderDetail.QuantityInvoiced >= orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{product.Name}}
 		}
 		if (invoiceInfo.Selection[i].Quantity + orderDetail.QuantityInvoiced) > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 4, ExtraData: []string{product.Name}}
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)
 	}

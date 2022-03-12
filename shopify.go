@@ -871,7 +871,7 @@ func copySyProducts(enterpriseId int32) bool {
 				result := p.insertProduct(0)
 				if !result.Ok {
 					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
-						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErrorCode))+" extra data: "+stringArrayToString(result.ExtraData))
 				}
 			} else {
 				for i := 0; i < len(variants); i++ {
@@ -902,7 +902,7 @@ func copySyProducts(enterpriseId int32) bool {
 					result := p.insertProduct(0)
 					if !result.Ok {
 						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
-							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+							p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErrorCode))+" extra data: "+stringArrayToString(result.ExtraData))
 					}
 				}
 			}
@@ -942,7 +942,7 @@ func copySyProducts(enterpriseId int32) bool {
 				result := p.updateProduct(0)
 				if !result.Ok {
 					errors = append(errors, "Error updating a simple product into MARKETNET. Product name "+
-						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+						p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErrorCode))+" extra data: "+stringArrayToString(result.ExtraData))
 				}
 			} else {
 				for i := 0; i < len(variants); i++ {
@@ -982,7 +982,7 @@ func copySyProducts(enterpriseId int32) bool {
 						result := p.updateProduct(0)
 						if !result.Ok {
 							errors = append(errors, "Error updating a product with combinations into MARKETNET. Product name "+
-								p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+								p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErrorCode))+" extra data: "+stringArrayToString(result.ExtraData))
 						}
 					} else { // the variant does not exist
 						p := Product{}
@@ -1012,7 +1012,7 @@ func copySyProducts(enterpriseId int32) bool {
 						result := p.insertProduct(0)
 						if !result.Ok {
 							errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
-								p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErorCode))+" extra data: "+stringArrayToString(result.ExtraData))
+								p.Name+" product reference "+p.Reference+" error code "+strconv.Itoa(int(result.ErrorCode))+" extra data: "+stringArrayToString(result.ExtraData))
 						}
 					}
 				} // for

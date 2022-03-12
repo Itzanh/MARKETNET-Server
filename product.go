@@ -148,7 +148,7 @@ func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
 		row.Scan(ean13AlreadyExists)
 
 		if ean13AlreadyExists > 0 {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 	}
 
@@ -197,7 +197,7 @@ func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
 		row.Scan(ean13AlreadyExists)
 
 		if ean13AlreadyExists > 0 {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 	}
 
@@ -380,7 +380,7 @@ func (p *Product) deleteProduct(userId int32) OkAndErrorCodeReturn {
 	}
 
 	if len(plurals) > 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1, ExtraData: plurals}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1, ExtraData: plurals}
 	}
 
 	sqlStatement = `DELETE FROM stock WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=stock.product)=$2`

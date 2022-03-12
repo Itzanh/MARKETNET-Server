@@ -72,7 +72,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(userId int32, trans 
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		if p.Off {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 	}
 
@@ -102,7 +102,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(userId int32, trans 
 	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// can't add details to a posted invoice
@@ -114,7 +114,7 @@ func (s *PurchaseInvoiceDetail) insertPurchaseInvoiceDetail(userId int32, trans 
 
 	if invoice.AccountingMovement != nil {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 	}
 
 	sqlStatement = `INSERT INTO public.purchase_invoice_details(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description, income_tax, rent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
@@ -201,18 +201,18 @@ func (d *PurchaseInvoiceDetail) deletePurchaseInvoiceDetail(userId int32, trans 
 	i := getPurchaseInvoiceRow(detailInMemory.Invoice)
 	if i.AccountingMovement != nil { // can't delete posted invoices
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
 	s := getSettingsRecordById(d.enterprise)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
 		i := getPurchaseInvoiceRow(d.Invoice)
 		invoiceNumber := getNextPurchaseInvoiceNumber(i.BillingSeries, i.enterprise)
 		if invoiceNumber <= 0 || i.InvoiceNumber != (invoiceNumber-1) {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 	}
 

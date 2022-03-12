@@ -822,7 +822,7 @@ func TestGenerateBarcode(t *testing.T) {
 	p := Product{
 		Name:                   "Glass Office Desk",
 		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
+		BarCode:                "",
 		ControlStock:           true,
 		Weight:                 30,
 		Family:                 &family,

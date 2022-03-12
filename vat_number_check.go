@@ -44,9 +44,9 @@ func checkVatNumber(countryIsoCode2 string, vatNumber string) OkAndErrorCodeRetu
 	}
 
 	if strings.Contains(string(result), "<valid>true</valid>") {
-		return OkAndErrorCodeReturn{Ok: true, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: true, ErrorCode: 1}
 	} else if strings.Contains(string(result), "<valid>false</valid>") {
-		return OkAndErrorCodeReturn{Ok: true, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: true, ErrorCode: 2}
 	} else {
 		return OkAndErrorCodeReturn{Ok: false}
 	}

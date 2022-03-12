@@ -559,3 +559,81 @@ func TestEvaluatePasswordSecureCloud(t *testing.T) {
 		return
 	}
 }
+
+// ===== PERMISSION DICTIONARY
+
+func TestGetPermissionDictionary(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	permissions := getPermissionDictionary(1)
+	if len(permissions) == 0 || permissions[0].Key == "" {
+		t.Error("Can't scan permisssion dictionary")
+		return
+	}
+}
+
+func TestGetGroupPermissionDictionary(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	permissions := getGroupPermissionDictionary(1, 1)
+	if len(permissions.In) > 0 && permissions.In[0].PermissionKey == "" {
+		t.Error("Can't scan permisssion dictionary")
+		return
+	}
+	if len(permissions.Out) > 0 && permissions.Out[0].Key == "" {
+		t.Error("Can't scan permisssion dictionary")
+		return
+	}
+}
+
+func TestInsertDeletePermissionDictionaryGroup(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	p := PermissionDictionaryGroup{
+		Group:         1,
+		PermissionKey: "CANT_CREATE_PRODUCT",
+		enterprise:    1,
+	}
+	if !p.insertPermissionDictionaryGroup() {
+		t.Error("Can't insert permisssion dictionary group")
+		return
+	}
+	if !p.deletePermissionDictionaryGroup() {
+		t.Error("Can't delete permisssion dictionary group")
+		return
+	}
+}
+
+func TestGetPermissionDictionaryUserGroupInForWebClient(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	p := getPermissionDictionaryUserGroupInForWebClient(1)
+	if len(p) > 0 && p[0] == "" {
+		t.Error("Can't scan permisssion dictionary")
+		return
+	}
+}
+
+func TestGetUserPermission(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	permissions := getGroupPermissionDictionary(1, 2)
+	if len(permissions.In) > 0 && !getUserPermission(permissions.In[0].PermissionKey, 1, 2) {
+		t.Error("Permission error")
+		return
+	}
+	if len(permissions.Out) > 0 && getUserPermission(permissions.Out[0].Key, 1, 2) {
+		t.Error("Permission error")
+		return
+	}
+}

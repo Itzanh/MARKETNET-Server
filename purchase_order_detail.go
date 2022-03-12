@@ -86,7 +86,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	if product.Off {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}, 0
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}, 0
 	}
 
 	// the product and sale order are unique, there can't exist another detail for the same product in the same order
@@ -100,7 +100,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 	var countProductInSaleOrder int16
 	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}, 0
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}, 0
 	}
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
@@ -197,7 +197,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func deassociatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE sales_order_detail SET status='B',purchase_order_detail=NULL WHERE purchase_order_detail=$1`
+	sqlStatement := `UPDATE sales_order_detail SET status='A',purchase_order_detail=NULL WHERE purchase_order_detail=$1`
 	_, err := trans.Exec(sqlStatement, purchaseDetailId)
 	if err != nil {
 		log("DB", err.Error())
@@ -288,11 +288,11 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 	}
 	if detailInMemory.QuantityInvoiced > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 	if detailInMemory.QuantityDeliveryNote > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	if detailInMemory.Quantity != s.Quantity {
@@ -369,11 +369,11 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 	}
 	if detailInMemory.QuantityInvoiced > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 	if detailInMemory.QuantityDeliveryNote > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// roll back the state of the sale order details

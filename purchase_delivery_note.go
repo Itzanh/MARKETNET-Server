@@ -292,7 +292,7 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 	if purchaseOrder.DeliveryNoteLines >= purchaseOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}, 0
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}, 0
 	}
 	orderDetails := getPurchaseOrderDetail(purchaseOrderId, purchaseOrder.enterprise)
 	filterPurchaseOrderDetails(orderDetails, func(pod PurchaseOrderDetail) bool { return pod.QuantityDeliveryNote < pod.Quantity })
@@ -360,7 +360,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if purchaseOrder.DeliveryNoteLines >= purchaseOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	var purchaseOrderDetails []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
@@ -371,15 +371,15 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 		}
 		if noteInfo.Selection[i].Quantity > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{product.Name}}
 		}
 		if orderDetail.QuantityDeliveryNote >= orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{product.Name}}
 		}
 		if (noteInfo.Selection[i].Quantity + orderDetail.QuantityDeliveryNote) > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 4, ExtraData: []string{product.Name}}
 		}
 		purchaseOrderDetails = append(purchaseOrderDetails, orderDetail)
 	}

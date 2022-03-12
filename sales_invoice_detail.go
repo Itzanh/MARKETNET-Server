@@ -74,7 +74,7 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		if p.Off {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 	}
 
@@ -104,7 +104,7 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// can't add details to a posted invoice
@@ -116,7 +116,7 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 
 	if invoice.AccountingMovement != nil {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 	}
 
 	sqlStatement = `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
@@ -190,19 +190,19 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 	i := getSalesInvoiceRow(detailInMemory.Invoice)
 	if i.AccountingMovement != nil { // can't delete posted invoices
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
 	s := getSettingsRecordById(d.enterprise)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
 		invoiceNumber := getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
 		if invoiceNumber <= 0 || i.InvoiceNumber != (invoiceNumber-1) {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 	}
 

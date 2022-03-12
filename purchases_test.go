@@ -294,6 +294,687 @@ func TestGetSalesOrderDetailsFromPurchaseOrderDetail(t *testing.T) {
 	}
 }
 
+func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	// NEW PRODUCT
+
+	family := int32(1)
+	supplier := int32(1)
+
+	p := Product{
+		Name:              "Glass Office Desk",
+		Reference:         "OF-DSK",
+		BarCode:           "",
+		ControlStock:      true,
+		Weight:            30,
+		Family:            &family,
+		Width:             160,
+		Height:            100,
+		Depth:             40,
+		VatPercent:        21,
+		Price:             65,
+		Manufacturing:     false,
+		Supplier:          &supplier,
+		TrackMinimumStock: true,
+		enterprise:        1,
+	}
+
+	ok := p.insertProduct(0).Ok
+	if !ok {
+		t.Error("Insert error, could not insert product")
+		return
+	}
+
+	products := getProduct(1)
+	p = products[len(products)-1]
+
+	// NEW PURCHASE ORDER
+
+	o := PurchaseOrder{
+		Warehouse:       "W1",
+		Supplier:        supplier,
+		PaymentMethod:   1,
+		BillingSeries:   "INT",
+		Currency:        1,
+		BillingAddress:  3,
+		ShippingAddress: 3,
+		enterprise:      1,
+	}
+
+	ok, purchaseOrderId := o.insertPurchaseOrder(0, nil)
+	if !ok || purchaseOrderId <= 0 {
+		t.Error("Insert error, purchase order not inserted")
+		return
+	}
+
+	// NEW PURCHASE ORDER DETAIL
+
+	d := PurchaseOrderDetail{
+		Order:      purchaseOrderId,
+		Product:    p.Id,
+		Price:      15,
+		Quantity:   5,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	okAndErr, purchaseDetailId := d.insertPurchaseOrderDetail(0, nil)
+	if !okAndErr.Ok || purchaseDetailId <= 0 {
+		t.Error("Insert error, purchase order detail not inserted")
+		return
+	}
+
+	// NEW SALE ORDER 1
+
+	saleOrder1 := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		enterprise:      1,
+	}
+
+	ok, saleOrderId1 := saleOrder1.insertSalesOrder(1)
+	if !ok || purchaseOrderId <= 0 {
+		t.Error("Insert error, sale order not inserted.")
+		return
+	}
+
+	// NEW SALE ORDER DETAIL 1
+
+	salesOrderDetail1 := SalesOrderDetail{
+		Order:      saleOrderId1,
+		Product:    p.Id,
+		Price:      9.99,
+		Quantity:   3,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	ok = salesOrderDetail1.insertSalesOrderDetail(0).Ok
+	if !ok {
+		t.Error("Insert error, sale order detail not inserted")
+		return
+	}
+
+	// NEW SALE ORDER 2
+
+	saleOrder2 := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		enterprise:      1,
+	}
+
+	ok, saleOrderId2 := saleOrder2.insertSalesOrder(1)
+	if !ok || purchaseOrderId <= 0 {
+		t.Error("Insert error, sale order not inserted.")
+		return
+	}
+
+	// NEW SALE ORDER DETAIL 2
+
+	salesOrderDetail2 := SalesOrderDetail{
+		Order:      saleOrderId2,
+		Product:    p.Id,
+		Price:      9.99,
+		Quantity:   1,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	ok = salesOrderDetail2.insertSalesOrderDetail(0).Ok
+	if !ok {
+		t.Error("Insert error, sale order detail not inserted")
+		return
+	}
+
+	// INVOICE FIRST ORDER
+	okAndErr = invoiceAllSaleOrder(saleOrderId1, 1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't invoice the first sale order", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// INVOICE SECOND ORDER
+	okAndErr = invoiceAllSaleOrder(saleOrderId2, 1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't invoice the second sale order", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check if the sale order have associated with the purchase order
+
+	purchaseSales := getSalesOrderDetailsFromPurchaseOrderDetail(purchaseDetailId, 1)
+	if len(purchaseSales) == 0 {
+		t.Error("Sale order details not associated with purchase order detail")
+		return
+	}
+
+	// TEST 1
+
+	// serve the entire purchase order with a single purchase delivery note
+
+	okAndErr, purchaseDeliveryNoteId1 := deliveryNoteAllPurchaseOrder(purchaseOrderId, 1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't generate a delivery note for all the purchase order", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check if the sale order details have changed the status
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// undo the purchase delivery note
+	n := PurchaseDeliveryNote{
+		Id:         purchaseDeliveryNoteId1,
+		enterprise: 1,
+	}
+	ok = n.deletePurchaseDeliveryNotes(0, nil)
+	if !ok {
+		t.Error("Can't delete purchase delivery note")
+		return
+	}
+
+	// check if the sale order details have rolled back the status
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// TEST 2
+
+	// make a purchase delivery note with quantity 1
+	noteInfo := OrderDetailGenerate{
+		OrderId: purchaseOrderId,
+		Selection: []OrderDetailGenerateSelection{
+			{
+				Id:       purchaseDetailId,
+				Quantity: 1,
+			},
+		},
+	}
+	okAndErr = noteInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't generate a delivery note partially", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check if it has served the second sale order detail
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// check that it has not served the first sale order detail
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+
+	// make a purchase delivery note with quantity 3
+	noteInfo = OrderDetailGenerate{
+		OrderId: purchaseOrderId,
+		Selection: []OrderDetailGenerateSelection{
+			{
+				Id:       purchaseDetailId,
+				Quantity: 3,
+			},
+		},
+	}
+	okAndErr = noteInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't generate a delivery note partially", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check that the second sale order detail is still served
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// check that it has served the first sale order detail
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+
+	// undo the purchase delivery notes
+	relations := getPurchaseOrderRelations(purchaseOrderId, 1)
+	for i := 0; i < len(relations.DeliveryNotes); i++ {
+		ok = relations.DeliveryNotes[i].deletePurchaseDeliveryNotes(0, nil)
+		if !ok {
+			t.Error("Can't delete purchase delivery note from relations")
+			return
+		}
+	}
+
+	// check if the sale order details have rolled back the status
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// TEST 3
+
+	// make a purchase delivery note with quantity 1
+	noteInfo = OrderDetailGenerate{
+		OrderId: purchaseOrderId,
+		Selection: []OrderDetailGenerateSelection{
+			{
+				Id:       purchaseDetailId,
+				Quantity: 1,
+			},
+		},
+	}
+	okAndErr = noteInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't generate a delivery note partially", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check if it has served the second sale order detail
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// check that it has not served the first sale order detail
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+
+	// make a purchase delivery note with quantity 2
+	noteInfo = OrderDetailGenerate{
+		OrderId: purchaseOrderId,
+		Selection: []OrderDetailGenerateSelection{
+			{
+				Id:       purchaseDetailId,
+				Quantity: 2,
+			},
+		},
+	}
+	okAndErr = noteInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't generate a delivery note partially", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check that it has not served the first sale order detail
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+
+	// make another purchase delivery note with quantity 2
+	noteInfo = OrderDetailGenerate{
+		OrderId: purchaseOrderId,
+		Selection: []OrderDetailGenerateSelection{
+			{
+				Id:       purchaseDetailId,
+				Quantity: 2,
+			},
+		},
+	}
+	okAndErr = noteInfo.deliveryNotePartiallyPurchaseOrder(1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't generate a delivery note partially", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check that it has served the first sale order detail
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "E" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+
+	// undo the purchase delivery notes
+	relations = getPurchaseOrderRelations(purchaseOrderId, 1)
+	for i := 0; i < len(relations.DeliveryNotes); i++ {
+		ok = relations.DeliveryNotes[i].deletePurchaseDeliveryNotes(0, nil)
+		if !ok {
+			t.Error("Can't delete purchase delivery note from relations")
+			return
+		}
+	}
+
+	// check if the sale order details have rolled back the status
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+	salesOrderDetail2 = getSalesOrderDetailRow(salesOrderDetail2.Id)
+	if salesOrderDetail2.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail2.Status)
+		return
+	}
+
+	// CLEAN UP
+
+	saleRelations := getSalesOrderRelations(saleOrderId2, 1)
+	for i := 0; i < len(saleRelations.Invoices); i++ {
+		okAndErr = saleRelations.Invoices[i].deleteSalesInvoice(0)
+		if !okAndErr.Ok {
+			t.Error("Can't delete sale invoice", okAndErr.ErrorCode, okAndErr.ExtraData)
+			return
+		}
+	}
+	saleRelations = getSalesOrderRelations(saleOrderId1, 1)
+	for i := 0; i < len(saleRelations.Invoices); i++ {
+		okAndErr = saleRelations.Invoices[i].deleteSalesInvoice(0)
+		if !okAndErr.Ok {
+			t.Error("Can't delete sale invoice", okAndErr.ErrorCode, okAndErr.ExtraData)
+			return
+		}
+	}
+
+	ok = salesOrderDetail2.deleteSalesOrderDetail(1, nil).Ok
+	if !ok {
+		t.Error("Delete error, sale order detail not deleted")
+		return
+	}
+
+	saleOrder2.Id = saleOrderId2
+	ok = saleOrder2.deleteSalesOrder(1).Ok
+	if !ok {
+		t.Error("Delete error, sale order not deleted.")
+		return
+	}
+
+	ok = salesOrderDetail1.deleteSalesOrderDetail(1, nil).Ok
+	if !ok {
+		t.Error("Delete error, sale order detail not deleted")
+		return
+	}
+
+	saleOrder1.Id = saleOrderId1
+	ok = saleOrder1.deleteSalesOrder(1).Ok
+	if !ok {
+		t.Error("Delete error, sale order not deleted.")
+		return
+	}
+
+	d.Id = purchaseDetailId
+	ok = d.deletePurchaseOrderDetail(0, nil).Ok
+	if !ok {
+		t.Error("Delete error, purchase order not deleted")
+		return
+	}
+
+	o.Id = purchaseOrderId
+	ok = o.deletePurchaseOrder(0).Ok
+	if !ok {
+		t.Error("Delete error, purchase order not deleted")
+		return
+	}
+
+	ok = p.deleteProduct(0).Ok
+	if !ok {
+		t.Error("Delete error, could not delete product")
+		return
+	}
+}
+
+func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
+	if db == nil {
+		ConnectTestWithDB(t)
+	}
+
+	// NEW PRODUCT
+
+	family := int32(1)
+	supplier := int32(1)
+
+	p := Product{
+		Name:              "Glass Office Desk",
+		Reference:         "OF-DSK",
+		BarCode:           "",
+		ControlStock:      true,
+		Weight:            30,
+		Family:            &family,
+		Width:             160,
+		Height:            100,
+		Depth:             40,
+		VatPercent:        21,
+		Price:             65,
+		Manufacturing:     false,
+		Supplier:          &supplier,
+		TrackMinimumStock: true,
+		enterprise:        1,
+	}
+
+	ok := p.insertProduct(0).Ok
+	if !ok {
+		t.Error("Insert error, could not insert product")
+		return
+	}
+
+	products := getProduct(1)
+	p = products[len(products)-1]
+
+	// NEW PURCHASE ORDER
+
+	o := PurchaseOrder{
+		Warehouse:       "W1",
+		Supplier:        supplier,
+		PaymentMethod:   1,
+		BillingSeries:   "INT",
+		Currency:        1,
+		BillingAddress:  3,
+		ShippingAddress: 3,
+		enterprise:      1,
+	}
+
+	ok, purchaseOrderId := o.insertPurchaseOrder(0, nil)
+	if !ok || purchaseOrderId <= 0 {
+		t.Error("Insert error, purchase order not inserted")
+		return
+	}
+
+	// NEW PURCHASE ORDER DETAIL
+
+	d := PurchaseOrderDetail{
+		Order:      purchaseOrderId,
+		Product:    p.Id,
+		Price:      15,
+		Quantity:   5,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	okAndErr, purchaseDetailId := d.insertPurchaseOrderDetail(0, nil)
+	if !okAndErr.Ok || purchaseDetailId <= 0 {
+		t.Error("Insert error, purchase order detail not inserted")
+		return
+	}
+
+	// NEW SALE ORDER 1
+
+	saleOrder1 := SaleOrder{
+		Warehouse:       "W1",
+		Customer:        1,
+		PaymentMethod:   3,
+		BillingSeries:   "EXP",
+		Currency:        1,
+		BillingAddress:  1,
+		ShippingAddress: 1,
+		enterprise:      1,
+	}
+
+	ok, saleOrderId1 := saleOrder1.insertSalesOrder(1)
+	if !ok || purchaseOrderId <= 0 {
+		t.Error("Insert error, sale order not inserted.")
+		return
+	}
+
+	// NEW SALE ORDER DETAIL 1
+
+	salesOrderDetail1 := SalesOrderDetail{
+		Order:      saleOrderId1,
+		Product:    p.Id,
+		Price:      9.99,
+		Quantity:   3,
+		VatPercent: 21,
+		enterprise: 1,
+	}
+
+	ok = salesOrderDetail1.insertSalesOrderDetail(0).Ok
+	if !ok {
+		t.Error("Insert error, sale order detail not inserted")
+		return
+	}
+
+	// INVOICE ORDER
+	okAndErr = invoiceAllSaleOrder(saleOrderId1, 1, 0)
+	if !okAndErr.Ok {
+		t.Error("Can't invoice the first sale order", okAndErr.ErrorCode, okAndErr.ExtraData)
+		return
+	}
+
+	// check if the sale order have associated with the purchase order
+
+	purchaseSales := getSalesOrderDetailsFromPurchaseOrderDetail(purchaseDetailId, 1)
+	if len(purchaseSales) == 0 {
+		t.Error("Sale order details not associated with purchase order detail")
+		return
+	}
+
+	// TEST 1
+
+	// change the quantity of the purchase order from 5 to 1
+	d = getPurchaseOrderDetailRow(d.Id)
+	d.Quantity = 1
+	okAndErr = d.updatePurchaseOrderDetail(0)
+	if !okAndErr.Ok {
+		t.Error("Can't update purchase order detail", okAndErr.ErrorCode, okAndErr.ExtraData)
+	}
+
+	// check if it has removed the sale order
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "A" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+	if salesOrderDetail1.PurchaseOrderDetail != nil {
+		t.Error("The sale order has not been removed from the purchase order")
+	}
+	purchaseSales = getSalesOrderDetailsFromPurchaseOrderDetail(purchaseDetailId, 1)
+	if len(purchaseSales) != 0 {
+		t.Error("The sale order has not been removed from the purchase order")
+		return
+	}
+
+	// TEST 2
+
+	// change it back to 5
+	d = getPurchaseOrderDetailRow(d.Id)
+	d.Quantity = 5
+	okAndErr = d.updatePurchaseOrderDetail(0)
+	if !okAndErr.Ok {
+		t.Error("Can't update purchase order detail", okAndErr.ErrorCode, okAndErr.ExtraData)
+	}
+
+	// check if the sale order has associated again
+	salesOrderDetail1 = getSalesOrderDetailRow(salesOrderDetail1.Id)
+	if salesOrderDetail1.Status != "B" {
+		t.Error("Order status not updated", salesOrderDetail1.Status)
+		return
+	}
+	if salesOrderDetail1.PurchaseOrderDetail == nil {
+		t.Error("The sale order has not been re-associated to the purchase order")
+	}
+	purchaseSales = getSalesOrderDetailsFromPurchaseOrderDetail(purchaseDetailId, 1)
+	if len(purchaseSales) == 0 {
+		t.Error("The sale order has not been re-associated to the purchase order")
+		return
+	}
+
+	// CLEAN UP
+
+	saleRelations := getSalesOrderRelations(saleOrderId1, 1)
+	for i := 0; i < len(saleRelations.Invoices); i++ {
+		okAndErr = saleRelations.Invoices[i].deleteSalesInvoice(0)
+		if !okAndErr.Ok {
+			t.Error("Can't delete sale invoice", okAndErr.ErrorCode, okAndErr.ExtraData)
+			return
+		}
+	}
+
+	ok = salesOrderDetail1.deleteSalesOrderDetail(1, nil).Ok
+	if !ok {
+		t.Error("Delete error, sale order detail not deleted")
+		return
+	}
+
+	saleOrder1.Id = saleOrderId1
+	ok = saleOrder1.deleteSalesOrder(1).Ok
+	if !ok {
+		t.Error("Delete error, sale order not deleted.")
+		return
+	}
+
+	d.Id = purchaseDetailId
+	ok = d.deletePurchaseOrderDetail(0, nil).Ok
+	if !ok {
+		t.Error("Delete error, purchase order not deleted")
+		return
+	}
+
+	o.Id = purchaseOrderId
+	ok = o.deletePurchaseOrder(0).Ok
+	if !ok {
+		t.Error("Delete error, purchase order not deleted")
+		return
+	}
+
+	ok = p.deleteProduct(0).Ok
+	if !ok {
+		t.Error("Delete error, could not delete product")
+		return
+	}
+}
+
 // ===== PURCHASE INVOICE
 
 /* GET */

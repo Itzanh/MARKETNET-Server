@@ -1080,7 +1080,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Warehouse {
 			return
 		}
-		data, _ = json.Marshal(getTransferBetweenWarehousesDetail(int64(id), enterpriseId))
+		data, _ = json.Marshal(getTransferBetweenWarehousesDetails(int64(id), enterpriseId))
 	case "TRANSFER_BETWEEN_WAREHOUSES_WAREHOUSE_MOVEMENTS":
 		if !permissions.Warehouse {
 			return
@@ -1310,8 +1310,8 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		c.enterprise = enterpriseId
 		ok, errorCode := c.insertManufacturingOrderTypeComponents()
 		isValid := OkAndErrorCodeReturn{
-			Ok:       ok,
-			ErorCode: errorCode,
+			Ok:        ok,
+			ErrorCode: errorCode,
 		}
 		returnData, _ = json.Marshal(isValid)
 	case "PURCHASE_ORDER_DETAIL":
@@ -1631,8 +1631,8 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		c.enterprise = enterpriseId
 		ok, errorCode := c.updateManufacturingOrderTypeComponents()
 		isValid := OkAndErrorCodeReturn{
-			Ok:       ok,
-			ErorCode: errorCode,
+			Ok:        ok,
+			ErrorCode: errorCode,
 		}
 		returnData, _ = json.Marshal(isValid)
 		ok = true
@@ -2163,6 +2163,15 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		product.enterprise = enterpriseId
 		returnData, _ = json.Marshal(product.deleteProduct(userId))
 		found = true
+	case "INVENTORY":
+		if !permissions.Warehouse {
+			return
+		}
+		var i Inventory = Inventory{}
+		i.Id = int32(id)
+		i.enterprise = enterpriseId
+		returnData, _ = json.Marshal(i.deleteInventory(enterpriseId))
+		found = true
 	}
 	if found {
 		ws.WriteMessage(mt, returnData)
@@ -2354,14 +2363,6 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		d.Id = int32(id)
 		d.enterprise = enterpriseId
 		ok = d.deleteProductAccount()
-	case "INVENTORY":
-		if !permissions.Warehouse {
-			return
-		}
-		var i Inventory = Inventory{}
-		i.Id = int32(id)
-		i.enterprise = enterpriseId
-		ok = i.deleteInventory(enterpriseId)
 	case "WEBHOOK_SETTINGS":
 		if !permissions.Admin {
 			return
@@ -2829,8 +2830,8 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &needs)
 		ok, errorCode := needs.generatePurchaseOrdersFromNeeds(enterpriseId, userId)
 		ret := OkAndErrorCodeReturn{
-			Ok:       ok,
-			ErorCode: errorCode,
+			Ok:        ok,
+			ErrorCode: errorCode,
 		}
 		data, _ = json.Marshal(ret)
 	case "DELIVERY_NOTE_ALL_PURCHASE_ORDER":

@@ -266,18 +266,18 @@ func (i *PurchaseInvoice) deletePurchaseInvoice(userId int32, trans *sql.Tx) OkA
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if invoice.AccountingMovement != nil {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
 	s := getSettingsRecordById(i.enterprise)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
 		invoice := getPurchaseInvoiceRow(i.Id)
 		invoiceNumber := getNextPurchaseInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
 		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 	}
 
@@ -490,12 +490,12 @@ func invoiceAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, userId i
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if purchaseOrder.InvoicedLines >= purchaseOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 	orderDetails := getPurchaseOrderDetail(purchaseOrderId, purchaseOrder.enterprise)
 	filterPurchaseOrderDetails(orderDetails, func(pod PurchaseOrderDetail) bool { return pod.QuantityInvoiced < pod.Quantity })
 	if purchaseOrder.Id <= 0 || len(orderDetails) == 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 2}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// create an invoice for that order
@@ -561,7 +561,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if purchaseOrder.InvoicedLines >= purchaseOrder.LinesNumber {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	var purchaseOrderDetails []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
@@ -572,15 +572,15 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallyPurchaseOrder(enterprise
 		}
 		if invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{product.Name}}
 		}
 		if orderDetail.QuantityInvoiced >= orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{product.Name}}
 		}
 		if (invoiceInfo.Selection[i].Quantity + orderDetail.QuantityInvoiced) > orderDetail.Quantity {
 			product := getProductRow(orderDetail.Product)
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 4, ExtraData: []string{product.Name}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 4, ExtraData: []string{product.Name}}
 		}
 		purchaseOrderDetails = append(purchaseOrderDetails, orderDetail)
 	}

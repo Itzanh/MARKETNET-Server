@@ -295,13 +295,13 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.Carrier == nil || *saleOrder.Carrier <= 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErorCode: 1}
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	details := getSalesOrderDetail(orderId, enterpriseId)
 	for i := 0; i < len(details); i++ {
 		if details[i].QuantityPendingPackaging > 0 {
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 2, ExtraData: []string{details[i].ProductName}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{details[i].ProductName}}
 		}
 	}
 
@@ -324,7 +324,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 		ok, noteId := deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, trans)
 		if !ok.Ok || noteId <= 0 {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErorCode: 3}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 		s.DeliveryNote = noteId
 	}

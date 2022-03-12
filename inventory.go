@@ -64,18 +64,28 @@ func (i *Inventory) insertInventory(enterpriseId int32) bool {
 	return true
 }
 
-func (i *Inventory) deleteInventory(enterpriseId int32) bool {
+func (i *Inventory) deleteInventory(enterpriseId int32) OkAndErrorCodeReturn {
 	if i.Id <= 0 {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	inventory := getInventoryRow(i.Id)
+	if inventory.Id <= 0 || inventory.enterprise != enterpriseId || inventory.Finished {
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
+	}
+
+	details := getInventoryProducts(inventory.Id, enterpriseId)
+	if len(details) > 0 {
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	sqlStatement := `DELETE FROM public.inventory WHERE id = $1 AND enterprise = $2`
 	_, err := db.Exec(sqlStatement, i.Id, enterpriseId)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
-	return true
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 func (i *Inventory) finishInventory(userId int32, enterpriseId int32) bool {
