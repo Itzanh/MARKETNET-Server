@@ -7,7 +7,8 @@ func TestMonthlySalesAmount(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := monthlySalesAmount(nil, 1)
+	q := MonthlySalesAmountQuery{}
+	m := q.monthlySalesAmount(1)
 	if len(m) == 0 || m[0].Year <= 0 {
 		t.Error("Can't scan monthly sales amount")
 		return
@@ -19,7 +20,8 @@ func TestMonthlySalesQuantity(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := monthlySalesQuantity(nil, 1)
+	q := MonthlySalesAmountQuery{}
+	m := q.monthlySalesQuantity(1)
 	if len(m) == 0 || m[0].Year <= 0 {
 		t.Error("Can't scan monthly sales quantity")
 		return
@@ -31,7 +33,7 @@ func TestSalesOfAProductQuantity(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := salesOfAProductQuantity(1, 1)
+	m := salesOfAProductQuantity([]int32{1}, 1)
 	if len(m) == 0 || m[0].Year <= 0 {
 		t.Error("Can't scan sales of a product")
 		return
@@ -43,7 +45,7 @@ func TestSalesOfAProductAmount(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := salesOfAProductAmount(1, 1)
+	m := salesOfAProductAmount([]int32{1}, 1)
 	if len(m) == 0 || m[0].Year <= 0 {
 		t.Error("Can't scan sales of a product")
 		return
@@ -79,7 +81,8 @@ func TestPurchaseOrdersByMonthAmount(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := purchaseOrdersByMonthAmount(nil, 1)
+	q := PurchaseOrdersByMonthQuery{}
+	m := q.purchaseOrdersByMonthAmount(1)
 	if len(m) == 0 || m[0].Year <= 0 {
 		t.Error("Can't scan purchase orders by month")
 		return
@@ -91,8 +94,9 @@ func TestPaymentMethodsSaleOrdersAmount(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := paymentMethodsSaleOrdersAmount(nil, 1)
-	if len(m) == 0 || m[0].PaymentMethod <= 0 {
+	q := PaymentMethodsSaleOrdersQuantityQuery{}
+	m := q.paymentMethodsSaleOrdersAmount(1)
+	if len(m.Quantity) == 0 || m.Quantity[0].PaymentMethod <= 0 {
 		t.Error("Can't scan amount by payment method")
 		return
 	}
@@ -105,7 +109,7 @@ func TestCountriesSaleOrdersAmount(t *testing.T) {
 
 	q := CountriesSaleOrdersQuery{}
 	m := q.countriesSaleOrdersAmount(1)
-	if len(m) == 0 || m[0].Country <= 0 {
+	if len(m.Amount) == 0 || m.Amount[0].Country <= 0 {
 		t.Error("Can't scan amount of sales by country")
 		return
 	}
@@ -116,7 +120,8 @@ func TestManufacturingOrderCreatedManufacturedDaily(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := manufacturingOrderCreatedManufacturedDaily(1)
+	q := ManufacturingOrderCreatedManufacturedDailyQuery{}
+	m := q.manufacturingOrderCreatedManufacturedDaily(1)
 	if len(m.Created) == 0 || m.Created[0].Quantity <= 0 {
 		t.Error("Can't scan manufacturing orders created")
 		return
@@ -144,8 +149,9 @@ func TestShippingByCarriers(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := shippingByCarriers(1)
-	if len(m) == 0 || m[0].Carrier <= 0 {
+	q := ShippingByCarriersQuery{}
+	m := q.shippingByCarriers(1)
+	if len(m.Quantity) == 0 || m.Quantity[0].Carrier <= 0 {
 		t.Error("Can't scan shipping by carrier")
 		return
 	}

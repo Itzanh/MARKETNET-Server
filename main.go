@@ -580,12 +580,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var countriesSaleOrdersQuery CountriesSaleOrdersQuery
 		json.Unmarshal([]byte(message), &countriesSaleOrdersQuery)
 		data, _ = json.Marshal(countriesSaleOrdersQuery.countriesSaleOrdersAmount(enterpriseId))
-	case "MANUFACTURING_ORDER_CREATED_MANUFACTURES_DAILY":
-		data, _ = json.Marshal(manufacturingOrderCreatedManufacturedDaily(enterpriseId))
 	case "DAILY_SHIPPING_QUANTITY":
 		data, _ = json.Marshal(dailyShippingQuantity(enterpriseId))
-	case "SHIPPING_BY_CARRIERS":
-		data, _ = json.Marshal(shippingByCarriers(enterpriseId))
 	case "BENEFITS_STATISTICS":
 		var benefitsStatisticsQuery BenefitsStatisticsQuery
 		json.Unmarshal([]byte(message), &benefitsStatisticsQuery)
@@ -746,6 +742,38 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getSalesOrderDetailWaitingForManufacturingOrders(enterpriseId))
+	case "MONTHLY_SALES_AMOUNT":
+		var query MonthlySalesAmountQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.monthlySalesAmount(enterpriseId))
+	case "MONTHLY_SALES_QUANTITY":
+		var query MonthlySalesAmountQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.monthlySalesQuantity(enterpriseId))
+	case "SALES_OF_A_PRODUCT_QUANTITY":
+		var productIds []int32
+		json.Unmarshal([]byte(message), &productIds)
+		data, _ = json.Marshal(salesOfAProductQuantity(productIds, enterpriseId))
+	case "SALES_OF_A_PRODUCT_AMOUNT":
+		var productIds []int32
+		json.Unmarshal([]byte(message), &productIds)
+		data, _ = json.Marshal(salesOfAProductAmount(productIds, enterpriseId))
+	case "PAYMENT_METHODS_SALE_ORDERS_AMOUNT":
+		var query PaymentMethodsSaleOrdersQuantityQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.paymentMethodsSaleOrdersAmount(enterpriseId))
+	case "PURCHASE_ORDERS_BY_MONTH_AMOUNT":
+		var query PurchaseOrdersByMonthQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.purchaseOrdersByMonthAmount(enterpriseId))
+	case "MANUFACTURING_ORDER_CREATED_MANUFACTURES_DAILY":
+		var query ManufacturingOrderCreatedManufacturedDailyQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.manufacturingOrderCreatedManufacturedDaily(enterpriseId))
+	case "SHIPPING_BY_CARRIERS":
+		var query ShippingByCarriersQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.shippingByCarriers(enterpriseId))
 	default:
 		found = false
 	}
@@ -762,24 +790,6 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 	}
 	found = true
 	switch command {
-	case "MONTHLY_SALES_AMOUNT":
-		var year *int16
-		if id > 0 {
-			aux := int16(id)
-			year = &aux
-		}
-		data, _ = json.Marshal(monthlySalesAmount(year, enterpriseId))
-	case "MONTHLY_SALES_QUANTITY":
-		var year *int16
-		if id > 0 {
-			aux := int16(id)
-			year = &aux
-		}
-		data, _ = json.Marshal(monthlySalesQuantity(year, enterpriseId))
-	case "SALES_OF_A_PRODUCT_QUANTITY":
-		data, _ = json.Marshal(salesOfAProductQuantity(int32(id), enterpriseId))
-	case "SALES_OF_A_PRODUCT_AMOUNT":
-		data, _ = json.Marshal(salesOfAProductAmount(int32(id), enterpriseId))
 	case "DAYS_OF_SERVICE_SALE_ORDERS":
 		var year *int16
 		if id > 0 {
@@ -794,20 +804,6 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			year = &aux
 		}
 		data, _ = json.Marshal(daysOfServicePurchaseOrders(year, enterpriseId))
-	case "PURCHASE_ORDERS_BY_MONTH_AMOUNT":
-		var year *int16
-		if id > 0 {
-			aux := int16(id)
-			year = &aux
-		}
-		data, _ = json.Marshal(purchaseOrdersByMonthAmount(year, enterpriseId))
-	case "PAYMENT_METHODS_SALE_ORDERS_AMOUNT":
-		var year *int16
-		if id > 0 {
-			aux := int16(id)
-			year = &aux
-		}
-		data, _ = json.Marshal(paymentMethodsSaleOrdersAmount(year, enterpriseId))
 	default:
 		found = false
 	}
