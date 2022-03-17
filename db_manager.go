@@ -425,7 +425,7 @@ func upradeDataBaseSchema() bool {
 					fmt.Println(err)
 					return false
 				}
-				_, err = db.Exec(c.ConstraintDef)
+				_, err = db.Exec(`ALTER TABLE public.` + t.Name + ` ADD CONSTRAINT ` + c.Name + ` ` + c.ConstraintDef)
 				if err != nil {
 					fmt.Println(err)
 					return false

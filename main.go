@@ -105,6 +105,7 @@ func main() {
 	// export database schema to schema.json
 	if isParameterPresent("--export-schema-json") {
 		generateSchemaJson()
+		os.Exit(0)
 	}
 
 	// listen to requests
