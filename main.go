@@ -65,7 +65,7 @@ func main() {
 	// installation
 	if !isParameterPresent("--dev-no-upgrade-database") {
 		if !installDB() {
-			os.Exit(1)
+			os.Exit(4)
 		}
 	}
 
@@ -100,6 +100,11 @@ func main() {
 	if isParameterPresent("--add-pwd-blacklist") {
 		addPasswordsToBlacklist()
 		os.Exit(0)
+	}
+
+	// export database schema to schema.json
+	if isParameterPresent("--export-schema-json") {
+		generateSchemaJson()
 	}
 
 	// listen to requests
