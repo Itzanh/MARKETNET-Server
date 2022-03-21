@@ -144,7 +144,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 		pi.Quantity = details[i].Quantity
 		pi.Weight = toFixed(math.Max(product.Weight*float64(details[i].Quantity), SENDCLOUD_MIN_WEIGHT_PARCEL_ITEMS), 3)
 		weight += pi.Weight
-		pi.Value = details[i].TotalAmount
+		pi.Value = toFixed(details[i].TotalAmount, 2)
 		if product.HSCode != nil {
 			pi.HSCode = *product.HSCode
 		}

@@ -152,11 +152,13 @@ func main() {
 				enterpriseCronInfo.CronPrestaShop = &cronId
 			}
 		}
-		cronId, err := c.AddFunc(settingsRecords[i].CronClearLabels, func() {
-			deleteAllShippingTags(enterpriseId)
-		})
-		if err != nil {
-			enterpriseCronInfo.CronClearLabels = cronId
+		if settingsRecords[i].CronClearLabels != "" {
+			cronId, err := c.AddFunc(settingsRecords[i].CronClearLabels, func() {
+				deleteAllShippingTags(enterpriseId)
+			})
+			if err != nil {
+				enterpriseCronInfo.CronClearLabels = cronId
+			}
 		}
 		if settingsRecords[i].CronSendcloudTracking != "" {
 			cronId, err := c.AddFunc(settingsRecords[i].CronSendcloudTracking, func() {
