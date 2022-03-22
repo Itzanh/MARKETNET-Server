@@ -8,7 +8,8 @@ import (
 )
 
 type DataBase struct {
-	Tables []DBTable `json:"tables"`
+	Tables    []DBTable    `json:"tables"`
+	Functions []DBFunction `json:"functions"`
 }
 
 type DBTable struct {
@@ -16,6 +17,7 @@ type DBTable struct {
 	Fields      []DBField      `json:"fields"`
 	Indexes     []DBIndex      `json:"indexes"`
 	Constraints []DBConstraint `json:"constraints"`
+	Triggers    []DBTrigger    `json:"triggers"`
 }
 
 type DBField struct {
@@ -34,6 +36,18 @@ type DBIndex struct {
 type DBConstraint struct {
 	Name          string `json:"name"`
 	ConstraintDef string `json:"constraintDef"`
+}
+
+type DBTrigger struct {
+	Name       string `json:"name"`
+	Event      string `json:"event"`
+	Activation string `json:"activation"`
+	Definition string `json:"definition"`
+}
+
+type DBFunction struct {
+	Name       string `json:"name"`
+	Definition string `json:"definition"`
 }
 
 func (f *DBField) isEquals(other DBField) bool {
@@ -150,7 +164,51 @@ func generateSchemaJson() {
 			t.Constraints = append(t.Constraints, c)
 		}
 
+		// GET TRIGGERS
+
+		sqlStatement = `SELECT trigger_name, string_agg(event_manipulation, ',') as event, action_timing as activation, action_statement as definition FROM information_schema.triggers WHERE event_object_table = $1 GROUP BY event_object_table,trigger_schema,trigger_name,action_timing,action_condition,action_statement`
+		rowsTriggers, err := db.Query(sqlStatement, t.Name)
+		if err != nil {
+			log("Initialization", err.Error())
+			return
+		}
+
+		for rowsTriggers.Next() {
+			c := DBTrigger{}
+			rowsTriggers.Scan(&c.Name, &c.Event, &c.Activation, &c.Definition)
+			t.Triggers = append(t.Triggers, c)
+		}
+
 		dbSchema.Tables = append(dbSchema.Tables, t)
+	}
+
+	// GET FUNCTIONS
+
+	sqlStatement = `SELECT p.proname FROM pg_catalog.pg_namespace n JOIN pg_catalog.pg_proc p ON p.pronamespace = n.oid WHERE p.prokind = 'f' AND n.nspname = 'public'`
+	rowsFunctions, err := db.Query(sqlStatement)
+	if err != nil {
+		log("Initialization", err.Error())
+		return
+	}
+
+	var functionName string
+	var functionDefinition string
+	for rowsFunctions.Next() {
+		rowsFunctions.Scan(&functionName)
+
+		sqlStatement = `SELECT routine_definition FROM information_schema.routines WHERE specific_schema LIKE 'public' AND routine_name = $1`
+		row := db.QueryRow(sqlStatement, functionName)
+		if row.Err() != nil {
+			log("Initialization", row.Err().Error())
+			return
+		}
+
+		row.Scan(&functionDefinition)
+
+		dbSchema.Functions = append(dbSchema.Functions, DBFunction{
+			Name:       functionName,
+			Definition: functionDefinition,
+		})
 	}
 
 	data, err := json.Marshal(dbSchema)
@@ -176,6 +234,47 @@ func upradeDataBaseSchema() bool {
 	if err != nil {
 		fmt.Println(err)
 		return false
+	}
+
+	// GET FUNCTIONS
+
+	sqlStatement := `SELECT p.proname FROM pg_catalog.pg_namespace n JOIN pg_catalog.pg_proc p ON p.pronamespace = n.oid WHERE p.prokind = 'f' AND n.nspname = 'public'`
+	rowsFunctions, err := db.Query(sqlStatement)
+	if err != nil {
+		log("Initialization", err.Error())
+		return false
+	}
+
+	var functionNames []string
+	var functionName string
+	for rowsFunctions.Next() {
+		rowsFunctions.Scan(&functionName)
+		functionNames = append(functionNames, functionName)
+	}
+
+	var found bool
+	for i := 0; i < len(dbSchema.Functions); i++ {
+		found = false
+		for j := 0; j < len(functionNames); j++ {
+			if functionNames[j] == dbSchema.Functions[i].Name {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			_, err := db.Exec(`
+			CREATE OR REPLACE FUNCTION ` + dbSchema.Functions[i].Name + `()
+RETURNS TRIGGER AS $$
+` + dbSchema.Functions[i].Definition + `
+$$
+LANGUAGE 'plpgsql';
+			`)
+			if err != nil {
+				log("Initialization", err.Error())
+				return false
+			}
+		}
 	}
 
 	var t DBTable
@@ -451,11 +550,46 @@ func upradeDataBaseSchema() bool {
 			}
 		} // for i := 0; i < len(indexesNow); i++ { // CONSTRAINTS
 
+		// GET TRIGGERS
+
+		sqlStatement = `SELECT trigger_name, string_agg(event_manipulation, ',') as event, action_timing as activation, action_statement as definition FROM information_schema.triggers WHERE event_object_table = $1 GROUP BY event_object_table,trigger_schema,trigger_name,action_timing,action_condition,action_statement`
+		rowsTriggers, err := db.Query(sqlStatement, t.Name)
+		if err != nil {
+			log("Initialization", err.Error())
+			return false
+		}
+
+		var triggers []DBTrigger = make([]DBTrigger, 0)
+		for rowsTriggers.Next() {
+			c := DBTrigger{}
+			rowsTriggers.Scan(&c.Name, &c.Event, &c.Activation, &c.Definition)
+			triggers = append(triggers, c)
+		}
+
+		found = false
+		for j := 0; j < len(t.Triggers); j++ {
+			found = false
+			for k := 0; k < len(triggers); k++ {
+				if t.Triggers[j].Name == triggers[k].Name {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				_, err := db.Exec(`create trigger ` + t.Triggers[j].Name + ` ` + t.Triggers[j].Activation + ` ` + t.Triggers[j].Event + ` ON ` + t.Name + ` for each row ` + t.Triggers[j].Definition)
+				if err != nil {
+					log("Initialization", err.Error())
+					return false
+				}
+			}
+		}
+
 	} // for i := 0; i < len(dbSchema.Tables); i++ { // TABLES
 
 	// DELETE TABLES THAT ARE NOT IN SCHEMA.JSON
 
-	sqlStatement := `SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND  schemaname != 'information_schema'`
+	sqlStatement = `SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND  schemaname != 'information_schema'`
 	rows, err := db.Query(sqlStatement)
 	if err != nil {
 		fmt.Println(err)
@@ -463,7 +597,7 @@ func upradeDataBaseSchema() bool {
 	}
 
 	var tableName string
-	var found bool
+	found = false
 	for rows.Next() {
 		rows.Scan(&tableName)
 
