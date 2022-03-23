@@ -782,6 +782,14 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		var query ShippingByCarriersQuery
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.shippingByCarriers(enterpriseId))
+	case "CUSTOM_FIELDS":
+		if !permissions.Masters {
+			return
+		}
+		var field CustomFields
+		json.Unmarshal([]byte(message), &field)
+		field.enterprise = enterpriseId
+		data, _ = json.Marshal(field.getCustomFields())
 	default:
 		found = false
 	}
@@ -1617,6 +1625,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &query)
 		query.enterprise = enterpriseId
 		ok = query.insertTransferBetweenWarehousesDetail()
+	case "CUSTOM_FIELDS":
+		if !permissions.Masters {
+			return
+		}
+		var field CustomFields
+		json.Unmarshal([]byte(message), &field)
+		field.enterprise = enterpriseId
+		ok = field.insertCustomFields()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1913,6 +1929,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		var s WebHookSettings
 		json.Unmarshal(message, &s)
 		ok = s.updateWebHookSettings(enterpriseId)
+	case "CUSTOM_FIELDS":
+		if !permissions.Masters {
+			return
+		}
+		var field CustomFields
+		json.Unmarshal([]byte(message), &field)
+		field.enterprise = enterpriseId
+		ok = field.updateCustomFields()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2390,6 +2414,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		query.Id = int64(id)
 		query.enterprise = enterpriseId
 		ok = query.deleteTransferBetweenWarehousesDetail(nil)
+	case "CUSTOM_FIELDS":
+		if !permissions.Masters {
+			return
+		}
+		var field CustomFields
+		field.Id = int64(id)
+		field.enterprise = enterpriseId
+		ok = field.deleteCustomFields()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
