@@ -8,8 +8,9 @@ import (
 )
 
 type DataBase struct {
-	Tables    []DBTable    `json:"tables"`
-	Functions []DBFunction `json:"functions"`
+	Tables     []DBTable    `json:"tables"`
+	Functions  []DBFunction `json:"functions"`
+	Extensions []string     `json:"extensions"`
 }
 
 type DBTable struct {
@@ -196,6 +197,10 @@ func generateSchemaJson() {
 	for rowsFunctions.Next() {
 		rowsFunctions.Scan(&functionName)
 
+		if isFunctionNameExcluded(functionName) {
+			continue
+		}
+
 		sqlStatement = `SELECT routine_definition FROM information_schema.routines WHERE specific_schema LIKE 'public' AND routine_name = $1`
 		row := db.QueryRow(sqlStatement, functionName)
 		if row.Err() != nil {
@@ -211,6 +216,21 @@ func generateSchemaJson() {
 		})
 	}
 
+	// GET EXTENSIONS
+
+	sqlStatement = `SELECT extname FROM pg_extension`
+	rowsExtensions, err := db.Query(sqlStatement)
+	if err != nil {
+		log("Initialization", err.Error())
+		return
+	}
+
+	var extensionName string
+	for rowsExtensions.Next() {
+		rowsExtensions.Scan(&extensionName)
+		dbSchema.Extensions = append(dbSchema.Extensions, extensionName)
+	}
+
 	data, err := json.Marshal(dbSchema)
 	if err != nil {
 		log("Initialization", err.Error())
@@ -221,6 +241,20 @@ func generateSchemaJson() {
 		log("Initialization", err.Error())
 		return
 	}
+} // func generateSchemaJson() {
+
+var excludedFunctionNames []string = []string{"gin_extract_query_trgm", "strict_word_similarity", "gin_trgm_consistent", "strict_word_similarity_op", "gin_trgm_triconsistent", "set_limit",
+	"show_limit", "show_trgm", "similarity", "similarity_op", "word_similarity", "word_similarity_op", "word_similarity_commutator_op", "similarity_dist", "word_similarity_dist_op",
+	"word_similarity_dist_commutator_op", "gtrgm_in", "gtrgm_out", "gtrgm_consistent", "gtrgm_distance", "gtrgm_compress", "gtrgm_decompress", "gtrgm_penalty", "gtrgm_picksplit", "gtrgm_union",
+	"gtrgm_same", "gin_extract_value_trgm", "strict_word_similarity_commutator_op", "strict_word_similarity_dist_op", "strict_word_similarity_dist_commutator_op", "gtrgm_options"}
+
+func isFunctionNameExcluded(functionName string) bool {
+	for i := 0; i < len(excludedFunctionNames); i++ {
+		if excludedFunctionNames[i] == functionName {
+			return true
+		}
+	}
+	return false
 }
 
 func upradeDataBaseSchema() bool {
@@ -236,12 +270,45 @@ func upradeDataBaseSchema() bool {
 		return false
 	}
 
+	// GET EXTENSIONS
+
+	sqlStatement := `SELECT extname FROM pg_extension`
+	rowsExtensions, err := db.Query(sqlStatement)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	var extensionName string
+	var extensionNames []string
+	for rowsExtensions.Next() {
+		rowsExtensions.Scan(&extensionName)
+		extensionNames = append(extensionNames, extensionName)
+	}
+
+	for i := 0; i < len(dbSchema.Extensions); i++ {
+		var found bool = false
+		for j := 0; j < len(extensionNames); j++ {
+			if dbSchema.Extensions[i] == extensionNames[j] {
+				found = true
+				break
+			}
+		}
+		if !found {
+			_, err = db.Exec(`CREATE EXTENSION ` + dbSchema.Extensions[i])
+			if err != nil {
+				fmt.Println(err)
+				return false
+			}
+		}
+	}
+
 	// GET FUNCTIONS
 
-	sqlStatement := `SELECT p.proname FROM pg_catalog.pg_namespace n JOIN pg_catalog.pg_proc p ON p.pronamespace = n.oid WHERE p.prokind = 'f' AND n.nspname = 'public'`
+	sqlStatement = `SELECT p.proname FROM pg_catalog.pg_namespace n JOIN pg_catalog.pg_proc p ON p.pronamespace = n.oid WHERE p.prokind = 'f' AND n.nspname = 'public'`
 	rowsFunctions, err := db.Query(sqlStatement)
 	if err != nil {
-		log("Initialization", err.Error())
+		fmt.Println(err.Error())
 		return false
 	}
 
@@ -271,7 +338,7 @@ $$
 LANGUAGE 'plpgsql';
 			`)
 			if err != nil {
-				log("Initialization", err.Error())
+				fmt.Println(err.Error())
 				return false
 			}
 		}
@@ -555,7 +622,7 @@ LANGUAGE 'plpgsql';
 		sqlStatement = `SELECT trigger_name, string_agg(event_manipulation, ',') as event, action_timing as activation, action_statement as definition FROM information_schema.triggers WHERE event_object_table = $1 GROUP BY event_object_table,trigger_schema,trigger_name,action_timing,action_condition,action_statement`
 		rowsTriggers, err := db.Query(sqlStatement, t.Name)
 		if err != nil {
-			log("Initialization", err.Error())
+			fmt.Println(err.Error())
 			return false
 		}
 
@@ -579,7 +646,7 @@ LANGUAGE 'plpgsql';
 			if !found {
 				_, err := db.Exec(`create trigger ` + t.Triggers[j].Name + ` ` + t.Triggers[j].Activation + ` ` + t.Triggers[j].Event + ` ON ` + t.Name + ` for each row ` + t.Triggers[j].Definition)
 				if err != nil {
-					log("Initialization", err.Error())
+					fmt.Println(err.Error())
 					return false
 				}
 			}

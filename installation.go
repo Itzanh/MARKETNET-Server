@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 )
 
 // This file contains functions that will help in the deploy of this software and later maintenance.
@@ -11,7 +12,7 @@ import (
 // This function returns true if the database already exists, or if it has been installed or updated successfully.
 // Returns false if the database could not be created or updated.
 func installDB() bool {
-	/*// Does the database have tables? Or is it empty?
+	// Does the database have tables? Or is it empty?
 	sqlStatement := `SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND  schemaname != 'information_schema'`
 	row := db.QueryRow(sqlStatement)
 	if row.Err() != nil {
@@ -34,39 +35,15 @@ func installDB() bool {
 			return false
 		}
 
-		// truncate the file on successfull update
-		updateFile, _ := os.OpenFile("update.sql", os.O_RDWR, 0666)
-		updateFile.Truncate(0)
+		return true
 	} else {
-		content, err := ioutil.ReadFile("update.sql")
-		if err != nil {
-			fmt.Println("Could not read file update.sql", err)
-			return false
+		fmt.Println("Upgrading the database schema...")
+		ok := upradeDataBaseSchema()
+		if ok {
+			fmt.Println("Upgrade OK. Database ready!")
+		} else {
+			fmt.Println("There was an error upgrading the database schema. The SQL error returned by PostgreSQL is shown above this message. The server will exit now with error code 1.")
 		}
-
-		// there is no pending updates
-		if len(content) == 0 {
-			return true
-		}
-
-		_, err = db.Exec(string(content))
-		if err != nil {
-			fmt.Println("Could not update database schema", err)
-			return false
-		}
-
-		// truncate the file on successfull update
-		updateFile, _ := os.OpenFile("update.sql", os.O_RDWR, 0666)
-		updateFile.Truncate(0)
+		return ok
 	}
-	return true*/
-
-	fmt.Println("Upgrading the database schema...")
-	ok := upradeDataBaseSchema()
-	if ok {
-		fmt.Println("Upgrade OK. Database ready!")
-	} else {
-		fmt.Println("There was an error upgrading the database schema. The SQL error returned by PostgreSQL is shown above this message. The server will exit now with error code 1.")
-	}
-	return ok
 }
