@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 type DocumentContainer struct {
 	Id                  int32     `json:"id"`
@@ -10,6 +13,8 @@ type DocumentContainer struct {
 	MaxFileSize         int32     `json:"maxFileSize"`
 	DisallowedMimeTypes string    `json:"disallowedMimeTypes"`
 	AllowedMimeTypes    string    `json:"allowedMimeTypes"`
+	UsedStorage         int64     `json:"usedStorage"`
+	MaxStorage          int64     `json:"maxStorage"`
 	enterprise          int32
 }
 
@@ -25,7 +30,7 @@ func getDocumentContainer(enterpriseId int32) []DocumentContainer {
 
 	for rows.Next() {
 		d := DocumentContainer{}
-		rows.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise)
+		rows.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise, &d.UsedStorage, &d.MaxStorage)
 		containters = append(containters, d)
 	}
 
@@ -41,7 +46,7 @@ func getDocumentContainerRow(containerId int32) DocumentContainer {
 	}
 
 	d := DocumentContainer{}
-	row.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise)
+	row.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise, &d.UsedStorage, &d.MaxStorage)
 
 	return d
 }
@@ -52,6 +57,10 @@ func (c *DocumentContainer) isValid() bool {
 
 func (d *DocumentContainer) insertDocumentContainer() bool {
 	if !d.isValid() {
+		return false
+	}
+
+	if isParameterPresent("--saas") {
 		return false
 	}
 
@@ -71,8 +80,12 @@ func (d *DocumentContainer) updateDocumentContainer() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.document_container SET name=$2, path=$3, max_file_size=$4, disallowed_mime_types=$5, allowed_mime_types=$6, enterprise=$7 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, d.Id, d.Name, d.Path, d.MaxFileSize, d.DisallowedMimeTypes, d.AllowedMimeTypes, d.enterprise)
+	if isParameterPresent("--saas") {
+		d.MaxStorage = getDocumentContainerRow(d.Id).MaxStorage
+	}
+
+	sqlStatement := `UPDATE public.document_container SET name=$2, path=$3, max_file_size=$4, disallowed_mime_types=$5, allowed_mime_types=$6, enterprise=$7, max_storage=$8 WHERE id=$1`
+	res, err := db.Exec(sqlStatement, d.Id, d.Name, d.Path, d.MaxFileSize, d.DisallowedMimeTypes, d.AllowedMimeTypes, d.enterprise, d.MaxStorage)
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -87,10 +100,31 @@ func (d *DocumentContainer) deleteDocumentContainer() bool {
 		return false
 	}
 
+	if isParameterPresent("--saas") {
+		return false
+	}
+
 	sqlStatement := `DELETE FROM public.document_container WHERE id=$1 AND enterprise=$2`
 	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
 	if err != nil {
 		log("DB", err.Error())
+		return false
+	}
+
+	rows, _ := res.RowsAffected()
+	return rows > 0
+}
+
+func (d *DocumentContainer) updateUsedStorage(sizeInBytes int32, trans *sql.Tx) bool {
+	if d.Id <= 0 {
+		return false
+	}
+
+	sqlStatement := `UPDATE public.document_container SET used_storage=used_storage + $2 WHERE id=$1`
+	res, err := trans.Exec(sqlStatement, d.Id, sizeInBytes)
+	if err != nil {
+		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 

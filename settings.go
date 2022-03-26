@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"path"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 )
 
@@ -479,10 +481,10 @@ func addEnterpriseFromParameters() bool {
 		return false
 	}
 
-	return createNewEnterprise(enterpriseName, enterpriseDesc, enterpriseKey, licenseCode, licenseChance, userPassword)
+	return createNewEnterprise(enterpriseName, enterpriseDesc, enterpriseKey, licenseCode, licenseChance, userPassword, 0)
 }
 
-func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpriseKey string, licenseCode string, licenseChance string, userPassword string) bool {
+func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpriseKey string, licenseCode string, licenseChance string, userPassword string, documentSpace float64) bool {
 	if len(enterpriseKey) == 0 || len(enterpriseName) == 0 || len(userPassword) < 8 || len(licenseCode) == 0 || len(licenseChance) == 0 {
 		fmt.Println("Error: Invalid data in parameters. Check all the parameters in the documentation.")
 		return false
@@ -580,5 +582,32 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 	} else {
 		fmt.Println("Added the admin user to the admin group")
 	}
+
+	if documentSpace > 0 {
+		documentContainerUUID := uuid.NewString()
+		workingDir, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+			return false
+		}
+
+		err = os.Mkdir(path.Join(workingDir, documentContainerUUID), 0755)
+		if err != nil {
+			fmt.Println(err)
+			return false
+		}
+
+		dc := DocumentContainer{
+			Name:       "Default Document Container",
+			Path:       path.Join(workingDir, documentContainerUUID),
+			MaxStorage: int64(documentSpace) * 1000000000, // Gb to bytes
+			enterprise: enterpriseId,
+		}
+		if !dc.insertDocumentContainer() {
+			fmt.Println("Could not create document container")
+			return false
+		}
+	}
+
 	return true
 }

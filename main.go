@@ -2934,12 +2934,7 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var document Document
 		json.Unmarshal([]byte(message), &document)
 		document.enterprise = enterpriseId
-		ok := document.insertDocument()
-		if ok {
-			data, _ = json.Marshal(document)
-		} else {
-			data, _ = json.Marshal(ok)
-		}
+		data, _ = json.Marshal(document.insertDocument())
 	case "GRANT_DOCUMENT_ACCESS_TOKEN":
 		data, _ = json.Marshal(grantDocumentAccessToken(enterpriseId))
 	case "GET_PRODUCT_ROW":

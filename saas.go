@@ -13,12 +13,14 @@ type NewEnterpriseRequest struct {
 	UserPassword          string
 	LicenseCode           string
 	LicenseChance         string
+	DocumentSpace         float64
 }
 
 type EnterpriseActivationRequest struct {
 	EnterpriseKey string
 	LicenseCode   string
 	LicenseChance string
+	DocumentSpace float64
 }
 
 type EnterpriseDeactivationRequest struct {
@@ -47,7 +49,7 @@ func handleEnterprise(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		newEnterprise := NewEnterpriseRequest{}
 		json.Unmarshal(body, &newEnterprise)
-		ok = createNewEnterprise(newEnterprise.EnterpriseName, newEnterprise.EnterpriseDescription, newEnterprise.EnterpriseKey, newEnterprise.LicenseCode, newEnterprise.LicenseChance, newEnterprise.UserPassword)
+		ok = createNewEnterprise(newEnterprise.EnterpriseName, newEnterprise.EnterpriseDescription, newEnterprise.EnterpriseKey, newEnterprise.LicenseCode, newEnterprise.LicenseChance, newEnterprise.UserPassword, newEnterprise.DocumentSpace)
 
 	case "PUT":
 		activateEnterprise := EnterpriseActivationRequest{}

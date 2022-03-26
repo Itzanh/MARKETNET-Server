@@ -1,11 +1,16 @@
 package main
 
+// TODO: better error control
+// enviar el tamaño del archivo al servidor y verificar que cabrá
+// si el servidor devuelve un error durante la subida, mostrar ese error en el fontend
+
 import (
 	"database/sql"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,7 +136,7 @@ func getDocumentRowById(id int32) Document {
 	}
 
 	d := Document{}
-	row.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType)
+	row.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
 
 	return d
 }
@@ -140,9 +145,27 @@ func (d *Document) isValid() bool {
 	return !(len(d.Name) == 0 || len(d.Name) > 250 || d.Size <= 0 || d.Container <= 0 || len(d.Description) > 3000)
 }
 
-func (d *Document) insertDocument() bool {
+func (d *Document) insertDocument() OkAndErrorCodeReturn {
 	if !d.isValid() {
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	documentContainer := getDocumentContainerRow(d.Container)
+	if documentContainer.MaxStorage > 0 && documentContainer.UsedStorage+int64(d.Size) > documentContainer.MaxStorage {
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1, ExtraData: []string{
+			strconv.Itoa(int(documentContainer.UsedStorage)),
+			strconv.Itoa(int(documentContainer.MaxStorage)),
+		}}
+	}
+	if d.Size > documentContainer.MaxFileSize {
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{
+			strconv.Itoa(int(documentContainer.MaxFileSize)),
+		}}
+	}
+	if int64(d.Size) > settings.Server.WebSecurity.MaxRequestBodyLength {
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{
+			strconv.Itoa(int(settings.Server.WebSecurity.MaxRequestBodyLength)),
+		}}
 	}
 
 	d.Uuid = uuid.New().String()
@@ -150,11 +173,16 @@ func (d *Document) insertDocument() bool {
 	res, err := db.Exec(sqlStatement, d.Name, d.Uuid, d.Container, d.Description, d.SalesOrder, d.SalesInvoice, d.SalesDeliveryNote, d.Shipping, d.PurchaseOrder, d.PurchaseInvoice, d.PurchaseDeliveryNote, d.enterprise)
 	if err != nil {
 		log("DB", err.Error())
-		return false
+		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	if rows == 0 {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	return OkAndErrorCodeReturn{Ok: true, ExtraData: []string{
+		d.Uuid,
+	}}
 }
 
 func (d *Document) deleteDocument() bool {
@@ -170,17 +198,44 @@ func (d *Document) deleteDocument() bool {
 	if container.Id <= 0 {
 		return false
 	}
-	os.Remove(path.Join(container.Path, inMemoryDocument.Uuid))
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return false
+	}
+	///
 
 	sqlStatement := `DELETE FROM public.document WHERE id=$1`
-	res, err := db.Exec(sqlStatement, d.Id)
+	res, err := trans.Exec(sqlStatement, d.Id)
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
 	rows, _ := res.RowsAffected()
-	return rows > 0
+	if rows == 0 {
+		trans.Rollback()
+		return false
+	}
+
+	if !container.updateUsedStorage(-inMemoryDocument.Size, trans) {
+		trans.Rollback()
+		return false
+	}
+
+	err = os.Remove(path.Join(container.Path, inMemoryDocument.Uuid))
+	if err != nil {
+		log("FS", err.Error())
+		trans.Rollback()
+		return false
+	}
+
+	///
+	err = trans.Commit()
+	return err == nil
+	///
 }
 
 func handleDocument(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +287,7 @@ func downloadDocument(token string, uuid string) ([]byte, int) {
 	}
 	content, err := ioutil.ReadFile(path.Join(container.Path, doc.Uuid))
 	if err != nil {
-		log("DB", err.Error())
+		log("FS", err.Error())
 		return nil, http.StatusInternalServerError
 	}
 	return content, http.StatusOK
@@ -251,13 +306,49 @@ func uploadDocument(token string, uuid string, document []byte) int {
 	if container.Id <= 0 {
 		return http.StatusNotFound
 	}
-	err := ioutil.WriteFile(path.Join(container.Path, doc.Uuid), document, 0700)
+
+	if container.MaxStorage > 0 && container.UsedStorage+int64(len(document)) > container.MaxStorage {
+		return http.StatusRequestEntityTooLarge
+	}
+
+	mimeType := http.DetectContentType(document)
+
+	///
+	trans, transErr := db.Begin()
+	if transErr != nil {
+		return http.StatusInternalServerError
+	}
+	///
+
+	if !container.updateUsedStorage(-doc.Size, trans) {
+		trans.Rollback()
+		return http.StatusInternalServerError
+	}
+
+	sqlStatement := `UPDATE public.document SET date_updated=CURRENT_TIMESTAMP(3), size=$2, mime_type=$3 WHERE id=$1`
+	_, err := db.Exec(sqlStatement, doc.Id, len(document), mimeType)
 	if err != nil {
 		log("DB", err.Error())
 		return http.StatusInternalServerError
 	}
 
-	mimeType := http.DetectContentType(document)
+	if !container.updateUsedStorage(int32(len(document)), trans) {
+		trans.Rollback()
+		return http.StatusInternalServerError
+	}
+
+	///
+	err = trans.Commit()
+	if err != nil {
+		return http.StatusInternalServerError
+	}
+	///
+
+	err = ioutil.WriteFile(path.Join(container.Path, doc.Uuid), document, 0700)
+	if err != nil {
+		log("FS", err.Error())
+		return http.StatusInternalServerError
+	}
 
 	if len(container.AllowedMimeTypes) > 0 {
 		allowedMimeTypes := strings.Split(container.AllowedMimeTypes, ",")
@@ -280,8 +371,6 @@ func uploadDocument(token string, uuid string, document []byte) int {
 		}
 	}
 
-	sqlStatement := `UPDATE public.document SET date_updated=CURRENT_TIMESTAMP(3), size=$2, mime_type=$3 WHERE id=$1`
-	db.Exec(sqlStatement, doc.Id, len(document), mimeType)
 	return http.StatusOK
 }
 
