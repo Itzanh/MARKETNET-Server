@@ -1,49 +1,37 @@
 package main
 
-import "strings"
+import (
+	"strings"
+
+	"gorm.io/gorm"
+)
 
 type PaymentMethod struct {
-	Id                    int32  `json:"id"`
-	Name                  string `json:"name"`
-	PaidInAdvance         bool   `json:"paidInAdvance"`
-	PrestashopModuleName  string `json:"prestashopModuleName"`
-	DaysExpiration        int16  `json:"daysExpiration"`
-	Bank                  *int32 `json:"bank"`
-	WooCommerceModuleName string `json:"wooCommerceModuleName"`
-	ShopifyModuleName     string `json:"shopifyModuleName"`
-	enterprise            int32
+	Id                    int32    `json:"id" gorm:"primaryKey;index:payment_method_id_enterprise,unique:true,priority:1"`
+	Name                  string   `json:"name" gorm:"type:character varying(100);not null:true"`
+	PaidInAdvance         bool     `json:"paidInAdvance" gorm:"not null:true"`
+	PrestashopModuleName  string   `json:"prestashopModuleName" gorm:"type:character varying(100);not null:true"`
+	DaysExpiration        int16    `json:"daysExpiration" gorm:"not null:true"`
+	Bank                  *int32   `json:"bank"`
+	WooCommerceModuleName string   `json:"wooCommerceModuleName" gorm:"column:woocommerce_module_name;type:character varying(100);not null:true"`
+	ShopifyModuleName     string   `json:"shopifyModuleName" gorm:"type:character varying(100);not null:true"`
+	EnterpriseId          int32    `json:"-" gorm:"column:enterprise;not null:true;index:payment_method_id_enterprise,unique:true,priority:2"`
+	Enterprise            Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (p *PaymentMethod) TableName() string {
+	return "payment_method"
 }
 
 func getPaymentMethods(enterpriseId int32) []PaymentMethod {
 	var paymentMethod []PaymentMethod = make([]PaymentMethod, 0)
-	sqlStatement := `SELECT * FROM public.payment_method WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return paymentMethod
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := PaymentMethod{}
-		rows.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName, &p.ShopifyModuleName, &p.enterprise)
-		paymentMethod = append(paymentMethod, p)
-	}
-
+	dbOrm.Model(&PaymentMethod{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&paymentMethod)
 	return paymentMethod
 }
 
 func getPaymentMethodRow(paymentMethodId int32) PaymentMethod {
-	sqlStatement := `SELECT * FROM public.payment_method WHERE id=$1`
-	row := db.QueryRow(sqlStatement, paymentMethodId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return PaymentMethod{}
-	}
-
 	p := PaymentMethod{}
-	row.Scan(&p.Id, &p.Name, &p.PaidInAdvance, &p.PrestashopModuleName, &p.DaysExpiration, &p.Bank, &p.WooCommerceModuleName, &p.ShopifyModuleName, &p.enterprise)
-
+	dbOrm.Model(&PaymentMethod{}).Where("id = ?", paymentMethodId).First(&p)
 	return p
 }
 
@@ -51,20 +39,25 @@ func (p *PaymentMethod) isValid() bool {
 	return !(len(p.Name) == 0 || len(p.Name) > 100 || p.DaysExpiration < 0)
 }
 
+func (p *PaymentMethod) BeforeCreate(tx *gorm.DB) (err error) {
+	var paymentMethod PaymentMethod
+	tx.Model(&PaymentMethod{}).Last(&paymentMethod)
+	p.Id = paymentMethod.Id + 1
+	return nil
+}
+
 func (p *PaymentMethod) insertPaymentMethod() bool {
 	if !p.isValid() {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.payment_method(name, paid_in_advance, prestashop_module_name, days_expiration, bank, woocommerce_module_name, shopify_module_name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	res, err := db.Exec(sqlStatement, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank, p.WooCommerceModuleName, p.ShopifyModuleName, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (p *PaymentMethod) updatePaymentMethod() bool {
@@ -72,15 +65,28 @@ func (p *PaymentMethod) updatePaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.payment_method SET name=$2, paid_in_advance=$3, prestashop_module_name=$4, days_expiration=$5, bank=$6, woocommerce_module_name=$7, shopify_module_name=$8, enterprise=$9 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.PaidInAdvance, p.PrestashopModuleName, p.DaysExpiration, p.Bank, p.WooCommerceModuleName, p.ShopifyModuleName, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	paymentMethod := PaymentMethod{}
+	result := dbOrm.Model(&PaymentMethod{}).Where("id = ? AND enterprise = ?", p.Id, p.EnterpriseId).First(&paymentMethod)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	paymentMethod.Name = p.Name
+	paymentMethod.PaidInAdvance = p.PaidInAdvance
+	paymentMethod.PrestashopModuleName = p.PrestashopModuleName
+	paymentMethod.DaysExpiration = p.DaysExpiration
+	paymentMethod.Bank = p.Bank
+	paymentMethod.WooCommerceModuleName = p.WooCommerceModuleName
+	paymentMethod.ShopifyModuleName = p.ShopifyModuleName
+
+	result = dbOrm.Save(&paymentMethod)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (p *PaymentMethod) deletePaymentMethod() bool {
@@ -88,67 +94,43 @@ func (p *PaymentMethod) deletePaymentMethod() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.payment_method WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, p.Id, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", p.Id, p.EnterpriseId).Delete(&PaymentMethod{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
-func findPaymentMethodByName(paymentMethodName string, enterpriseId int32) []NameInt16 {
-	var paymentMethods []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.payment_method WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(paymentMethodName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return paymentMethods
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := NameInt16{}
-		rows.Scan(&p.Id, &p.Name)
-		paymentMethods = append(paymentMethods, p)
+func findPaymentMethodByName(paymentMethodName string, enterpriseId int32) []NameInt32 {
+	var paymentMethod []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Country{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(paymentMethodName), enterpriseId).Limit(10).Find(&paymentMethod)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return paymentMethod
 	}
 
-	return paymentMethods
+	return paymentMethod
 }
 
 func getNamePaymentMethod(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.payment_method WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var paymentMethod PaymentMethod
+	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&paymentMethod)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return paymentMethod.Name
 }
 
-type LocatePaymentMethod struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-}
-
-func locatePaymentMethods(enterpriseId int32) []LocatePaymentMethod {
-	var paymentMethod []LocatePaymentMethod = make([]LocatePaymentMethod, 0)
-	sqlStatement := `SELECT id,name FROM public.payment_method WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func locatePaymentMethods(enterpriseId int32) []NameInt32 {
+	var paymentMethod []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&PaymentMethod{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&paymentMethod)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return paymentMethod
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := LocatePaymentMethod{}
-		rows.Scan(&p.Id, &p.Name)
-		paymentMethod = append(paymentMethod, p)
 	}
 
 	return paymentMethod

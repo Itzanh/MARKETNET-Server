@@ -90,27 +90,41 @@ type SYCustomers struct {
 }
 
 type SYCustomer struct {
-	Id             int64       `json:"id"`
-	Email          string      `json:"email"`
-	FirstName      string      `json:"first_name"`
-	LastName       string      `json:"last_name"`
-	TaxExempt      bool        `json:"tax_exempt"`
-	Phone          string      `json:"phone"`
-	Currency       string      `json:"currency"`
-	Addresses      []SYAddress `json:"addresses"`
-	DefaultAddress SYAddress   `json:"default_address"`
+	Id             int64       `json:"id" gorm:"primaryKey"`
+	Email          string      `json:"email" gorm:"column:email;type:character varying(100);not null:true"`
+	FirstName      string      `json:"first_name" gorm:"column:first_name;type:character varying(100);not null:true"`
+	LastName       string      `json:"last_name" gorm:"column:last_name;type:character varying(100);not null:true"`
+	TaxExempt      bool        `json:"tax_exempt" gorm:"column:tax_exempt;type:boolean;not null:true"`
+	Phone          string      `json:"phone" gorm:"column:phone;type:character varying(25);not null:true"`
+	Currency       string      `json:"currency" gorm:"column:currency;type:character varying(5);not null:true"`
+	Addresses      []SYAddress `json:"addresses" gorm:"-"`
+	SyExists       bool        `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	DefaultAddress SYAddress   `json:"default_address" gorm:"column:default_address_id;type:integer;not null:true"`
+	EnterpriseId   int32       `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise     Settings    `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYCustomer) TableName() string {
+	return "sy_customers"
 }
 
 type SYAddress struct {
-	Id          int64  `json:"id"`
-	CustomerId  int64  `json:"customer_id"`
-	Company     string `json:"company"`
-	Address1    string `json:"address1"`
-	Address2    string `json:"address2"`
-	City        string `json:"city"`
-	Province    string `json:"province"`
-	Zip         string `json:"zip"`
-	CountryCode string `json:"country_code"`
+	Id           int64    `json:"id" gorm:"primaryKey"`
+	CustomerId   int64    `json:"customer_id" gorm:"column:customer_id;type:bigint;not null:true"`
+	Company      string   `json:"company" gorm:"column:company;type:character varying(100);not null:true"`
+	Address1     string   `json:"address1" gorm:"column:address1;type:character varying(100);not null:true"`
+	Address2     string   `json:"address2" gorm:"column:address2;type:character varying(100);not null:true"`
+	City         string   `json:"city" gorm:"column:city;type:character varying(50);not null:true"`
+	Province     string   `json:"province" gorm:"column:province;type:character varying(50);not null:true"`
+	Zip          string   `json:"zip" gorm:"column:zip;type:character varying(25);not null:true"`
+	CountryCode  string   `json:"country_code" gorm:"column:country_code;type:character varying(5);not null:true"`
+	SyExists     bool     `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYAddress) TableName() string {
+	return "sy_addresses"
 }
 
 type SYProducts struct {
@@ -118,24 +132,38 @@ type SYProducts struct {
 }
 
 type SYProduct struct {
-	Id       int64       `json:"id"`
-	Title    string      `json:"title"`
-	BodyHtml string      `json:"body_html"`
-	Variants []SYVariant `json:"variants"`
+	Id           int64       `json:"id" gorm:"primaryKey"`
+	Title        string      `json:"title" gorm:"column:title;type:character varying(150);not null:true"`
+	BodyHtml     string      `json:"body_html" gorm:"column:body_html;type:text;not null:true"`
+	Variants     []SYVariant `json:"variants" gorm:"-"`
+	SyExists     bool        `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	EnterpriseId int32       `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings    `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYProduct) TableName() string {
+	return "sy_products"
 }
 
 type SYVariant struct {
-	ProductId int64   `json:"product_id"`
-	Id        int64   `json:"id"`
-	Title     string  `json:"title"`
-	Price     string  `json:"price"`
-	Sku       string  `json:"sku"`
-	Option1   string  `json:"option1"`
-	Option2   *string `json:"option2"`
-	Option3   *string `json:"option3"`
-	Taxable   bool    `json:"taxable"`
-	Barcode   string  `json:"barcode"`
-	Grams     int32   `json:"grams"`
+	Id           int64    `json:"id" gorm:"primaryKey"`
+	ProductId    int64    `json:"product_id" gorm:"column:product_id;type:bigint;not null:true"`
+	Title        string   `json:"title" gorm:"column:title;type:character varying(150);not null:true"`
+	Price        string   `json:"price" gorm:"column:price;type:numeric(12,6);not null:true"`
+	Sku          string   `json:"sku" gorm:"column:sku;type:character varying(25);not null:true"`
+	Option1      string   `json:"option1" gorm:"column:option1;type:character varying(150);not null:true"`
+	Option2      *string  `json:"option2" gorm:"column:option2;type:character varying(150)"`
+	Option3      *string  `json:"option3" gorm:"column:option3;type:character varying(150)"`
+	Taxable      bool     `json:"taxable" gorm:"column:taxable;type:boolean;not null:true"`
+	Barcode      string   `json:"barcode" gorm:"column:barcode;type:character varying(25);not null:true"`
+	Grams        int32    `json:"grams" gorm:"column:grams;type:integer;not null:true"`
+	SyExists     bool     `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYVariant) TableName() string {
+	return "sy_variants"
 }
 
 type SYVariantDB struct {
@@ -157,25 +185,51 @@ type SYDraftOrders struct {
 }
 
 type SYDraftOrder struct {
-	Id              int64                  `json:"id"`
-	Currency        string                 `json:"currency"`
-	TaxExempt       bool                   `json:"tax_exempt"`
-	Name            string                 `json:"name"`
-	LineItems       []SYDraftOrderLineItem `json:"line_items"`
-	ShippingAddress SYAddress              `json:"shipping_address"`
-	BillingAddress  SYAddress              `json:"billing_address"`
-	TotalTax        string                 `json:"total_tax"`
-	OrderId         *int64                 `json:"order_id"`
-	Customer        SYCustomer             `json:"customer"`
+	Id                         int64                  `json:"id" gorm:"primaryKey"`
+	Currency                   string                 `json:"currency" gorm:"column:currency;type:character varying(5);not null:true"`
+	TaxExempt                  bool                   `json:"tax_exempt" gorm:"column:tax_exempt;type:boolean;not null:true"`
+	Name                       string                 `json:"name" gorm:"column:name;type:character varying(9);not null:true"`
+	LineItems                  []SYDraftOrderLineItem `json:"line_items" gorm:"-"`
+	ShippingAddress            SYAddress              `json:"shipping_address" gorm:"-"`
+	BillingAddress             SYAddress              `json:"billing_address" gorm:"-"`
+	ShippingAddress1           string                 `json:"-" gorm:"column:shipping_address_1;type:character varying(100);not null:true"`
+	ShippingAddress2           string                 `json:"-" gorm:"column:shipping_address2;type:character varying(100);not null:true"`
+	ShippingAddressCity        string                 `json:"-" gorm:"column:shipping_address_city;type:character varying(50);not null:true"`
+	ShippingAddressZip         string                 `json:"-" gorm:"column:shipping_address_zip;type:character varying(25);not null:true"`
+	ShippingAddressCountryCode string                 `json:"-" gorm:"column:shipping_address_country_code;type:character varying(5);not null:true"`
+	BillingAddress1            string                 `json:"-" gorm:"column:billing_address_1;type:character varying(100);not null:true"`
+	BillingAddress2            string                 `json:"-" gorm:"column:billing_address2;type:character varying(100);not null:true"`
+	BillingAddressCity         string                 `json:"-" gorm:"column:billing_address_city;type:character varying(50);not null:true"`
+	BillingAddressZip          string                 `json:"-" gorm:"column:billing_address_zip;type:character varying(25);not null:true"`
+	BillingAddressCountryCode  string                 `json:"-" gorm:"column:billing_address_country_code;type:character varying(5);not null:true"`
+	TotalTax                   string                 `json:"total_tax" gorm:"column:total_tax;type:numeric(14,6);not null:true"`
+	Customer                   SYCustomer             `json:"customer" gorm:"-"`
+	CustomerId                 int64                  `json:"-" gorm:"column:customer_id;type:bigint;not null:true"`
+	SyExists                   bool                   `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	OrderId                    *int64                 `json:"order_id" gorm:"column:order_id;type:bigint;index:_sy_draft_orders_order_id,where:order_id IS NOT NULL"`
+	EnterpriseId               int32                  `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise                 Settings               `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYDraftOrder) TableName() string {
+	return "sy_draft_orders"
 }
 
 type SYDraftOrderLineItem struct {
-	Id        int64  `json:"id"`
-	VariantId int64  `json:"variant_id"`
-	ProductId int64  `json:"product_id"`
-	Quantity  int32  `json:"quantity"`
-	Taxable   bool   `json:"taxable"`
-	Price     string `json:"price"`
+	Id           int64    `json:"id" gorm:"primaryKey"`
+	VariantId    int64    `json:"variant_id" gorm:"column:variant_id;type:bigint;not null:true"`
+	ProductId    int64    `json:"product_id" gorm:"column:product_id;type:bigint;not null:true"`
+	Quantity     int32    `json:"quantity" gorm:"column:quantity;type:integer;not null:true"`
+	Taxable      bool     `json:"taxable" gorm:"column:taxable;type:boolean;not null:true"`
+	Price        string   `json:"price" gorm:"column:price;type:numeric(12,6);not null:true"`
+	DraftOrderId int64    `json:"-" gorm:"column:draft_order_id;type:bigint;not null:true"`
+	SyExists     bool     `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYDraftOrderLineItem) TableName() string {
+	return "sy_draft_order_line_item"
 }
 
 type SYOrders struct {
@@ -183,17 +237,38 @@ type SYOrders struct {
 }
 
 type SYOrder struct {
-	Id                    int64                  `json:"id"`
-	Currency              string                 `json:"currency"`
-	CurrentTotalDiscounts string                 `json:"current_total_discounts"`
-	TotalShippingPriceSet TotalShippingPriceSet  `json:"total_shipping_price_set"`
-	Name                  string                 `json:"name"`
-	LineItems             []SYDraftOrderLineItem `json:"line_items"`
-	ShippingAddress       SYAddress              `json:"shipping_address"`
-	BillingAddress        SYAddress              `json:"billing_address"`
-	TotalTax              string                 `json:"total_tax"`
-	Customer              SYCustomer             `json:"customer"`
-	Gateway               string                 `json:"gateway"`
+	Id                            int64                  `json:"id" gorm:"primaryKey"`
+	Currency                      string                 `json:"currency" gorm:"column:currency;type:character varying(5);not null:true"`
+	CurrentTotalDiscounts         string                 `json:"current_total_discounts" gorm:"column:current_total_discounts;type:numeric(14,6);not null:true"`
+	TotalShippingPriceSet         TotalShippingPriceSet  `json:"total_shipping_price_set" gorm:"-"`
+	TotalShippingPriceSetAmount   float64                `json:"-" gorm:"column:total_shipping_price_set_amount;type:numeric(14,6);not null:true"`
+	TotalShippingPriceSetCurrency string                 `json:"-" gorm:"column:total_shipping_price_set_currency_code;type:character varying(5);not null:true"`
+	TaxExempt                     bool                   `json:"tax_exempt" gorm:"column:tax_exempt;type:boolean;not null:true"`
+	Name                          string                 `json:"name" gorm:"column:name;type:character varying(9);not null:true"`
+	LineItems                     []SYDraftOrderLineItem `json:"line_items" gorm:"-"`
+	ShippingAddress               SYAddress              `json:"shipping_address" gorm:"-"`
+	BillingAddress                SYAddress              `json:"billing_address" gorm:"-"`
+	ShippingAddress1              string                 `json:"-" gorm:"column:shipping_address_1;type:character varying(100);not null:true"`
+	ShippingAddress2              string                 `json:"-" gorm:"column:shipping_address2;type:character varying(100);not null:true"`
+	ShippingAddressCity           string                 `json:"-" gorm:"column:shipping_address_city;type:character varying(50);not null:true"`
+	ShippingAddressZip            string                 `json:"-" gorm:"column:shipping_address_zip;type:character varying(25);not null:true"`
+	ShippingAddressCountryCode    string                 `json:"-" gorm:"column:shipping_address_country_code;type:character varying(5);not null:true"`
+	BillingAddress1               string                 `json:"-" gorm:"column:billing_address_1;type:character varying(100);not null:true"`
+	BillingAddress2               string                 `json:"-" gorm:"column:billing_address2;type:character varying(100);not null:true"`
+	BillingAddressCity            string                 `json:"-" gorm:"column:billing_address_city;type:character varying(50);not null:true"`
+	BillingAddressZip             string                 `json:"-" gorm:"column:billing_address_zip;type:character varying(25);not null:true"`
+	BillingAddressCountryCode     string                 `json:"-" gorm:"column:billing_address_country_code;type:character varying(5);not null:true"`
+	TotalTax                      string                 `json:"total_tax" gorm:"column:total_tax;type:numeric(14,6);not null:true"`
+	Customer                      SYCustomer             `json:"customer" gorm:"-"`
+	CustomerId                    int64                  `json:"-" gorm:"column:customer_id;type:bigint;not null:true"`
+	SyExists                      bool                   `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	Gateway                       string                 `json:"gateway" gorm:"column:gateway;type:character varying(50);not null:true"`
+	EnterpriseId                  int32                  `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise                    Settings               `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYOrder) TableName() string {
+	return "sy_orders"
 }
 
 type TotalShippingPriceSet struct {
@@ -206,12 +281,20 @@ type ShopMoney struct {
 }
 
 type SYOrderLineItem struct {
-	Id        int64  `json:"id"`
-	VariantId int64  `json:"variant_id"`
-	ProductId int64  `json:"product_id"`
-	Quantity  int32  `json:"quantity"`
-	Taxable   bool   `json:"taxable"`
-	Price     string `json:"price"`
+	Id           int64    `json:"id" gorm:"primaryKey"`
+	VariantId    int64    `json:"variant_id" gorm:"column:variant_id;type:bigint;not null:true"`
+	ProductId    int64    `json:"product_id" gorm:"column:product_id;type:bigint;not null:true"`
+	Quantity     int32    `json:"quantity" gorm:"column:quantity;type:integer;not null:true"`
+	Taxable      bool     `json:"taxable" gorm:"column:taxable;type:boolean;not null:true"`
+	Price        string   `json:"price" gorm:"column:price;type:numeric(12,6);not null:true"`
+	OrderId      int64    `json:"-" gorm:"column:order_id;type:bigint;not null:true"`
+	SyExists     bool     `json:"-" gorm:"column:sy_exists;type:boolean;not null"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (SYOrderLineItem) TableName() string {
+	return "sy_order_line_item"
 }
 
 // main import function
@@ -552,7 +635,7 @@ func copySyCustomers(enterpriseId int32) bool {
 			// create customer
 			c := Customer{}
 			c.Email = email
-			c.shopifyId = id
+			c.ShopifyId = id
 			c.Phone = phone
 			c.Tradename = firstName + " " + lastName
 
@@ -573,7 +656,7 @@ func copySyCustomers(enterpriseId int32) bool {
 				c.Name = c.Tradename
 			}
 
-			c.enterprise = enterpriseId
+			c.EnterpriseId = enterpriseId
 			res := c.insertCustomer(0)
 			ok, customerId := res.Id > 0, int32(res.Id)
 			if !ok {
@@ -628,20 +711,20 @@ func copySyCustomers(enterpriseId int32) bool {
 				}
 
 				a := Address{}
-				a.Customer = &customerId
+				a.CustomerId = &customerId
 				a.Address = address1
 				a.Address2 = address2
 				a.City = city
 				a.ZipCode = zip
-				a.Country = countryId
-				a.State = provinceId
-				a.shopifyId = id
+				a.CountryId = countryId
+				a.StateId = provinceId
+				a.ShopifyId = id
 				if len(company) > 0 {
 					a.PrivateOrBusiness = "B"
 				} else {
 					a.PrivateOrBusiness = "P"
 				}
-				a.enterprise = enterpriseId
+				a.EnterpriseId = enterpriseId
 				a.insertAddress(0)
 			} // for rows.Next()
 		} else { // if rows == 0
@@ -662,7 +745,7 @@ func copySyCustomers(enterpriseId int32) bool {
 
 			c := getCustomerRow(erpCustomerId)
 			c.Email = email
-			c.shopifyId = id
+			c.ShopifyId = id
 			c.Phone = phone
 			c.Tradename = firstName + " " + lastName
 
@@ -739,20 +822,20 @@ func copySyCustomers(enterpriseId int32) bool {
 
 				if rows == 0 {
 					a := Address{}
-					a.Customer = &c.Id
+					a.CustomerId = &c.Id
 					a.Address = address1
 					a.Address2 = address2
 					a.City = city
 					a.ZipCode = zip
-					a.Country = countryId
-					a.State = provinceId
-					a.shopifyId = id
+					a.CountryId = countryId
+					a.StateId = provinceId
+					a.ShopifyId = id
 					if len(company) > 0 {
 						a.PrivateOrBusiness = "B"
 					} else {
 						a.PrivateOrBusiness = "P"
 					}
-					a.enterprise = enterpriseId
+					a.EnterpriseId = enterpriseId
 					a.insertAddress(0)
 				} else {
 					sqlStatement := `SELECT id FROM address WHERE sy_id=$1 AND enterprise=$2`
@@ -761,13 +844,13 @@ func copySyCustomers(enterpriseId int32) bool {
 					rowCount.Scan(&addressId)
 
 					a := getAddressRow(addressId)
-					a.Customer = &c.Id
+					a.CustomerId = &c.Id
 					a.Address = address1
 					a.Address2 = address2
 					a.City = city
 					a.ZipCode = zip
-					a.Country = countryId
-					a.State = provinceId
+					a.CountryId = countryId
+					a.StateId = provinceId
 					if len(company) > 0 {
 						a.PrivateOrBusiness = "B"
 					} else {
@@ -851,8 +934,8 @@ func copySyProducts(enterpriseId int32) bool {
 			// if the product uses variants, crate a product on the ERP for every single variant, or, if there is only one variant, create a single product on the ERP
 			if len(variants) == 1 {
 				p := Product{}
-				p.shopifyId = id
-				p.shopifyVariantId = variants[0].Id
+				p.ShopifyId = id
+				p.ShopifyVariantId = variants[0].Id
 				p.Name = title
 				p.Description = bodyHtml
 				p.Price = variants[0].Price
@@ -867,7 +950,7 @@ func copySyProducts(enterpriseId int32) bool {
 				} else {
 					p.VatPercent = 0
 				}
-				p.enterprise = enterpriseId
+				p.EnterpriseId = enterpriseId
 				result := p.insertProduct(0)
 				if !result.Ok {
 					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
@@ -876,8 +959,8 @@ func copySyProducts(enterpriseId int32) bool {
 			} else {
 				for i := 0; i < len(variants); i++ {
 					p := Product{}
-					p.shopifyId = id
-					p.shopifyVariantId = variants[i].Id
+					p.ShopifyId = id
+					p.ShopifyVariantId = variants[i].Id
 					p.Name = title + " " + variants[i].Option1
 					if variants[i].Option2 != nil {
 						p.Name += " " + *variants[i].Option2
@@ -898,7 +981,7 @@ func copySyProducts(enterpriseId int32) bool {
 					} else {
 						p.VatPercent = 0
 					}
-					p.enterprise = enterpriseId
+					p.EnterpriseId = enterpriseId
 					result := p.insertProduct(0)
 					if !result.Ok {
 						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
@@ -986,8 +1069,8 @@ func copySyProducts(enterpriseId int32) bool {
 						}
 					} else { // the variant does not exist
 						p := Product{}
-						p.shopifyId = id
-						p.shopifyVariantId = variants[i].Id
+						p.ShopifyId = id
+						p.ShopifyVariantId = variants[i].Id
 						p.Name = title + " " + variants[i].Option1
 						if variants[i].Option2 != nil {
 							p.Name += " " + *variants[i].Option2
@@ -1008,7 +1091,7 @@ func copySyProducts(enterpriseId int32) bool {
 						} else {
 							p.VatPercent = 0
 						}
-						p.enterprise = enterpriseId
+						p.EnterpriseId = enterpriseId
 						result := p.insertProduct(0)
 						if !result.Ok {
 							errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
@@ -1152,24 +1235,24 @@ func copySyDraftOrders(enterpriseId int32) bool {
 
 		if rows == 0 {
 			o := SaleOrder{}
-			o.BillingAddress = billingAddressId
-			o.ShippingAddress = shippingAddressId
-			o.Customer = customerIdErp
+			o.BillingAddressId = billingAddressId
+			o.ShippingAddressId = shippingAddressId
+			o.CustomerId = customerIdErp
 			o.Reference = name
-			o.Currency = currencyId
-			o.Warehouse = s.DefaultWarehouse
-			o.PaymentMethod = *s.ShopifyDefaultPaymentMethod
+			o.CurrencyId = currencyId
+			o.WarehouseId = s.DefaultWarehouseId
+			o.PaymentMethodId = *s.ShopifyDefaultPaymentMethodId
 
 			if billingZone == "E" {
-				o.BillingSeries = *s.ShopifyExportSerie
+				o.BillingSeriesId = *s.ShopifyExportSerieId
 			} else if billingZone == "U" && totalTax == 0 {
-				o.BillingSeries = *s.ShopifyIntracommunitySerie
+				o.BillingSeriesId = *s.ShopifyIntracommunitySerieId
 			} else {
-				o.BillingSeries = *s.ShopifyInteriorSerie
+				o.BillingSeriesId = *s.ShopifyInteriorSerieId
 			}
 
-			o.shopifyDraftId = id
-			o.enterprise = enterpriseId
+			o.ShopifyDraftId = id
+			o.EnterpriseId = enterpriseId
 			ok, orderId := o.insertSalesOrder(0)
 			if !ok {
 				errors = append(errors, "Can't import draft order. The order could not be created in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
@@ -1178,8 +1261,8 @@ func copySyDraftOrders(enterpriseId int32) bool {
 
 			// set the customer details if are empty
 			c := getCustomerRow(customerIdErp)
-			if c.BillingSeries == nil || *c.BillingSeries == "" {
-				c.BillingSeries = &o.BillingSeries
+			if c.BillingSeriesId == nil || *c.BillingSeriesId == "" {
+				c.BillingSeriesId = &o.BillingSeriesId
 			}
 			c.updateCustomer(0)
 
@@ -1218,7 +1301,7 @@ func copySyDraftOrders(enterpriseId int32) bool {
 				}
 
 				d := SalesOrderDetail{}
-				d.Order = orderId
+				d.OrderId = orderId
 				d.Quantity = quantity
 				d.Price = price
 				if taxable && !taxExempt {
@@ -1226,9 +1309,9 @@ func copySyDraftOrders(enterpriseId int32) bool {
 				} else {
 					d.VatPercent = 0
 				}
-				d.Product = productIdErp
-				d.shopifyDraftId = id
-				d.enterprise = enterpriseId
+				d.ProductId = productIdErp
+				d.ShopifyDraftId = id
+				d.EnterpriseId = enterpriseId
 				d.insertSalesOrderDetail(0)
 			} // for rows.Next()
 		} else { // if rows == 0
@@ -1248,23 +1331,23 @@ func copySyDraftOrders(enterpriseId int32) bool {
 			}
 
 			o := getSalesOrderRow(orderIdErp)
-			o.BillingAddress = billingAddressId
-			o.ShippingAddress = shippingAddressId
-			o.Customer = customerIdErp
+			o.BillingAddressId = billingAddressId
+			o.ShippingAddressId = shippingAddressId
+			o.CustomerId = customerIdErp
 			o.Reference = name
-			o.Currency = currencyId
-			o.Warehouse = s.DefaultWarehouse
-			o.PaymentMethod = *s.ShopifyDefaultPaymentMethod
+			o.CurrencyId = currencyId
+			o.WarehouseId = s.DefaultWarehouseId
+			o.PaymentMethodId = *s.ShopifyDefaultPaymentMethodId
 
 			if billingZone == "E" {
-				o.BillingSeries = *s.ShopifyExportSerie
+				o.BillingSeriesId = *s.ShopifyExportSerieId
 			} else if billingZone == "U" && totalTax == 0 {
-				o.BillingSeries = *s.ShopifyIntracommunitySerie
+				o.BillingSeriesId = *s.ShopifyIntracommunitySerieId
 			} else {
-				o.BillingSeries = *s.ShopifyInteriorSerie
+				o.BillingSeriesId = *s.ShopifyInteriorSerieId
 			}
 
-			o.enterprise = enterpriseId
+			o.EnterpriseId = enterpriseId
 			ok := o.updateSalesOrder(0)
 			if !ok {
 				errors = append(errors, "Can't import draft order. Can't update the order in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
@@ -1273,8 +1356,8 @@ func copySyDraftOrders(enterpriseId int32) bool {
 
 			// set the customer details if are empty
 			c := getCustomerRow(customerIdErp)
-			if c.BillingSeries == nil || *c.BillingSeries == "" {
-				c.BillingSeries = &o.BillingSeries
+			if c.BillingSeriesId == nil || *c.BillingSeriesId == "" {
+				c.BillingSeriesId = &o.BillingSeriesId
 			}
 			c.updateCustomer(0)
 
@@ -1325,7 +1408,7 @@ func copySyDraftOrders(enterpriseId int32) bool {
 
 				if salesOrderDetailId <= 0 {
 					d := SalesOrderDetail{}
-					d.Order = o.Id
+					d.OrderId = o.Id
 					d.Quantity = quantity
 					d.Price = price
 					if taxable && !taxExempt {
@@ -1333,13 +1416,13 @@ func copySyDraftOrders(enterpriseId int32) bool {
 					} else {
 						d.VatPercent = 0
 					}
-					d.Product = productIdErp
-					d.shopifyDraftId = id
-					d.enterprise = enterpriseId
+					d.ProductId = productIdErp
+					d.ShopifyDraftId = id
+					d.EnterpriseId = enterpriseId
 					d.insertSalesOrderDetail(0)
 				} else { // if salesOrderDetailId <= 0
 					d := getSalesOrderDetailRow(salesOrderDetailId)
-					d.Order = o.Id
+					d.OrderId = o.Id
 					d.Quantity = quantity
 					d.Price = price
 					if taxable && !taxExempt {
@@ -1347,8 +1430,8 @@ func copySyDraftOrders(enterpriseId int32) bool {
 					} else {
 						d.VatPercent = 0
 					}
-					d.Product = productIdErp
-					d.enterprise = enterpriseId
+					d.ProductId = productIdErp
+					d.EnterpriseId = enterpriseId
 					d.updateSalesOrderDetail(0)
 				}
 			} // for rows.Next()
@@ -1530,34 +1613,34 @@ func copySyOrders(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("Shopify", row.Err().Error())
 				errors = append(errors, row.Err().Error())
-				paymentMethod = *s.ShopifyDefaultPaymentMethod
+				paymentMethod = *s.ShopifyDefaultPaymentMethodId
 			} else {
 				row.Scan(&paymentMethod)
 				if paymentMethod <= 0 {
-					paymentMethod = *s.ShopifyDefaultPaymentMethod
+					paymentMethod = *s.ShopifyDefaultPaymentMethodId
 				}
 			}
 
 			// update the order
 			o := getSalesOrderRow(saleOrderIdErp)
-			o.BillingAddress = billingAddressId
-			o.ShippingAddress = shippingAddressId
-			o.Customer = customerIdErp
+			o.BillingAddressId = billingAddressId
+			o.ShippingAddressId = shippingAddressId
+			o.CustomerId = customerIdErp
 			o.Reference = name
-			o.Currency = currencyId
-			o.Warehouse = s.DefaultWarehouse
-			o.PaymentMethod = paymentMethod
+			o.CurrencyId = currencyId
+			o.WarehouseId = s.DefaultWarehouseId
+			o.PaymentMethodId = paymentMethod
 
 			if billingZone == "E" {
-				o.BillingSeries = *s.ShopifyExportSerie
+				o.BillingSeriesId = *s.ShopifyExportSerieId
 			} else if billingZone == "U" && totalTax == 0 {
-				o.BillingSeries = *s.ShopifyIntracommunitySerie
+				o.BillingSeriesId = *s.ShopifyIntracommunitySerieId
 			} else {
-				o.BillingSeries = *s.ShopifyInteriorSerie
+				o.BillingSeriesId = *s.ShopifyInteriorSerieId
 			}
 
-			o.shopifyId = id
-			o.enterprise = enterpriseId
+			o.ShopifyId = id
+			o.EnterpriseId = enterpriseId
 			ok := o.updateSalesOrder(0)
 			if !ok {
 				errors = append(errors, "Can't import order. Can't update the existing sale order in MARKETNET. Order id + "+strconv.Itoa(int(id))+" name "+name)
@@ -1566,8 +1649,8 @@ func copySyOrders(enterpriseId int32) bool {
 
 			// set the customer details if are empty
 			c := getCustomerRow(customerIdErp)
-			if c.BillingSeries == nil || *c.BillingSeries == "" {
-				c.BillingSeries = &o.BillingSeries
+			if c.BillingSeriesId == nil || *c.BillingSeriesId == "" {
+				c.BillingSeriesId = &o.BillingSeriesId
 			}
 			c.updateCustomer(0)
 
@@ -1609,7 +1692,7 @@ func copySyOrders(enterpriseId int32) bool {
 
 				var salesOrderDetailId int64
 				for i := 0; i < len(details); i++ {
-					if details[i].Product == productIdErp {
+					if details[i].ProductId == productIdErp {
 						salesOrderDetailId = details[i].Id
 						break
 					}
@@ -1617,7 +1700,7 @@ func copySyOrders(enterpriseId int32) bool {
 
 				if salesOrderDetailId > 0 {
 					d := getSalesOrderDetailRow(salesOrderDetailId)
-					d.Order = o.Id
+					d.OrderId = o.Id
 					d.Quantity = quantity
 					d.Price = price
 					if taxable && !taxExempt {
@@ -1625,9 +1708,9 @@ func copySyOrders(enterpriseId int32) bool {
 					} else {
 						d.VatPercent = 0
 					}
-					d.Product = productIdErp
-					d.shopifyId = id
-					d.enterprise = enterpriseId
+					d.ProductId = productIdErp
+					d.ShopifyId = id
+					d.EnterpriseId = enterpriseId
 					d.updateSalesOrderDetail(0)
 				}
 			}
@@ -1700,23 +1783,23 @@ func updateTrackingNumberShopifyOrder(salesOrderId int64, trackingNumber string,
 	}
 
 	// get the name of the carrier
-	if order.Carrier == nil {
+	if order.CarrierId == nil {
 		return false
 	}
-	carrier := getCarierRow(*order.Carrier)
+	carrier := getCarierRow(*order.CarrierId)
 	fulfillment.Fulfillment.TrackingCompany = carrier.Name
 
 	// line items
 	details := getSalesOrderDetail(salesOrderId, enterpriseId)
 	for i := 0; i < len(details); i++ {
 		fulfillment.Fulfillment.LineItems = append(fulfillment.Fulfillment.LineItems, SYFulfillmentLineItem{
-			Id: details[i].shopifyId,
+			Id: details[i].ShopifyId,
 		})
 	}
 
 	// send data
 	data, _ := json.Marshal(fulfillment)
-	url := getShopifyAPI_URL("orders/"+strconv.Itoa(int(order.shopifyId))+"/fulfillments", enterpriseId)
+	url := getShopifyAPI_URL("orders/"+strconv.Itoa(int(order.ShopifyId))+"/fulfillments", enterpriseId)
 	postShopifyJSON(url, data, enterpriseId)
 	return true
 }
@@ -1730,7 +1813,7 @@ func updateStatusPaymentAcceptedShopify(salesOrderId int64, enterpriseId int32) 
 	order := getSalesOrderRow(salesOrderId)
 	// send data
 	data, _ := json.Marshal(complete)
-	url := getShopifyAPI_URL("draft_orders/"+strconv.Itoa(int(order.shopifyDraftId))+"/complete", enterpriseId)
+	url := getShopifyAPI_URL("draft_orders/"+strconv.Itoa(int(order.ShopifyDraftId))+"/complete", enterpriseId)
 	putShopifyJSON(url, data, enterpriseId)
 	return true
 }

@@ -1,75 +1,79 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SalesInvoiceDetail struct {
-	Id          int64   `json:"id"`
-	Invoice     int64   `json:"invoice"`
-	Product     *int32  `json:"product"`
-	Price       float64 `json:"price"`
-	Quantity    int32   `json:"quantity"`
-	VatPercent  float64 `json:"vatPercent"`
-	TotalAmount float64 `json:"totalAmount"`
-	OrderDetail *int64  `json:"orderDetail"`
-	ProductName string  `json:"productName"`
-	Description string  `json:"description"`
-	enterprise  int32
+	Id            int64             `json:"id" gorm:"index:sales_invoice_detail_id_enterprise,unique:true,priority:1"`
+	InvoiceId     int64             `json:"invoiceId" gorm:"column:invoice;not null:true;index:sales_invoice_detail_invoice_product,unique:true,priority:1"`
+	Invoice       SalesInvoice      `json:"invoice" gorm:"foreignKey:InvoiceId,EnterpriseId;references:Id,EnterpriseId"`
+	ProductId     *int32            `json:"productId" gorm:"column:product;index:sales_invoice_detail_invoice_product,unique:true,priority:2"`
+	Product       *Product          `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	Price         float64           `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`
+	Quantity      int32             `json:"quantity" gorm:"column:quantity;not null:true"`
+	VatPercent    float64           `json:"vatPercent" gorm:"column:vat_percent;not null:true;type:numeric(14,6)"`
+	TotalAmount   float64           `json:"totalAmount" gorm:"column:total_amount;not null:true;type:numeric(14,6)"`
+	OrderDetailId *int64            `json:"orderDetailId" gorm:"column:order_detail"`
+	OrderDetail   *SalesOrderDetail `json:"orderDetail" gorm:"foreignKey:OrderDetailId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId  int32             `json:"-" gorm:"column:enterprise;not null:true;index:sales_invoice_detail_id_enterprise,unique:true,priority:2"`
+	Enterprise    Settings          `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Description   string            `json:"description" gorm:"column:description;not null:true;type:character varying(150)"`
+}
+
+func (d *SalesInvoiceDetail) TableName() string {
+	return "sales_invoice_detail"
 }
 
 func getSalesInvoiceDetail(invoiceId int64, enterpriseId int32) []SalesInvoiceDetail {
 	var details []SalesInvoiceDetail = make([]SalesInvoiceDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_invoice_detail.product) FROM sales_invoice_detail WHERE invoice=$1 AND enterprise=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, invoiceId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return details
+	// get all sale invoice detail for the sale invoice and enterprise using dbOrm
+	result := dbOrm.Model(&SalesInvoiceDetail{}).Where("invoice = ? AND enterprise = ?", invoiceId, enterpriseId).Order("id ASC").Preload(clause.Associations).Find(&details)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := SalesInvoiceDetail{}
-		rows.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description, &d.ProductName)
-		details = append(details, d)
-	}
-
 	return details
 }
 
 func getSalesInvoiceDetailRow(detailId int64) SalesInvoiceDetail {
-	sqlStatement := `SELECT * FROM sales_invoice_detail WHERE id = $1 ORDER BY id ASC`
-	row := db.QueryRow(sqlStatement, detailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return SalesInvoiceDetail{}
+	var detail SalesInvoiceDetail = SalesInvoiceDetail{}
+	// get the sale invoice detail using dbOrm
+	result := dbOrm.Model(&SalesInvoiceDetail{}).Where("id = ?", detailId).Preload(clause.Associations).First(&detail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	d := SalesInvoiceDetail{}
-	row.Scan(&d.Id, &d.Invoice, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.OrderDetail, &d.enterprise, &d.Description)
-
-	return d
+	return detail
 }
 
 func (d *SalesInvoiceDetail) isValid() bool {
-	return !(d.Invoice <= 0 || (d.Product == nil && len(d.Description) == 0) || len(d.Description) > 150 || d.Quantity <= 0 || d.VatPercent < 0)
+	return !(d.InvoiceId <= 0 || (d.ProductId == nil && len(d.Description) == 0) || len(d.Description) > 150 || d.Quantity <= 0 || d.VatPercent < 0)
+}
+
+func (s *SalesInvoiceDetail) BeforeCreate(tx *gorm.DB) (err error) {
+	var salesInvoiceDetail SalesInvoiceDetail
+	tx.Model(&SalesInvoiceDetail{}).Last(&salesInvoiceDetail)
+	s.Id = salesInvoiceDetail.Id + 1
+	return nil
 }
 
 // ERROR CODES:
 // 1. the product is deactivated
 // 2. there is aleady a detail with this product
 // 3. can't add details to a posted invoice
-func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int32) OkAndErrorCodeReturn {
+func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *gorm.DB, userId int32) OkAndErrorCodeReturn {
 	if !s.isValid() {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	if s.Product != nil && *s.Product <= 0 {
-		s.Product = nil
+	if s.ProductId != nil && *s.ProductId <= 0 {
+		s.ProductId = nil
 	}
 
-	if s.Product != nil {
-		p := getProductRow(*s.Product)
+	if s.ProductId != nil {
+		p := getProductRow(*s.ProductId)
 		if p.Id <= 0 {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
@@ -83,8 +87,8 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 	var beginTransaction bool = (trans == nil)
 	if beginTransaction {
 		///
-		trn, err := db.Begin()
-		if err != nil {
+		trn := dbOrm.Begin()
+		if trn.Error != nil {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		trans = trn
@@ -92,51 +96,44 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 	}
 
 	// the product and sale order are unique, there can't exist another detail for the same product in the same order
-	sqlStatement := `SELECT COUNT(sales_invoice_detail) FROM public.sales_invoice_detail WHERE invoice = $1 AND product = $2`
-	row := db.QueryRow(sqlStatement, s.Invoice, s.Product)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var countProductInSaleOrder int64
+	result := dbOrm.Model(&SalesInvoiceDetail{}).Where("invoice = ? AND product = ?", s.InvoiceId, s.ProductId).Count(&countProductInSaleOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	var countProductInSaleOrder int16
-	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
 	// can't add details to a posted invoice
-	invoice := getSalesInvoiceRowTransaction(s.Invoice, *trans)
+	invoice := getSalesInvoiceRowTransaction(s.InvoiceId, *trans)
 	if invoice.Id <= 0 {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	if invoice.AccountingMovement != nil {
+	if invoice.AccountingMovementId != nil {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 	}
 
-	sqlStatement = `INSERT INTO public.sales_invoice_detail(invoice, product, price, quantity, vat_percent, total_amount, order_detail, enterprise, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
-	row = trans.QueryRow(sqlStatement, s.Invoice, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.OrderDetail, s.enterprise, s.Description)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = trans.Create(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	var saleInvoiceDetailId int64
-	row.Scan(&saleInvoiceDetailId)
-	s.Id = saleInvoiceDetailId
-
-	ok := addTotalProductsSalesInvoice(s.Invoice, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId, *trans)
+	ok := addTotalProductsSalesInvoice(s.InvoiceId, s.Price*float64(s.Quantity), s.VatPercent, s.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-	if s.OrderDetail != nil && *s.OrderDetail != 0 {
-		ok := addQuantityInvociedSalesOrderDetail(*s.OrderDetail, s.Quantity, userId, *trans)
+	if s.OrderDetailId != nil && *s.OrderDetailId != 0 {
+		ok := addQuantityInvociedSalesOrderDetail(*s.OrderDetailId, s.Quantity, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
@@ -145,27 +142,25 @@ func (s *SalesInvoiceDetail) insertSalesInvoiceDetail(trans *sql.Tx, userId int3
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
 
-	if saleInvoiceDetailId > 0 {
-		insertTransactionalLog(s.enterprise, "sales_invoice_detail", int(saleInvoiceDetailId), userId, "I")
-		json, _ := json.Marshal(s)
-		go fireWebHook(s.enterprise, "sales_invoice_detail", "POST", string(json))
-	}
+	insertTransactionalLog(s.EnterpriseId, "sales_invoice_detail", int(s.Id), userId, "I")
+	json, _ := json.Marshal(s)
+	go fireWebHook(s.EnterpriseId, "sales_invoice_detail", "POST", string(json))
 
-	return OkAndErrorCodeReturn{Ok: saleInvoiceDetailId > 0}
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 // ERROR CODES:
 // 1. can't delete posted invoices
 // 2. the invoice deletion is completely disallowed by policy
 // 3. it is only allowed to delete the latest invoice of the billing series
-func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.Tx) OkAndErrorCodeReturn {
+func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *gorm.DB) OkAndErrorCodeReturn {
 	if d.Id <= 0 {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
@@ -173,9 +168,8 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 	var beginTransaction bool = (trans == nil)
 	if beginTransaction {
 		///
-		var err error
-		trans, err = db.Begin()
-		if err != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
@@ -187,87 +181,70 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	i := getSalesInvoiceRow(detailInMemory.Invoice)
-	if i.AccountingMovement != nil { // can't delete posted invoices
+	i := getSalesInvoiceRow(detailInMemory.InvoiceId)
+	if i.AccountingMovementId != nil { // can't delete posted invoices
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
-	s := getSettingsRecordById(d.enterprise)
+	s := getSettingsRecordById(d.EnterpriseId)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
-		invoiceNumber := getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
+		invoiceNumber := getNextSaleInvoiceNumber(i.BillingSeriesId, i.EnterpriseId)
 		if invoiceNumber <= 0 || i.InvoiceNumber != (invoiceNumber-1) {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 	}
 
-	sqlStatement := `UPDATE public.sales_order_discount SET sales_invoice_detail = NULL WHERE sales_invoice_detail=$1 AND enterprise=$2`
-	_, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
-	if err != nil {
+	result := trans.Model(&SalesOrderDiscount{}).Where("sales_invoice_detail = ? AND enterprise = ?", d.Id, d.EnterpriseId).Update("sales_invoice_detail", nil)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
-		log("DB", err.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	insertTransactionalLog(d.enterprise, "sales_invoice_detail", int(d.Id), userId, "D")
+	insertTransactionalLog(d.EnterpriseId, "sales_invoice_detail", int(d.Id), userId, "D")
 	json, _ := json.Marshal(d)
-	go fireWebHook(d.enterprise, "sales_invoice_detail", "DELETE", string(json))
+	go fireWebHook(d.EnterpriseId, "sales_invoice_detail", "DELETE", string(json))
 
-	sqlStatement = `DELETE FROM public.sales_invoice_detail WHERE id=$1 AND enterprise=$2`
-	res, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
-	if err != nil {
+	result = trans.Delete(&SalesInvoiceDetail{}, "id = ? AND enterprise = ?", d.Id, d.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
-		log("DB", err.Error())
-		return OkAndErrorCodeReturn{Ok: false}
-	}
-	rows, _ := res.RowsAffected()
-
-	// can't continue
-	if rows == 0 {
-		///
-		err = trans.Rollback()
-		if err != nil {
-			return OkAndErrorCodeReturn{Ok: false}
-		}
-		///
-
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	ok := addTotalProductsSalesInvoice(detailInMemory.Invoice, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, d.enterprise, userId, *trans)
+	ok := addTotalProductsSalesInvoice(detailInMemory.InvoiceId, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, d.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-	if detailInMemory.OrderDetail != nil && *detailInMemory.OrderDetail != 0 {
-		detail := getSalesOrderDetailRow(*detailInMemory.OrderDetail)
+	if detailInMemory.OrderDetailId != nil && *detailInMemory.OrderDetailId != 0 {
+		detail := getSalesOrderDetailRow(*detailInMemory.OrderDetailId)
 		if detail.Id <= 0 {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		// if the detail had a purchase order pending, rollback the quantity assigned
-		if detail.PurchaseOrderDetail != nil {
-			ok = addQuantityAssignedSalePurchaseOrder(*detail.PurchaseOrderDetail, -detail.Quantity, detailInMemory.enterprise, userId, *trans)
+		if detail.PurchaseOrderDetailId != nil {
+			ok = addQuantityAssignedSalePurchaseOrder(*detail.PurchaseOrderDetailId, -detail.Quantity, detailInMemory.EnterpriseId, userId, *trans)
 			if !ok {
 				trans.Rollback()
 				return OkAndErrorCodeReturn{Ok: false}
 			}
-			sqlStatement := `UPDATE sales_order_detail SET purchase_order_detail=NULL WHERE id = $1`
-			res, err := trans.Exec(sqlStatement, detail.Id)
-			rows, _ := res.RowsAffected()
-			if err != nil && rows == 0 {
-				log("DB", err.Error())
+			trans.Model(&SalesOrderDetail{}).Where("id = ?", detail.Id).Update("purchase_order_detail", nil)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
 				trans.Rollback()
 				return OkAndErrorCodeReturn{Ok: false}
 			}
 		}
 		// revert back the status
-		ok := addQuantityInvociedSalesOrderDetail(*detailInMemory.OrderDetail, -detailInMemory.Quantity, userId, *trans)
+		ok := addQuantityInvociedSalesOrderDetail(*detailInMemory.OrderDetailId, -detailInMemory.Quantity, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
@@ -276,12 +253,12 @@ func (d *SalesInvoiceDetail) deleteSalesInvoiceDetail(userId int32, trans *sql.T
 
 	if beginTransaction {
 		///
-		err = trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
 
-	return OkAndErrorCodeReturn{Ok: rows > 0}
+	return OkAndErrorCodeReturn{Ok: true}
 }

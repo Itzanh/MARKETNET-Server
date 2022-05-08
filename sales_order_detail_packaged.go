@@ -1,54 +1,47 @@
 package main
 
 import (
-	"database/sql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SalesOrderDetailPackaged struct {
-	OrderDetail int64  `json:"orderDetail"`
-	ProductName string `json:"productName"`
-	Packaging   int64  `json:"packaging"`
-	Quantity    int32  `json:"quantity"`
-	enterprise  int32
+	OrderDetailId int64            `json:"orderDetailId" gorm:"primaryKey;column:order_detail;not null:true"`
+	OrderDetail   SalesOrderDetail `json:"orderDetail" gorm:"foreignKey:OrderDetailId,EnterpriseId;references:Id,EnterpriseId"`
+	PackagingId   int64            `json:"packagingId" gorm:"primaryKey;column:packaging;not null:true"`
+	Packaging     Packaging        `json:"packaging" gorm:"foreignKey:PackagingId,EnterpriseId;references:Id,EnterpriseId"`
+	Quantity      int32            `json:"quantity" gorm:"column:quantity;not null:true"`
+	EnterpriseId  int32            `json:"-" gorm:"column:enterprise;not null"`
+	Enterprise    Settings         `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (s *SalesOrderDetailPackaged) TableName() string {
+	return "sales_order_detail_packaged"
 }
 
 func getSalesOrderDetailPackaged(packagingId int64, enterpriseId int32) []SalesOrderDetailPackaged {
 	var packaged []SalesOrderDetailPackaged = make([]SalesOrderDetailPackaged, 0)
-	sqlStatement := `SELECT * FROM public.sales_order_detail_packaged WHERE packaging=$1 AND enterprise=$2 ORDER BY order_detail ASC`
-	rows, err := db.Query(sqlStatement, packagingId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return packaged
+	// get the packaged details for this packaging id and enterprise id using dbOrm
+	result := dbOrm.Where("packaging = ? AND enterprise = ?", packagingId, enterpriseId).Preload(clause.Associations).Order("order_detail ASC").Find(&packaged)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := SalesOrderDetailPackaged{}
-		rows.Scan(&p.OrderDetail, &p.Packaging, &p.Quantity, &p.enterprise)
-		detail := getSalesOrderDetailRow(p.OrderDetail)
-		p.ProductName = getNameProduct(detail.Product, enterpriseId)
-		packaged = append(packaged, p)
-	}
-
 	return packaged
 }
 
 func getSalesOrderDetailPackagedRow(orderDetailId int64, packagingId int64) SalesOrderDetailPackaged {
-	sqlStatement := `SELECT * FROM public.sales_order_detail_packaged WHERE packaging=$1 AND order_detail=$2`
-	row := db.QueryRow(sqlStatement, packagingId, orderDetailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var detail SalesOrderDetailPackaged
+	result := dbOrm.Where("order_detail = ? AND packaging = ?", orderDetailId, packagingId).Preload(clause.Associations).First(&detail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return SalesOrderDetailPackaged{}
 	}
-
-	p := SalesOrderDetailPackaged{}
-	row.Scan(&p.OrderDetail, &p.Packaging, &p.Quantity, &p.enterprise)
-
-	return p
+	return detail
 }
 
 func (p *SalesOrderDetailPackaged) isValid() bool {
-	return !(p.OrderDetail <= 0 || p.Packaging <= 0 || p.Quantity <= 0)
+	return !(p.OrderDetailId <= 0 || p.PackagingId <= 0 || p.Quantity <= 0)
 }
 
 func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) bool {
@@ -56,121 +49,106 @@ func (p *SalesOrderDetailPackaged) insertSalesOrderDetailPackaged(userId int32) 
 		return false
 	}
 
-	detail := getSalesOrderDetailRow(p.OrderDetail)
+	detail := getSalesOrderDetailRow(p.OrderDetailId)
 	if detail.QuantityPendingPackaging <= 0 || p.Quantity > detail.QuantityPendingPackaging {
 		return false
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement := `SELECT COUNT(*) FROM public.sales_order_detail_packaged WHERE order_detail = $1 AND packaging = $2`
-	row := db.QueryRow(sqlStatement, p.OrderDetail, p.Packaging)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var rowCount int64
+	result := dbOrm.Model(&SalesOrderDetailPackaged{}).Where("order_detail = ? AND packaging = ?", p.OrderDetailId, p.PackagingId).Count(&rowCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	var rowCount int32
-	row.Scan(&rowCount)
-
 	if rowCount == 0 {
-		sqlStatement := `INSERT INTO public.sales_order_detail_packaged(order_detail, packaging, quantity, enterprise) VALUES ($1, $2, $3, $4)`
-		res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity, p.enterprise)
-		if err != nil {
-			log("DB", err.Error())
-			trans.Rollback()
-			return false
-		}
-
-		rows, _ := res.RowsAffected()
-		if rows == 0 {
+		result := trans.Create(&p)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
 	} else {
-		sqlStatement := `UPDATE public.sales_order_detail_packaged SET quantity = quantity + $3 WHERE order_detail=$1 AND packaging=$2`
-		res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.Quantity)
-		if err != nil {
-			log("DB", err.Error())
+		var detailPackaged SalesOrderDetailPackaged
+		result := trans.Model(&SalesOrderDetailPackaged{}).Where("order_detail = ? AND packaging = ?", p.OrderDetailId, p.PackagingId).First(&detailPackaged)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
 
-		rows, _ := res.RowsAffected()
-		if rows == 0 {
+		detailPackaged.Quantity += p.Quantity
+
+		result = trans.Updates(&detailPackaged)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
 	}
 
-	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, -p.Quantity, userId, *trans)
+	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetailId, -p.Quantity, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
-	product := getProductRow(detail.Product)
-	ok = addWeightPackaging(p.Packaging, product.Weight*float64(p.Quantity), *trans)
+	product := getProductRow(detail.ProductId)
+	ok = addWeightPackaging(p.PackagingId, product.Weight*float64(p.Quantity), *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	///
-	transErr = trans.Commit()
-	return transErr == nil
+	result = trans.Commit()
+	return result.Error == nil
 	///
 }
 
-func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(userId int32, trans *sql.Tx) bool {
-	if p.OrderDetail <= 0 || p.Packaging <= 0 {
+func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(userId int32, trans *gorm.DB) bool {
+	if p.OrderDetailId <= 0 || p.PackagingId <= 0 {
 		return false
 	}
 
-	inMemoryPackage := getSalesOrderDetailPackagedRow(p.OrderDetail, p.Packaging)
-	if inMemoryPackage.OrderDetail <= 0 || inMemoryPackage.enterprise != p.enterprise || inMemoryPackage.Packaging <= 0 {
+	inMemoryPackage := getSalesOrderDetailPackagedRow(p.OrderDetailId, p.PackagingId)
+	if inMemoryPackage.OrderDetailId <= 0 || inMemoryPackage.EnterpriseId != p.EnterpriseId || inMemoryPackage.PackagingId <= 0 {
 		return false
 	}
 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return false
 		}
 		///
 	}
 
-	sqlStatement := `DELETE FROM sales_order_detail_packaged WHERE order_detail=$1 AND packaging=$2 AND enterprise=$3`
-	res, err := trans.Exec(sqlStatement, p.OrderDetail, p.Packaging, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Delete(&SalesOrderDetailPackaged{}, "order_detail = ? AND packaging = ? AND enterprise = ?", p.OrderDetailId, p.PackagingId, p.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		trans.Rollback()
-		return false
-	}
-
-	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetail, inMemoryPackage.Quantity, userId, *trans)
+	ok := addQuantityPendingPackagingSaleOrderDetail(p.OrderDetailId, inMemoryPackage.Quantity, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
-	detail := getSalesOrderDetailRow(p.OrderDetail)
-	product := getProductRow(detail.Product)
-	ok = addWeightPackaging(p.Packaging, -product.Weight*float64(inMemoryPackage.Quantity), *trans)
+	detail := getSalesOrderDetailRow(p.OrderDetailId)
+	product := getProductRow(detail.ProductId)
+	ok = addWeightPackaging(p.PackagingId, -product.Weight*float64(inMemoryPackage.Quantity), *trans)
 	if !ok {
 		trans.Rollback()
 		return false
@@ -178,8 +156,8 @@ func (p *SalesOrderDetailPackaged) deleteSalesOrderDetailPackaged(userId int32, 
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result := trans.Commit()
+		if result.Error != nil {
 			return false
 		}
 		///
@@ -203,24 +181,23 @@ func (d *SalesOrderDetailPackagedEAN13) insertSalesOrderDetailPackagedEAN13(ente
 		return false
 	}
 
-	sqlStatement := `SELECT sales_order_detail.id FROM sales_order_detail INNER JOIN product ON product.id=sales_order_detail.product WHERE sales_order_detail."order"=$1 AND sales_order_detail.quantity_pending_packaging>0 AND product.barcode=$2 AND product.enterprise=$3`
-	row := db.QueryRow(sqlStatement, d.SalesOrder, d.EAN13, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	product := getProductByBarcode(d.EAN13, enterpriseId)
+	if product.Id <= 0 {
 		return false
 	}
 
-	var salesOrderDetailId int64
-	row.Scan(&salesOrderDetailId)
-	if salesOrderDetailId <= 0 {
+	var detail SalesOrderDetail
+	result := dbOrm.Where(`"order" = ? AND product = ?`, d.SalesOrder, product.Id).Preload(clause.Associations).First(&detail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
 	p := SalesOrderDetailPackaged{}
-	p.OrderDetail = salesOrderDetailId
-	p.Packaging = d.Packaging
+	p.OrderDetailId = detail.Id
+	p.PackagingId = d.Packaging
 	p.Quantity = d.Quantity
-	p.enterprise = enterpriseId
+	p.EnterpriseId = enterpriseId
 
 	return p.insertSalesOrderDetailPackaged(userId)
 }

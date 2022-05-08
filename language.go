@@ -1,31 +1,31 @@
 package main
 
 import (
+	"database/sql"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 type Language struct {
-	Id         int32  `json:"id"`
-	Name       string `json:"name"`
-	Iso2       string `json:"iso2"`
-	Iso3       string `json:"iso3"`
-	enterprise int32
+	Id           int32    `json:"id" gorm:"index:language_id_enterprise,unique:true,priority:1"`
+	Name         string   `json:"name" gorm:"type:character varying(50);not null:true;index:language_name,type:gin"`
+	Iso2         string   `json:"iso2" gorm:"column:iso_2;type:character(2);not null:true;index:language_iso_2,unique:true,priority:2"`
+	Iso3         string   `json:"iso3" gorm:"column:iso_3;type:character(3);not null:true;index:language_iso_3,unique:true,priority:2,where:iso_3 <> ''::bpchar"`
+	EnterpriseId int32    `json:"-" gorm:"column:enterprise;not null:true;index:language_id_enterprise,unique:true,priority:2;index:language_iso_2,unique:true,priority:1;index:language_iso_3,unique:true,priority:1,where:iso_3 <> ''::bpchar"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (c *Language) TableName() string {
+	return "language"
 }
 
 func getLanguages(enterpriseId int32) []Language {
 	var languages []Language = make([]Language, 0)
-	sqlStatement := `SELECT * FROM public.language WHERE enterprise=$1 ORDER BY id ASC `
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Language{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&languages)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return languages
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		l := Language{}
-		rows.Scan(&l.Id, &l.Name, &l.Iso2, &l.Iso3, &l.enterprise)
-		languages = append(languages, l)
 	}
 
 	return languages
@@ -37,21 +37,21 @@ func (l *Language) isValid() bool {
 
 func searchLanguages(search string, enterpriseId int32) []Language {
 	var languages []Language = make([]Language, 0)
-	sqlStatement := `SELECT * FROM language WHERE (name ILIKE $1 OR iso_2 = UPPER($2) OR iso_3 = UPPER($2)) AND enterprise=$3 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, "%"+search+"%", search, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Language{}).Where("(name ILIKE @search_contains OR iso_2 = UPPER(@search) OR iso_3 = UPPER(@search)) AND enterprise=@enterprise_id",
+		sql.Named("search_contains", "%"+search+"%"), sql.Named("search", search), sql.Named("enterprise_id", enterpriseId)).Order("id ASC").Find(&languages)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return languages
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		l := Language{}
-		rows.Scan(&l.Id, &l.Name, &l.Iso2, &l.Iso3, &l.enterprise)
-		languages = append(languages, l)
 	}
 
 	return languages
+}
+
+func (l *Language) BeforeCreate(tx *gorm.DB) (err error) {
+	var language Language
+	tx.Model(&Language{}).Last(&language)
+	l.Id = language.Id + 1
+	return nil
 }
 
 func (l *Language) insertLanguage() bool {
@@ -59,15 +59,13 @@ func (l *Language) insertLanguage() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.language(name, iso_2, iso_3, enterprise) VALUES ($1, $2, $3, $4)`
-	res, err := db.Exec(sqlStatement, l.Name, l.Iso2, l.Iso3, l.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&l)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (l *Language) updateLanguage() bool {
@@ -75,15 +73,24 @@ func (l *Language) updateLanguage() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.language SET name=$2, iso_2=$3, iso_3=$4 WHERE id=$1 AND enterprise=$5`
-	res, err := db.Exec(sqlStatement, l.Id, l.Name, l.Iso2, l.Iso3, l.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var language Language
+	result := dbOrm.Where("id = ? AND enterprise = ?", l.Id, l.EnterpriseId).First(&language)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	language.Name = l.Name
+	language.Iso2 = l.Iso2
+	language.Iso3 = l.Iso3
+
+	result = dbOrm.Save(&language)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (l *Language) deleteLanguage() bool {
@@ -91,44 +98,33 @@ func (l *Language) deleteLanguage() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM language WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, l.Id, l.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", l.Id, l.EnterpriseId).Delete(&Language{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
-func findLanguageByName(languageName string, enterpriseId int32) []NameInt16 {
-	var languages []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.language WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func findLanguageByName(languageName string, enterpriseId int32) []NameInt32 {
+	var languages []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Language{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(languageName), enterpriseId).Limit(10).Find(&languages)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return languages
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		l := NameInt16{}
-		rows.Scan(&l.Id, &l.Name)
-		languages = append(languages, l)
 	}
 
 	return languages
 }
 
 func getNameLanguage(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.language WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var language Language
+	result := dbOrm.Where("id = ? AND enterprise = ?", language, enterpriseId).First(&language)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return language.Name
 }

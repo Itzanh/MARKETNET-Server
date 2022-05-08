@@ -8,51 +8,53 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // created for every enterprise
 type WebHookSettings struct {
-	Id                                 int32  `json:"id"`
-	Url                                string `json:"url"`
-	AuthCode                           string `json:"authCode"`
-	AuthMethod                         string `json:"authMethod"` // H = Header, P = Parameter
-	SaleOrders                         bool   `json:"saleOrders"`
-	SaleOrderDetails                   bool   `json:"saleOrderDetails"`
-	SaleOrderDetailsDigitalProductData bool   `json:"saleOrderDetailsDigitalProductData"`
-	SaleInvoices                       bool   `json:"saleInvoices"`
-	SaleInvoiceDetails                 bool   `json:"saleInvoiceDetails"`
-	SaleDeliveryNotes                  bool   `json:"saleDeliveryNotes"`
-	PurchaseOrders                     bool   `json:"purchaseOrders"`
-	PurchaseOrderDetails               bool   `json:"purchaseOrderDetails"`
-	PurchaseInvoices                   bool   `json:"purchaseInvoices"`
-	PurchaseInvoiceDetails             bool   `json:"purchaseInvoiceDetails"`
-	PurchaseDeliveryNotes              bool   `json:"purchaseDeliveryNotes"`
-	Customers                          bool   `json:"customers"`
-	Suppliers                          bool   `json:"suppliers"`
-	Products                           bool   `json:"products"`
-	enterprise                         int32
+	Id                                 int32    `json:"id" gorm:"index:webhook_settings_id_enterprise,unique:true,priority:1"`
+	EnterpriseId                       int32    `json:"-" gorm:"column:enterprise;not null:true;index:webhook_settings_id_enterprise,unique:true,priority:2"`
+	Enterprise                         Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Url                                string   `json:"url" gorm:"column:url;not null:true;type:character varying(255)"`
+	AuthCode                           string   `json:"authCode" gorm:"type:uuid;not null:true"`
+	AuthMethod                         string   `json:"authMethod" gorm:"type:character (1);not null:true"` // H = Header, P = Parameter
+	SaleOrders                         bool     `json:"saleOrders" gorm:"type:boolean;not null:true"`
+	SaleOrderDetails                   bool     `json:"saleOrderDetails" gorm:"type:boolean;not null:true"`
+	SaleOrderDetailsDigitalProductData bool     `json:"saleOrderDetailsDigitalProductData" gorm:"type:boolean;not null:true"`
+	SaleInvoices                       bool     `json:"saleInvoices" gorm:"type:boolean;not null:true"`
+	SaleInvoiceDetails                 bool     `json:"saleInvoiceDetails" gorm:"type:boolean;not null:true"`
+	SaleDeliveryNotes                  bool     `json:"saleDeliveryNotes" gorm:"type:boolean;not null:true"`
+	PurchaseOrders                     bool     `json:"purchaseOrders" gorm:"type:boolean;not null:true"`
+	PurchaseOrderDetails               bool     `json:"purchaseOrderDetails" gorm:"type:boolean;not null:true"`
+	PurchaseInvoices                   bool     `json:"purchaseInvoices" gorm:"type:boolean;not null:true"`
+	PurchaseInvoiceDetails             bool     `json:"purchaseInvoiceDetails" gorm:"type:boolean;not null:true"`
+	PurchaseDeliveryNotes              bool     `json:"purchaseDeliveryNotes" gorm:"type:boolean;not null:true"`
+	Customers                          bool     `json:"customers" gorm:"type:boolean;not null:true"`
+	Suppliers                          bool     `json:"suppliers" gorm:"type:boolean;not null:true"`
+	Products                           bool     `json:"products" gorm:"type:boolean;not null:true"`
+}
+
+func (s *WebHookSettings) TableName() string {
+	return "webhook_settings"
 }
 
 func getWebHookSettings(enterpriseId int32) []WebHookSettings {
 	var settings []WebHookSettings = make([]WebHookSettings, 0)
-	sqlStatement := `SELECT * FROM public.webhook_settings WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return settings
-	}
-
-	for rows.Next() {
-		s := WebHookSettings{}
-		rows.Scan(&s.Id, &s.enterprise, &s.Url, &s.AuthCode, &s.AuthMethod, &s.SaleOrders, &s.SaleOrderDetails, &s.SaleOrderDetailsDigitalProductData, &s.SaleInvoices, &s.SaleInvoiceDetails, &s.SaleDeliveryNotes, &s.PurchaseOrders, &s.PurchaseOrderDetails, &s.PurchaseInvoices, &s.PurchaseInvoiceDetails, &s.PurchaseDeliveryNotes, &s.Customers, &s.Suppliers, &s.Products)
-		settings = append(settings, s)
-	}
-
+	// get all webhooks settings from the database for the given enterprise sorted by id ascending using dbOrm
+	dbOrm.Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&settings)
 	return settings
 }
 
 func (s *WebHookSettings) isValid() bool {
 	return !(len(s.Url) == 0 || len(s.Url) > 255 || (s.AuthMethod != "H" && s.AuthMethod != "P"))
+}
+
+func (s *WebHookSettings) BeforeCreate(tx *gorm.DB) (err error) {
+	var webHookSettings WebHookSettings
+	tx.Model(&WebHookSettings{}).Last(&webHookSettings)
+	s.Id = webHookSettings.Id + 1
+	return nil
 }
 
 func (s *WebHookSettings) insertWebHookSettings(enterpriseId int32) bool {
@@ -66,12 +68,15 @@ func (s *WebHookSettings) insertWebHookSettings(enterpriseId int32) bool {
 	}
 
 	s.AuthCode = uuid.New().String()
-	sqlStatement := `INSERT INTO public.webhook_settings(enterprise, url, auth_code, auth_method, sale_orders, sale_order_details, sale_order_details_digital_product_data, sale_invoices, sale_invoice_details, sale_delivery_notes, purchase_orders, purchase_order_details, purchase_invoices, purchase_invoice_details, purchase_delivery_notes, customers, suppliers, products) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
-	_, err := db.Exec(sqlStatement, enterpriseId, s.Url, s.AuthCode, s.AuthMethod, s.SaleOrders, s.SaleOrderDetails, s.SaleOrderDetailsDigitalProductData, s.SaleInvoices, s.SaleInvoiceDetails, s.SaleDeliveryNotes, s.PurchaseOrders, s.PurchaseOrderDetails, s.PurchaseInvoices, s.PurchaseInvoiceDetails, s.PurchaseDeliveryNotes, s.Customers, s.Suppliers, s.Products)
-	if err != nil {
-		log("DB", err.Error())
+	s.EnterpriseId = enterpriseId
+
+	// insert the webhook settings into the database using dbOrm
+	result := dbOrm.Create(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
@@ -80,12 +85,39 @@ func (s *WebHookSettings) updateWebHookSettings(enterpriseId int32) bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.webhook_settings SET url=$2, auth_method=$3, sale_orders=$4, sale_order_details=$5, sale_order_details_digital_product_data=$6, sale_invoices=$7, sale_invoice_details=$8, sale_delivery_notes=$9, purchase_orders=$10, purchase_order_details=$11, purchase_invoices=$12, purchase_invoice_details=$13, purchase_delivery_notes=$14, customers=$15, suppliers=$16, products=$17 WHERE id=$1 AND enterprise=$18`
-	_, err := db.Exec(sqlStatement, s.Id, s.Url, s.AuthMethod, s.SaleOrders, s.SaleOrderDetails, s.SaleOrderDetailsDigitalProductData, s.SaleInvoices, s.SaleInvoiceDetails, s.SaleDeliveryNotes, s.PurchaseOrders, s.PurchaseOrderDetails, s.PurchaseInvoices, s.PurchaseInvoiceDetails, s.PurchaseDeliveryNotes, s.Customers, s.Suppliers, s.Products, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// get a single webhook settings from the database by id and enterprise using dbOrm
+	var webHookSettings WebHookSettings
+	result := dbOrm.Where("id = ? AND enterprise = ?", s.Id, enterpriseId).First(&webHookSettings)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
+	// copy all the fields from the webhook settings to the webhook settings in the database
+	webHookSettings.Url = s.Url
+	webHookSettings.AuthMethod = s.AuthMethod
+	webHookSettings.SaleOrders = s.SaleOrders
+	webHookSettings.SaleOrderDetails = s.SaleOrderDetails
+	webHookSettings.SaleOrderDetailsDigitalProductData = s.SaleOrderDetailsDigitalProductData
+	webHookSettings.SaleInvoices = s.SaleInvoices
+	webHookSettings.SaleInvoiceDetails = s.SaleInvoiceDetails
+	webHookSettings.SaleDeliveryNotes = s.SaleDeliveryNotes
+	webHookSettings.PurchaseOrders = s.PurchaseOrders
+	webHookSettings.PurchaseOrderDetails = s.PurchaseOrderDetails
+	webHookSettings.PurchaseInvoices = s.PurchaseInvoices
+	webHookSettings.PurchaseInvoiceDetails = s.PurchaseInvoiceDetails
+	webHookSettings.PurchaseDeliveryNotes = s.PurchaseDeliveryNotes
+	webHookSettings.Customers = s.Customers
+	webHookSettings.Suppliers = s.Suppliers
+	webHookSettings.Products = s.Products
+
+	// update the webhook settings in the database using dbOrm
+	result = dbOrm.Save(&webHookSettings)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
 	return true
 }
 
@@ -94,26 +126,27 @@ func (s *WebHookSettings) deleteWebHookSettings(enterpriseId int32) bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.webhook_logs WHERE webhook = $1 AND enterprise = $2`
-	_, err := db.Exec(sqlStatement, s.Id, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// delete all the webhook logs for the webhook settings and enterprise id using dbOrm
+	result := dbOrm.Where("webhook = ? AND enterprise = ?", s.Id, enterpriseId).Delete(&WebHookLog{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	sqlStatement = `DELETE FROM public.webhook_queue WHERE webhook = $1 AND enterprise = $2`
-	_, err = db.Exec(sqlStatement, s.Id, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// delete all the webhook request for the webhook settings and enterprise id using dbOrm
+	result = dbOrm.Where("webhook = ? AND enterprise = ?", s.Id, enterpriseId).Delete(&WebHookRequest{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	sqlStatement = `DELETE FROM public.webhook_settings WHERE id = $1 AND enterprise = $2`
-	_, err = db.Exec(sqlStatement, s.Id, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// delete a single webhook settings from the database by id and enterprise using dbOrm
+	result = dbOrm.Where("id = ? AND enterprise = ?", s.Id, enterpriseId).Delete(&WebHookSettings{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
@@ -122,11 +155,21 @@ func (s *WebHookSettings) renewAuthToken(enterpriseId int32) string {
 		return ""
 	}
 
+	// get a single webhook settings from the database by id and enterprise using dbOrm
+	var webHookSettings WebHookSettings
+	result := dbOrm.Where("id = ? AND enterprise = ?", s.Id, enterpriseId).First(&webHookSettings)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return ""
+	}
+
 	s.AuthCode = uuid.New().String()
-	sqlStatement := `UPDATE public.webhook_settings SET auth_code=$3 WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, s.Id, enterpriseId, s.AuthCode)
-	if err != nil {
-		log("DB", err.Error())
+	webHookSettings.AuthCode = s.AuthCode
+
+	// update the webhook settings in the database using dbOrm
+	result = dbOrm.Save(&webHookSettings)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
 	return s.AuthCode
@@ -143,13 +186,13 @@ func fireWebHook(enterpriseId int32, resource string, method string, data string
 	for i := 0; i < len(webhooks); i++ {
 		w := webhooks[i]
 		r := WebHookRequest{
-			enterprise: enterpriseId,
-			WebHook:    w.Id,
-			Url:        w.Url + "/" + resource,
-			AuthCode:   w.AuthCode,
-			AuthMethod: w.AuthMethod,
-			Send:       data,
-			Method:     method,
+			EnterpriseId: enterpriseId,
+			WebHookId:    w.Id,
+			Url:          w.Url + "/" + resource,
+			AuthCode:     w.AuthCode,
+			AuthMethod:   w.AuthMethod,
+			Send:         data,
+			Method:       method,
 		}
 		r.sendWebHookRequest(true)
 	}
@@ -157,94 +200,95 @@ func fireWebHook(enterpriseId int32, resource string, method string, data string
 
 // logs a call made to the customer's web service
 type WebHookLog struct {
-	Id               int64     `json:"id"`
-	WebHook          int32     `json:"webhook"`
-	Url              string    `json:"url"`
-	AuthCode         string    `json:"authCode"`
-	AuthMethod       string    `json:"authMethod"` // H = Header, P = Parameter
-	DateCreated      time.Time `json:"dateCreated"`
-	Sent             string    `json:"sent"`
-	Received         string    `json:"received"`
-	ReceivedHttpCode int16     `json:"receivedHttpCode"`
-	Method           string    `json:"method"`
-	enterprise       int32
+	Id               int64           `json:"id"`
+	WebHookId        int32           `json:"webhookId" gorm:"column:webhook;not null:true"`
+	WebHook          WebHookSettings `json:"-" gorm:"foreignKey:WebHookId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId     int32           `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise       Settings        `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Url              string          `json:"url" gorm:"column:url;not null:true;type:character varying(255)"`
+	AuthCode         string          `json:"authCode" gorm:"type:uuid;not null:true"`
+	AuthMethod       string          `json:"authMethod" gorm:"type:character (1);not null:true"` // H = Header, P = Parameter
+	DateCreated      time.Time       `json:"dateCreated" gorm:"column:date_created;not null:true;type:timestamp(3) with time zone"`
+	Sent             string          `json:"sent" gorm:"type:text;not null:true"`
+	Received         string          `json:"received" gorm:"type:text;not null:true"`
+	ReceivedHttpCode int16           `json:"receivedHttpCode" gorm:"column:received_http_code;not null:true"`
+	Method           string          `json:"method" gorm:"type:character varying (10);not null:true"`
+}
+
+func (l *WebHookLog) TableName() string {
+	return "webhook_logs"
 }
 
 func getWebHookLogs(enterpriseId int32, webHookId int32) []WebHookLog {
 	var logs []WebHookLog = make([]WebHookLog, 0)
-	sqlStatement := `SELECT * FROM public.webhook_logs WHERE enterprise = $1 AND webhook = $2 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId, webHookId)
-	if err != nil {
-		log("DB", err.Error())
+	// get all webhook logs from the database using dbOrm
+	result := dbOrm.Where("enterprise = ? AND webhook = ?", enterpriseId, webHookId).Order("id DESC").Find(&logs)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return logs
-	}
-
-	for rows.Next() {
-		l := WebHookLog{}
-		rows.Scan(&l.Id, &l.WebHook, &l.enterprise, &l.Url, &l.AuthCode, &l.AuthMethod, &l.DateCreated, &l.Sent, &l.Received, &l.ReceivedHttpCode, &l.Method)
-		logs = append(logs, l)
 	}
 
 	return logs
 }
 
+func (l *WebHookLog) BeforeCreate(tx *gorm.DB) (err error) {
+	var webHookLog WebHookLog
+	tx.Model(&WebHookLog{}).Last(&webHookLog)
+	l.Id = webHookLog.Id + 1
+	return nil
+}
+
 // INTERNAL USE ONLY
 func (l *WebHookLog) insertWebHookLog() bool {
-	sqlStatement := `INSERT INTO public.webhook_logs(webhook, enterprise, url, auth_code, auth_method, sent, received, received_http_code, method) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := db.Exec(sqlStatement, l.WebHook, l.enterprise, l.Url, l.AuthCode, l.AuthMethod, l.Sent, l.Received, l.ReceivedHttpCode, l.Method)
-	if err != nil {
-		log("DB", err.Error())
+	// insert a single webhook log into the database using dbOrm
+	result := dbOrm.Create(&l)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
 // Represents a request to be made.
 // It can be sent inmediately, or it can be stored in the webhook_queue table waiting to be sent.
 type WebHookRequest struct {
-	Id          string    `json:"id"`
-	WebHook     int32     `json:"webhook"`
-	Url         string    `json:"url"`
-	AuthCode    string    `json:"authCode"`
-	AuthMethod  string    `json:"authMethod"` // H = Header, P = Parameter
-	DateCreated time.Time `json:"dateCreated"`
-	Send        string    `json:"send"`
-	Method      string    `json:"method"`
-	enterprise  int32
+	Id           string          `json:"id" gorm:"primary_key;type:uuid;not null:true"`
+	WebHookId    int32           `json:"webhookId" gorm:"column:webhook;not null:true"`
+	WebHook      WebHookSettings `json:"-" gorm:"foreignKey:WebHookId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId int32           `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise   Settings        `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Url          string          `json:"url" gorm:"column:url;not null:true;type:character varying(255)"`
+	AuthCode     string          `json:"authCode" gorm:"type:uuid;not null:true"`
+	AuthMethod   string          `json:"authMethod" gorm:"type:character (1);not null:true"` // H = Header, P = Parameter
+	DateCreated  time.Time       `json:"dateCreated" gorm:"column:date_created;not null:true;type:timestamp(3) with time zone"`
+	Send         string          `json:"send" gorm:"type:text;not null:true"`
+	Method       string          `json:"method" gorm:"type:character varying (10);not null:true"`
+}
+
+func (r *WebHookRequest) TableName() string {
+	return "webhook_queue"
 }
 
 func getWebHookRequestQueue(enterpriseId int32, webHookId int32) []WebHookRequest {
 	var requests []WebHookRequest = make([]WebHookRequest, 0)
-	sqlStatement := `SELECT * FROM webhook_queue WHERE webhook = $1 AND enterprise = $2 ORDER BY date_created ASC`
-	rows, err := db.Query(sqlStatement, webHookId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// get all webhook requests from the database using dbOrm
+	result := dbOrm.Where("enterprise = ? AND webhook = ?", enterpriseId, webHookId).Order("date_created ASC").Find(&requests)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return requests
 	}
-
-	for rows.Next() {
-		r := WebHookRequest{}
-		rows.Scan(&r.Id, &r.WebHook, &r.enterprise, &r.Url, &r.AuthCode, &r.AuthMethod, &r.DateCreated, &r.Send, &r.Method)
-		requests = append(requests, r)
-	}
-
 	return requests
 }
 
 // INTERNAL USE ONLY
 func getWebHookRequestQueueInternal(webHookId int32) []WebHookRequest {
 	var requests []WebHookRequest = make([]WebHookRequest, 0)
-	sqlStatement := `SELECT * FROM webhook_queue WHERE webhook = $1 ORDER BY date_created ASC`
-	rows, err := db.Query(sqlStatement, webHookId)
-	if err != nil {
-		log("DB", err.Error())
+	// get all webhook requests from the database using dbOrm
+	result := dbOrm.Where("webhook = ?", webHookId).Order("date_created ASC").Find(&requests)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return requests
-	}
-
-	for rows.Next() {
-		r := WebHookRequest{}
-		rows.Scan(&r.Id, &r.WebHook, &r.enterprise, &r.Url, &r.AuthCode, &r.AuthMethod, &r.DateCreated, &r.Send, &r.Method)
-		requests = append(requests, r)
 	}
 
 	return requests
@@ -287,8 +331,8 @@ func (r *WebHookRequest) sendWebHookRequest(storeWhenError bool) bool {
 	}
 
 	l := WebHookLog{
-		enterprise:       r.enterprise,
-		WebHook:          r.WebHook,
+		EnterpriseId:     r.EnterpriseId,
+		WebHookId:        r.WebHookId,
 		Url:              r.Url,
 		AuthCode:         r.AuthCode,
 		AuthMethod:       r.AuthMethod,
@@ -303,34 +347,37 @@ func (r *WebHookRequest) sendWebHookRequest(storeWhenError bool) bool {
 }
 
 func (r *WebHookRequest) queueWebHookRequest() bool {
-	queue := getWebHookRequestQueueInternal(r.WebHook)
+	queue := getWebHookRequestQueueInternal(r.WebHookId)
 	if len(queue) > int(settings.Server.MaxQueueSizePerWebHook) {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.webhook_queue(webhook, enterprise, url, auth_code, auth_method, send, method) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := db.Exec(sqlStatement, r.WebHook, r.enterprise, r.Url, r.AuthCode, r.AuthMethod, r.Send, r.Method)
-	if err != nil {
-		log("DB", err.Error())
+	r.Id = uuid.NewString()
+	r.DateCreated = time.Now()
+
+	result := dbOrm.Create(&r)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
 func (r *WebHookRequest) dequeueWebHookRequest() bool {
-	sqlStatement := `DELETE FROM public.webhook_queue WHERE id = $1`
-	_, err := db.Exec(sqlStatement, r.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Delete(&r)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
 // CRON TASK
 func attemptToSendQueuedWebHooks() {
-	sqlStatement := `SELECT DISTINCT webhook FROM public.webhook_queue`
-	rows, err := db.Query(sqlStatement)
+	// get all webhook requests from the database using dbOrm
+	rows, err := dbOrm.Model(&WebHookRequest{}).Select("webhook").Distinct().Rows()
 	if err != nil {
 		log("DB", err.Error())
 		return

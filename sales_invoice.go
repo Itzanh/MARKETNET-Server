@@ -6,38 +6,52 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SalesInvoice struct {
-	Id                 int64     `json:"id"`
-	Customer           int32     `json:"customer"`
-	DateCreated        time.Time `json:"dateCreated"`
-	PaymentMethod      int32     `json:"paymentMethod"`
-	BillingSeries      string    `json:"billingSeries"`
-	Currency           int32     `json:"currency"`
-	CurrencyChange     float64   `json:"currencyChange"`
-	BillingAddress     int32     `json:"billingAddress"`
-	TotalProducts      float64   `json:"totalProducts"`
-	DiscountPercent    float64   `json:"discountPercent"`
-	FixDiscount        float64   `json:"fixDiscount"`
-	ShippingPrice      float64   `json:"shippingPrice"`
-	ShippingDiscount   float64   `json:"shippingDiscount"`
-	TotalWithDiscount  float64   `json:"totalWithDiscount"`
-	VatAmount          float64   `json:"vatAmount"`
-	TotalAmount        float64   `json:"totalAmount"`
-	LinesNumber        int16     `json:"linesNumber"`
-	InvoiceNumber      int32     `json:"invoiceNumber"`
-	InvoiceName        string    `json:"invoiceName"`
-	AccountingMovement *int64    `json:"accountingMovement"`
-	SimplifiedInvoice  bool      `json:"simplifiedInvoice"`
-	CustomerName       string    `json:"customerName"`
-	Amending           bool      `json:"amending"`
-	AmendedInvoice     *int64    `json:"amendedInvoice"`
-	enterprise         int32
+	Id                   int64               `json:"id" gorm:"index:sales_invoice_id_enterprise,unique:true,priority:1"`
+	CustomerId           int32               `json:"customerId" gorm:"column:customer;not null:true"`
+	Customer             Customer            `json:"customer" gorm:"foreignKey:CustomerId,EnterpriseId;references:Id,EnterpriseId"`
+	DateCreated          time.Time           `json:"dateCreated" gorm:"column:date_created;not null:true;type:timestamp(3) with time zone;index:sales_invoice_date_created,sort:desc"`
+	PaymentMethodId      int32               `json:"paymentMethodId" gorm:"column:payment_method;not null:true"`
+	PaymentMethod        PaymentMethod       `json:"paymentMethod" gorm:"foreignKey:PaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
+	BillingSeriesId      string              `json:"billingSeriesId" gorm:"column:billing_series;not null:true;type:character(3);index:sales_invoice_invoice_number,unique:true,priority:2"`
+	BillingSeries        BillingSerie        `json:"billingSeries" gorm:"foreignKey:BillingSeriesId,EnterpriseId;references:Id,EnterpriseId"`
+	CurrencyId           int32               `json:"currencyId" gorm:"column:currency;not null:true"`
+	Currency             Currency            `json:"currency" gorm:"foreignKey:CurrencyId,EnterpriseId;references:Id,EnterpriseId"`
+	CurrencyChange       float64             `json:"currencyChange" gorm:"type:numeric(14,6);not null:true"`
+	BillingAddressId     int32               `json:"billingAddressId" gorm:"column:billing_address;not null:true"`
+	BillingAddress       Address             `json:"billingAddress" gorm:"foreignKey:BillingAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	TotalProducts        float64             `json:"totalProducts" gorm:"type:numeric(14,6);not null:true"`
+	DiscountPercent      float64             `json:"discountPercent" gorm:"type:numeric(14,6);not null:true"`
+	FixDiscount          float64             `json:"fixDiscount" gorm:"type:numeric(14,6);not null:true"`
+	ShippingPrice        float64             `json:"shippingPrice" gorm:"type:numeric(14,6);not null:true"`
+	ShippingDiscount     float64             `json:"shippingDiscount" gorm:"type:numeric(14,6);not null:true"`
+	TotalWithDiscount    float64             `json:"totalWithDiscount" gorm:"type:numeric(14,6);not null:true"`
+	VatAmount            float64             `json:"vatAmount" gorm:"type:numeric(14,6);not null:true"`
+	TotalAmount          float64             `json:"totalAmount" gorm:"type:numeric(14,6);not null:true"`
+	LinesNumber          int16               `json:"linesNumber" gorm:"column:lines_number;not null:true"`
+	InvoiceNumber        int32               `json:"invoiceNumber" gorm:"column:invoice_number;not null:true;index:sales_invoice_invoice_number,unique:true,priority:3,sort:desc"`
+	InvoiceName          string              `json:"invoiceName" gorm:"column:invoice_name;not null:true;type:character(15)"`
+	AccountingMovementId *int64              `json:"accountingMovementId" gorm:"column:accounting_movement"`
+	AccountingMovement   *AccountingMovement `json:"accountingMovement" gorm:"foreignKey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId         int32               `json:"-" gorm:"column:enterprise;not null:true;index:sales_invoice_id_enterprise,unique:true,priority:2;index:sales_invoice_invoice_number,unique:true,priority:1"`
+	Enterprise           Settings            `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	SimplifiedInvoice    bool                `json:"simplifiedInvoice" gorm:"not null:true"`
+	Amending             bool                `json:"amending" gorm:"not null:true"`
+	AmendedInvoiceId     *int64              `json:"amendedInvoiceId" gorm:"column:amended_invoice"`
+	AmendedInvoice       *SalesInvoice       `json:"amendedInvoice" gorm:"foreignKey:AmendedInvoiceId;references:Id"`
+}
+
+func (s SalesInvoice) TableName() string {
+	return "sales_invoice"
 }
 
 type SaleInvoices struct {
-	Rows     int32              `json:"rows"`
+	Rows     int64              `json:"rows"`
 	Invoices []SalesInvoice     `json:"invoices"`
 	Footer   SaleInvoicesFooter `json:"footer"`
 }
@@ -54,25 +68,10 @@ func (q *PaginationQuery) getSalesInvoices() SaleInvoices {
 	}
 
 	si.Invoices = make([]SalesInvoice, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE enterprise=$3 ORDER BY date_created DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		return si
-	}
-	defer rows.Close()
+	si.Footer = SaleInvoicesFooter{}
 
-	for rows.Next() {
-		i := SalesInvoice{}
-		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.Amending, &i.AmendedInvoice, &i.CustomerName)
-		si.Invoices = append(si.Invoices, i)
-	}
-
-	sqlStatement = `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM public.sales_invoice WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.enterprise)
-	row.Scan(&si.Rows, &si.Footer.TotalProducts, &si.Footer.TotalAmount)
+	dbOrm.Model(&SalesInvoice{}).Where("enterprise = ?", q.enterprise).Order("date_created DESC").Offset(int(q.Offset)).Limit(int(q.Limit)).Preload(clause.Associations).Find(&si.Invoices)
+	dbOrm.Model(&SalesInvoice{}).Where("enterprise = ?", q.enterprise).Count(&si.Rows).Select("SUM(total_amount) AS total_amount, SUM(total_products) AS total_products").Row().Scan(&si.Footer.TotalAmount, &si.Footer.TotalProducts)
 
 	return si
 }
@@ -90,118 +89,75 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 		return si
 	}
 
+	cursor := dbOrm.Model(&SalesInvoice{}).Where("sales_invoice.enterprise = ?", s.enterprise)
+
 	si.Invoices = make([]SalesInvoice, 0)
-	var rows *sql.Rows
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT sales_invoice.*,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE invoice_number=$1 AND enterprise=$2 ORDER BY date_created DESC`
-		rows, err = db.Query(sqlStatement, orderNumber, s.enterprise)
+		cursor = cursor.Where("sales_invoice.invoice_number = ?", orderNumber)
 	} else {
-		var interfaces []interface{} = make([]interface{}, 0)
-		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT sales_invoice.*,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
+		cursor = cursor.Joins("INNER JOIN customer ON customer.id=sales_invoice.customer").Where("sales_invoice.invoice_name LIKE @search OR customer.name ILIKE @search", sql.Named("search", "%"+s.Search+"%"))
 		if s.DateStart != nil {
-			sqlStatement += ` AND sales_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateStart)
+			cursor = cursor.Where("sales_invoice.date_created >= ?", s.DateStart)
 		}
 		if s.DateEnd != nil {
-			sqlStatement += ` AND sales_invoice.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateEnd)
+			cursor = cursor.Where("sales_invoice.date_created <= ?", s.DateEnd)
 		}
 		if s.NotPosted {
-			sqlStatement += ` AND accounting_movement IS NULL`
+			cursor = cursor.Where("sales_invoice.accounting_movement IS NULL")
 		}
-		sqlStatement += ` AND sales_invoice.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.enterprise)
-		sqlStatement += ` ORDER BY date_created DESC OFFSET $` + strconv.Itoa(len(interfaces)+1) + ` LIMIT $` + strconv.Itoa(len(interfaces)+2)
-		interfaces = append(interfaces, s.Offset)
-		interfaces = append(interfaces, s.Limit)
-		rows, err = db.Query(sqlStatement, interfaces...)
 	}
-	if err != nil {
-		log("DB", err.Error())
+	result := cursor.Order("sales_invoice.date_created DESC").Offset(int(s.Offset)).Limit(int(s.Limit)).Preload(clause.Associations).Find(&si.Invoices)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return si
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		i := SalesInvoice{}
-		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.Amending, &i.AmendedInvoice, &i.CustomerName)
-		si.Invoices = append(si.Invoices, i)
-	}
-
-	var row *sql.Row
-	orderNumber, err = strconv.Atoi(s.Search)
+	cursor = dbOrm.Model(&SalesInvoice{}).Where("sales_invoice.enterprise = ?", s.enterprise)
 	if err == nil {
-		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM sales_invoice WHERE invoice_number=$1 AND enterprise=$2`
-		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
+		cursor = cursor.Where("sales_invoice.invoice_number = ?", orderNumber)
 	} else {
-		var interfaces []interface{} = make([]interface{}, 0)
-		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM sales_invoice INNER JOIN customer ON customer.id=sales_invoice.customer WHERE customer.name ILIKE $1`
+		cursor = cursor.Joins("INNER JOIN customer ON customer.id=sales_invoice.customer").Where("sales_invoice.invoice_name LIKE @search OR customer.name ILIKE @search", sql.Named("search", "%"+s.Search+"%"))
 		if s.DateStart != nil {
-			sqlStatement += ` AND sales_invoice.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateStart)
+			cursor = cursor.Where("sales_invoice.date_created >= ?", s.DateStart)
 		}
 		if s.DateEnd != nil {
-			sqlStatement += ` AND sales_invoice.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateEnd)
+			cursor = cursor.Where("sales_invoice.date_created <= ?", s.DateEnd)
 		}
 		if s.NotPosted {
-			sqlStatement += ` AND accounting_movement IS NULL`
+			cursor = cursor.Where("sales_invoice.accounting_movement IS NULL")
 		}
-		sqlStatement += ` AND sales_invoice.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.enterprise)
-		row = db.QueryRow(sqlStatement, interfaces...)
 	}
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = cursor.Count(&si.Rows).Select("SUM(total_products) AS total_products,SUM(total_amount) AS total_amount").Scan(&si.Footer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return si
 	}
-	row.Scan(&si.Rows, &si.Footer.TotalProducts, &si.Footer.TotalAmount)
 
 	return si
 }
 
 func getSalesInvoiceRow(invoiceId int64) SalesInvoice {
-	sqlStatement := `SELECT * FROM sales_invoice WHERE id=$1`
-	row := db.QueryRow(sqlStatement, invoiceId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return SalesInvoice{}
+	si := SalesInvoice{}
+	result := dbOrm.Model(&SalesInvoice{}).Where("id = ?", invoiceId).Preload(clause.Associations).First(&si)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return si
 	}
-
-	i := SalesInvoice{}
-	row.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-		&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.Amending, &i.AmendedInvoice)
-
-	return i
+	return si
 }
 
-func getSalesInvoiceRowTransaction(invoiceId int64, trans sql.Tx) SalesInvoice {
-	sqlStatement := `SELECT * FROM sales_invoice WHERE id=$1`
-	row := trans.QueryRow(sqlStatement, invoiceId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return SalesInvoice{}
-	}
-
-	i := SalesInvoice{}
-	row.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-		&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-		&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.Amending, &i.AmendedInvoice)
-
-	return i
+func getSalesInvoiceRowTransaction(invoiceId int64, trans gorm.DB) SalesInvoice {
+	si := SalesInvoice{}
+	trans.Model(&SalesInvoice{}).Where("id = ?", invoiceId).First(&si)
+	return si
 }
 
 func (i *SalesInvoice) isValid() bool {
-	return !(i.Customer <= 0 || i.PaymentMethod <= 0 || len(i.BillingSeries) == 0 || i.Currency <= 0 || i.BillingAddress <= 0)
+	return !(i.CustomerId <= 0 || i.PaymentMethodId <= 0 || len(i.BillingSeriesId) == 0 || i.CurrencyId <= 0 || i.BillingAddressId <= 0)
 }
 
-func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *sql.Tx) (bool, int64) {
+func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *gorm.DB) (bool, int64) {
 	if !i.isValid() {
 		return false, 0
 	}
@@ -209,33 +165,32 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *sql.Tx) (bool, in
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return false, 0
 		}
 		///
 	}
 
 	// get invoice name
-	i.InvoiceNumber = getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
+	i.InvoiceNumber = getNextSaleInvoiceNumber(i.BillingSeriesId, i.EnterpriseId)
 	if i.InvoiceNumber <= 0 {
 		trans.Rollback()
 		return false, 0
 	}
 	now := time.Now()
-	i.InvoiceName = i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
+	i.InvoiceName = i.BillingSeriesId + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
 
 	// get currency exchange
-	i.CurrencyChange = getCurrencyExchange(i.Currency)
+	i.CurrencyChange = getCurrencyExchange(i.CurrencyId)
 
 	// simplified invoice
-	address := getAddressRow(i.BillingAddress)
+	address := getAddressRow(i.BillingAddressId)
 	if address.Id <= 0 {
 		trans.Rollback()
 		return false, 0
 	}
-	country := getCountryRow(address.Country, i.enterprise)
+	country := getCountryRow(address.CountryId, i.EnterpriseId)
 	if country.Id <= 0 {
 		trans.Rollback()
 		return false, 0
@@ -243,7 +198,7 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *sql.Tx) (bool, in
 	if country.Zone == "E" { // Export
 		i.SimplifiedInvoice = false
 	} else {
-		customer := getCustomerRow(i.Customer)
+		customer := getCustomerRow(i.CustomerId)
 		if country.Zone == "N" { // National
 			i.SimplifiedInvoice = len(customer.TaxId) == 0
 		} else { // European Union
@@ -251,33 +206,34 @@ func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *sql.Tx) (bool, in
 		}
 	}
 
-	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, discount_percent, fix_discount, shipping_price, shipping_discount, total_with_discount, total_amount, invoice_number, invoice_name, enterprise, simplified_invoice) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`
-	row := trans.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, i.DiscountPercent, i.FixDiscount, i.ShippingPrice, i.ShippingDiscount, i.TotalWithDiscount, i.TotalAmount, i.InvoiceNumber, i.InvoiceName, i.enterprise, i.SimplifiedInvoice)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	i.DateCreated = time.Now()
+	i.TotalProducts = 0
+	i.VatAmount = 0
+	i.AccountingMovementId = nil
+	i.Amending = false
+	i.AmendedInvoiceId = nil
+
+	result := trans.Create(&i)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false, 0
 	}
 
-	var invoiceId int64
-	row.Scan(&invoiceId)
-
-	if invoiceId > 0 {
-		insertTransactionalLog(i.enterprise, "sales_invoice", int(invoiceId), userId, "I")
-		json, _ := json.Marshal(i)
-		go fireWebHook(i.enterprise, "sales_invoice", "POST", string(json))
-	}
+	insertTransactionalLog(i.EnterpriseId, "sales_invoice", int(i.Id), userId, "I")
+	json, _ := json.Marshal(i)
+	go fireWebHook(i.EnterpriseId, "sales_invoice", "POST", string(json))
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return false, 0
 		}
 		///
 	}
 
-	return invoiceId > 0, invoiceId
+	return true, i.Id
 }
 
 // 1. can't delete details in posted invoices
@@ -289,29 +245,29 @@ func (i *SalesInvoice) deleteSalesInvoice(userId int32) OkAndErrorCodeReturn {
 	}
 
 	invoice := getSalesInvoiceRow(i.Id)
-	if invoice.AccountingMovement != nil {
+	if invoice.AccountingMovementId != nil {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
 	// INVOICE DELETION POLICY
-	s := getSettingsRecordById(i.enterprise)
+	s := getSettingsRecordById(i.EnterpriseId)
 	if s.InvoiceDeletePolicy == 2 { // Don't allow to delete
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	} else if s.InvoiceDeletePolicy == 1 { // Allow to delete only the latest invoice of the billing series
-		invoiceNumber := getNextSaleInvoiceNumber(invoice.BillingSeries, invoice.enterprise)
+		invoiceNumber := getNextSaleInvoiceNumber(invoice.BillingSeriesId, invoice.EnterpriseId)
 		if invoiceNumber <= 0 || invoice.InvoiceNumber != (invoiceNumber-1) {
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
 		}
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
-	d := getSalesInvoiceDetail(i.Id, i.enterprise)
+	d := getSalesInvoiceDetail(i.Id, i.EnterpriseId)
 
 	for i := 0; i < len(d); i++ {
 		ok := d[i].deleteSalesInvoiceDetail(userId, trans).Ok
@@ -321,44 +277,44 @@ func (i *SalesInvoice) deleteSalesInvoice(userId int32) OkAndErrorCodeReturn {
 		}
 	}
 
-	insertTransactionalLog(i.enterprise, "sales_invoice", int(i.Id), userId, "D")
+	insertTransactionalLog(i.EnterpriseId, "sales_invoice", int(i.Id), userId, "D")
 	json, _ := json.Marshal(i)
-	go fireWebHook(i.enterprise, "sales_invoice", "DELETE", string(json))
+	go fireWebHook(i.EnterpriseId, "sales_invoice", "DELETE", string(json))
 
-	sqlStatement := `DELETE FROM public.sales_invoice WHERE id=$1 AND enterprise=$2`
-	res, err := trans.Exec(sqlStatement, i.Id, i.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Delete(&SalesInvoice{}, "id = ? AND enterprise = ?", i.Id, i.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
+	result = trans.Commit()
+	if result.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
-	rows, _ := res.RowsAffected()
-	return OkAndErrorCodeReturn{Ok: rows > 0}
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 func toggleSimplifiedInvoiceSalesInvoice(invoiceId int64, enterpriseId int32, userId int32) bool {
-	sqlStatement := `UPDATE sales_invoice SET simplified_invoice = NOT simplified_invoice WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, invoiceId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	invoice := getSalesInvoiceRow(invoiceId)
+	if invoice.Id <= 0 {
+		return false
+	}
+	invoice.SimplifiedInvoice = !invoice.SimplifiedInvoice
+	result := dbOrm.Model(&SalesInvoice{}).Where("id = ?", invoiceId).Update("simplified_invoice", invoice.SimplifiedInvoice)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
-	i := getSalesInvoiceRow(invoiceId)
-	json, _ := json.Marshal(i)
-	go fireWebHook(i.enterprise, "sales_invoice", "PUT", string(json))
+	json, _ := json.Marshal(invoice)
+	go fireWebHook(enterpriseId, "sales_invoice", "PUT", string(json))
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 type MakeAmendingInvoice struct {
@@ -369,7 +325,7 @@ type MakeAmendingInvoice struct {
 
 func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float64, description string, userId int32) bool {
 	i := getSalesInvoiceRow(invoiceId)
-	if i.Id <= 0 || i.enterprise != enterpriseId {
+	if i.Id <= 0 || i.EnterpriseId != enterpriseId {
 		return false
 	}
 
@@ -386,11 +342,11 @@ func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float
 	settings := getSettingsRecordById(enterpriseId)
 
 	// get invoice name
-	invoiceNumber := getNextSaleInvoiceNumber(i.BillingSeries, i.enterprise)
+	invoiceNumber := getNextSaleInvoiceNumber(i.BillingSeriesId, i.EnterpriseId)
 	if i.InvoiceNumber <= 0 {
 		return false
 	}
-	invoiceName := i.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
+	invoiceName := i.BillingSeriesId + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", i.InvoiceNumber)
 
 	var detailAmount float64
 	var vatPercent float64
@@ -404,46 +360,80 @@ func makeAmendingSaleInvoice(invoiceId int64, enterpriseId int32, quantity float
 	}
 	var vatAmount float64 = (quantity / 100) * vatPercent
 
-	sqlStatement := `INSERT INTO public.sales_invoice(customer, payment_method, billing_series, currency, currency_change, billing_address, enterprise, simplified_invoice, amending, amended_invoice, invoice_number, invoice_name, total_products, total_with_discount, vat_amount, total_amount, discount_percent, fix_discount, shipping_price, shipping_discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, 0, 0, 0) RETURNING id`
-	row := db.QueryRow(sqlStatement, i.Customer, i.PaymentMethod, i.BillingSeries, i.Currency, i.CurrencyChange, i.BillingAddress, enterpriseId, i.SimplifiedInvoice, true, i.Id, invoiceNumber, invoiceName, -detailAmount, -detailAmount, -vatAmount, -quantity)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var amendingInvoice SalesInvoice = SalesInvoice{}
+
+	amendingInvoice.CustomerId = i.CustomerId
+	amendingInvoice.DateCreated = time.Now()
+	amendingInvoice.PaymentMethodId = i.PaymentMethodId
+	amendingInvoice.BillingSeriesId = i.BillingSeriesId
+	amendingInvoice.CurrencyId = i.CurrencyId
+	amendingInvoice.CurrencyChange = i.CurrencyChange
+	amendingInvoice.BillingAddressId = i.BillingAddressId
+	amendingInvoice.SimplifiedInvoice = i.SimplifiedInvoice
+	amendingInvoice.Amending = true
+	amendingInvoice.AmendedInvoiceId = &i.Id
+	amendingInvoice.InvoiceNumber = invoiceNumber
+	amendingInvoice.InvoiceName = invoiceName
+	amendingInvoice.TotalProducts = -detailAmount
+	amendingInvoice.TotalWithDiscount = -detailAmount
+	amendingInvoice.VatAmount = -vatAmount
+	amendingInvoice.TotalAmount = -quantity
+	amendingInvoice.DiscountPercent = 0
+	amendingInvoice.FixDiscount = 0
+	amendingInvoice.ShippingPrice = 0
+	amendingInvoice.ShippingDiscount = 0
+	amendingInvoice.EnterpriseId = enterpriseId
+
+	result := dbOrm.Create(&amendingInvoice)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	var amendingInvoiceId int64
-	row.Scan(&amendingInvoiceId)
+	detail := SalesInvoiceDetail{}
 
-	sqlStatement = `INSERT INTO public.sales_invoice_detail(invoice, description, price, quantity, vat_percent, total_amount, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
-	row = db.QueryRow(sqlStatement, amendingInvoiceId, description, -detailAmount, 1, vatPercent, -quantity, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	detail.InvoiceId = amendingInvoice.Id
+	detail.Description = description
+	detail.Price = -detailAmount
+	detail.Quantity = 1
+	detail.VatPercent = vatPercent
+	detail.TotalAmount = -quantity
+	detail.EnterpriseId = enterpriseId
+
+	result = dbOrm.Create(&detail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
-
-	var amendingInvoiceDetailId int64
-	row.Scan(&amendingInvoiceDetailId)
 
 	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "I")
-	inv := getSalesInvoiceRow(amendingInvoiceId)
-	jsn, _ := json.Marshal(inv)
-	go fireWebHook(inv.enterprise, "sales_invoice", "PUT", string(jsn))
+	jsn, _ := json.Marshal(amendingInvoice)
+	go fireWebHook(amendingInvoice.EnterpriseId, "sales_invoice", "PUT", string(jsn))
 
-	insertTransactionalLog(enterpriseId, "sales_invoice_detail", int(amendingInvoiceDetailId), userId, "I")
-	det := getSalesInvoiceDetailRow(amendingInvoiceDetailId)
-	jsn, _ = json.Marshal(det)
-	go fireWebHook(det.enterprise, "sales_invoice_detail", "PUT", string(jsn))
+	insertTransactionalLog(enterpriseId, "sales_invoice_detail", int(detail.Id), userId, "I")
+	jsn, _ = json.Marshal(detail)
+	go fireWebHook(detail.EnterpriseId, "sales_invoice_detail", "PUT", string(jsn))
 
 	return true
 }
 
 // Adds a total amount to the invoice total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE sales_invoice SET total_products = total_products + $2, vat_amount = vat_amount + $3 WHERE id = $1`
-	_, err := trans.Exec(sqlStatement, invoiceId, totalAmount, (totalAmount/100)*vatPercent)
-	if err != nil {
-		log("DB", err.Error())
+func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var saleInvoice SalesInvoice
+	result := trans.Model(&SalesInvoice{}).Where("id = ?", invoiceId).First(&saleInvoice)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	saleInvoice.TotalProducts += totalAmount
+	saleInvoice.VatAmount += (totalAmount / 100) * vatPercent
+
+	result = trans.Save(&saleInvoice)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
@@ -453,29 +443,30 @@ func addTotalProductsSalesInvoice(invoiceId int64, totalAmount float64, vatPerce
 
 // Applies the logic to calculate the totals of the sales invoice and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE sales_invoice SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err := trans.Exec(sqlStatement, invoiceId)
-	if err != nil {
-		log("DB", err.Error())
+func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32, trans gorm.DB) bool {
+	var saleInvoice SalesInvoice
+	result := trans.Model(&SalesInvoice{}).Where("id = ?", invoiceId).First(&saleInvoice)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	sqlStatement = `UPDATE sales_invoice SET total_amount=total_with_discount+vat_amount WHERE id = $1`
-	_, err = trans.Exec(sqlStatement, invoiceId)
-	if err != nil {
-		log("DB", err.Error())
+	saleInvoice.TotalWithDiscount = (saleInvoice.TotalProducts - saleInvoice.TotalProducts*(saleInvoice.DiscountPercent/100)) - saleInvoice.FixDiscount + saleInvoice.ShippingPrice - saleInvoice.ShippingDiscount
+	saleInvoice.TotalAmount = saleInvoice.TotalWithDiscount + saleInvoice.VatAmount
+
+	result = trans.Save(&saleInvoice)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "sales_invoice", int(invoiceId), userId, "U")
-	i := getSalesInvoiceRowTransaction(invoiceId, trans)
-	json, _ := json.Marshal(i)
-	go fireWebHook(i.enterprise, "sales_invoice", "PUT", string(json))
+	json, _ := json.Marshal(saleInvoice)
+	go fireWebHook(enterpriseId, "sales_invoice", "PUT", string(json))
 
-	return err == nil
+	return true
 }
 
 // ERROR CODES:
@@ -484,7 +475,7 @@ func calcTotalsSaleInvoice(enterpriseId int32, invoiceId int64, userId int32, tr
 func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(saleOrderId)
-	if saleOrder.enterprise != enterpriseId {
+	if saleOrder.EnterpriseId != enterpriseId {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.Id <= 0 {
@@ -493,7 +484,7 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
-	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.enterprise)
+	orderDetails := getSalesOrderDetail(saleOrderId, saleOrder.EnterpriseId)
 	filterSalesOrderDetails(orderDetails, func(sod SalesOrderDetail) bool { return sod.QuantityInvoiced < sod.Quantity })
 	if len(orderDetails) == 0 {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
@@ -501,15 +492,15 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 
 	// create an invoice for that order
 	invoice := SalesInvoice{}
-	invoice.Customer = saleOrder.Customer
-	invoice.BillingAddress = saleOrder.BillingAddress
-	invoice.BillingSeries = saleOrder.BillingSeries
-	invoice.Currency = saleOrder.Currency
-	invoice.PaymentMethod = saleOrder.PaymentMethod
+	invoice.CustomerId = saleOrder.CustomerId
+	invoice.BillingAddressId = saleOrder.BillingAddressId
+	invoice.BillingSeriesId = saleOrder.BillingSeriesId
+	invoice.CurrencyId = saleOrder.CurrencyId
+	invoice.PaymentMethodId = saleOrder.PaymentMethodId
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
@@ -520,7 +511,7 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	invoice.enterprise = saleOrder.enterprise
+	invoice.EnterpriseId = saleOrder.EnterpriseId
 	ok, invoiceId := invoice.insertSalesInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
@@ -529,14 +520,14 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 	for i := 0; i < len(orderDetails); i++ {
 		orderDetail := orderDetails[i]
 		invoiceDetal := SalesInvoiceDetail{}
-		invoiceDetal.Invoice = invoiceId
-		invoiceDetal.OrderDetail = &orderDetail.Id
+		invoiceDetal.InvoiceId = invoiceId
+		invoiceDetal.OrderDetailId = &orderDetail.Id
 		invoiceDetal.Price = orderDetail.Price
-		invoiceDetal.Product = &orderDetail.Product
+		invoiceDetal.ProductId = &orderDetail.ProductId
 		invoiceDetal.Quantity = (orderDetail.Quantity - orderDetail.QuantityInvoiced)
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
-		invoiceDetal.enterprise = invoice.enterprise
+		invoiceDetal.EnterpriseId = invoice.EnterpriseId
 		ok := invoiceDetal.insertSalesInvoiceDetail(trans, userId)
 		if !ok.Ok {
 			trans.Rollback()
@@ -546,11 +537,14 @@ func invoiceAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int32) Ok
 
 	invoiceSalesOrderDiscounts(saleOrderId, invoiceId, enterpriseId, userId, *trans)
 
-	go ecommerceControllerupdateStatusPaymentAccepted(saleOrderId, invoice.enterprise)
+	go ecommerceControllerupdateStatusPaymentAccepted(saleOrderId, invoice.EnterpriseId)
 
 	///
-	transErr = trans.Commit()
-	return OkAndErrorCodeReturn{Ok: transErr == nil}
+	result := trans.Commit()
+	if result.Error != nil {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	return OkAndErrorCodeReturn{Ok: true}
 	///
 }
 
@@ -572,7 +566,7 @@ type OrderDetailGenerateSelection struct {
 func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId int32, userId int32) OkAndErrorCodeReturn {
 	// get the sale order and it's details
 	saleOrder := getSalesOrderRow(invoiceInfo.OrderId)
-	if saleOrder.Id <= 0 || saleOrder.enterprise != enterpriseId || len(invoiceInfo.Selection) == 0 {
+	if saleOrder.Id <= 0 || saleOrder.EnterpriseId != enterpriseId || len(invoiceInfo.Selection) == 0 {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	if saleOrder.InvoicedLines >= saleOrder.LinesNumber {
@@ -582,19 +576,19 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 	var saleOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
 	for i := 0; i < len(invoiceInfo.Selection); i++ {
 		orderDetail := getSalesOrderDetailRow(invoiceInfo.Selection[i].Id)
-		if orderDetail.Id <= 0 || orderDetail.Order != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 {
+		if orderDetail.Id <= 0 || orderDetail.OrderId != invoiceInfo.OrderId || invoiceInfo.Selection[i].Quantity == 0 {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		if invoiceInfo.Selection[i].Quantity > orderDetail.Quantity {
-			product := getProductRow(orderDetail.Product)
+			product := getProductRow(orderDetail.ProductId)
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{product.Name}}
 		}
 		if orderDetail.QuantityInvoiced >= orderDetail.Quantity {
-			product := getProductRow(orderDetail.Product)
+			product := getProductRow(orderDetail.ProductId)
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{product.Name}}
 		}
 		if (invoiceInfo.Selection[i].Quantity + orderDetail.QuantityInvoiced) > orderDetail.Quantity {
-			product := getProductRow(orderDetail.Product)
+			product := getProductRow(orderDetail.ProductId)
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 4, ExtraData: []string{product.Name}}
 		}
 		saleOrderDetails = append(saleOrderDetails, orderDetail)
@@ -602,15 +596,15 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 
 	// create an invoice for that order
 	invoice := SalesInvoice{}
-	invoice.Customer = saleOrder.Customer
-	invoice.BillingAddress = saleOrder.BillingAddress
-	invoice.BillingSeries = saleOrder.BillingSeries
-	invoice.Currency = saleOrder.Currency
-	invoice.PaymentMethod = saleOrder.PaymentMethod
+	invoice.CustomerId = saleOrder.CustomerId
+	invoice.BillingAddressId = saleOrder.BillingAddressId
+	invoice.BillingSeriesId = saleOrder.BillingSeriesId
+	invoice.CurrencyId = saleOrder.CurrencyId
+	invoice.PaymentMethodId = saleOrder.PaymentMethodId
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
@@ -621,7 +615,7 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	invoice.enterprise = saleOrder.enterprise
+	invoice.EnterpriseId = saleOrder.EnterpriseId
 	ok, invoiceId := invoice.insertSalesInvoice(userId, trans)
 	if !ok {
 		trans.Rollback()
@@ -630,14 +624,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 	for i := 0; i < len(saleOrderDetails); i++ {
 		orderDetail := saleOrderDetails[i]
 		invoiceDetal := SalesInvoiceDetail{}
-		invoiceDetal.Invoice = invoiceId
-		invoiceDetal.OrderDetail = &orderDetail.Id
+		invoiceDetal.InvoiceId = invoiceId
+		invoiceDetal.OrderDetailId = &orderDetail.Id
 		invoiceDetal.Price = orderDetail.Price
-		invoiceDetal.Product = &orderDetail.Product
+		invoiceDetal.ProductId = &orderDetail.ProductId
 		invoiceDetal.Quantity = invoiceInfo.Selection[i].Quantity
 		invoiceDetal.TotalAmount = orderDetail.TotalAmount
 		invoiceDetal.VatPercent = orderDetail.VatPercent
-		invoiceDetal.enterprise = invoice.enterprise
+		invoiceDetal.EnterpriseId = invoice.EnterpriseId
 		ok = invoiceDetal.insertSalesInvoiceDetail(trans, userId).Ok
 		if !ok {
 			trans.Rollback()
@@ -647,11 +641,14 @@ func (invoiceInfo *OrderDetailGenerate) invoicePartiallySaleOrder(enterpriseId i
 
 	invoiceSalesOrderDiscounts(saleOrder.Id, invoiceId, enterpriseId, userId, *trans)
 
-	go ecommerceControllerupdateStatusPaymentAccepted(invoiceInfo.OrderId, invoice.enterprise)
+	go ecommerceControllerupdateStatusPaymentAccepted(invoiceInfo.OrderId, invoice.EnterpriseId)
 
 	///
-	transErr = trans.Commit()
-	return OkAndErrorCodeReturn{Ok: transErr == nil}
+	result := trans.Commit()
+	if result.Error != nil {
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	return OkAndErrorCodeReturn{Ok: true}
 	///
 }
 
@@ -670,24 +667,31 @@ func getSalesInvoiceRelations(invoiceId int64, enterpriseId int32) SalesInvoiceR
 }
 
 func getSalesInvoiceOrders(invoiceId int64, enterpriseId int32) []SaleOrder {
+	saleInvoice := getSalesInvoiceRow(invoiceId)
+	if saleInvoice.Id <= 0 || saleInvoice.EnterpriseId != enterpriseId {
+		return []SaleOrder{}
+	}
 	var orders []SaleOrder = make([]SaleOrder, 0)
-	sqlStatement := `SELECT DISTINCT sales_order.* FROM sales_invoice INNER JOIN sales_invoice_detail ON sales_invoice.id = sales_invoice_detail.invoice INNER JOIN sales_order_detail ON sales_invoice_detail.order_detail = sales_order_detail.id INNER JOIN sales_order ON sales_order_detail.order = sales_order.id WHERE sales_invoice.id = $1 AND sales_invoice.enterprise=$2 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, invoiceId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return orders
+	invoiceDetails := getSalesInvoiceDetail(invoiceId, enterpriseId)
+	for i := 0; i < len(invoiceDetails); i++ {
+		var orderDetail SalesOrderDetail
+		if invoiceDetails[i].OrderDetailId != nil {
+			orderDetail = getSalesOrderDetailRow(*invoiceDetails[i].OrderDetailId)
+		} else {
+			continue
+		}
+		var ok bool = true
+		for j := 0; j < len(orders); j++ {
+			if orders[j].Id == orderDetail.OrderId {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			order := getSalesOrderRow(orderDetail.OrderId)
+			orders = append(orders, order)
+		}
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		s := SaleOrder{}
-		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
-			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.prestaShopId,
-			&s.wooCommerceId, &s.shopifyId, &s.enterprise, &s.shopifyDraftId)
-		orders = append(orders, s)
-	}
-
 	return orders
 }
 
@@ -703,7 +707,7 @@ func getSalesInvoiceDeliveryNotes(invoiceId int64, enterpriseId int32) []SalesDe
 
 	for rows.Next() {
 		n := SalesDeliveryNote{}
-		rows.Scan(&n.Id, &n.Warehouse, &n.Customer, &n.DateCreated, &n.PaymentMethod, &n.BillingSeries, &n.ShippingAddress, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.Currency, &n.CurrencyChange, &n.enterprise)
+		rows.Scan(&n.Id, &n.WarehouseId, &n.CustomerId, &n.DateCreated, &n.PaymentMethodId, &n.BillingSeriesId, &n.ShippingAddressId, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.CurrencyId, &n.CurrencyChange, &n.EnterpriseId)
 		notes = append(notes, n)
 	}
 
@@ -714,28 +718,18 @@ func getSalesInvoiceAmendingAmendedInvoices(invoiceId int64, enterpriseId int32)
 	invoices := make([]SalesInvoice, 0)
 
 	i := getSalesInvoiceRow(invoiceId)
-	if i.enterprise != enterpriseId {
+	if i.EnterpriseId != enterpriseId {
 		return invoices
 	}
 
-	if i.Amending && i.AmendedInvoice != nil {
-		invoices = append(invoices, getSalesInvoiceRow(*i.AmendedInvoice))
-	}
-
-	sqlStatement := `SELECT * FROM sales_invoice WHERE amended_invoice=$1`
-	rows, err := db.Query(sqlStatement, i.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&SalesInvoice{}).Where("amended_invoice = ? AND enterprise = ?", i.Id, enterpriseId).Find(&invoices)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return invoices
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		inv := SalesInvoice{}
-		rows.Scan(&inv.Id, &inv.Customer, &inv.DateCreated, &inv.PaymentMethod, &inv.BillingSeries, &inv.Currency, &inv.CurrencyChange, &inv.BillingAddress, &inv.TotalProducts,
-			&inv.DiscountPercent, &inv.FixDiscount, &inv.ShippingPrice, &inv.ShippingDiscount, &inv.TotalWithDiscount, &inv.VatAmount, &inv.TotalAmount, &inv.LinesNumber, &inv.InvoiceNumber, &inv.InvoiceName,
-			&inv.AccountingMovement, &inv.enterprise, &inv.SimplifiedInvoice, &inv.Amending, &inv.AmendedInvoice)
-		invoices = append(invoices, inv)
+	if i.Amending && i.AmendedInvoiceId != nil {
+		invoices = append(invoices, getSalesInvoiceRow(*i.AmendedInvoiceId))
 	}
 
 	return invoices

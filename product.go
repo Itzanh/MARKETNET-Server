@@ -1,66 +1,70 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Product struct {
-	Id                      int32     `json:"id"`
-	Name                    string    `json:"name"`
-	Reference               string    `json:"reference"`
-	BarCode                 string    `json:"barCode"`
-	ControlStock            bool      `json:"controlStock"`
-	Weight                  float64   `json:"weight"`
-	Family                  *int32    `json:"family"`
-	Width                   float64   `json:"width"`
-	Height                  float64   `json:"height"`
-	Depth                   float64   `json:"depth"`
-	Off                     bool      `json:"off"`
-	Stock                   int32     `json:"stock"`
-	VatPercent              float64   `json:"vatPercent"`
-	DateCreated             time.Time `json:"dateCreated"`
-	Description             string    `json:"description"`
-	Color                   *int32    `json:"color"`
-	Price                   float64   `json:"price"`
-	Manufacturing           bool      `json:"manufacturing"`
-	ManufacturingOrderType  *int32    `json:"manufacturingOrderType"`
-	Supplier                *int32    `json:"supplier"`
-	FamilyName              *string   `json:"familyName"`
-	MinimumStock            int32     `json:"minimumStock"`
-	TrackMinimumStock       bool      `json:"trackMinimumStock"`
-	DigitalProduct          bool      `json:"digitalProduct"`
-	PurchasePrice           float64   `json:"purchasePrice"`
-	MinimumPurchaseQuantity int32     `json:"minimumPurchaseQuantity"`
-	OriginCountry           string    `json:"originCountry"`
-	HSCode                  *string   `json:"HSCode"`
-	HSCodeName              *string   `json:"HSCodeName"`
-	CostPrice               float64   `json:"costPrice"`
-	prestaShopId            int32
-	prestaShopCombinationId int32
-	wooCommerceId           int32
-	wooCommerceVariationId  int32
-	shopifyId               int64
-	shopifyVariantId        int64
-	enterprise              int32
+	Id                       int32                   `json:"id" gorm:"index:product_id_enterprise,unique:true,priority:1"`
+	Name                     string                  `json:"name" gorm:"type:character varying(150);not null:true;index:product_name,type:gin"`
+	Reference                string                  `json:"reference" gorm:"type:character varying(40);not null:true;index:product_reference,type:gin,where:reference::text <> ''::text"`
+	BarCode                  string                  `json:"barCode" gorm:"column:barcode;type:character(13);not null:true;index:product_barcode,unique:true,priority:2,where:barcode <> ''::bpchar"`
+	ControlStock             bool                    `json:"controlStock" gorm:"not null:true"`
+	Weight                   float64                 `json:"weight" gorm:"type:numeric(14,6);not null:true"`
+	FamilyId                 *int32                  `json:"familyId" gorm:"column:family"`
+	Family                   *ProductFamily          `json:"family" gorm:"foreignKey:FamilyId,EnterpriseId;references:Id,EnterpriseId"`
+	Width                    float64                 `json:"width" gorm:"type:numeric(14,6);not null:true"`
+	Height                   float64                 `json:"height" gorm:"type:numeric(14,6);not null:true"`
+	Depth                    float64                 `json:"depth" gorm:"type:numeric(14,6);not null:true"`
+	Off                      bool                    `json:"off" gorm:"not null:true"`
+	Stock                    int32                   `json:"stock" gorm:"not null:true"`
+	VatPercent               float64                 `json:"vatPercent" gorm:"type:numeric(14,6);not null:true"`
+	DateCreated              time.Time               `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	Description              string                  `json:"description" gorm:"type:text;column:dsc"`
+	ColorId                  *int32                  `json:"colorId" gorm:"column:color"`
+	Color                    *Color                  `json:"color" gorm:"foreignKey:ColorId,EnterpriseId;references:Id,EnterpriseId"`
+	Price                    float64                 `json:"price" gorm:"type:numeric(14,6);not null:true"`
+	Manufacturing            bool                    `json:"manufacturing" gorm:"not null:true"`
+	ManufacturingOrderTypeId *int32                  `json:"manufacturingOrderTypeId" gorm:"column:manufacturing_order_type"`
+	ManufacturingOrderType   *ManufacturingOrderType `json:"-" gorm:"foreignKey:ManufacturingOrderTypeId,EnterpriseId;references:Id,EnterpriseId"`
+	SupplierId               *int32                  `json:"supplier" gorm:"column:supplier"`
+	Supplier                 *Supplier               `json:"-" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
+	PrestaShopId             int32                   `json:"-" gorm:"column:ps_id;not null:true;index:product_ps_id,unique:true,priority:2,where:ps_id <> 0"`
+	PrestaShopCombinationId  int32                   `json:"-" gorm:"column:ps_combination_id;not null:true;index:product_ps_id,unique:true,priority:3,where:ps_id <> 0"`
+	MinimumStock             int32                   `json:"minimumStock" gorm:"not null:true"`
+	TrackMinimumStock        bool                    `json:"trackMinimumStock" gorm:"not null:true;index:product_track_minimum_stock,where:track_minimum_stock = true"`
+	WooCommerceId            int32                   `json:"-" gorm:"column:wc_id;not null:true;index:products_wc_id,unique:true,priority:2,where:wc_id <> 0"`
+	WooCommerceVariationId   int32                   `json:"-" gorm:"column:wc_variation_id;not null:true;index:products_wc_id,unique:true,priority:3,where:wc_id <> 0"`
+	ShopifyId                int64                   `json:"-" gorm:"column:sy_id;not null:true;index:product_sy_id,unique:true,priority:2,where:sy_id <> 0"`
+	ShopifyVariantId         int64                   `json:"-" gorm:"column:sy_variant_id;not null:true;index:product_sy_id,unique:true,priority:3,where:sy_id <> 0"`
+	EnterpriseId             int32                   `json:"-" gorm:"column:enterprise;not null:true;index:product_id_enterprise,unique:true,priority:2;index:product_barcode,unique:true,priority:1,where:barcode <> ''::bpchar;;index:product_ps_id,unique:true,priority:1,where:ps_id <> 0;;index:product_sy_id,unique:true,priority:1,where:sy_id <> 0;;index:products_wc_id,unique:true,priority:1,where:wc_id <> 0"`
+	Enterprise               Settings                `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	DigitalProduct           bool                    `json:"digitalProduct" gorm:"not null:true"`
+	PurchasePrice            float64                 `json:"purchasePrice" gorm:"type:numeric(14,6);not null:true"`
+	MinimumPurchaseQuantity  int32                   `json:"minimumPurchaseQuantity" gorm:"not null:true"`
+	OriginCountry            string                  `json:"originCountry" gorm:"type:character varying(2);not null:true"`
+	HSCodeId                 *string                 `json:"HSCodeId" gorm:"column:hs_code;type:character varying(8)"`
+	HSCode                   *HSCode                 `json:"HSCode" gorm:"foreignKey:HSCodeId;references:Id"`
+	CostPrice                float64                 `json:"costPrice" gorm:"type:numeric(14,6);not null:true"`
+}
+
+func (p *Product) TableName() string {
+	return "product"
 }
 
 func getProduct(enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM public.product WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return products
+	result := dbOrm.Model(&Product{}).Where("product.enterprise = ?", enterpriseId).Preload(clause.Associations).Order("product.id ASC").Find(&products)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	for rows.Next() {
-		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.OriginCountry, &p.HSCode, &p.CostPrice, &p.FamilyName, &p.HSCodeName)
-		products = append(products, p)
-	}
-
 	return products
 }
 
@@ -71,56 +75,43 @@ type ProductSearch struct {
 
 func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := ""
+	var query string
 	if search.TrackMinimumStock {
-		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE (((name ILIKE $1) OR (barcode = $3)) AND track_minimum_stock=true) AND (enterprise=$2) ORDER BY id ASC`
+		query = `(((product.name ILIKE @search) OR (product.barcode = @text)) AND product.track_minimum_stock=true) AND (product.enterprise = @enterpriseId)`
 	} else {
-		sqlStatement = `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family),(SELECT name FROM hs_codes WHERE hs_codes.id=product.hs_code) FROM product WHERE ((name ILIKE $1) OR (barcode = $3)) AND (enterprise=$2) ORDER BY id ASC`
+		query = `((product.name ILIKE @search) OR (product.barcode = @text) OR (product.reference ILIKE @search) OR (product_family.name ILIKE @search)) AND (product.enterprise = @enterpriseId)`
 	}
-	rows, err := db.Query(sqlStatement, "%"+search.Search+"%", enterpriseId, search.Search)
-	if err != nil {
-		log("DB", err.Error())
-		return products
+	result := dbOrm.Model(&Product{}).Where(query, sql.Named("search", "%"+search.Search+"%"), sql.Named("enterpriseId", enterpriseId), sql.Named("text", search.Search)).Joins("FULL JOIN product_family ON product.family = product_family.id").Preload(clause.Associations).Order("id ASC").Find(&products)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	for rows.Next() {
-		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.OriginCountry, &p.HSCode, &p.CostPrice, &p.FamilyName, &p.HSCodeName)
-		products = append(products, p)
-	}
-
 	return products
 }
 
 func getProductRow(productId int32) Product {
-	sqlStatement := `SELECT * FROM public.product WHERE id=$1`
-	row := db.QueryRow(sqlStatement, productId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Product{}
-	}
-
 	p := Product{}
-	row.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.OriginCountry, &p.HSCode, &p.CostPrice)
-
+	result := dbOrm.Model(&Product{}).Where("id = ?", productId).First(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return p
 }
 
 func getProductByBarcode(ean13 string, enterpriseId int32) Product {
-	sqlStatement := `SELECT id FROM product WHERE enterprise = $1 AND barcode = $2`
-	row := db.QueryRow(sqlStatement, enterpriseId, ean13)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Product{}
-	}
-
-	var productId int32
-	row.Scan(&productId)
-
-	return getProductRow(productId)
+	p := Product{}
+	dbOrm.Model(&Product{}).Where("enterprise = ? AND barcode = ?", enterpriseId, ean13).First(&p)
+	return p
 }
 
 func (p *Product) isValid() bool {
 	return !(len(p.Name) == 0 || len(p.Name) > 150 || len(p.Reference) > 40 || (len(p.BarCode) != 0 && len(p.BarCode) != 13) || p.VatPercent < 0 || p.Price < 0 || p.Weight < 0 || p.Width < 0 || p.Height < 0 || p.Depth < 0 || p.MinimumPurchaseQuantity < 0 || p.CostPrice < 0 || len(p.Description) > 3000)
+}
+
+func (p *Product) BeforeCreate(tx *gorm.DB) (err error) {
+	var product Product
+	tx.Model(&Product{}).Last(&product)
+	p.Id = product.Id + 1
+	return nil
 }
 
 func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
@@ -137,39 +128,26 @@ func (p *Product) insertProduct(userId int32) OkAndErrorCodeReturn {
 	}
 
 	if len(p.BarCode) > 0 {
-		sqlStatement := `SELECT COUNT(*) FROM product WHERE barcode = $1 AND enterprise = $2`
-		row := db.QueryRow(sqlStatement, p.BarCode, p.enterprise)
-		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return OkAndErrorCodeReturn{Ok: false}
-		}
-
-		var ean13AlreadyExists int16
-		row.Scan(ean13AlreadyExists)
-
+		var ean13AlreadyExists int64
+		dbOrm.Model(&Product{}).Where("barcode = ? AND enterprise = ?", p.BarCode, p.EnterpriseId).Count(&ean13AlreadyExists)
 		if ean13AlreadyExists > 0 {
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 	}
 
-	sqlStatement := `INSERT INTO public.product(name, reference, barcode, control_stock, weight, family, width, height, depth, off, stock, vat_percent, dsc, color, price, manufacturing, manufacturing_order_type, supplier, ps_id, ps_combination_id, minimum_stock, track_minimum_stock, wc_id, wc_variation_id, sy_id, sy_variant_id, enterprise, digital_product, purchase_price, minimum_purchase_quantity, origin_country, hs_code, cost_price) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33) RETURNING id`
-	row := db.QueryRow(sqlStatement, p.Name, p.Reference, &p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.prestaShopId, p.prestaShopCombinationId, p.MinimumStock, p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, p.shopifyId, p.shopifyVariantId, p.enterprise, p.DigitalProduct, p.PurchasePrice, p.MinimumPurchaseQuantity, p.OriginCountry, p.HSCode, p.CostPrice)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	p.DateCreated = time.Now()
+
+	result := dbOrm.Create(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	var productId int32
-	row.Scan(&productId)
-	p.Id = productId
+	insertTransactionalLog(p.EnterpriseId, "product", int(p.Id), userId, "I")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.EnterpriseId, "product", "POST", string(json))
 
-	if productId > 0 {
-		insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "I")
-		json, _ := json.Marshal(p)
-		go fireWebHook(p.enterprise, "product", "POST", string(json))
-	}
-
-	return OkAndErrorCodeReturn{Ok: productId > 0}
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
@@ -186,34 +164,58 @@ func (p *Product) updateProduct(userId int32) OkAndErrorCodeReturn {
 	}
 
 	if len(p.BarCode) > 0 {
-		sqlStatement := `SELECT COUNT(*) FROM product WHERE barcode = $1 AND id != $2 AND enterprise = $3`
-		row := db.QueryRow(sqlStatement, p.BarCode, p.Id, p.enterprise)
-		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return OkAndErrorCodeReturn{Ok: false}
-		}
-
-		var ean13AlreadyExists int16
-		row.Scan(ean13AlreadyExists)
-
+		var ean13AlreadyExists int64
+		dbOrm.Model(&Product{}).Where("barcode = ? AND enterprise = ? AND id != ?", p.BarCode, p.EnterpriseId, p.Id).Count(&ean13AlreadyExists)
 		if ean13AlreadyExists > 0 {
 			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 		}
 	}
 
-	sqlStatement := `UPDATE public.product SET name=$2, reference=$3, barcode=$4, control_stock=$5, weight=$6, family=$7, width=$8, height=$9, depth=$10, off=$11, stock=$12, vat_percent=$13, dsc=$14, color=$15, price=$16, manufacturing=$17, manufacturing_order_type=$18, supplier=$19, minimum_stock=$20, track_minimum_stock=$21, digital_product=$23, purchase_price=$24, minimum_purchase_quantity=$25, origin_country=$26, hs_code=$27, cost_price=$28 WHERE id=$1 AND enterprise=$22`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Reference, p.BarCode, p.ControlStock, p.Weight, p.Family, p.Width, p.Height, p.Depth, p.Off, p.Stock, p.VatPercent, p.Description, p.Color, p.Price, p.Manufacturing, p.ManufacturingOrderType, p.Supplier, p.MinimumStock, p.TrackMinimumStock, p.enterprise, p.DigitalProduct, p.PurchasePrice, p.MinimumPurchaseQuantity, p.OriginCountry, p.HSCode, p.CostPrice)
-	if err != nil {
-		log("DB", err.Error())
+	var product Product
+	result := dbOrm.Where("id = ? AND enterprise = ?", p.Id, p.EnterpriseId).First(&product)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "U")
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "product", "PUT", string(json))
+	product.Name = p.Name
+	product.Reference = p.Reference
+	product.BarCode = p.BarCode
+	product.ControlStock = p.ControlStock
+	product.FamilyId = p.FamilyId
+	product.Weight = p.Weight
+	product.Width = p.Width
+	product.Height = p.Height
+	product.Depth = p.Depth
+	product.Off = p.Off
+	product.Stock = p.Stock
+	product.VatPercent = p.VatPercent
+	product.Description = p.Description
+	product.ColorId = p.ColorId
+	product.Price = p.Price
+	product.Manufacturing = p.Manufacturing
+	product.ManufacturingOrderTypeId = p.ManufacturingOrderTypeId
+	product.SupplierId = p.SupplierId
+	product.MinimumStock = p.MinimumStock
+	product.TrackMinimumStock = p.TrackMinimumStock
+	product.DigitalProduct = p.DigitalProduct
+	product.PurchasePrice = p.PurchasePrice
+	product.MinimumPurchaseQuantity = p.MinimumPurchaseQuantity
+	product.OriginCountry = p.OriginCountry
+	product.HSCodeId = p.HSCodeId
+	product.CostPrice = p.CostPrice
 
-	rows, _ := res.RowsAffected()
-	return OkAndErrorCodeReturn{Ok: rows > 0}
+	result = dbOrm.Save(&product)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+
+	insertTransactionalLog(p.EnterpriseId, "product", int(p.Id), userId, "U")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.EnterpriseId, "product", "PUT", string(json))
+
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 // ERROR CODES:
@@ -224,8 +226,8 @@ func (p *Product) deleteProduct(userId int32) OkAndErrorCodeReturn {
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
@@ -233,272 +235,186 @@ func (p *Product) deleteProduct(userId int32) OkAndErrorCodeReturn {
 	// check plurals
 	var plurals []string = make([]string, 0)
 
-	sqlStatement := `SELECT COUNT(*) FROM complex_manufacturing_order_manufacturing_order WHERE product = $1 AND enterprise = $2`
-	row := db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var rowsCount int64
+	result := dbOrm.Model(&ComplexManufacturingOrderManufacturingOrder{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	var rowsCount int32
-	row.Scan(&rowsCount)
-
 	if rowsCount > 0 {
 		plurals = append(plurals, "1")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM manufacturing_order WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&ManufacturingOrder{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "2")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM manufacturing_order_type_components WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&ManufacturingOrderTypeComponents{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "3")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM packages WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&Packages{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "4")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM product_account WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&ProductAccount{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "5")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM product_image WHERE product = $1 AND (SELECT enterprise FROM product WHERE product.id = $1) = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&ProductImage{}).Where("product = ?", p.Id).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "6")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM product_translation WHERE product = $1 AND (SELECT enterprise FROM product WHERE product.id = $1) = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&PurchaseInvoiceDetail{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
-	if rowsCount > 0 {
-		plurals = append(plurals, "7")
-	}
-
-	sqlStatement = `SELECT COUNT(*) FROM purchase_invoice_details WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return OkAndErrorCodeReturn{Ok: false}
-	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "8")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM purchase_order_detail WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&PurchaseOrderDetail{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "9")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM sales_invoice_detail WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&SalesInvoiceDetail{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "10")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM sales_order_detail WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&SalesOrderDetail{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "11")
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM warehouse_movement WHERE product = $1 AND enterprise = $2`
-	row = db.QueryRow(sqlStatement, p.Id, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = dbOrm.Model(&WarehouseMovement{}).Where("product = ? AND enterprise = ?", p.Id, p.EnterpriseId).Count(&rowsCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-
-	row.Scan(&rowsCount)
 	if rowsCount > 0 {
 		plurals = append(plurals, "12")
 	}
 
 	if len(plurals) > 0 {
+		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1, ExtraData: plurals}
 	}
 
-	sqlStatement = `DELETE FROM stock WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=stock.product)=$2`
-	_, err = trans.Exec(sqlStatement, p.Id, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result = trans.Where("product = ?", p.Id).Delete(&Stock{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	insertTransactionalLog(p.enterprise, "product", int(p.Id), userId, "D")
+	insertTransactionalLog(p.EnterpriseId, "product", int(p.Id), userId, "D")
 	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "product", "DELETE", string(json))
+	go fireWebHook(p.EnterpriseId, "product", "DELETE", string(json))
 
-	sqlStatement = `DELETE FROM public.product WHERE id=$1 AND enterprise=$2`
-	res, err := trans.Exec(sqlStatement, p.Id, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result = trans.Where("id = ? AND enterprise = ?", p.Id, p.EnterpriseId).Delete(&Product{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
+	result = trans.Commit()
+	if result.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
-	rows, _ := res.RowsAffected()
-	return OkAndErrorCodeReturn{Ok: rows > 0}
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 func findProductByName(productName string, enterpriseId int32) []NameInt32 {
 	var products []NameInt32 = make([]NameInt32, 0)
-	sqlStatement := `SELECT id,name FROM public.product WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 AND off=false ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(productName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return products
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := NameInt32{}
-		rows.Scan(&p.Id, &p.Name)
-		products = append(products, p)
-	}
-
+	dbOrm.Model(&Product{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise=? AND off=false", strings.ToUpper(productName), enterpriseId).Order("id ASC").Limit(10).Find(&products)
 	return products
 }
 
 func getNameProduct(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.product WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return ""
-	}
-	name := ""
-	row.Scan(&name)
-	return name
+	var product Product
+	dbOrm.Model(&Product{}).Where("id = ? AND enterprise = ?", id, enterpriseId).First(&product)
+	return product.Name
 }
 
 type OrderDetailDefaults struct {
-	Price                   float64 `json:"price"`
-	PurchasePrice           float64 `json:"purchasePrice"`
-	VatPercent              float64 `json:"vatPercent"`
-	MinimumPurchaseQuantity int32   `json:"minimumPurchaseQuantity"`
+	Price                   float64 `json:"price" gorm:"type:numeric(14,6);not null:true"`
+	PurchasePrice           float64 `json:"purchasePrice" gorm:"type:numeric(14,6);not null:true"`
+	VatPercent              float64 `json:"vatPercent" gorm:"type:numeric(14,6);not null:true"`
+	MinimumPurchaseQuantity int32   `json:"minimumPurchaseQuantity" gorm:"not null:true"`
 }
 
 func getOrderDetailDefaults(productId int32, enterpriseId int32) OrderDetailDefaults {
-	sqlStatement := `SELECT price, vat_percent, purchase_price, minimum_purchase_quantity FROM product WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, productId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return OrderDetailDefaults{}
-	}
 	s := OrderDetailDefaults{}
-	row.Scan(&s.Price, &s.VatPercent, &s.PurchasePrice, &s.MinimumPurchaseQuantity)
+	result := dbOrm.Model(&Product{}).Where("id = ? AND enterprise = ?", productId, enterpriseId).First(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return s
 }
 
 // Get the sales order details with pending status, with the product specified.
 func getProductSalesOrderDetailsPending(productId int32, enterpriseId int32) []SalesOrderDetail {
 	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity AND enterprise=$2 ORDER BY sales_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&SalesOrderDetail{}).Where("sales_order_detail.product = ? AND sales_order_detail.quantity_delivery_note != sales_order_detail.quantity AND sales_order_detail.enterprise = ?", productId, enterpriseId).Joins("Product").Order("sales_order_detail.id DESC").Find(&details)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return details
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
-		details = append(details, d)
-	}
-
 	return details
 }
 
 // Get the purchase order details with pending status, with the product specified.
 func getProductPurchaseOrderDetailsPending(productId int32, enterpriseId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND quantity_delivery_note!=quantity AND enterprise=$2 ORDER BY purchase_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&PurchaseOrderDetail{}).Where("purchase_order_detail.product = ? AND purchase_order_detail.quantity_delivery_note != purchase_order_detail.quantity AND purchase_order_detail.enterprise = ?", productId, enterpriseId).Joins("Product").Order("purchase_order_detail.id DESC").Find(&details)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return details
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled, &d.ProductName)
-		details = append(details, d)
-	}
-
 	return details
 }
 
@@ -520,36 +436,17 @@ func getProductSalesOrderDetails(query ProductSalesOrderDetailsQuery, enterprise
 		return details
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=sales_order_detail.product) FROM sales_order_detail WHERE product=$1 AND enterprise=$2`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, query.ProductId)
-	interfaces = append(interfaces, enterpriseId)
+	cursor := dbOrm.Model(&SalesOrderDetail{}).Where("sales_order_detail.product = ? AND sales_order_detail.enterprise = ?", query.ProductId, enterpriseId)
 	if query.StartDate != nil {
-		sqlStatement += ` AND (SELECT date_created FROM sales_order WHERE sales_order.id = sales_order_detail."order") >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.StartDate)
+		cursor.Where("(SELECT date_created FROM sales_order WHERE sales_order.id = sales_order_detail.\"order\") >= ?", query.StartDate)
 	}
 	if query.EndDate != nil {
-		sqlStatement += ` AND (SELECT date_created FROM sales_order WHERE sales_order.id = sales_order_detail."order") <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.EndDate)
+		cursor.Where("(SELECT date_created FROM sales_order WHERE sales_order.id = sales_order_detail.\"order\") >= ?", query.EndDate)
 	}
 	if query.Status != "" {
-		sqlStatement += ` AND status = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.Status)
+		cursor.Where("sales_order_detail.status = ?", query.Status)
 	}
-	sqlStatement += ` ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return details
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := SalesOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.Status, &d.QuantityPendingPackaging, &d.PurchaseOrderDetail, &d.prestaShopId, &d.Cancelled, &d.wooCommerceId, &d.shopifyId, &d.shopifyDraftId, &d.enterprise, &d.ProductName)
-		details = append(details, d)
-	}
-
+	cursor.Joins("Product").Order("sales_order_detail.id DESC").Find(&details)
 	return details
 }
 
@@ -570,32 +467,14 @@ func getProductPurchaseOrderDetails(query ProductPurchaseOrderDetailsQuery, ente
 		return details
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE product=$1 AND enterprise=$2`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, query.ProductId)
-	interfaces = append(interfaces, enterpriseId)
+	cursor := dbOrm.Model(&PurchaseOrderDetail{}).Where("purchase_order_detail.product = ? AND purchase_order_detail.enterprise = ?", query.ProductId, enterpriseId)
 	if query.StartDate != nil {
-		sqlStatement += ` AND (SELECT date_created FROM purchase_order WHERE purchase_order.id = purchase_order_detail."order") >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.StartDate)
+		cursor.Where("(SELECT date_created FROM purchase_order WHERE purchase_order.id = purchase_order_detail.\"order\") >= ?", query.StartDate)
 	}
 	if query.EndDate != nil {
-		sqlStatement += ` AND (SELECT date_created FROM purchase_order WHERE purchase_order.id = purchase_order_detail."order") <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.EndDate)
+		cursor.Where("(SELECT date_created FROM purchase_order WHERE purchase_order.id = purchase_order_detail.\"order\") >= ?", query.EndDate)
 	}
-	sqlStatement += ` ORDER BY purchase_order_detail.id DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return details
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled, &d.ProductName)
-		details = append(details, d)
-	}
-
+	cursor.Joins("Product").Order("purchase_order_detail.id DESC").Find(&details)
 	return details
 }
 
@@ -606,32 +485,14 @@ func getProductWarehouseMovement(query ProductPurchaseOrderDetailsQuery, enterpr
 		return warehouseMovements
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=warehouse_movement.product),(SELECT name FROM warehouse WHERE warehouse.id=warehouse_movement.warehouse AND warehouse.enterprise=warehouse_movement.enterprise) FROM warehouse_movement WHERE product=$1 AND enterprise=$2`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, query.ProductId)
-	interfaces = append(interfaces, enterpriseId)
+	cursor := dbOrm.Model(&WarehouseMovement{}).Where("warehouse_movement.product = ? AND warehouse_movement.enterprise = ?", query.ProductId, enterpriseId)
 	if query.StartDate != nil {
-		sqlStatement += ` AND warehouse_movement.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.StartDate)
+		cursor.Where("warehouse_movement.date_created >= ?", query.StartDate)
 	}
 	if query.EndDate != nil {
-		sqlStatement += ` AND warehouse_movement.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.EndDate)
+		cursor.Where("warehouse_movement.date_created <= ?", query.EndDate)
 	}
-	sqlStatement += ` ORDER BY warehouse_movement.id DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return warehouseMovements
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		m := WarehouseMovement{}
-		rows.Scan(&m.Id, &m.Warehouse, &m.Product, &m.Quantity, &m.DateCreated, &m.Type, &m.SalesOrder, &m.SalesOrderDetail, &m.SalesDeliveryNote, &m.Description, &m.PurchaseOrder, &m.PurchaseOrderDetail, &m.PurchaseDeliveryNote, &m.DraggedStock, &m.Price, &m.VatPercent, &m.TotalAmount, &m.enterprise, &m.ProductName, &m.WarehouseName)
-		warehouseMovements = append(warehouseMovements, m)
-	}
-
+	cursor.Joins("Warehouse").Joins("Product").Order("warehouse_movement.id DESC").Find(&warehouseMovements)
 	return warehouseMovements
 }
 
@@ -653,40 +514,21 @@ func getProductManufacturingOrders(query ProductManufacturingOrdersQuery, enterp
 		return manufacturingOrders
 	}
 
-	sqlStatement := `SELECT *,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=manufacturing_order.type),(SELECT name FROM product WHERE product.id=manufacturing_order.product),(SELECT order_name FROM sales_order WHERE sales_order.id=manufacturing_order.order),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=manufacturing_order.user_tag_printed) FROM public.manufacturing_order WHERE product=$1 AND enterprise=$2`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, query.ProductId)
-	interfaces = append(interfaces, enterpriseId)
+	cursor := dbOrm.Model(&ManufacturingOrder{}).Where("manufacturing_order.product = ? AND manufacturing_order.enterprise = ?", query.ProductId, enterpriseId)
 	if query.StartDate != nil {
-		sqlStatement += ` AND manufacturing_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.StartDate)
+		cursor.Where("manufacturing_order.date_created >= ?", query.StartDate)
 	}
 	if query.EndDate != nil {
-		sqlStatement += ` AND manufacturing_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.EndDate)
+		cursor.Where("manufacturing_order.date_created <= ?", query.EndDate)
 	}
 	if query.Manufactured != "" {
-		sqlStatement += ` AND manufacturing_order.manufactured = $` + strconv.Itoa(len(interfaces)+1)
 		if query.Manufactured == "Y" {
-			interfaces = append(interfaces, true)
+			cursor.Where("manufacturing_order.manufactured = ?", true)
 		} else {
-			interfaces = append(interfaces, false)
+			cursor.Where("manufacturing_order.manufactured = ?", false)
 		}
 	}
-	sqlStatement += ` ORDER BY manufacturing_order.date_created DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return manufacturingOrders
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		o := ManufacturingOrder{}
-		rows.Scan(&o.Id, &o.OrderDetail, &o.Product, &o.Type, &o.Uuid, &o.DateCreated, &o.DateLastUpdate, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.Order, &o.UserTagPrinted, &o.enterprise, &o.Warehouse, &o.WarehouseMovement, &o.QuantityManufactured, &o.complex, &o.TypeName, &o.ProductName, &o.OrderName, &o.UserCreatedName, &o.UserManufacturedName, &o.UserTagPrintedName)
-		manufacturingOrders = append(manufacturingOrders, o)
-	}
-
+	cursor.Joins("Product").Joins("Type").Order("manufacturing_order.date_created DESC").Find(&manufacturingOrders)
 	return manufacturingOrders
 }
 
@@ -697,56 +539,32 @@ func getProductComplexManufacturingOrders(query ProductManufacturingOrdersQuery,
 		return complexManufacturingOrders
 	}
 
-	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.*,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_created),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_manufactured),(SELECT username FROM "user" WHERE "user".id=complex_manufacturing_order.user_tag_printed) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id WHERE complex_manufacturing_order_manufacturing_order.product = $1 AND complex_manufacturing_order.enterprise = $2`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, query.ProductId)
-	interfaces = append(interfaces, enterpriseId)
+	cursor := dbOrm.Model(&ComplexManufacturingOrder{}).Joins("INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id").Where("complex_manufacturing_order_manufacturing_order.product = ? AND complex_manufacturing_order.enterprise = ?", query.ProductId, enterpriseId)
 	if query.StartDate != nil {
-		sqlStatement += ` AND complex_manufacturing_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.StartDate)
+		cursor.Where("complex_manufacturing_order.date_created >= ?", query.StartDate)
 	}
 	if query.EndDate != nil {
-		sqlStatement += ` AND complex_manufacturing_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, query.EndDate)
+		cursor.Where("complex_manufacturing_order.date_created <= ?", query.EndDate)
 	}
 	if query.Manufactured != "" {
-		sqlStatement += ` AND complex_manufacturing_order.manufactured = $` + strconv.Itoa(len(interfaces)+1)
 		if query.Manufactured == "Y" {
-			interfaces = append(interfaces, true)
+			cursor.Where("complex_manufacturing_order.manufactured = ?", true)
 		} else {
-			interfaces = append(interfaces, false)
+			cursor.Where("complex_manufacturing_order.manufactured = ?", false)
 		}
 	}
-	sqlStatement += ` ORDER BY complex_manufacturing_order.date_created ASC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return complexManufacturingOrders
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		o := ComplexManufacturingOrder{}
-		rows.Scan(&o.Id, &o.Type, &o.Manufactured, &o.DateManufactured, &o.UserManufactured, &o.enterprise, &o.QuantityPendingManufacture, &o.QuantityManufactured, &o.Warehouse, &o.DateCreated, &o.Uuid, &o.UserCreated, &o.TagPrinted, &o.DateTagPrinted, &o.UserTagPrinted, &o.TypeName, &o.UserCreatedName, &o.UserManufactured, &o.UserTagPrintedName)
-		complexManufacturingOrders = append(complexManufacturingOrders, o)
-	}
-
+	cursor.Joins("Type").Order("complex_manufacturing_order.date_created DESC").Find(&complexManufacturingOrders)
 	return complexManufacturingOrders
 }
 
 func (p *Product) generateBarcode(enterpriseId int32) bool {
-	sqlStatement := `SELECT SUBSTRING(barcode,0,13) FROM product WHERE enterprise=$1 AND SUBSTRING(barcode,0,LENGTH($2)+1)=$2 ORDER BY barcode DESC LIMIT 1`
-	row := db.QueryRow(sqlStatement, enterpriseId, getSettingsRecordById(enterpriseId).BarcodePrefix)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var product Product
+	result := dbOrm.Model(&Product{}).Where("enterprise = @enterprise_id AND SUBSTRING(barcode,0,LENGTH(@barcode)+1) = @barcode", sql.Named("enterprise_id", enterpriseId), sql.Named("barcode", getSettingsRecordById(enterpriseId).BarcodePrefix)).Order("barcode DESC").Limit(1).First(&product)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
-
-	var barcode string
-	row.Scan(&barcode)
-	if len(barcode) == 0 {
-		return false
-	}
+	barcode := product.BarCode[0:12]
 
 	code, err := strconv.Atoi(barcode)
 	if err != nil {
@@ -777,27 +595,24 @@ func (p *Product) generateBarcode(enterpriseId int32) bool {
 }
 
 type ProductImage struct {
-	Id      int32  `json:"id"`
-	Product int32  `json:"product"`
-	URL     string `json:"url"`
+	Id        int32   `json:"id"`
+	ProductId int32   `json:"productId" gorm:"column:product;not null:true"`
+	Product   Product `json:"-" gorm:"foreignKey:ProductId;references:Id"`
+	URL       string  `json:"url" gorm:"type:character varying(255);not null:true"`
+}
+
+func (pi *ProductImage) TableName() string {
+	return "product_image"
 }
 
 func getProductImages(productId int32, enterpriseId int32) []ProductImage {
 	var image []ProductImage = make([]ProductImage, 0)
-	sqlStatement := `SELECT * FROM public.product_image WHERE product=$1 AND (SELECT enterprise FROM product WHERE product.id=product_image.product)=$2`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	product := getProductRow(productId)
+	if product.EnterpriseId != enterpriseId {
 		return image
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		d := ProductImage{}
-		rows.Scan(&d.Id, &d.Product, &d.URL)
-		image = append(image, d)
-	}
-
+	dbOrm.Model(&ProductImage{}).Where("product = ?", productId).Order("id ASC").Find(&image)
 	return image
 }
 
@@ -805,25 +620,34 @@ func (i *ProductImage) isValid() bool {
 	return !(len(i.URL) == 0 || len(i.URL) > 255)
 }
 
+func (pi *ProductImage) BeforeCreate(tx *gorm.DB) (err error) {
+	var productImage ProductImage
+	result := tx.Model(&ProductImage{}).Last(&productImage)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return result.Error
+	}
+	pi.Id = productImage.Id + 1
+	return nil
+}
+
 func (i *ProductImage) insertProductImage(enterpriseId int32) bool {
-	if !i.isValid() || i.Product <= 0 {
+	if !i.isValid() || i.ProductId <= 0 {
 		return false
 	}
 
-	p := getProductRow(i.Product)
-	if p.enterprise != enterpriseId {
+	p := getProductRow(i.ProductId)
+	if p.EnterpriseId != enterpriseId {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.product_image(product, url) VALUES ($1, $2)`
-	res, err := db.Exec(sqlStatement, i.Product, i.URL)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&i)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (i *ProductImage) updateProductImage(enterpriseId int32) bool {
@@ -831,29 +655,26 @@ func (i *ProductImage) updateProductImage(enterpriseId int32) bool {
 		return false
 	}
 
-	sqlStatement := `SELECT product FROM public.product_image WHERE id=$1`
-	row := db.QueryRow(sqlStatement, i.Id)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var productImage ProductImage
+	result := dbOrm.Model(&ProductImage{}).Where("id = ?", i.Id).First(&productImage)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	p := getProductRow(productImage.ProductId)
+	if p.EnterpriseId != enterpriseId {
 		return false
 	}
 
-	var productId int32
-	row.Scan(&productId)
-	p := getProductRow(productId)
-	if p.enterprise != enterpriseId {
+	productImage.URL = i.URL
+
+	result = dbOrm.Save(&productImage)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	sqlStatement = `UPDATE public.product_image SET url=$2 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, i.Id, i.URL)
-	if err != nil {
-		log("DB", err.Error())
-		return false
-	}
-
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (i *ProductImage) deleteProductImage(enterpriseId int32) bool {
@@ -861,29 +682,24 @@ func (i *ProductImage) deleteProductImage(enterpriseId int32) bool {
 		return false
 	}
 
-	sqlStatement := `SELECT product FROM public.product_image WHERE id=$1`
-	row := db.QueryRow(sqlStatement, i.Id)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var productImage ProductImage
+	result := dbOrm.Model(&ProductImage{}).Where("id = ?", i.Id).First(&productImage)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	p := getProductRow(productImage.ProductId)
+	if p.EnterpriseId != enterpriseId {
 		return false
 	}
 
-	var productId int32
-	row.Scan(&productId)
-	p := getProductRow(productId)
-	if p.enterprise != enterpriseId {
+	result = dbOrm.Where("id = ?", i.Id).Delete(&ProductImage{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	sqlStatement = `DELETE FROM public.product_image WHERE id=$1`
-	res, err := db.Exec(sqlStatement, i.Id)
-	if err != nil {
-		log("DB", err.Error())
-		return false
-	}
-
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func calculateMinimumStock(enterpriseId int32, userId int32) bool {
@@ -901,47 +717,35 @@ func calculateMinimumStock(enterpriseId int32, userId int32) bool {
 	}
 	///
 
-	sqlStatement := `SELECT id FROM product WHERE track_minimum_stock=true AND enterprise=$1 AND off=false`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
-	defer rows.Close()
+	var products []Product = make([]Product, 0)
+	dbOrm.Model(&Product{}).Where("track_minimum_stock = true AND enterprise = ? AND off = false", enterpriseId).Find(&products)
 
-	for rows.Next() {
-		var productId int32
-		rows.Scan(&productId)
-
-		sqlStatement := `SELECT SUM(sales_order_detail.quantity) FROM sales_order_detail INNER JOIN sales_order ON sales_order.id=sales_order_detail.order WHERE sales_order_detail.product=$1 AND sales_order.date_created >= $2`
-		row := db.QueryRow(sqlStatement, productId, t)
-		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			trans.Rollback()
-			return false
-		}
+	for i := 0; i < len(products); i++ {
+		product := products[i]
 
 		var quantitySold int32
-		row.Scan(&quantitySold)
-
-		sqlStatement = `UPDATE product SET minimum_stock=$2 WHERE id=$1`
-		_, err := db.Exec(sqlStatement, productId, quantitySold/int32(s.MinimumStockSalesPeriods))
-		if err != nil {
-			log("DB", err.Error())
-			trans.Rollback()
+		result := dbOrm.Model(&Product{}).Joins("INNER JOIN sales_order ON sales_order.id=sales_order_detail.order").Where("sales_order_detail.product = ? AND sales_order.date_created >= ?", product.Id, t).Select("SUM(sales_order_detail.quantity) AS quantity").Pluck("quantity", &quantitySold)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			return false
 		}
 
-		insertTransactionalLog(enterpriseId, "product", int(productId), userId, "U")
-		p := getProductRow(productId)
-		json, _ := json.Marshal(p)
-		go fireWebHook(p.enterprise, "product", "PUT", string(json))
+		product.MinimumStock = quantitySold / int32(s.MinimumStockSalesPeriods)
+
+		result = dbOrm.Save(&product)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			return false
+		}
+
+		insertTransactionalLog(enterpriseId, "product", int(product.Id), userId, "U")
+		json, _ := json.Marshal(product)
+		go fireWebHook(product.EnterpriseId, "product", "PUT", string(json))
 	}
 
 	///
-	err = trans.Commit()
-	return err == nil
+	trans.Commit()
+	return true
 	///
 }
 
@@ -952,12 +756,11 @@ type GenerateManufacturingOrPurchaseOrdersMinimumStock struct {
 func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturingOrPurchaseOrdersMinimumStock(userId int32, enterpriseId int32) bool {
 	if len(g.Warehouse) == 0 {
 		s := getSettingsRecordById(enterpriseId)
-		g.Warehouse = s.DefaultWarehouse
+		g.Warehouse = s.DefaultWarehouseId
 	}
 	var generadedPurchaseOrders map[int32]PurchaseOrder = make(map[int32]PurchaseOrder) // Key: supplier ID, Value: generated purchase order
 
-	sqlStatement := `SELECT product.id,stock.quantity_available,product.minimum_stock,product.manufacturing,product.manufacturing_order_type,product.supplier FROM product INNER JOIN stock ON stock.product=product.id WHERE product.track_minimum_stock=true AND stock.quantity_available < (product.minimum_stock*2) AND product.enterprise=$1 AND off=false`
-	rows, err := db.Query(sqlStatement, enterpriseId)
+	rows, err := dbOrm.Model(&Product{}).Joins("INNER JOIN stock ON stock.product=product.id").Where("product.track_minimum_stock = true AND stock.quantity_available < (product.minimum_stock * 2) AND product.enterprise = ? AND product.off = false", enterpriseId).Select("product.id, stock.quantity_available ,product.minimum_stock ,product.manufacturing ,product.manufacturing_order_type ,product.supplier").Rows()
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -965,8 +768,8 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 	defer rows.Close()
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
@@ -985,10 +788,10 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 			// generate manufacturing order or purchase orders until the available quantity is equal to the minimum stock * 2
 			for i := quantityAvailable; i < (minimumStock * 2); i++ {
 
-				o := ManufacturingOrder{Product: productId, Type: *manufacturingOrderType}
-				o.UserCreated = userId
-				o.enterprise = enterpriseId
-				o.Warehouse = g.Warehouse
+				o := ManufacturingOrder{ProductId: productId, TypeId: *manufacturingOrderType}
+				o.UserCreatedId = userId
+				o.EnterpriseId = enterpriseId
+				o.WarehouseId = g.Warehouse
 				ok := o.insertManufacturingOrder(userId, trans).Ok
 				if !ok {
 					trans.Rollback()
@@ -1003,15 +806,15 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 					continue
 				}
 				p := PurchaseOrder{}
-				p.Warehouse = g.Warehouse
-				p.Supplier = *supplier
-				p.BillingSeries = *d.BillingSeries
-				p.Currency = *d.Currency
-				p.BillingAddress = *d.MainBillingAddress
-				p.ShippingAddress = *d.MainShippingAddress
-				p.PaymentMethod = *d.PaymentMethod
+				p.WarehouseId = g.Warehouse
+				p.SupplierId = *supplier
+				p.BillingSeriesId = *d.BillingSeries
+				p.CurrencyId = *d.Currency
+				p.BillingAddressId = *d.MainBillingAddress
+				p.ShippingAddressId = *d.MainShippingAddress
+				p.PaymentMethodId = *d.PaymentMethod
 
-				p.enterprise = enterpriseId
+				p.EnterpriseId = enterpriseId
 				ok, purchaseOrderId := p.insertPurchaseOrder(userId, trans)
 				if !ok {
 					trans.Rollback()
@@ -1022,7 +825,7 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 
 				// generate the needs as a detail
 				product := getProductRow(productId)
-				det := PurchaseOrderDetail{Order: p.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
+				det := PurchaseOrderDetail{OrderId: p.Id, ProductId: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, EnterpriseId: enterpriseId}
 				okAndErr, _ := det.insertPurchaseOrderDetail(userId, trans)
 				if !okAndErr.Ok {
 					trans.Rollback()
@@ -1031,7 +834,7 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 			} else { // it already exists a purchase order for this supplier, add the needs as details
 				// generate the needs as a detail
 				product := getProductRow(productId)
-				det := PurchaseOrderDetail{Order: o.Id, Product: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, enterprise: enterpriseId}
+				det := PurchaseOrderDetail{OrderId: o.Id, ProductId: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, EnterpriseId: enterpriseId}
 				okAndErr, _ := det.insertPurchaseOrderDetail(userId, trans)
 				if !okAndErr.Ok {
 					trans.Rollback()
@@ -1042,8 +845,8 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 	}
 
 	///
-	err = trans.Commit()
-	return err == nil
+	result := trans.Commit()
+	return result.Error == nil
 	///
 }
 
@@ -1060,43 +863,31 @@ type ProductLocateQuery struct {
 
 func (q *ProductLocateQuery) locateProduct(enterpriseId int32) []ProductLocate {
 	var products []ProductLocate = make([]ProductLocate, 0)
-	sqlStatement := ``
+	query := ``
 	parameters := make([]interface{}, 0)
 	if q.Value == "" {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 AND off=false ORDER BY id ASC`
+		query = `enterprise = ? AND off = false`
 		parameters = append(parameters, enterpriseId)
 	} else if q.Mode == 0 {
 		id, err := strconv.Atoi(q.Value)
 		if err != nil {
-			sqlStatement = `SELECT id,name,reference FROM product WHERE enterprise=$1 AND off=false ORDER BY id ASC`
+			query = `enterprise = ? AND off = false`
 			parameters = append(parameters, enterpriseId)
 		} else {
-			sqlStatement = `SELECT id,name,reference FROM product WHERE id=$1 AND enterprise=$2 AND off=false`
+			query = `id = ? AND enterprise = ? AND off = false`
 			parameters = append(parameters, id)
 			parameters = append(parameters, enterpriseId)
 		}
 	} else if q.Mode == 1 {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE name ILIKE $1 AND enterprise=$2 AND off=false ORDER BY id ASC`
+		query = `name ILIKE ? AND enterprise = ? AND off = false`
 		parameters = append(parameters, "%"+q.Value+"%")
 		parameters = append(parameters, enterpriseId)
 	} else if q.Mode == 2 {
-		sqlStatement = `SELECT id,name,reference FROM product WHERE reference ILIKE $1 AND enterprise=$2 AND off=false ORDER BY id ASC`
+		query = `reference ILIKE ? AND enterprise = ? AND off = false`
 		parameters = append(parameters, "%"+q.Value+"%")
 		parameters = append(parameters, enterpriseId)
 	}
-	rows, err := db.Query(sqlStatement, parameters...)
-	if err != nil {
-		log("DB", err.Error())
-		return products
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := ProductLocate{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference)
-		products = append(products, p)
-	}
-
+	dbOrm.Model(&Product{}).Where(query, parameters...).Order("id ASC").Find(&products)
 	return products
 }
 
@@ -1130,8 +921,8 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 		}
 
 		mot := ManufacturingOrderType{
-			Name:       *g.ManufacturingOrderTypeName,
-			enterprise: enterpriseId,
+			Name:         *g.ManufacturingOrderTypeName,
+			EnterpriseId: enterpriseId,
 		}
 		mot.insertManufacturingOrderType()
 		manufacturingOrderTypeId = mot.Id
@@ -1150,19 +941,19 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 			Depth:         product.Depth,
 			Price:         product.Price,
 			Manufacturing: product.Manufacturing,
-			enterprise:    enterpriseId,
+			EnterpriseId:  enterpriseId,
 		}
 
 		if product.Manufacturing && g.ManufacturingOrderTypeMode == 1 {
 			mot := ManufacturingOrderType{
 				Name:                 product.Name,
-				enterprise:           enterpriseId,
+				EnterpriseId:         enterpriseId,
 				QuantityManufactured: 1,
 			}
 			mot.insertManufacturingOrderType()
-			p.ManufacturingOrderType = &mot.Id
+			p.ManufacturingOrderTypeId = &mot.Id
 		} else if product.Manufacturing && g.ManufacturingOrderTypeMode == 2 {
-			p.ManufacturingOrderType = &manufacturingOrderTypeId
+			p.ManufacturingOrderTypeId = &manufacturingOrderTypeId
 		}
 
 		ok := p.insertProduct(userId).Ok
@@ -1179,11 +970,11 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 		if product.InitialStock != 0 {
 			s := getSettingsRecordById(enterpriseId)
 			wm := WarehouseMovement{
-				Warehouse:  s.DefaultWarehouse,
-				Product:    p.Id,
-				Quantity:   product.InitialStock,
-				Type:       "R",
-				enterprise: enterpriseId,
+				WarehouseId:  s.DefaultWarehouseId,
+				ProductId:    p.Id,
+				Quantity:     product.InitialStock,
+				Type:         "R",
+				EnterpriseId: enterpriseId,
 			}
 			wm.insertWarehouseMovement(userId, nil)
 		}
@@ -1193,19 +984,6 @@ func (g *ProductGenerator) productGenerator(enterpriseId int32, userId int32) bo
 
 func getProductsByManufacturingOrderType(manufacturingOrderTypeId int32, enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product_family WHERE product_family.id=product.family) FROM public.product WHERE enterprise=$1 AND manufacturing_order_type=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId, manufacturingOrderTypeId)
-	if err != nil {
-		log("DB", err.Error())
-		return products
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := Product{}
-		rows.Scan(&p.Id, &p.Name, &p.Reference, &p.BarCode, &p.ControlStock, &p.Weight, &p.Family, &p.Width, &p.Height, &p.Depth, &p.Off, &p.Stock, &p.VatPercent, &p.DateCreated, &p.Description, &p.Color, &p.Price, &p.Manufacturing, &p.ManufacturingOrderType, &p.Supplier, &p.prestaShopId, &p.prestaShopCombinationId, &p.MinimumStock, &p.TrackMinimumStock, &p.wooCommerceId, &p.wooCommerceVariationId, &p.shopifyId, &p.shopifyVariantId, &p.enterprise, &p.DigitalProduct, &p.PurchasePrice, &p.MinimumPurchaseQuantity, &p.OriginCountry, &p.HSCode, &p.CostPrice, &p.FamilyName)
-		products = append(products, p)
-	}
-
+	dbOrm.Model(&Product{}).Where("enterprise = ? AND manufacturing_order_type = ?", enterpriseId, manufacturingOrderTypeId).Order("id ASC").Find(&products)
 	return products
 }

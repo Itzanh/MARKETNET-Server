@@ -97,14 +97,14 @@ func TestPurchaseOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	ok, orderId := o.insertPurchaseOrder(0, nil)
@@ -214,25 +214,25 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      15,
-		Quantity:   15,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        15,
+		Quantity:     15,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	// insert
@@ -310,16 +310,16 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 		BarCode:           "",
 		ControlStock:      true,
 		Weight:            30,
-		Family:            &family,
+		FamilyId:          &family,
 		Width:             160,
 		Height:            100,
 		Depth:             40,
 		VatPercent:        21,
 		Price:             65,
 		Manufacturing:     false,
-		Supplier:          &supplier,
+		SupplierId:        &supplier,
 		TrackMinimumStock: true,
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok := p.insertProduct(0).Ok
@@ -334,14 +334,14 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW PURCHASE ORDER
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        supplier,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        supplier,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	ok, purchaseOrderId := o.insertPurchaseOrder(0, nil)
@@ -353,12 +353,12 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW PURCHASE ORDER DETAIL
 
 	d := PurchaseOrderDetail{
-		Order:      purchaseOrderId,
-		Product:    p.Id,
-		Price:      15,
-		Quantity:   5,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      purchaseOrderId,
+		ProductId:    p.Id,
+		Price:        15,
+		Quantity:     5,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	okAndErr, purchaseDetailId := d.insertPurchaseOrderDetail(0, nil)
@@ -370,14 +370,14 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW SALE ORDER 1
 
 	saleOrder1 := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		EnterpriseId:      1,
 	}
 
 	ok, saleOrderId1 := saleOrder1.insertSalesOrder(1)
@@ -389,12 +389,12 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW SALE ORDER DETAIL 1
 
 	salesOrderDetail1 := SalesOrderDetail{
-		Order:      saleOrderId1,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   3,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      saleOrderId1,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     3,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	ok = salesOrderDetail1.insertSalesOrderDetail(0).Ok
@@ -406,14 +406,14 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW SALE ORDER 2
 
 	saleOrder2 := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		EnterpriseId:      1,
 	}
 
 	ok, saleOrderId2 := saleOrder2.insertSalesOrder(1)
@@ -425,12 +425,12 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW SALE ORDER DETAIL 2
 
 	salesOrderDetail2 := SalesOrderDetail{
-		Order:      saleOrderId2,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   1,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      saleOrderId2,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     1,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	ok = salesOrderDetail2.insertSalesOrderDetail(0).Ok
@@ -485,8 +485,8 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 
 	// undo the purchase delivery note
 	n := PurchaseDeliveryNote{
-		Id:         purchaseDeliveryNoteId1,
-		enterprise: 1,
+		Id:           purchaseDeliveryNoteId1,
+		EnterpriseId: 1,
 	}
 	ok = n.deletePurchaseDeliveryNotes(0, nil)
 	if !ok {
@@ -772,16 +772,16 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 		BarCode:           "",
 		ControlStock:      true,
 		Weight:            30,
-		Family:            &family,
+		FamilyId:          &family,
 		Width:             160,
 		Height:            100,
 		Depth:             40,
 		VatPercent:        21,
 		Price:             65,
 		Manufacturing:     false,
-		Supplier:          &supplier,
+		SupplierId:        &supplier,
 		TrackMinimumStock: true,
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok := p.insertProduct(0).Ok
@@ -796,14 +796,14 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 	// NEW PURCHASE ORDER
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        supplier,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        supplier,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	ok, purchaseOrderId := o.insertPurchaseOrder(0, nil)
@@ -815,12 +815,12 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 	// NEW PURCHASE ORDER DETAIL
 
 	d := PurchaseOrderDetail{
-		Order:      purchaseOrderId,
-		Product:    p.Id,
-		Price:      15,
-		Quantity:   5,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      purchaseOrderId,
+		ProductId:    p.Id,
+		Price:        15,
+		Quantity:     5,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	okAndErr, purchaseDetailId := d.insertPurchaseOrderDetail(0, nil)
@@ -832,14 +832,14 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 	// NEW SALE ORDER 1
 
 	saleOrder1 := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		EnterpriseId:      1,
 	}
 
 	ok, saleOrderId1 := saleOrder1.insertSalesOrder(1)
@@ -851,12 +851,12 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 	// NEW SALE ORDER DETAIL 1
 
 	salesOrderDetail1 := SalesOrderDetail{
-		Order:      saleOrderId1,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   3,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      saleOrderId1,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     3,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	ok = salesOrderDetail1.insertSalesOrderDetail(0).Ok
@@ -896,7 +896,7 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 		t.Error("Order status not updated", salesOrderDetail1.Status)
 		return
 	}
-	if salesOrderDetail1.PurchaseOrderDetail != nil {
+	if salesOrderDetail1.PurchaseOrderDetailId != nil {
 		t.Error("The sale order has not been removed from the purchase order")
 	}
 	purchaseSales = getSalesOrderDetailsFromPurchaseOrderDetail(purchaseDetailId, 1)
@@ -921,7 +921,7 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 		t.Error("Order status not updated", salesOrderDetail1.Status)
 		return
 	}
-	if salesOrderDetail1.PurchaseOrderDetail == nil {
+	if salesOrderDetail1.PurchaseOrderDetailId == nil {
 		t.Error("The sale order has not been re-associated to the purchase order")
 	}
 	purchaseSales = getSalesOrderDetailsFromPurchaseOrderDetail(purchaseDetailId, 1)
@@ -1067,12 +1067,12 @@ func TestPurchaseInvoiceInsertUpdateDelete(t *testing.T) {
 	}
 
 	i := PurchaseInvoice{
-		Supplier:       1,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: 3,
-		enterprise:     1,
+		SupplierId:       1,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: 3,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertPurchaseInvoice(0, nil)
@@ -1097,25 +1097,25 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      15,
-		Quantity:   15,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        15,
+		Quantity:     15,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertPurchaseOrderDetail(0, nil)
@@ -1173,25 +1173,25 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      15,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        15,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertPurchaseOrderDetail(0, nil)
@@ -1334,23 +1334,23 @@ func TestPurchaseInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	var product int32 = 3
 
 	i := PurchaseInvoice{
-		Supplier:       1,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: 3,
-		enterprise:     1,
+		SupplierId:       1,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: 3,
+		EnterpriseId:     1,
 	}
 
 	_, invoiceId := i.insertPurchaseInvoice(0, nil)
 
 	d := PurchaseInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product,
-		Price:      15,
-		Quantity:   3,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product,
+		Price:        15,
+		Quantity:     3,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	// insert
@@ -1469,13 +1469,13 @@ func TestPurchaseDeliveryNoteInsertUpdateDelete(t *testing.T) {
 	}
 
 	i := PurchaseDeliveryNote{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	ok, noteId := i.insertPurchaseDeliveryNotes(0, nil)
@@ -1500,25 +1500,25 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      15,
-		Quantity:   15,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        15,
+		Quantity:     15,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertPurchaseOrderDetail(0, nil)
@@ -1576,25 +1576,25 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		BillingAddress:  3,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		BillingAddressId:  3,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertPurchaseOrder(0, nil)
 
 	d := PurchaseOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      15,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        15,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertPurchaseOrderDetail(0, nil)

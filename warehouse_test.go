@@ -29,9 +29,9 @@ func TestWarehouseInsertUpdateDelete(t *testing.T) {
 	}
 
 	w := Warehouse{
-		Id:         "WA",
-		Name:       "Test warehouse",
-		enterprise: 1,
+		Id:           "WA",
+		Name:         "Test warehouse",
+		EnterpriseId: 1,
 	}
 
 	// insert
@@ -129,7 +129,7 @@ func TestGetStocks(t *testing.T) {
 	s := getStock(1, 1)
 
 	for i := 0; i < len(s); i++ {
-		if s[i].Product <= 0 {
+		if s[i].ProductId <= 0 {
 			t.Error("Scan error, stock with ID 0.")
 			return
 		}
@@ -142,7 +142,7 @@ func TestGetStockRow(t *testing.T) {
 	}
 
 	s := getStockRow(1, "W1", 1)
-	if s.Product <= 0 {
+	if s.ProductId <= 0 {
 		t.Error("Scan error, customer row with ID 0.")
 		return
 	}
@@ -161,22 +161,22 @@ func TestCreateStockRow(t *testing.T) {
 	supplier := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		Supplier:               &supplier,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		SupplierId:               &supplier,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	ok := p.insertProduct(0).Ok
@@ -189,9 +189,9 @@ func TestCreateStockRow(t *testing.T) {
 	p = products[len(products)-1]
 
 	w := Warehouse{
-		Id:         "WA",
-		Name:       "Test warehouse",
-		enterprise: 1,
+		Id:           "WA",
+		Name:         "Test warehouse",
+		EnterpriseId: 1,
 	}
 
 	// insert
@@ -209,8 +209,8 @@ func TestCreateStockRow(t *testing.T) {
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -223,9 +223,9 @@ func TestCreateStockRow(t *testing.T) {
 	}
 
 	///
-	err := trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result := trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -258,37 +258,37 @@ func TestStock(t *testing.T) {
 	supplier := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		Supplier:               &supplier,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		SupplierId:               &supplier,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 	p.insertProduct(0)
 	products := getProduct(1)
 	p = products[len(products)-1]
 
 	w := Warehouse{
-		Id:         "WA",
-		Name:       "Test warehouse",
-		enterprise: 1,
+		Id:           "WA",
+		Name:         "Test warehouse",
+		EnterpriseId: 1,
 	}
 	w.insertWarehouse()
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -303,22 +303,22 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err := trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result := trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
 
 	s := getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingServed != 1 {
-		t.Error("Quantity pending serving not updated")
+		t.Error("Quantity pending serving not updated", s.QuantityPendingServed)
 		return
 	}
 
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -331,26 +331,27 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
 
 	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingServed != 0 {
-		t.Error("Quantity pending serving not updated")
+		t.Error("Quantity pending serving not updated", s.QuantityPendingServed)
 		return
 	}
 
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
 	///
+
 	// quantity pending receiving
 	ok = addQuantityPendingReveiving(p.Id, w.Id, 1, 1, *trans)
 	if !ok {
@@ -359,20 +360,22 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
+
 	s = getStockRow(p.Id, w.Id, 1)
 	if s.QuantityPendingReceived != 1 {
 		t.Error("Quantity pending receiving not updated")
 		return
 	}
+
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -385,9 +388,9 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -399,8 +402,8 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -414,9 +417,9 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -428,8 +431,8 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -442,9 +445,9 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -455,9 +458,10 @@ func TestStock(t *testing.T) {
 		return
 
 	}
+
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -471,9 +475,9 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -490,8 +494,8 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
@@ -504,9 +508,9 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -523,13 +527,13 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	trans, transErr = db.Begin()
-	if transErr != nil {
+	trans = dbOrm.Begin()
+	if trans.Error != nil {
 		t.Error("Can't begin transaction")
 		return
 	}
-
 	///
+
 	// set stock
 	ok = setQuantityStock(p.Id, w.Id, 1, 1, *trans)
 	if !ok {
@@ -538,9 +542,9 @@ func TestStock(t *testing.T) {
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		t.Error(err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		t.Error(result.Error)
 		return
 	}
 	///
@@ -659,47 +663,40 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	supplier := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		Supplier:               &supplier,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		SupplierId:               &supplier,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 	p.insertProduct(0)
 
 	w := Warehouse{
-		Id:         "WA",
-		Name:       "Test warehouse",
-		enterprise: 1,
+		Id:           "WA",
+		Name:         "Test warehouse",
+		EnterpriseId: 1,
 	}
 	w.insertWarehouse()
-	warehouses := getWarehouses(1)
-	for i := 0; i < len(warehouses); i++ {
-		if warehouses[i].Id == w.Id {
-			w = warehouses[i]
-			break
-		}
-	}
 
 	// test warehouse movements
 	// create an input movement
 	wm := WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok := wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -723,11 +720,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	// create an input and then an output movement
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -735,11 +732,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   -1,
-		Type:       "O",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     -1,
+		Type:         "O",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -763,27 +760,27 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	// test sales delivery note generation
 	sn := SalesDeliveryNote{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		ShippingAddress: 1,
-		Currency:        1,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		ShippingAddressId: 1,
+		CurrencyId:        1,
+		EnterpriseId:      1,
 	}
 
 	_, noteId := sn.insertSalesDeliveryNotes(0, nil)
 	sn.Id = noteId
 
 	wm = WarehouseMovement{
-		Warehouse:         w.Id,
-		Product:           p.Id,
-		Quantity:          -1,
-		Type:              "O",
-		SalesDeliveryNote: &noteId,
-		Price:             9.99,
-		VatPercent:        21,
-		enterprise:        1,
+		WarehouseId:         w.Id,
+		ProductId:           p.Id,
+		Quantity:            -1,
+		Type:                "O",
+		SalesDeliveryNoteId: &noteId,
+		Price:               9.99,
+		VatPercent:          21,
+		EnterpriseId:        1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -821,27 +818,27 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	// test purchase delivery note generation
 	pn := PurchaseDeliveryNote{
-		Warehouse:       "W1",
-		Supplier:        1,
-		PaymentMethod:   1,
-		BillingSeries:   "INT",
-		Currency:        1,
-		ShippingAddress: 3,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		SupplierId:        1,
+		PaymentMethodId:   1,
+		BillingSeriesId:   "INT",
+		CurrencyId:        1,
+		ShippingAddressId: 3,
+		EnterpriseId:      1,
 	}
 
 	_, noteId = pn.insertPurchaseDeliveryNotes(0, nil)
 	pn.Id = noteId
 
 	wm = WarehouseMovement{
-		Warehouse:            w.Id,
-		Product:              p.Id,
-		Quantity:             -1,
-		Type:                 "O",
-		PurchaseDeliveryNote: &noteId,
-		Price:                9.99,
-		VatPercent:           21,
-		enterprise:           1,
+		WarehouseId:            w.Id,
+		ProductId:              p.Id,
+		Quantity:               -1,
+		Type:                   "O",
+		PurchaseDeliveryNoteId: &noteId,
+		Price:                  9.99,
+		VatPercent:             21,
+		EnterpriseId:           1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -881,11 +878,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// An input gets inserted, later an output, then a regularisation is made, and then an input is added. If this last row (input) gets deleted,
 	// the stock of the product has to be equal to the stock set on the regularization again.
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -893,11 +890,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   -1,
-		Type:       "O",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     -1,
+		Type:         "O",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -905,11 +902,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   5,
-		Type:       "R",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     5,
+		Type:         "R",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -917,11 +914,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -967,11 +964,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// An input gets inserted, later an output, again an input is inserted, then a regularisation is made, and then an input is added. If the last
 	// row before the regularization (input) is deleted, it should not affect the product's quantity, or the dragged stock of the products.
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -979,11 +976,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   -1,
-		Type:       "O",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     -1,
+		Type:         "O",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -991,11 +988,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1003,11 +1000,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   5,
-		Type:       "R",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     5,
+		Type:         "R",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1015,11 +1012,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1065,11 +1062,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 	// An input gets inserted, later an output, again an input is inserted, then a regularisation is made, and then an input is added. If the
 	// regularization is deleted, the dragged stock of the product should be recalculated.
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1077,11 +1074,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   -1,
-		Type:       "O",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     -1,
+		Type:         "O",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1089,11 +1086,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1101,11 +1098,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   5,
-		Type:       "R",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     5,
+		Type:         "R",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1113,11 +1110,11 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 		return
 	}
 	wm = WarehouseMovement{
-		Warehouse:  w.Id,
-		Product:    p.Id,
-		Quantity:   1,
-		Type:       "I",
-		enterprise: 1,
+		WarehouseId:  w.Id,
+		ProductId:    p.Id,
+		Quantity:     1,
+		Type:         "I",
+		EnterpriseId: 1,
 	}
 	ok = wm.insertWarehouseMovement(0, nil)
 	if !ok {
@@ -1198,7 +1195,7 @@ func TestGetInventoryProducts(t *testing.T) {
 	}
 
 	inventoryProducts := getInventoryProducts(1, 1)
-	if len(inventoryProducts) > 0 && inventoryProducts[0].Inventory <= 0 {
+	if len(inventoryProducts) > 0 && inventoryProducts[0].InventoryId <= 0 {
 		t.Error("Can't scan invenrory products")
 		return
 	}
@@ -1211,8 +1208,8 @@ func TestGetInventoryProductsRow(t *testing.T) {
 
 	inventoryProducts := getInventoryProducts(1, 1)
 	if len(inventoryProducts) > 0 {
-		row := getInventoryProductsRow(1, inventoryProducts[0].Product, 1)
-		if row.Product <= 0 {
+		row := getInventoryProductsRow(1, inventoryProducts[0].ProductId, 1)
+		if row.ProductId <= 0 {
 			t.Error("Can't scan invenrory product row")
 			return
 		}
@@ -1229,9 +1226,9 @@ func TestInsertDeleteInventoryAndDetails(t *testing.T) {
 	// insert inventory
 
 	i := Inventory{
-		Name:       "Automatic test inventory",
-		Warehouse:  "W1",
-		enterprise: 1,
+		Name:         "Automatic test inventory",
+		WarehouseId:  "W1",
+		EnterpriseId: 1,
 	}
 	ok := i.insertInventory(1)
 	if !ok {
@@ -1247,10 +1244,10 @@ func TestInsertDeleteInventoryAndDetails(t *testing.T) {
 		Inventory: i.Id,
 		InventoryProducts: []InventoryProducts{
 			{
-				Product:    1,
-				Inventory:  i.Id,
-				Quantity:   1,
-				enterprise: 1,
+				ProductId:    1,
+				InventoryId:  i.Id,
+				Quantity:     1,
+				EnterpriseId: 1,
 			},
 		},
 	}
@@ -1360,9 +1357,9 @@ func TestInventoryScanBarCode(t *testing.T) {
 	// insert inventory
 
 	i := Inventory{
-		Name:       "Automatic test inventory",
-		Warehouse:  "W1",
-		enterprise: 1,
+		Name:         "Automatic test inventory",
+		WarehouseId:  "W1",
+		EnterpriseId: 1,
 	}
 	ok := i.insertInventory(1)
 	if !ok {
@@ -1378,10 +1375,10 @@ func TestInventoryScanBarCode(t *testing.T) {
 		Inventory: i.Id,
 		InventoryProducts: []InventoryProducts{
 			{
-				Product:    1,
-				Inventory:  i.Id,
-				Quantity:   0,
-				enterprise: 1,
+				ProductId:    1,
+				InventoryId:  i.Id,
+				Quantity:     0,
+				EnterpriseId: 1,
 			},
 		},
 	}
@@ -1444,9 +1441,9 @@ func TestInventoryFinish(t *testing.T) {
 	// insert inventory
 
 	i := Inventory{
-		Name:       "Automatic test inventory",
-		Warehouse:  "W1",
-		enterprise: 1,
+		Name:         "Automatic test inventory",
+		WarehouseId:  "W1",
+		EnterpriseId: 1,
 	}
 	ok := i.insertInventory(1)
 	if !ok {
@@ -1463,21 +1460,21 @@ func TestInventoryFinish(t *testing.T) {
 	manufacturingOrderType := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	okAndErr := p.insertProduct(0)
@@ -1491,10 +1488,10 @@ func TestInventoryFinish(t *testing.T) {
 		Inventory: i.Id,
 		InventoryProducts: []InventoryProducts{
 			{
-				Product:    p.Id,
-				Inventory:  i.Id,
-				Quantity:   15,
-				enterprise: 1,
+				ProductId:    p.Id,
+				InventoryId:  i.Id,
+				Quantity:     15,
+				EnterpriseId: 1,
 			},
 		},
 	}
@@ -1515,7 +1512,7 @@ func TestInventoryFinish(t *testing.T) {
 		t.Error("Error finishing inventory")
 		return
 	}
-	stock := getStockRow(p.Id, i.Warehouse, 1)
+	stock := getStockRow(p.Id, i.WarehouseId, 1)
 	if stock.Quantity != 15 {
 		t.Error("Stock not updated!!!")
 		return
@@ -1630,10 +1627,10 @@ func TestInsertDeleteTransferBetweenWarehouses(t *testing.T) {
 	}
 
 	transfer := TransferBetweenWarehouses{
-		WarehouseOrigin:      "W1",
-		WarehouseDestination: "WT",
-		Name:                 "Automatic test",
-		enterprise:           1,
+		WarehouseOriginId:      "W1",
+		WarehouseDestinationId: "WT",
+		Name:                   "Automatic test",
+		EnterpriseId:           1,
 	}
 	ok := transfer.insertTransferBetweenWarehouses()
 	if !ok {
@@ -1648,10 +1645,10 @@ func TestInsertDeleteTransferBetweenWarehouses(t *testing.T) {
 	transfer = transfers[0]
 
 	d := TransferBetweenWarehousesDetail{
-		TransferBetweenWarehouses: transfer.Id,
-		Product:                   1,
-		Quantity:                  10,
-		enterprise:                1,
+		TransferBetweenWarehousesId: transfer.Id,
+		ProductId:                   1,
+		Quantity:                    10,
+		EnterpriseId:                1,
 	}
 	ok = d.insertTransferBetweenWarehousesDetail()
 	if !ok {
@@ -1692,20 +1689,20 @@ func TestTransferBetweenWarehousesUsingQuantity(t *testing.T) {
 	manufacturingOrderType := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	okAndErr := p.insertProduct(0)
@@ -1718,10 +1715,10 @@ func TestTransferBetweenWarehousesUsingQuantity(t *testing.T) {
 	p = products[len(products)-1]
 
 	transfer := TransferBetweenWarehouses{
-		WarehouseOrigin:      "W1",
-		WarehouseDestination: "WT",
-		Name:                 "Automatic test",
-		enterprise:           1,
+		WarehouseOriginId:      "W1",
+		WarehouseDestinationId: "WT",
+		Name:                   "Automatic test",
+		EnterpriseId:           1,
 	}
 	ok := transfer.insertTransferBetweenWarehouses()
 	if !ok {
@@ -1736,10 +1733,10 @@ func TestTransferBetweenWarehousesUsingQuantity(t *testing.T) {
 	transfer = transfers[0]
 
 	d := TransferBetweenWarehousesDetail{
-		TransferBetweenWarehouses: transfer.Id,
-		Product:                   p.Id,
-		Quantity:                  10,
-		enterprise:                1,
+		TransferBetweenWarehousesId: transfer.Id,
+		ProductId:                   p.Id,
+		Quantity:                    10,
+		EnterpriseId:                1,
 	}
 	ok = d.insertTransferBetweenWarehousesDetail()
 	if !ok {
@@ -1767,8 +1764,8 @@ func TestTransferBetweenWarehousesUsingQuantity(t *testing.T) {
 
 	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
 	d = details[0]
-	if d.Finished || d.QuantityTransfered != 5 {
-		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+	if d.Finished || d.QuantityTransferred != 5 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransferred)
 		return
 	}
 
@@ -1785,8 +1782,8 @@ func TestTransferBetweenWarehousesUsingQuantity(t *testing.T) {
 
 	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
 	d = details[0]
-	if (!d.Finished) || d.QuantityTransfered != 10 {
-		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+	if (!d.Finished) || d.QuantityTransferred != 10 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransferred)
 		return
 	}
 
@@ -1836,21 +1833,21 @@ func TestTransferBetweenWarehousesUsingBarCode(t *testing.T) {
 	manufacturingOrderType := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	okAndErr := p.insertProduct(0)
@@ -1863,10 +1860,10 @@ func TestTransferBetweenWarehousesUsingBarCode(t *testing.T) {
 	p = products[len(products)-1]
 
 	transfer := TransferBetweenWarehouses{
-		WarehouseOrigin:      "W1",
-		WarehouseDestination: "WT",
-		Name:                 "Automatic test",
-		enterprise:           1,
+		WarehouseOriginId:      "W1",
+		WarehouseDestinationId: "WT",
+		Name:                   "Automatic test",
+		EnterpriseId:           1,
 	}
 	ok := transfer.insertTransferBetweenWarehouses()
 	if !ok {
@@ -1881,10 +1878,10 @@ func TestTransferBetweenWarehousesUsingBarCode(t *testing.T) {
 	transfer = transfers[0]
 
 	d := TransferBetweenWarehousesDetail{
-		TransferBetweenWarehouses: transfer.Id,
-		Product:                   p.Id,
-		Quantity:                  2,
-		enterprise:                1,
+		TransferBetweenWarehousesId: transfer.Id,
+		ProductId:                   p.Id,
+		Quantity:                    2,
+		EnterpriseId:                1,
 	}
 	ok = d.insertTransferBetweenWarehousesDetail()
 	if !ok {
@@ -1912,8 +1909,8 @@ func TestTransferBetweenWarehousesUsingBarCode(t *testing.T) {
 
 	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
 	d = details[0]
-	if d.Finished || d.QuantityTransfered != 1 {
-		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+	if d.Finished || d.QuantityTransferred != 1 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransferred)
 	}
 
 	// add more quantity
@@ -1929,8 +1926,8 @@ func TestTransferBetweenWarehousesUsingBarCode(t *testing.T) {
 
 	details = getTransferBetweenWarehousesDetails(transfer.Id, 1)
 	d = details[0]
-	if (!d.Finished) || d.QuantityTransfered != 2 {
-		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransfered)
+	if (!d.Finished) || d.QuantityTransferred != 2 {
+		t.Error("Error tranfering quantity", d.Finished, d.QuantityTransferred)
 	}
 
 	// CLEAN UP

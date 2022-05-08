@@ -9,19 +9,26 @@ const LOGO_MAX_SIZE = 1000000                                                   
 const LOGO_ALLOWED_MIME_TYPES = "image/jpeg;image/png;image/svg+xml;image/x-icon" // Allowed mime types separated by ";"
 const LOGO_ALLOWED_MIME_TYPES_SEP = ";"
 
+type EnterpriseLogo struct {
+	EnterpriseId int32    `gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Logo         []byte   `gorm:"column:logo;not null:true"`
+	MimeType     string   `gorm:"column:mime_type;not null:true;type:character varying(150)"`
+}
+
+func (l *EnterpriseLogo) TableName() string {
+	return "enterprise_logo"
+}
+
 // returns: image, mime type
 func getEnterpriseLogo(enterpriseId int32) ([]byte, string) {
-	sqlStatement := `SELECT logo, mime_type FROM public.enterprise_logo WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var logo EnterpriseLogo
+	result := dbOrm.Model(&EnterpriseLogo{}).Where("enterprise = ?", enterpriseId).First(&logo)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return nil, ""
 	}
-
-	var logo []byte
-	var mimeType string
-	row.Scan(&logo, &mimeType)
-	return logo, mimeType
+	return logo.Logo, logo.MimeType
 }
 
 func setEnterpriseLogo(enterpriseId int32, logo []byte) bool {
@@ -45,28 +52,31 @@ func setEnterpriseLogo(enterpriseId int32, logo []byte) bool {
 	}
 
 	// the logo row already exists? used for creating/updating
-	sqlStatement := `SELECT COUNT(*) FROM public.enterprise_logo WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var count int64
+	result := dbOrm.Model(&EnterpriseLogo{}).Where("enterprise = ?", enterpriseId).Count(&count)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	var count int32
-	row.Scan(&count)
-
 	if count > 0 { // update the existing row, the user already has an image selected and it's changing it
-		sqlStatement := `UPDATE public.enterprise_logo SET logo=$2, mime_type=$3 WHERE enterprise=$1`
-		_, err := db.Exec(sqlStatement, enterpriseId, logo, mimeType)
-		if err != nil {
-			log("DB", err.Error())
+		result = dbOrm.Model(&EnterpriseLogo{}).Where("enterprise = ?", enterpriseId).Updates(map[string]interface{}{
+			"logo":      logo,
+			"mime_type": mimeType,
+		})
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			return false
 		}
 	} else { // create a new row, the user did not have an image selected and it's adding one
-		sqlStatement := `INSERT INTO public.enterprise_logo(enterprise, logo, mime_type) VALUES ($1, $2, $3)`
-		_, err := db.Exec(sqlStatement, enterpriseId, logo, mimeType)
-		if err != nil {
-			log("DB", err.Error())
+		var logo EnterpriseLogo = EnterpriseLogo{
+			EnterpriseId: enterpriseId,
+			Logo:         logo,
+			MimeType:     mimeType,
+		}
+		result = dbOrm.Create(&logo)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			return false
 		}
 	}
@@ -74,10 +84,9 @@ func setEnterpriseLogo(enterpriseId int32, logo []byte) bool {
 }
 
 func deleteEnterpriseLogo(enterpriseId int32) bool {
-	sqlStatement := `DELETE FROM public.enterprise_logo WHERE enterprise=$1`
-	_, err := db.Exec(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&EnterpriseLogo{}).Where("enterprise = ?", enterpriseId).Delete(&EnterpriseLogo{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 	return true

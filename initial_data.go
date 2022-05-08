@@ -42,7 +42,7 @@ func initialPaymentData(enterpriseId int32) {
 		var paymentMethod []PaymentMethod
 		json.Unmarshal(content, &paymentMethod)
 		for i := 0; i < len(paymentMethod); i++ {
-			paymentMethod[i].enterprise = enterpriseId
+			paymentMethod[i].EnterpriseId = enterpriseId
 			paymentMethod[i].insertPaymentMethod()
 		}
 		fmt.Println("INITIAL DATA: Generated payment methods data")
@@ -64,7 +64,7 @@ func initialLanguageData(enterpriseId int32) {
 		var language []Language
 		json.Unmarshal(content, &language)
 		for i := 0; i < len(language); i++ {
-			language[i].enterprise = enterpriseId
+			language[i].EnterpriseId = enterpriseId
 			language[i].insertLanguage()
 		}
 		fmt.Println("INITIAL DATA: Generated language data")
@@ -86,7 +86,7 @@ func initialCurrenciesData(enterpriseId int32) {
 		var currencies []Currency
 		json.Unmarshal(content, &currencies)
 		for i := 0; i < len(currencies); i++ {
-			currencies[i].enterprise = enterpriseId
+			currencies[i].EnterpriseId = enterpriseId
 			currencies[i].insertCurrency()
 		}
 		fmt.Println("INITIAL DATA: Generated currency data")
@@ -121,13 +121,13 @@ func initialCountriesData(enterpriseId int32) {
 		json.Unmarshal(content, &country)
 		for i := 0; i < len(country); i++ {
 			c := Country{
-				Name:        country[i].Name,
-				Iso2:        country[i].Iso2,
-				Iso3:        country[i].Iso3,
-				UNCode:      country[i].UNCode,
-				Zone:        country[i].Zone,
-				PhonePrefix: country[i].PhonePrefix,
-				enterprise:  enterpriseId,
+				Name:         country[i].Name,
+				Iso2:         country[i].Iso2,
+				Iso3:         country[i].Iso3,
+				UNCode:       country[i].UNCode,
+				Zone:         country[i].Zone,
+				PhonePrefix:  country[i].PhonePrefix,
+				EnterpriseId: enterpriseId,
 			}
 
 			if country[i].Language != nil {
@@ -181,10 +181,10 @@ func initialStatesData(enterpriseId int32) {
 			row.Scan(&countryId)
 
 			state := State{
-				Name:       states[i].Name,
-				IsoCode:    states[i].IsoCode,
-				Country:    countryId,
-				enterprise: enterpriseId,
+				Name:         states[i].Name,
+				IsoCode:      states[i].IsoCode,
+				CountryId:    countryId,
+				EnterpriseId: enterpriseId,
 			}
 			state.insertState()
 		}
@@ -207,7 +207,7 @@ func initialColorData(enterpriseId int32) {
 		var color []Color
 		json.Unmarshal(content, &color)
 		for i := 0; i < len(color); i++ {
-			color[i].enterprise = enterpriseId
+			color[i].EnterpriseId = enterpriseId
 			color[i].insertColor()
 		}
 		fmt.Println("INITIAL DATA: Generated colors data")
@@ -229,7 +229,7 @@ func initialIncotermData(enterpriseId int32) {
 		var incoterms []Incoterm
 		json.Unmarshal(content, &incoterms)
 		for i := 0; i < len(incoterms); i++ {
-			incoterms[i].enterprise = enterpriseId
+			incoterms[i].EnterpriseId = enterpriseId
 			incoterms[i].insertIncoterm()
 		}
 		fmt.Println("INITIAL DATA: Generated incoterms data")
@@ -251,7 +251,7 @@ func initialWarehouseData(enterpriseId int32) {
 		var warehouse []Warehouse
 		json.Unmarshal(content, &warehouse)
 		for i := 0; i < len(warehouse); i++ {
-			warehouse[i].enterprise = enterpriseId
+			warehouse[i].EnterpriseId = enterpriseId
 			warehouse[i].insertWarehouse()
 		}
 		fmt.Println("INITIAL DATA: Generated warehouse data")
@@ -273,7 +273,7 @@ func initiaBillingSeriesData(enterpriseId int32) {
 		var billingSerie []BillingSerie
 		json.Unmarshal(content, &billingSerie)
 		for i := 0; i < len(billingSerie); i++ {
-			billingSerie[i].enterprise = enterpriseId
+			billingSerie[i].EnterpriseId = enterpriseId
 			billingSerie[i].insertBillingSerie()
 		}
 		fmt.Println("INITIAL DATA: Generated billing series data")
@@ -295,7 +295,7 @@ func initialJournals(enterpriseId int32) {
 		var journal []Journal
 		json.Unmarshal(content, &journal)
 		for i := 0; i < len(journal); i++ {
-			journal[i].enterprise = enterpriseId
+			journal[i].EnterpriseId = enterpriseId
 			journal[i].insertJournal()
 		}
 
@@ -318,7 +318,7 @@ func initialAccount(enterpriseId int32) {
 		var account []Account
 		json.Unmarshal(content, &account)
 		for i := 0; i < len(account); i++ {
-			account[i].enterprise = enterpriseId
+			account[i].EnterpriseId = enterpriseId
 			account[i].insertAccount()
 		}
 
@@ -342,22 +342,22 @@ func initialConfig(enterpriseId int32) {
 		json.Unmarshal(content, &config)
 
 		var salesAccount *int32
-		if config.SalesJournal != nil && *config.SalesJournal > 0 {
-			acc := getAccountIdByAccountNumber(*config.SalesJournal, 1, enterpriseId)
+		if config.SalesJournalId != nil && *config.SalesJournalId > 0 {
+			acc := getAccountIdByAccountNumber(*config.SalesJournalId, 1, enterpriseId)
 			if acc > 0 {
 				salesAccount = &acc
 			}
 		}
 		var purchaseAccount *int32
-		if config.PurchaseJournal != nil && *config.PurchaseJournal > 0 {
-			acc := getAccountIdByAccountNumber(*config.PurchaseJournal, 1, enterpriseId)
+		if config.PurchaseJournalId != nil && *config.PurchaseJournalId > 0 {
+			acc := getAccountIdByAccountNumber(*config.PurchaseJournalId, 1, enterpriseId)
 			if acc > 0 {
 				purchaseAccount = &acc
 			}
 		}
 
 		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account, enterprise_key) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)`
-		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouse, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerie, config.PrestaShopIntracommunitySerie, config.PrestaShopInteriorSerie, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, config.CustomerJournal, config.SalesJournal, salesAccount, config.SupplierJournal, config.PurchaseJournal, purchaseAccount, config.EnterpriseKey)
+		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouseId, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerieId, config.PrestaShopIntracommunitySerieId, config.PrestaShopInteriorSerieId, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, config.CustomerJournalId, config.SalesJournalId, salesAccount, config.SupplierJournalId, config.PurchaseJournalId, purchaseAccount, config.EnterpriseKey)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -451,50 +451,50 @@ func initialReportTemplate(enterpriseId int32) {
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "SALES_ORDER", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "SALES_ORDER", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/sales_invoice.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "SALES_INVOICE", Html: string(content)}.insertReportTemplate()
-	ReportTemplate{enterprise: enterpriseId, Key: "SALES_INVOICE_TICKET", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "SALES_INVOICE", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "SALES_INVOICE_TICKET", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/sales_delivery_note.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "SALES_DELIVERY_NOTE", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "SALES_DELIVERY_NOTE", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/purchase_order.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "PURCHASE_ORDER", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "PURCHASE_ORDER", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/box_content.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "BOX_CONTENT", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "BOX_CONTENT", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/pallet_content.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "PALLET_CONTENT", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "PALLET_CONTENT", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/carrier_pallet.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "CARRIER_PALLET", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "CARRIER_PALLET", Html: string(content)}.insertReportTemplate()
 
 	content, err = ioutil.ReadFile("./reports/sales_order_digital_product_data.html")
 	if err != nil {
 		return
 	}
-	ReportTemplate{enterprise: enterpriseId, Key: "SALES_ORDER_DIGITAL_PRODUCT_DATA", Html: string(content)}.insertReportTemplate()
+	ReportTemplate{EnterpriseId: enterpriseId, Key: "SALES_ORDER_DIGITAL_PRODUCT_DATA", Html: string(content)}.insertReportTemplate()
 }
 
 // check every permission in the initial data file agains the ones in the database

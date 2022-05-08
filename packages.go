@@ -1,51 +1,45 @@
 package main
 
+import "gorm.io/gorm"
+
 type Packages struct {
-	Id         int32   `json:"id"`
-	Name       string  `json:"name"`
-	Weight     float64 `json:"weight"`
-	Width      float64 `json:"width"`
-	Height     float64 `json:"height"`
-	Depth      float64 `json:"depth"`
-	Product    int32   `json:"product"`
-	enterprise int32
+	Id           int32    `json:"id" gorm:"index:_packages_id_enterprise,unique:true,priority:1"`
+	Name         string   `json:"name" gorm:"type:character varying(50);not null:true"`
+	Weight       float64  `json:"weight" gorm:"type:numeric(14,6);not null:true"`
+	Width        float64  `json:"width" gorm:"type:numeric(14,6);not null:true"`
+	Height       float64  `json:"height" gorm:"type:numeric(14,6);not null:true"`
+	Depth        float64  `json:"depth" gorm:"type:numeric(14,6);not null:true"`
+	ProductId    int32    `json:"productId" gorm:"column:product;not null:true"`
+	Product      Product  `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId int32    `json:"-" gorm:"column:enterprise;not null:true;index:_packages_id_enterprise,unique:true,priority:2"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (p *Packages) TableName() string {
+	return "packages"
 }
 
 func getPackages(enterpriseId int32) []Packages {
-	var products []Packages = make([]Packages, 0)
-	sqlStatement := `SELECT * FROM public.packages WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return products
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := Packages{}
-		rows.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Product, &p.enterprise)
-		products = append(products, p)
-	}
-
-	return products
+	var packages []Packages = make([]Packages, 0)
+	dbOrm.Model(&Packages{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&packages)
+	return packages
 }
 
 func getPackagesRow(packageId int32) Packages {
-	sqlStatement := `SELECT * FROM public.packages WHERE id=$1`
-	row := db.QueryRow(sqlStatement, packageId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Packages{}
-	}
-
 	p := Packages{}
-	row.Scan(&p.Id, &p.Name, &p.Weight, &p.Width, &p.Height, &p.Depth, &p.Product, &p.enterprise)
-
+	dbOrm.Model(&Packages{}).Where("id = ?", packageId).Find(&p)
 	return p
 }
 
 func (p *Packages) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 50 || p.Weight < 0 || p.Width <= 0 || p.Height <= 0 || p.Depth <= 0 || p.Product <= 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 50 || p.Weight < 0 || p.Width <= 0 || p.Height <= 0 || p.Depth <= 0 || p.ProductId <= 0)
+}
+
+func (p *Packages) BeforeCreate(tx *gorm.DB) (err error) {
+	var packages Packages
+	tx.Model(&Packages{}).Last(&packages)
+	p.Id = packages.Id + 1
+	return nil
 }
 
 func (p *Packages) insertPackage() bool {
@@ -53,15 +47,13 @@ func (p *Packages) insertPackage() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.packages(name, weight, width, height, depth, product, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	res, err := db.Exec(sqlStatement, p.Name, p.Weight, p.Width, p.Height, p.Depth, p.Product, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (p *Packages) updatePackage() bool {
@@ -69,15 +61,27 @@ func (p *Packages) updatePackage() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.packages SET name=$2, weight=$3, width=$4, height=$5, depth=$6, product=$7, enterprise=$8 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, p.Id, p.Name, p.Weight, p.Width, p.Height, p.Depth, p.Product, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var packages Packages
+	result := dbOrm.Where("id = ? AND enterprise = ?", p.Id, p.EnterpriseId).First(&packages)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	packages.Name = p.Name
+	packages.Weight = p.Weight
+	packages.Width = p.Width
+	packages.Height = p.Height
+	packages.Depth = p.Depth
+	packages.ProductId = p.ProductId
+
+	result = dbOrm.Save(&packages)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (p *Packages) deletePackage() bool {
@@ -85,13 +89,11 @@ func (p *Packages) deletePackage() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.packages WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, p.Id, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", p.Id, p.EnterpriseId).Delete(&Packages{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }

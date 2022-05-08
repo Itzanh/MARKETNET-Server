@@ -89,15 +89,15 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false, 0
 	}
 	///
 
 	for i := 0; i < len(needs); i++ {
 		product := getProductRow(needs[i].ProductId)
-		if product.enterprise != enterpriseId {
+		if product.EnterpriseId != enterpriseId {
 			continue
 		}
 		quantityNeeded := getNeedRow(product.Id)
@@ -105,7 +105,7 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 			trans.Rollback()
 			return false, 2
 		}
-		if product.Supplier == nil || *product.Supplier <= 0 {
+		if product.SupplierId == nil || *product.SupplierId <= 0 {
 			trans.Rollback()
 			return false, 3
 		}
@@ -114,7 +114,7 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 			return false, 4
 		}
 
-		supplier := getSupplierRow(*product.Supplier)
+		supplier := getSupplierRow(*product.SupplierId)
 		needs[i].product = product
 		needs[i].supplier = supplier
 	}
@@ -133,32 +133,32 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 			i--
 		}
 		if ok || i == len(needs)-1 {
-			if supplierNeeds[0].supplier.MainBillingAddress == nil {
+			if supplierNeeds[0].supplier.MainBillingAddressId == nil {
 				trans.Rollback()
 				return false, 5
 			}
-			if supplierNeeds[0].supplier.MainShippingAddress == nil {
+			if supplierNeeds[0].supplier.MainShippingAddressId == nil {
 				trans.Rollback()
 				return false, 6
 			}
-			if supplierNeeds[0].supplier.PaymentMethod == nil {
+			if supplierNeeds[0].supplier.PaymentMethodId == nil {
 				trans.Rollback()
 				return false, 7
 			}
-			if supplierNeeds[0].supplier.BillingSeries == nil {
+			if supplierNeeds[0].supplier.BillingSeriesId == nil {
 				trans.Rollback()
 				return false, 8
 			}
 			// "supplierNeeds" is now an array with the needs of the same supplier, create the purchase order and the detail from the supplier and the needs
 			o := PurchaseOrder{}
-			o.Supplier = supplierNeeds[0].supplier.Id
-			o.BillingAddress = *supplierNeeds[0].supplier.MainBillingAddress
-			o.ShippingAddress = *supplierNeeds[0].supplier.MainShippingAddress
-			o.PaymentMethod = *supplierNeeds[0].supplier.PaymentMethod
-			o.BillingSeries = *supplierNeeds[0].supplier.BillingSeries
-			o.Warehouse = n.Warehouse
-			o.Currency = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
-			o.enterprise = enterpriseId
+			o.SupplierId = supplierNeeds[0].supplier.Id
+			o.BillingAddressId = *supplierNeeds[0].supplier.MainBillingAddressId
+			o.ShippingAddressId = *supplierNeeds[0].supplier.MainShippingAddressId
+			o.PaymentMethodId = *supplierNeeds[0].supplier.PaymentMethodId
+			o.BillingSeriesId = *supplierNeeds[0].supplier.BillingSeriesId
+			o.WarehouseId = n.Warehouse
+			o.CurrencyId = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
+			o.EnterpriseId = enterpriseId
 			ok, orderId := o.insertPurchaseOrder(userId, trans)
 			if !ok || orderId <= 0 {
 				trans.Rollback()
@@ -167,12 +167,12 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 
 			for j := 0; j < len(supplierNeeds); j++ {
 				d := PurchaseOrderDetail{}
-				d.Order = orderId
-				d.Product = supplierNeeds[j].product.Id
+				d.OrderId = orderId
+				d.ProductId = supplierNeeds[j].product.Id
 				d.Price = supplierNeeds[j].product.Price
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
-				d.enterprise = enterpriseId
+				d.EnterpriseId = enterpriseId
 				ok, detailId := d.insertPurchaseOrderDetail(userId, trans)
 				if !ok.Ok {
 					trans.Rollback()
@@ -189,7 +189,7 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 						trans.Rollback()
 						return false, 0
 					}
-					ok := setSalesOrderState(enterpriseId, details[k].Order, userId, *trans)
+					ok := setSalesOrderState(enterpriseId, details[k].OrderId, userId, *trans)
 					if !ok {
 						trans.Rollback()
 						return false, 0
@@ -202,7 +202,7 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 	}
 
 	///
-	err = trans.Commit()
-	return err == nil, 0
+	result := trans.Commit()
+	return result.Error == nil, 0
 	///
 }

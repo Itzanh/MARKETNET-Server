@@ -4,21 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // A transactional log for tables like the invoces in necessary in order to comply with the laws in e-commerce and electronic invoicing.
 // Nobody should be able to modify or alter these registers without it being properly registered in a log complete log.
 
 type TransactionalLog struct {
-	Id          int64 `json:"id"`
-	enterprise  int32
-	Table       string    `json:"table"`
-	Register    string    `json:"register"`
-	DateCreated time.Time `json:"dateCreated"`
-	RegisterId  int64     `json:"registerId"`
-	User        *int32    `json:"user"`
-	Mode        string    `json:"mode"`
-	UserName    *string   `json:"userName"`
+	Id           int64     `json:"id"`
+	EnterpriseId int32     `json:"-" gorm:"column:enterprise;not null:true;index:transactional_log_enterprise_table_register_id,priority:1"`
+	Enterprise   Settings  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Table        string    `json:"table" gorm:"column:table;not null:true;type:character varying(150);index:transactional_log_enterprise_table_register_id,priority:2"`
+	Register     string    `json:"register" gorm:"column:register;not null:true;type:jsonb"`
+	DateCreated  time.Time `json:"dateCreated" gorm:"type:timestamp(3) without time zone;not null:true"`
+	RegisterId   int64     `json:"registerId" gorm:"column:register_id;not null:true;index:transactional_log_enterprise_table_register_id,priority:3"`
+	UserId       *int32    `json:"userId" gorm:"column:user"`
+	User         *User     `json:"user" gorm:"foreignKey:UserId,EnterpriseId;references:Id,EnterpriseId"`
+	Mode         string    `json:"mode" gorm:"column:mode;not null:true;type:character(1)"`
+}
+
+func (t *TransactionalLog) TableName() string {
+	return "transactional_log"
 }
 
 type TransactionalLogQuery struct {
@@ -29,21 +36,19 @@ type TransactionalLogQuery struct {
 
 func (query *TransactionalLogQuery) getRegisterTransactionalLogs() []TransactionalLog {
 	var logs []TransactionalLog = make([]TransactionalLog, 0)
-	sqlStatement := `SELECT *,(SELECT username FROM "user" WHERE "user".id=transactional_log."user") FROM public.transactional_log WHERE enterprise = $1 AND "table" = $2 AND register_id = $3 ORDER BY date_created ASC`
-	rows, err := db.Query(sqlStatement, query.enterpriseId, query.TableName, query.RegisterId)
-	if err != nil {
-		log("DB", err.Error())
-		return logs
+	// get all the transactional logs from the database for this enterprise id, table name and register id sorted by date created ascending using dbOrm
+	result := dbOrm.Where("transactional_log.enterprise = ? AND transactional_log.table = ? AND transactional_log.register_id = ?", query.enterpriseId, query.TableName, query.RegisterId).Preload("User").Order("transactional_log.date_created ASC").Find(&logs)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		s := TransactionalLog{}
-		rows.Scan(&s.Id, &s.enterprise, &s.Table, &s.Register, &s.DateCreated, &s.RegisterId, &s.User, &s.Mode, &s.UserName)
-		logs = append(logs, s)
-	}
-
 	return logs
+}
+
+func (tl *TransactionalLog) BeforeCreate(tx *gorm.DB) (err error) {
+	var transactionalLog TransactionalLog
+	tx.Model(&TransactionalLog{}).Last(&transactionalLog)
+	tl.Id = transactionalLog.Id + 1
+	return nil
 }
 
 // enterprise id
@@ -112,13 +117,18 @@ func insertTransactionalLog(enterpriseId int32, tableName string, registerId int
 	}
 
 	// insert into transactional log
-	sqlStatement = `INSERT INTO public.transactional_log(enterprise, "table", register, register_id, "user", mode) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err = db.Exec(sqlStatement, enterpriseId, tableName, JsonData, registerId, user, mode)
-	if err != nil {
-		log("DB", err.Error())
-		fmt.Println(err.Error())
-		fmt.Println(*user)
-		return
+	transactionalLog := TransactionalLog{
+		EnterpriseId: enterpriseId,
+		Table:        tableName,
+		Register:     string(JsonData),
+		DateCreated:  time.Now(),
+		RegisterId:   int64(registerId),
+		UserId:       user,
+		Mode:         mode,
 	}
-
+	// insert into transactional log
+	result := dbOrm.Create(&transactionalLog)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 }

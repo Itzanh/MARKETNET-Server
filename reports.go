@@ -74,14 +74,14 @@ func getEnterpriseLogoBase64(enterpriseId int32) string {
 func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
-	customer := getNameCustomer(s.Customer, enterpriseId)
-	address := getAddressRow(s.BillingAddress)
+	paymentMethod := getNamePaymentMethod(s.PaymentMethodId, enterpriseId)
+	customer := getNameCustomer(s.CustomerId, enterpriseId)
+	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesOrderDetail(s.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_ORDER")
@@ -121,7 +121,7 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32)
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product, enterpriseId)
+		product := getNameProduct(details[i].ProductId, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -144,14 +144,14 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32)
 func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	i := getSalesInvoiceRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(i.PaymentMethod, enterpriseId)
-	customer := getNameCustomer(i.Customer, enterpriseId)
-	address := getAddressRow(i.BillingAddress)
+	paymentMethod := getNamePaymentMethod(i.PaymentMethodId, enterpriseId)
+	customer := getNameCustomer(i.CustomerId, enterpriseId)
+	address := getAddressRow(i.BillingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_INVOICE")
@@ -189,7 +189,7 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(*details[i].Product, enterpriseId)
+		product := getNameProduct(*details[i].ProductId, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -208,14 +208,14 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byte {
 	i := getSalesInvoiceRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(i.PaymentMethod, enterpriseId)
-	customer := getNameCustomer(i.Customer, enterpriseId)
-	address := getAddressRow(i.BillingAddress)
+	paymentMethod := getNamePaymentMethod(i.PaymentMethodId, enterpriseId)
+	customer := getNameCustomer(i.CustomerId, enterpriseId)
+	address := getAddressRow(i.BillingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_INVOICE_TICKET")
@@ -253,7 +253,7 @@ func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byt
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(*details[i].Product, enterpriseId)
+		product := getNameProduct(*details[i].ProductId, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -272,14 +272,14 @@ func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byt
 func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte {
 	n := getSalesDeliveryNoteRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(n.PaymentMethod, enterpriseId)
-	customer := getNameCustomer(n.Customer, enterpriseId)
-	address := getAddressRow(n.ShippingAddress)
+	paymentMethod := getNamePaymentMethod(n.PaymentMethodId, enterpriseId)
+	customer := getNameCustomer(n.CustomerId, enterpriseId)
+	address := getAddressRow(n.ShippingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getWarehouseMovementBySalesDeliveryNote(n.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_DELIVERY_NOTE")
@@ -317,7 +317,7 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product, enterpriseId)
+		product := getNameProduct(details[i].ProductId, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -336,14 +336,14 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	s := getPurchaseOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
-	supplier := getNameSupplier(s.Supplier, enterpriseId)
-	address := getAddressRow(s.BillingAddress)
+	paymentMethod := getNamePaymentMethod(s.PaymentMethodId, enterpriseId)
+	supplier := getNameSupplier(s.SupplierId, enterpriseId)
+	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getPurchaseOrderDetail(s.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "PURCHASE_ORDER")
@@ -383,7 +383,7 @@ func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].Product, enterpriseId)
+		product := getNameProduct(details[i].ProductId, enterpriseId)
 
 		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -401,7 +401,7 @@ func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 
 func reportBoxContent(id int, forcePrint bool, enterpriseId int32) []byte {
 	p := getPackagingRow(int64(id))
-	_package := getPackagesRow(p.Package)
+	_package := getPackagesRow(p.PackageId)
 
 	template := getReportTemplate(enterpriseId, "BOX_CONTENT")
 
@@ -423,7 +423,7 @@ func reportBoxContent(id int, forcePrint bool, enterpriseId int32) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		p := getProductRow(getSalesOrderDetailRow(details[i].OrderDetail).Product)
+		p := getProductRow(getSalesOrderDetailRow(details[i].OrderDetailId).ProductId)
 
 		detailHtml = strings.Replace(detailHtml, "$$product_name$$", p.Name, 1)
 		detailHtml = strings.Replace(detailHtml, "$$product_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -446,18 +446,18 @@ func reportPalletContent(id int, forcePrint bool, enterpriseId int32) []byte {
 	template := getReportTemplate(enterpriseId, "PALLET_CONTENT")
 
 	html := template.Html
-	packaging := getPackaging(p.SalesOrder, enterpriseId)
+	packaging := getPackaging(p.SalesOrderId, enterpriseId)
 	boxHtmlTemplate := html[strings.Index(html, "&&box&&")+len("&&box&&") : strings.Index(html, "&&--box--&&")]
 	boxHtml := ""
 	detailHtmlTemplate := html[strings.Index(html, "&&detail&&")+len("&&detail&&") : strings.Index(html, "&&--detail--&&")]
 
 	for i := 0; i < len(packaging); i++ {
-		if *packaging[i].Pallet != p.Id {
+		if *packaging[i].PalletId != p.Id {
 			continue
 		}
 		detailHtml := boxHtmlTemplate
 
-		_package := getPackagesRow(packaging[i].Package)
+		_package := getPackagesRow(packaging[i].PackageId)
 
 		detailHtml = strings.Replace(detailHtml, "$$box_name$$", _package.Name+" ("+fmt.Sprintf("%dx%dx%d", int(_package.Width), int(_package.Height), int(_package.Depth))+")", 1)
 		detailHtml = strings.Replace(detailHtml, "$$box_weight$$", fmt.Sprintf("%.2f", packaging[i].Weight), 1)
@@ -468,7 +468,7 @@ func reportPalletContent(id int, forcePrint bool, enterpriseId int32) []byte {
 		for i := 0; i < len(details); i++ {
 			dPackagedHtml := detailHtmlTemplate
 
-			p := getProductRow(getSalesOrderDetailRow(details[i].OrderDetail).Product)
+			p := getProductRow(getSalesOrderDetailRow(details[i].OrderDetailId).ProductId)
 
 			dPackagedHtml = strings.Replace(dPackagedHtml, "$$product_name$$", p.Name, 1)
 			dPackagedHtml = strings.Replace(dPackagedHtml, "$$product_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
@@ -494,13 +494,13 @@ func reportPalletContent(id int, forcePrint bool, enterpriseId int32) []byte {
 func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
-	customer := getNameCustomer(s.Customer, enterpriseId)
-	address := getAddressRow(s.BillingAddress)
+	customer := getNameCustomer(s.CustomerId, enterpriseId)
+	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	pallets := getSalesOrderPallets(s.Id, enterpriseId).Pallets
 
 	template := getReportTemplate(enterpriseId, "CARRIER_PALLET")
@@ -543,14 +543,14 @@ func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethod, enterpriseId)
-	customer := getNameCustomer(s.Customer, enterpriseId)
-	address := getAddressRow(s.BillingAddress)
+	paymentMethod := getNamePaymentMethod(s.PaymentMethodId, enterpriseId)
+	customer := getNameCustomer(s.CustomerId, enterpriseId)
+	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
-	if address.State != nil {
-		stateName = getNameState(*address.State, enterpriseId)
+	if address.StateId != nil {
+		stateName = getNameState(*address.StateId, enterpriseId)
 	}
-	countryName := getNameCountry(address.Country, enterpriseId)
+	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesOrderDetail(s.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_ORDER_DIGITAL_PRODUCT_DATA")
@@ -593,7 +593,7 @@ func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId
 			continue
 		}
 
-		product := getNameProduct(details[i].Product, enterpriseId)
+		product := getNameProduct(details[i].ProductId, enterpriseId)
 
 		for j := 0; j < len(digitalProductDetails); j++ {
 			detailHtml := detailHtmlTemplate

@@ -1,61 +1,56 @@
 package main
 
-import "strings"
+import (
+	"strings"
+
+	"gorm.io/gorm"
+)
 
 type Carrier struct {
-	Id                      int32   `json:"id"`
-	Name                    string  `json:"name"`
-	MaxWeight               float64 `json:"maxWeight"`
-	MaxWidth                float64 `json:"maxWidth"`
-	MaxHeight               float64 `json:"maxHeight"`
-	MaxDepth                float64 `json:"maxDepth"`
-	MaxPackages             int16   `json:"maxPackages"`
-	Phone                   string  `json:"phone"`
-	Email                   string  `json:"email"`
-	Web                     string  `json:"web"`
-	Off                     bool    `json:"off"`
-	PrestaShopId            int32   `json:"prestaShopId"`
-	Pallets                 bool    `json:"pallets"`
-	Webservice              string  `json:"webservice"`
-	SendcloudUrl            string  `json:"sendcloudUrl"`
-	SendcloudKey            string  `json:"sendcloudKey"`
-	SendcloudSecret         string  `json:"sendcloudSecret"`
-	SendcloudShippingMethod int32   `json:"sendcloudShippingMethod"`
-	SendcloudSenderAddress  int64   `json:"sendcloudSenderAddress"`
-	enterprise              int32
+	Id                      int32    `json:"id" gorm:"index:carrier_id_enterprise,unique:true,priority:1"`
+	Name                    string   `json:"name" gorm:"type:character varying(50);not null:true"`
+	MaxWeight               float64  `json:"maxWeight" gorm:"type:numeric(14,6);not null:true"`
+	MaxWidth                float64  `json:"maxWidth" gorm:"type:numeric(14,6);not null:true"`
+	MaxHeight               float64  `json:"maxHeight" gorm:"type:numeric(14,6);not null:true"`
+	MaxDepth                float64  `json:"maxDepth" gorm:"type:numeric(14,6);not null:true"`
+	MaxPackages             int16    `json:"maxPackages" gorm:"not null:true"`
+	Phone                   string   `json:"phone" gorm:"type:character varying(15);not null:true"`
+	Email                   string   `json:"email" gorm:"type:character varying(100);not null:true"`
+	Web                     string   `json:"web" gorm:"type:character varying(100);not null:true"`
+	Off                     bool     `json:"off" gorm:"not null:true"`
+	PrestaShopId            int32    `json:"prestaShopId" gorm:"column:ps_id;not null:true;index:carrier_ps_id,unique:true,where:ps_id <> 0"`
+	Pallets                 bool     `json:"pallets" gorm:"not null:true"`
+	Webservice              string   `json:"webservice" gorm:"type:character(1);not null:true"`
+	SendcloudUrl            string   `json:"sendcloudUrl" gorm:"type:character varying(75);not null:true"`
+	SendcloudKey            string   `json:"sendcloudKey" gorm:"type:character varying(32);not null:true"`
+	SendcloudSecret         string   `json:"sendcloudSecret" gorm:"type:character varying(32);not null:true"`
+	SendcloudShippingMethod int32    `json:"sendcloudShippingMethod" gorm:"not null:true"`
+	SendcloudSenderAddress  int64    `json:"sendcloudSenderAddress" gorm:"not null:true"`
+	EnterpriseId            int32    `json:"-" gorm:"column:enterprise;not null:true;index:carrier_id_enterprise,unique:true,priority:2"`
+	Enterprise              Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (c *Carrier) TableName() string {
+	return "carrier"
 }
 
 func getCariers(enterpriseId int32) []Carrier {
 	var carriers []Carrier = make([]Carrier, 0)
-	sqlStatement := `SELECT * FROM public.carrier WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return carriers
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := Carrier{}
-		rows.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress, &c.enterprise)
-		carriers = append(carriers, c)
-	}
-
+	dbOrm.Model(&Carrier{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&carriers)
 	return carriers
 }
 
 func getCarierRow(id int32) Carrier {
-	sqlStatement := `SELECT * FROM public.carrier WHERE id=$1`
-	row := db.QueryRow(sqlStatement, id)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Carrier{}
-	}
-
 	c := Carrier{}
-	row.Scan(&c.Id, &c.Name, &c.MaxWeight, &c.MaxWidth, &c.MaxHeight, &c.MaxDepth, &c.MaxPackages, &c.Phone, &c.Email, &c.Web, &c.Off, &c.PrestaShopId, &c.Pallets, &c.Webservice, &c.SendcloudUrl, &c.SendcloudKey, &c.SendcloudSecret, &c.SendcloudShippingMethod, &c.SendcloudSenderAddress, &c.enterprise)
-
+	dbOrm.Model(&Carrier{}).Where("id = ?", id).First(&c)
 	return c
+}
+
+func (c *Carrier) BeforeCreate(tx *gorm.DB) (err error) {
+	var carrier Carrier
+	tx.Model(&Carrier{}).Last(&carrier)
+	c.Id = carrier.Id + 1
+	return nil
 }
 
 func (c *Carrier) isValid() bool {
@@ -67,15 +62,13 @@ func (c *Carrier) insertCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.carrier(name, max_weight, max_width, max_height, max_depth, max_packages, phone, email, web, off, ps_id, pallets, webservice, sendcloud_url, sendcloud_key, sendcloud_secret, sendcloud_shipping_method, sendcloud_sender_address, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`
-	res, err := db.Exec(sqlStatement, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.PrestaShopId, c.Pallets, c.Webservice, c.SendcloudUrl, c.SendcloudKey, c.SendcloudSecret, c.SendcloudShippingMethod, c.SendcloudSenderAddress, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (c *Carrier) updateCarrier() bool {
@@ -83,15 +76,38 @@ func (c *Carrier) updateCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.carrier SET name=$2, max_weight=$3, max_width=$4, max_height=$5, max_depth=$6, max_packages=$7, phone=$8, email=$9, web=$10, off=$11, pallets=$12, webservice=$13, sendcloud_url=$14, sendcloud_key=$15, sendcloud_secret=$16, sendcloud_shipping_method=$17, sendcloud_sender_address=$18 WHERE id=$1 AND enterprise=$19`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.MaxWeight, c.MaxWidth, c.MaxHeight, c.MaxDepth, c.MaxPackages, c.Phone, c.Email, c.Web, c.Off, c.Pallets, c.Webservice, c.SendcloudUrl, c.SendcloudKey, c.SendcloudSecret, c.SendcloudShippingMethod, c.SendcloudSenderAddress, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var carrier Carrier
+	result := dbOrm.Model(&Carrier{}).Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).First(&carrier)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	carrier.Name = c.Name
+	carrier.MaxWeight = c.MaxWeight
+	carrier.MaxWidth = c.MaxWidth
+	carrier.MaxHeight = c.MaxHeight
+	carrier.MaxDepth = c.MaxDepth
+	carrier.MaxPackages = c.MaxPackages
+	carrier.Phone = c.Phone
+	carrier.Email = c.Email
+	carrier.Web = c.Web
+	carrier.Off = c.Off
+	carrier.PrestaShopId = c.PrestaShopId
+	carrier.Pallets = c.Pallets
+	carrier.Webservice = c.Webservice
+	carrier.SendcloudUrl = c.SendcloudUrl
+	carrier.SendcloudSecret = c.SendcloudSecret
+	carrier.SendcloudShippingMethod = c.SendcloudShippingMethod
+	carrier.SendcloudSenderAddress = c.SendcloudSenderAddress
+
+	result = dbOrm.Save(&carrier)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (c *Carrier) deleteCarrier() bool {
@@ -99,67 +115,43 @@ func (c *Carrier) deleteCarrier() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.carrier WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).Delete(&Carrier{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
-func findCarrierByName(languageName string, enterpriseId int32) []NameInt16 {
-	var carriers []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.carrier WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func findCarrierByName(carrierName string, enterpriseId int32) []NameInt32 {
+	var carriers []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Carrier{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(carrierName), enterpriseId).Limit(10).Find(&carriers)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return carriers
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := NameInt16{}
-		rows.Scan(&c.Id, &c.Name)
-		carriers = append(carriers, c)
 	}
 
 	return carriers
 }
 
 func getNameCarrier(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.carrier WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var carrier Carrier
+	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&carrier)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return carrier.Name
 }
 
-type LocateCarrier struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-}
-
-func locateCarriers(enterpriseId int32) []LocateCarrier {
-	var carriers []LocateCarrier = make([]LocateCarrier, 0)
-	sqlStatement := `SELECT id,name FROM public.carrier WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func locateCarriers(enterpriseId int32) []NameInt32 {
+	var carriers []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Carrier{}).Where("enterprise = ?", enterpriseId).Find(&carriers)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return carriers
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := LocateCarrier{}
-		rows.Scan(&c.Id, &c.Name)
-		carriers = append(carriers, c)
 	}
 
 	return carriers

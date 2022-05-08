@@ -1,53 +1,54 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"strings"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Country struct {
-	Id          int32  `json:"id"`
-	Name        string `json:"name"`
-	Iso2        string `json:"iso2"`
-	Iso3        string `json:"iso3"`
-	UNCode      int16  `json:"unCode"`
-	Zone        string `json:"zone"` // N = National, U = European Union, E = Export
-	PhonePrefix int16  `json:"phonePrefix"`
-	Language    *int32 `json:"language"`
-	Currency    *int32 `json:"currency"`
-	enterprise  int32
+	Id           int32     `json:"id" gorm:"index:country_id_enterprise,unique:true,priority:1"`
+	Name         string    `json:"name" gorm:"type:character varying(50);not null:true;index:country_name,type:gin"`
+	Iso2         string    `json:"iso2" gorm:"column:iso_2;type:character(2);not null:true;index:country_iso_2,unique:true,priority:2"`
+	Iso3         string    `json:"iso3" gorm:"column:iso_3;type:character(3);not null:true;index:country_iso_3,unique:true,priority:2,where:iso_3 <> ''::bpchar"`
+	UNCode       int16     `json:"unCode" gorm:"not null:true"`
+	Zone         string    `json:"zone" gorm:"type:character(1);not null:true"` // N = National, U = European Union, E = Export
+	PhonePrefix  int16     `json:"phonePrefix" gorm:"not null:true"`
+	LanguageId   *int32    `json:"languageId" gorm:"column:language"`
+	Language     *Language `json:"language" gorm:"foreignKey:LanguageId,EnterpriseId;references:Id,EnterpriseId"`
+	CurrencyId   *int32    `json:"currencyId" gorm:"column:currency"`
+	Currency     *Currency `json:"currency" gorm:"foreignKey:CurrencyId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId int32     `json:"-" gorm:"column:enterprise;not null:true;index:country_id_enterprise,unique:true,priority:2;index:country_iso_2,unique:true,priority:1;index:country_iso_3,unique:true,priority:1,where:iso_3 <> ''::bpchar"`
+	Enterprise   Settings  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (c *Country) TableName() string {
+	return "country"
 }
 
 func getCountries(enterpriseId int32) []Country {
 	var countries []Country = make([]Country, 0)
-	sqlStatement := `SELECT * FROM public.country WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Country{}).Where("country.enterprise = ?", enterpriseId).Joins("Language").Joins("Currency").Order("id ASC").Find(&countries)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return countries
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := Country{}
-		rows.Scan(&c.Id, &c.Name, &c.Iso2, &c.Iso3, &c.UNCode, &c.Zone, &c.PhonePrefix, &c.Language, &c.Currency, &c.enterprise)
-		countries = append(countries, c)
 	}
 
 	return countries
 }
 
 func getCountryRow(id int32, enterpriseId int32) Country {
-	sqlStatement := `SELECT * FROM public.country WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var currency Country
+	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).Preload(clause.Associations).First(&currency)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return Country{}
 	}
 
-	c := Country{}
-	row.Scan(&c.Id, &c.Name, &c.Iso2, &c.Iso3, &c.UNCode, &c.Zone, &c.PhonePrefix, &c.Language, &c.Currency, &c.enterprise)
-
-	return c
+	return currency
 }
 
 func (c *Country) isValid() bool {
@@ -56,21 +57,21 @@ func (c *Country) isValid() bool {
 
 func searchCountries(search string, enterpriseId int32) []Country {
 	var countries []Country = make([]Country, 0)
-	sqlStatement := `SELECT * FROM public.country WHERE (name ILIKE $1 OR iso_2 = UPPER($2) OR iso_3 = UPPER($2)) AND enterprise=$3 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, "%"+search+"%", search, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Country{}).Where("(country.name ILIKE @search_contains OR country.iso_2 = UPPER(@search) OR country.iso_3 = UPPER(@search)) AND country.enterprise=@enterprise_id",
+		sql.Named("search_contains", "%"+search+"%"), sql.Named("search", search), sql.Named("enterprise_id", enterpriseId)).Joins("Language").Joins("Currency").Order("id ASC").Find(&countries)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return countries
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := Country{}
-		rows.Scan(&c.Id, &c.Name, &c.Iso2, &c.Iso3, &c.UNCode, &c.Zone, &c.PhonePrefix, &c.Language, &c.Currency, &c.enterprise)
-		countries = append(countries, c)
 	}
 
 	return countries
+}
+
+func (c *Country) BeforeCreate(tx *gorm.DB) (err error) {
+	var country Country
+	tx.Model(&Country{}).Last(&country)
+	c.Id = country.Id + 1
+	return nil
 }
 
 func (c *Country) insertCountry() bool {
@@ -78,15 +79,14 @@ func (c *Country) insertCountry() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.country(name, iso_2, iso_3, un_code, zone, phone_prefix, language, currency, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	res, err := db.Exec(sqlStatement, c.Name, c.Iso2, c.Iso3, c.UNCode, c.Zone, c.PhonePrefix, c.Language, c.Currency, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&c)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (c *Country) updateCountry() bool {
@@ -94,15 +94,29 @@ func (c *Country) updateCountry() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.country SET name=$2, iso_2=$3, iso_3=$4, un_code=$5, zone=$6, phone_prefix=$7, language=$8, currency=$9 WHERE id=$1 AND enterprise=$10`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Iso2, c.Iso3, c.UNCode, c.Zone, c.PhonePrefix, c.Language, c.Currency, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var country Country
+	result := dbOrm.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).First(&country)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	country.Name = c.Name
+	country.Iso2 = c.Iso2
+	country.Iso3 = c.Iso3
+	country.UNCode = c.UNCode
+	country.Zone = c.Zone
+	country.PhonePrefix = c.PhonePrefix
+	country.LanguageId = c.LanguageId
+	country.CurrencyId = c.CurrencyId
+
+	result = dbOrm.Save(&country)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (c *Country) deleteCountry() bool {
@@ -110,44 +124,33 @@ func (c *Country) deleteCountry() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.country WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).Delete(&Country{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
-func findCountryByName(languageName string, enterpriseId int32) []NameInt16 {
-	var countries []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.country WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func findCountryByName(countryName string, enterpriseId int32) []NameInt32 {
+	var countries []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Country{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(countryName), enterpriseId).Limit(10).Find(&countries)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return countries
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := NameInt16{}
-		rows.Scan(&c.Id, &c.Name)
-		countries = append(countries, c)
 	}
 
 	return countries
 }
 
 func getNameCountry(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.country WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var country Country
+	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&country)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return country.Name
 }

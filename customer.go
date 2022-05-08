@@ -1,40 +1,57 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Customer struct {
-	Id                  int32     `json:"id"`
-	Name                string    `json:"name"`
-	Tradename           string    `json:"tradename"`
-	FiscalName          string    `json:"fiscalName"`
-	TaxId               string    `json:"taxId"`
-	VatNumber           string    `json:"vatNumber"`
-	Phone               string    `json:"phone"`
-	Email               string    `json:"email"`
-	MainAddress         *int32    `json:"mainAddress"`
-	Country             *int32    `json:"country"`
-	State               *int32    `json:"state"`
-	MainShippingAddress *int32    `json:"mainShippingAddress"`
-	MainBillingAddress  *int32    `json:"mainBillingAddress"`
-	Language            *int32    `json:"language"`
-	PaymentMethod       *int32    `json:"paymentMethod"`
-	BillingSeries       *string   `json:"billingSeries"`
-	DateCreated         time.Time `json:"dateCreated"`
-	Account             *int32    `json:"account"`
-	CountryName         *string   `json:"countryName"`
-	wooCommerceId       int32
-	prestaShopId        int32
-	shopifyId           int64
-	enterprise          int32
+	Id                    int32          `json:"id" gorm:"index:customer_id_enterprise,unique:true,priority:1"`
+	Name                  string         `json:"name" gorm:"type:character varying(303);not null:true;index:customer_name_trgm,type:gin"`
+	Tradename             string         `json:"tradename" gorm:"type:character varying(150);not null:true"`
+	FiscalName            string         `json:"fiscalName" gorm:"type:character varying(150);not null:true"`
+	TaxId                 string         `json:"taxId" gorm:"type:character varying(25);not null:true;index:customer_tax_id,type:gin"`
+	VatNumber             string         `json:"vatNumber" gorm:"type:character varying(25);not null:true"`
+	Phone                 string         `json:"phone" gorm:"type:character varying(15);not null:true"`
+	Email                 string         `json:"email" gorm:"type:character varying(150);not null:true;index:customer_email,type:gin"`
+	MainAddressId         *int32         `json:"mainAddressId" gorm:"column:main_address"`
+	MainAddress           *Address       `json:"mainAddress" gorm:"foreignKey:MainAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	CountryId             *int32         `json:"countryId" gorm:"column:country"`
+	Country               *Country       `json:"country" gorm:"foreignKey:CountryId,EnterpriseId;references:Id,EnterpriseId"`
+	StateId               *int32         `json:"stateId" gorm:"column:state"`
+	State                 *State         `json:"state" gorm:"foreignKey:StateId,EnterpriseId;references:Id,EnterpriseId"`
+	MainShippingAddressId *int32         `json:"mainShippingAddressId" gorm:"column:main_shipping_address"`
+	MainShippingAddress   *Address       `json:"mainShippingAddress" gorm:"foreignKey:MainShippingAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	MainBillingAddressId  *int32         `json:"mainBillingAddressId" gorm:"column:main_billing_address"`
+	MainBillingAddress    *Address       `json:"mainBillingAddress" gorm:"foreignKey:MainBillingAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	LanguageId            *int32         `json:"languageId" gorm:"column:language"`
+	Language              *Language      `json:"language" gorm:"foreignKey:LanguageId,EnterpriseId;references:Id,EnterpriseId"`
+	PaymentMethodId       *int32         `json:"paymentMethodId" gorm:"column:payment_method"`
+	PaymentMethod         *PaymentMethod `json:"paymentMethod" gorm:"foreignKey:PaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
+	BillingSeriesId       *string        `json:"billingSeriesId" gorm:"type:character(3);column:billing_series"`
+	BillingSeries         *BillingSerie  `json:"billingSeries" gorm:"foreignKey:BillingSeriesId,EnterpriseId;references:Id,EnterpriseId"`
+	DateCreated           time.Time      `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	PrestaShopId          int32          `json:"-" gorm:"column:ps_id;not null:true;index:customer_ps_id,unique:true,priority:2,where:ps_id <> 0"`
+	AccountId             *int32         `json:"accountId" gorm:"column:account"`
+	Account               *Account       `json:"account" gorm:"foreignKey:AccountId,EnterpriseId;references:Id,EnterpriseId"`
+	WooCommerceId         int32          `json:"-" gorm:"column:wc_id;not null:true;index:customer_wc_id,unique:true,priority:2,where:wc_id <> 0"`
+	ShopifyId             int64          `json:"-" gorm:"column:sy_id;not null:true;index:customer_sy_id,unique:true,priority:2,where:sy_id <> 0"`
+	EnterpriseId          int32          `json:"-" gorm:"column:enterprise;not null:true;index:customer_id_enterprise,unique:true,priority:2;index:customer_ps_id,unique:true,priority:1,where:ps_id <> 0;index:customer_wc_id,unique:true,priority:1,where:wc_id <> 0;index:customer_sy_id,unique:true,priority:1,where:sy_id <> 0"`
+	Enterprise            Settings       `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (c *Customer) TableName() string {
+	return "customer"
 }
 
 type Customers struct {
-	Rows      int32      `json:"rows"`
+	Rows      int64      `json:"rows"`
 	Customers []Customer `json:"customers"`
 }
 
@@ -45,27 +62,11 @@ func (q *PaginationQuery) getCustomers() Customers {
 	}
 
 	ct.Customers = make([]Customer, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM public.customer WHERE enterprise=$3 ORDER BY id DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		return ct
-	}
-	defer rows.Close()
+	// get all customers from the database using dbOrm
+	dbOrm.Model(&Customer{}).Limit(int(q.Limit)).Offset(int(q.Offset)).Preload(clause.Associations).Order("customer.id DESC").Find(&ct.Customers)
 
-	for rows.Next() {
-		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.enterprise, &c.CountryName)
-		ct.Customers = append(ct.Customers, c)
-	}
-
-	sqlStatement = `SELECT COUNT(*) FROM customer WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return ct
-	}
-	row.Scan(&ct.Rows)
+	// get the total number of customers from the database using dbOrm
+	dbOrm.Model(&Customer{}).Count(&ct.Rows)
 
 	return ct
 }
@@ -77,47 +78,46 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	}
 
 	ct.Customers = make([]Customer, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM country WHERE country.id=customer.country) FROM customer WHERE (name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1) AND enterprise=$4 ORDER BY id DESC LIMIT $2 OFFSET $3`
-	rows, err := db.Query(sqlStatement, "%"+s.Search+"%", s.Limit, s.Offset, s.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		return ct
-	}
-	defer rows.Close()
 
-	for rows.Next() {
-		c := Customer{}
-		rows.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.enterprise, &c.CountryName)
-		ct.Customers = append(ct.Customers, c)
-	}
+	// get all customers from the database using dbOrm
+	dbOrm.Model(&Customer{}).Where("(name ILIKE @search OR tax_id ILIKE @search OR email ILIKE @search) AND enterprise = @enterpriseId", sql.Named("search", "%"+s.Search+"%"), sql.Named("enterpriseId", s.enterprise)).Limit(int(s.Limit)).Offset(int(s.Offset)).Preload(clause.Associations).Order("customer.id DESC").Find(&ct.Customers)
 
-	sqlStatement = `SELECT COUNT(*) FROM customer WHERE (name ILIKE $1 OR tax_id ILIKE $1 OR email ILIKE $1) AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, "%"+s.Search+"%", s.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return ct
-	}
-	row.Scan(&ct.Rows)
+	// get the total number of customers from the database using dbOrm
+	dbOrm.Model(&Customer{}).Count(&ct.Rows)
 
 	return ct
 }
 
 func getCustomerRow(customerId int32) Customer {
-	sqlStatement := `SELECT * FROM public.customer WHERE id=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, customerId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Customer{}
-	}
-
+	// get a single customer from the database using dbOrm
 	c := Customer{}
-	row.Scan(&c.Id, &c.Name, &c.Tradename, &c.FiscalName, &c.TaxId, &c.VatNumber, &c.Phone, &c.Email, &c.MainAddress, &c.Country, &c.State, &c.MainShippingAddress, &c.MainBillingAddress, &c.Language, &c.PaymentMethod, &c.BillingSeries, &c.DateCreated, &c.prestaShopId, &c.Account, &c.wooCommerceId, &c.shopifyId, &c.enterprise)
+	result := dbOrm.Model(&Customer{}).Where("id = ?", customerId).First(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
+	return c
+}
 
+func getCustomerEnterpriseRow(customerId int32, enterpriseId int32) Customer {
+	// get a single customer from the database using dbOrm
+	c := Customer{}
+	result := dbOrm.Model(&Customer{}).Where("id = ? AND enterprise = ?", customerId, enterpriseId).Preload(clause.Associations).First(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return c
 }
 
 func (c *Customer) isValid() bool {
 	return !(len(c.Name) == 0 || len(c.Name) > 303 || len(c.Tradename) == 0 || len(c.Tradename) > 150 || len(c.FiscalName) == 0 || len(c.FiscalName) > 150 || len(c.TaxId) > 25 || len(c.VatNumber) > 25 || len(c.Phone) > 25 || len(c.Email) > 100 || (len(c.Email) > 0 && !emailIsValid(c.Email)) || (len(c.Phone) > 0 && !phoneIsValid(c.Phone)))
+}
+
+// set the new customer id before create in gorm
+func (c *Customer) BeforeCreate(tx *gorm.DB) (err error) {
+	var customer Customer
+	tx.Model(&Customer{}).Last(&customer)
+	c.Id = customer.Id + 1
+	return nil
 }
 
 // 1 = Invalid
@@ -128,33 +128,30 @@ func (c *Customer) insertCustomer(userId int32) OperationResult {
 	}
 
 	// prevent error in the biling serie
-	if c.BillingSeries != nil && *c.BillingSeries == "" {
-		c.BillingSeries = nil
+	if c.BillingSeriesId != nil && *c.BillingSeriesId == "" {
+		c.BillingSeriesId = nil
 	}
 
 	// set the accounting account
-	if c.Country != nil && c.Account == nil {
+	if c.CountryId != nil && c.AccountId == nil {
 		c.setCustomerAccount()
 	}
 
-	sqlStatement := `INSERT INTO public.customer(name, tradename, fiscal_name, tax_id, vat_number, phone, email, main_address, country, state, main_shipping_address, main_billing_address, language, payment_method, billing_series, ps_id, account, wc_id, sy_id, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`
-	row := db.QueryRow(sqlStatement, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.prestaShopId, c.Account, c.wooCommerceId, c.shopifyId, c.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	c.DateCreated = time.Now()
+
+	result := dbOrm.Create(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OperationResult{Code: 2}
 	}
 
-	var customerId int32
-	row.Scan(&customerId)
-	c.Id = customerId
-
-	if customerId > 0 {
-		insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "I")
+	if c.Id > 0 {
+		insertTransactionalLog(c.EnterpriseId, "customer", int(c.Id), userId, "I")
 		json, _ := json.Marshal(c)
-		go fireWebHook(c.enterprise, "customer", "POST", string(json))
+		go fireWebHook(c.EnterpriseId, "customer", "POST", string(json))
 	}
 
-	return OperationResult{Id: int64(customerId)}
+	return OperationResult{Id: int64(c.Id)}
 }
 
 func (c *Customer) updateCustomer(userId int32) bool {
@@ -163,28 +160,53 @@ func (c *Customer) updateCustomer(userId int32) bool {
 	}
 
 	// prevent error in the biling serie
-	if c.BillingSeries != nil && *c.BillingSeries == "" {
-		c.BillingSeries = nil
+	if c.BillingSeriesId != nil && *c.BillingSeriesId == "" {
+		c.BillingSeriesId = nil
 	}
 
 	// set the accounting account
-	if c.Country != nil && c.Account == nil {
+	if c.CountryId != nil && c.AccountId == nil {
 		c.setCustomerAccount()
 	}
 
-	sqlStatement := `UPDATE public.customer SET name=$2, tradename=$3, fiscal_name=$4, tax_id=$5, vat_number=$6, phone=$7, email=$8, main_address=$9, country=$10, state=$11, main_shipping_address=$12, main_billing_address=$13, language=$14, payment_method=$15, billing_series=$16, account=$17 WHERE id=$1 AND enterprise=$18`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Tradename, c.FiscalName, c.TaxId, c.VatNumber, c.Phone, c.Email, c.MainAddress, c.Country, c.State, c.MainShippingAddress, c.MainBillingAddress, c.Language, c.PaymentMethod, c.BillingSeries, c.Account, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	// get a single customer row from the database where id and enterprise are c.Id and c.EnterpriseId
+	var customer Customer
+	result := dbOrm.Model(&Customer{}).Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).First(&customer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "U")
-	json, _ := json.Marshal(c)
-	go fireWebHook(c.enterprise, "customer", "PUT", string(json))
+	// copy all the fields from c to customer
+	customer.Name = c.Name
+	customer.Tradename = c.Tradename
+	customer.FiscalName = c.FiscalName
+	customer.TaxId = c.TaxId
+	customer.VatNumber = c.VatNumber
+	customer.Phone = c.Phone
+	customer.Email = c.Email
+	customer.MainAddressId = c.MainAddressId
+	customer.CountryId = c.CountryId
+	customer.StateId = c.StateId
+	customer.MainShippingAddressId = c.MainShippingAddressId
+	customer.MainBillingAddressId = c.MainBillingAddressId
+	customer.LanguageId = c.LanguageId
+	customer.PaymentMethodId = c.PaymentMethodId
+	customer.BillingSeriesId = c.BillingSeriesId
+	customer.AccountId = c.AccountId
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	// update the customer in the database
+	result = dbOrm.Save(&customer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	insertTransactionalLog(c.EnterpriseId, "customer", int(c.Id), userId, "U")
+	json, _ := json.Marshal(c)
+	go fireWebHook(c.EnterpriseId, "customer", "PUT", string(json))
+
+	return true
 }
 
 func (c *Customer) deleteCustomer(userId int32) bool {
@@ -192,149 +214,142 @@ func (c *Customer) deleteCustomer(userId int32) bool {
 		return false
 	}
 
-	insertTransactionalLog(c.enterprise, "customer", int(c.Id), userId, "D")
+	insertTransactionalLog(c.EnterpriseId, "customer", int(c.Id), userId, "D")
 	json, _ := json.Marshal(c)
-	go fireWebHook(c.enterprise, "customer", "DELETE", string(json))
+	go fireWebHook(c.EnterpriseId, "customer", "DELETE", string(json))
 
-	sqlStatement := `DELETE FROM public.customer WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).Delete(&Customer{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func findCustomerByName(customerName string, enterpriseId int32) []NameInt32 {
 	var customers []NameInt32 = make([]NameInt32, 0)
-	sqlStatement := `SELECT id,name FROM public.customer WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(customerName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// get 10 customers from the database where name like customerName and enterprise is enterpriseId
+	result := dbOrm.Model(&Customer{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(customerName), enterpriseId).Limit(10).Scan(&customers)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return customers
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := NameInt32{}
-		rows.Scan(&c.Id, &c.Name)
-		customers = append(customers, c)
-	}
-
 	return customers
 }
 
 func getNameCustomer(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.customer WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	// get a single customer from the database where id and enterprise are id and enterpriseId and return the name
+	var customer Customer
+	result := dbOrm.Model(&Customer{}).Where("id = ? AND enterprise = ?", id, enterpriseId).First(&customer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+	return customer.Name
 }
 
 // Used both in customers and suppliers
 type ContactDefauls struct {
-	MainShippingAddress     *int32   `json:"mainShippingAddress"`
-	MainShippingAddressName *string  `json:"mainShippingAddressName"`
-	MainBillingAddress      *int32   `json:"mainBillingAddress"`
-	MainBillingAddressName  *string  `json:"mainBillingAddressName"`
-	PaymentMethod           *int32   `json:"paymentMethod"`
-	PaymentMethodName       *string  `json:"paymentMethodName"`
-	BillingSeries           *string  `json:"billingSeries"`
-	BillingSeriesName       *string  `json:"billingSeriesName"`
-	Currency                *int32   `json:"currency"`
-	CurrencyName            *string  `json:"currencyName"`
-	CurrencyChange          *float64 `json:"currencyChange"`
+	MainShippingAddress     *int32  `json:"mainShippingAddress"`
+	MainShippingAddressName *string `json:"mainShippingAddressName"`
+	MainBillingAddress      *int32  `json:"mainBillingAddress"`
+	MainBillingAddressName  *string `json:"mainBillingAddressName"`
+	PaymentMethod           *int32  `json:"paymentMethod"`
+	PaymentMethodName       *string `json:"paymentMethodName"`
+	BillingSeries           *string `json:"billingSeries"`
+	BillingSeriesName       *string `json:"billingSeriesName"`
+	Currency                *int32  `json:"currency"`
+	CurrencyName            *string `json:"currencyName"`
+	CurrencyChange          float64 `json:"currencyChange"`
 }
 
 func getCustomerDefaults(customerId int32, enterpriseId int32) ContactDefauls {
-	sqlStatement := `SELECT main_shipping_address, (SELECT address AS main_shipping_address_name FROM address WHERE address.id = customer.main_shipping_address), main_billing_address, (SELECT address AS main_billing_address_name FROM address WHERE address.id = customer.main_billing_address), payment_method, (SELECT name AS payment_method_name FROM payment_method WHERE payment_method.id = customer.payment_method), billing_series, (SELECT name AS billing_series_name FROM billing_series WHERE billing_series.id = customer.billing_series AND billing_series.enterprise=customer.enterprise), (SELECT currency FROM country WHERE country.id = customer.country), (SELECT name AS currency_name FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)), (SELECT exchange FROM currency WHERE currency.id = (SELECT currency FROM country WHERE country.id = customer.country)) FROM public.customer WHERE id = $1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, customerId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	// get a single customer from the database where id and enterprise are customerId and enterpriseId
+	var customer Customer
+	result := dbOrm.Model(&Customer{}).Where("id = ? AND enterprise = ?", customerId, enterpriseId).Preload(clause.Associations).First(&customer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ContactDefauls{}
 	}
-	c := ContactDefauls{}
-	row.Scan(&c.MainShippingAddress, &c.MainShippingAddressName, &c.MainBillingAddress, &c.MainBillingAddressName, &c.PaymentMethod, &c.PaymentMethodName, &c.BillingSeries, &c.BillingSeriesName, &c.Currency, &c.CurrencyName, &c.CurrencyChange)
 
-	return c
+	var contactDefauls ContactDefauls = ContactDefauls{}
+
+	contactDefauls.MainShippingAddress = customer.MainShippingAddressId
+	if customer.MainShippingAddressId != nil {
+		contactDefauls.MainShippingAddressName = &customer.MainShippingAddress.Address
+	}
+
+	contactDefauls.MainBillingAddress = customer.MainBillingAddressId
+	if customer.MainBillingAddressId != nil {
+		contactDefauls.MainBillingAddressName = &customer.MainBillingAddress.Address
+	}
+
+	contactDefauls.PaymentMethod = customer.PaymentMethodId
+	if customer.PaymentMethodId != nil {
+		contactDefauls.PaymentMethodName = &customer.PaymentMethod.Name
+	}
+
+	contactDefauls.BillingSeries = customer.BillingSeriesId
+	if customer.BillingSeriesId != nil {
+		contactDefauls.BillingSeriesName = &customer.BillingSeries.Name
+	}
+
+	if customer.CountryId != nil {
+		country := getCountryRow(*customer.CountryId, enterpriseId)
+		if country.Currency != nil {
+			contactDefauls.Currency = &country.Currency.Id
+			contactDefauls.CurrencyName = &country.Currency.Name
+			contactDefauls.CurrencyChange = country.Currency.Change
+		}
+	}
+
+	return contactDefauls
 }
 
 func getCustomerAddresses(customerId int32, enterpriseId int32) []Address {
 	var addresses []Address = make([]Address, 0)
-	sqlStatement := `SELECT *,CASE WHEN address.customer IS NOT NULL THEN (SELECT name FROM customer WHERE customer.id=address.customer) ELSE (SELECT name FROM suppliers WHERE suppliers.id=address.supplier) END,(SELECT name FROM country WHERE country.id=address.country),(SELECT name FROM state WHERE state.id=address.state) FROM address WHERE customer=$1 AND enterprise=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, customerId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// get all the addresses from the database where customer is customerId and enterprise is enterpriseId
+	result := dbOrm.Model(&Address{}).Where("customer = ? AND enterprise = ?", customerId, enterpriseId).Preload(clause.Associations).Find(&addresses)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return addresses
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := Address{}
-		rows.Scan(&a.Id, &a.Customer, &a.Address, &a.Address2, &a.State, &a.City, &a.Country, &a.PrivateOrBusiness, &a.Notes, &a.Supplier, &a.prestaShopId, &a.ZipCode, &a.shopifyId, &a.enterprise, &a.ContactName, &a.CountryName, &a.StateName)
-		addresses = append(addresses, a)
-	}
-
 	return addresses
 }
 
 func getCustomerSaleOrders(customerId int32, enterpriseId int32) []SaleOrder {
 	var sales []SaleOrder = make([]SaleOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_order.customer) FROM sales_order WHERE customer=$1 AND enterprise=$2 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, customerId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// get all the sale orders from the database where customer is customerId and enterprise is enterpriseId
+	result := dbOrm.Model(&SaleOrder{}).Where("customer = ? AND enterprise = ?", customerId, enterpriseId).Preload(clause.Associations).Order("date_created DESC").Find(&sales)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return sales
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		s := SaleOrder{}
-		rows.Scan(&s.Id, &s.Warehouse, &s.Reference, &s.Customer, &s.DateCreated, &s.DatePaymetAccepted, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
-			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.Status, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.Carrier, &s.prestaShopId,
-			&s.wooCommerceId, &s.shopifyId, &s.shopifyDraftId, &s.enterprise, &s.CustomerName)
-		sales = append(sales, s)
-	}
-
 	return sales
 }
 
 func (c *Customer) setCustomerAccount() {
-	sqlStatement := `SELECT un_code FROM country WHERE id=$1`
-	row := db.QueryRow(sqlStatement, c.Country)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	if c.CountryId != nil {
+		country := getCountryRow(*c.CountryId, c.EnterpriseId)
+		if country.UNCode <= 0 {
+			return
+		}
+	}
+
+	settings := getSettingsRecordById(c.EnterpriseId)
+	if settings.CustomerJournalId == nil {
 		return
 	}
 
-	var unCode int16
-	row.Scan(&unCode)
-	if unCode <= 0 {
-		return
+	a := Account{}
+	a.JournalId = *settings.CustomerJournalId
+	a.Name = c.FiscalName
+	a.EnterpriseId = c.EnterpriseId
+	ok := a.insertAccount()
+	if ok {
+		c.AccountId = &a.Id
 	}
-
-	s := getSettingsRecordById(c.enterprise)
-	if s.CustomerJournal == nil {
-		return
-	}
-
-	aId := getAccountIdByAccountNumber(*s.CustomerJournal, int32(unCode), c.enterprise) // 430 -> standard for "Customers"
-	if aId > 0 {
-		c.Account = &aId
-	}
-}
-
-type CustomerLocate struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
 }
 
 type CustomerLocateQuery struct {
@@ -342,34 +357,25 @@ type CustomerLocateQuery struct {
 	Value string `json:"value"`
 }
 
-func (q *CustomerLocateQuery) locateCustomers(enterpriseId int32) []CustomerLocate {
-	var customers []CustomerLocate = make([]CustomerLocate, 0)
-	sqlStatement := ``
+func (q *CustomerLocateQuery) locateCustomers(enterpriseId int32) []NameInt32 {
+	var customers []NameInt32 = make([]NameInt32, 0)
+	var query string
 	parameters := make([]interface{}, 0)
 	if q.Value == "" {
-		sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC LIMIT 100`
+		query = ""
 	} else if q.Mode == 0 {
 		id, err := strconv.Atoi(q.Value)
 		if err != nil {
-			sqlStatement = `SELECT id,name FROM public.customer ORDER BY id ASC LIMIT 100`
+			query = ""
 		} else {
-			sqlStatement = `SELECT id,name FROM public.customer WHERE id=$1`
+			query = `id = ?`
 			parameters = append(parameters, id)
 		}
 	} else if q.Mode == 1 {
-		sqlStatement = `SELECT id,name FROM public.customer WHERE name ILIKE $1 ORDER BY id ASC LIMIT 100`
+		query = `name LIKE ?`
 		parameters = append(parameters, "%"+q.Value+"%")
 	}
-	rows, err := db.Query(sqlStatement, parameters...)
-	if err != nil {
-		log("DB", err.Error())
-		return customers
-	}
-	for rows.Next() {
-		c := CustomerLocate{}
-		rows.Scan(&c.Id, &c.Name)
-		customers = append(customers, c)
-	}
+	dbOrm.Model(&Customer{}).Where(query, parameters...).Limit(100).Order("id ASC").Find(&customers)
 
 	return customers
 }

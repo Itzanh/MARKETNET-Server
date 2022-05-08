@@ -3,17 +3,24 @@ package main
 import (
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type ConnectionLog struct {
 	Id               int64      `json:"id"`
-	DateConnected    time.Time  `json:"dateConnected"`
-	DateDisconnected *time.Time `json:"dateDisconnected"`
-	User             int32      `json:"user"`
-	Ok               bool       `json:"ok"`
-	IpAddress        string     `json:"ipAddress"`
-	UserName         string     `json:"userName"`
-	enterprise       int32
+	DateConnected    time.Time  `json:"dateConnected" gorm:"type:timestamp(3) with time zone;not null:true;index:connection_log_date_connected,sort:desc;index:connection_log_user_date_connected,sort:desc,priority:2,where:date_disconnected IS NULL"`
+	DateDisconnected *time.Time `json:"dateDisconnected" gorm:"type:timestamp(3) with time zone"`
+	UserId           int32      `json:"userId" gorm:"column:user;not null:true;index:connection_log_user_date_connected,priority:1,where:date_disconnected IS NULL"`
+	User             User       `json:"user" gorm:"foreignkey:UserId,EnterpriseId;references:Id,EnterpriseId"`
+	Ok               bool       `json:"ok" gorm:"not null:true"`
+	IpAddress        string     `json:"ipAddress" gorm:"not null:true;type:character varying(15)"`
+	EnterpriseId     int32      `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise       Settings   `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (cl *ConnectionLog) TableName() string {
+	return "connection_log"
 }
 
 type ConnectionLogs struct {
@@ -23,36 +30,35 @@ type ConnectionLogs struct {
 
 func (q *PaginationQuery) getConnectionLogs() ConnectionLogs {
 	logs := make([]ConnectionLog, 0)
-	sqlStatement := `SELECT *,(SELECT username FROM "user" WHERE "user".id=connection_log."user") FROM public.connection_log WHERE enterprise=$3 ORDER BY date_connected DESC OFFSET $1 LIMIT $2`
-	rows, err := db.Query(sqlStatement, q.Offset, q.Limit, q.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		return ConnectionLogs{}
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		l := ConnectionLog{}
-		rows.Scan(&l.Id, &l.DateConnected, &l.DateDisconnected, &l.User, &l.Ok, &l.IpAddress, &l.enterprise, &l.UserName)
-		logs = append(logs, l)
+	// get all connection logs from the database for the current enterprise and pagination using dbOrm
+	result := dbOrm.Where("connection_log.enterprise = ?", q.enterprise).Offset(int(q.Offset)).Limit(int(q.Limit)).Preload("User").Order("connection_log.date_connected DESC").Find(&logs)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 
-	sqlStatement = `SELECT COUNT(*) FROM public.connection_log WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, q.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return ConnectionLogs{}
+	// get all the connection logs count from the database using dbOrm
+	var count int64
+	result = dbOrm.Model(&ConnectionLog{}).Where("connection_log.enterprise = ?", q.enterprise).Count(&count)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 
-	var rowCount int64
-	row.Scan(&rowCount)
+	return ConnectionLogs{Logs: logs, Rows: count}
+}
 
-	return ConnectionLogs{Logs: logs, Rows: rowCount}
+func (l *ConnectionLog) BeforeCreate(tx *gorm.DB) (err error) {
+	var connectionLog ConnectionLog
+	tx.Model(&ConnectionLog{}).Last(&connectionLog)
+	l.Id = connectionLog.Id + 1
+	return nil
 }
 
 func (l *ConnectionLog) insertConnectionLog() {
-	sqlStatement := `INSERT INTO public.connection_log("user", ok, ip_address, enterprise) VALUES ($1, $2, $3, $4)`
-	db.Exec(sqlStatement, l.User, l.Ok, l.IpAddress, l.enterprise)
+	l.DateConnected = time.Now()
+	result := dbOrm.Create(&l)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 }
 
 // Called during the client login.
@@ -68,7 +74,7 @@ func userConnection(userId int32, ipAddress string, enterpriseId int32) (bool, s
 	if strings.Contains(ipAddress, ":") {
 		ipAddress = ipAddress[:strings.Index(ipAddress, ":")]
 	}
-	l := ConnectionLog{User: userId, IpAddress: ipAddress, enterprise: enterpriseId}
+	l := ConnectionLog{UserId: userId, IpAddress: ipAddress, EnterpriseId: enterpriseId}
 
 	// the default user ("marketnet") is not filtered
 	if userId == 1 {
@@ -105,83 +111,107 @@ func userConnection(userId int32, ipAddress string, enterpriseId int32) (bool, s
 }
 
 func userDisconnected(user int32) {
-	sqlStatement := `UPDATE connection_log SET date_disconnected=CURRENT_TIMESTAMP(3) WHERE id=(SELECT id FROM public.connection_log WHERE "user"=$1 AND date_disconnected IS NULL ORDER BY date_connected DESC LIMIT 1)`
-	db.Exec(sqlStatement, user)
+	// get a single connection log for the user where the data disconnected is null sorted by date connected descending using dbOrm
+	var connectionLog ConnectionLog
+	result := dbOrm.Where(`"user" = ? AND date_disconnected IS NULL`, user).Order("date_connected DESC").First(&connectionLog)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return
+	}
+
+	now := time.Now()
+	connectionLog.DateDisconnected = &now
+
+	// update the connection log with the date disconnected using dbOrm
+	result = dbOrm.Save(&connectionLog)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 }
 
 type ConnectionFilter struct {
-	Id         int32      `json:"id"`
-	Name       string     `json:"name"`
-	Type       string     `json:"type"` // I = IP, S = Schedule
-	IpAddress  *string    `json:"ipAddress"`
-	TimeStart  *time.Time `json:"timeStart"`
-	TimeEnd    *time.Time `json:"timeEnd"`
-	enterprise int32
+	Id           int32      `json:"id"`
+	Name         string     `json:"name" gorm:"not null:true;type:character varying(100)"`
+	Type         string     `json:"type" gorm:"type:character(1);not null:true"` // I = IP, S = Schedule
+	IpAddress    *string    `json:"ipAddress" gorm:"type:character varying(15)"`
+	TimeStart    *time.Time `json:"timeStart" gorm:"column:time_start;type:timestamp(0) with time zone"`
+	TimeEnd      *time.Time `json:"timeEnd" gorm:"column:time_end;type:timestamp(0) with time zone"`
+	EnterpriseId int32      `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise   Settings   `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (cf *ConnectionFilter) TableName() string {
+	return "connection_filter"
 }
 
 func getConnectionFilters(enterpriseId int32) []ConnectionFilter {
 	filters := make([]ConnectionFilter, 0)
-	sqlStatement := `SELECT * FROM public.connection_filter WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return filters
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		f := ConnectionFilter{}
-		rows.Scan(&f.Id, &f.Name, &f.Type, &f.IpAddress, &f.TimeStart, &f.TimeEnd, &f.enterprise)
-		filters = append(filters, f)
+	// get all connection filters for the current enterprise using dbOrm sorted by id ascending
+	result := dbOrm.Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&filters)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 	return filters
 }
 
 func getConnectionFilterRow(id int32) ConnectionFilter {
 	f := ConnectionFilter{}
-	sqlStatement := `SELECT * FROM public.connection_filter WHERE id=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, id)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return f
-	}
-
-	row.Scan(&f.Id, &f.Name, &f.Type, &f.IpAddress, &f.TimeStart, &f.TimeEnd, &f.enterprise)
-
+	// get a single connection filter row by id using dbOrm
+	dbOrm.Where("id = ?", id).First(&f)
 	return f
 }
 
 func getConnectionFiltersByUser(userId int32) []ConnectionFilter {
-	filters := make([]ConnectionFilter, 0)
-	sqlStatement := `SELECT connection_filter.* FROM public.connection_filter INNER JOIN connection_filter_user ON connection_filter_user.connection_filter=connection_filter.id WHERE connection_filter_user."user"=$1`
-	rows, err := db.Query(sqlStatement, userId)
-	if err != nil {
-		log("DB", err.Error())
-		return filters
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		f := ConnectionFilter{}
-		rows.Scan(&f.Id, &f.Name, &f.Type, &f.IpAddress, &f.TimeStart, &f.TimeEnd, &f.enterprise)
-		filters = append(filters, f)
+	// get the connetion filter users by user id using dbOrm
+	var connectionFilterUsers []ConnectionFilterUser
+	dbOrm.Where("user_id = ?", userId).Find(&connectionFilterUsers)
+	// get the connection filter from the connection filter users using dbOrm
+	var filters []ConnectionFilter
+	for i := 0; i < len(connectionFilterUsers); i++ {
+		filters = append(filters, getConnectionFilterRow(connectionFilterUsers[i].ConnectionFilterId))
 	}
 	return filters
 }
 
+func (f *ConnectionFilter) BeforeCreate(tx *gorm.DB) (err error) {
+	var connectionFilter ConnectionFilter
+	tx.Model(&ConnectionFilter{}).Last(&connectionFilter)
+	f.Id = connectionFilter.Id + 1
+	return nil
+}
+
+func (f *ConnectionFilter) isValid() bool {
+	return !(len(f.Name) == 0 || len(f.Name) > 100 || (f.Type != "I" && f.Type != "S") || (f.Type == "I" && (f.IpAddress == nil || f.TimeStart != nil || f.TimeEnd != nil)) || (f.Type == "S" && (f.IpAddress != nil || f.TimeStart == nil || f.TimeEnd == nil)))
+}
+
+func (f *ConnectionFilter) cleanUp() {
+	if f.Type == "S" {
+		timeStart := time.Date(0, 1, 1, f.TimeStart.Hour(), f.TimeStart.Minute(), f.TimeStart.Second(), 0, time.UTC)
+		f.TimeStart = &timeStart
+
+		timeEnd := time.Date(0, 1, 1, f.TimeEnd.Hour(), f.TimeEnd.Minute(), f.TimeEnd.Second(), 0, time.UTC)
+		f.TimeEnd = &timeEnd
+
+		f.IpAddress = nil
+	} else if f.Type == "I" {
+		f.TimeStart = nil
+		f.TimeEnd = nil
+	}
+}
+
 func (f *ConnectionFilter) insertConnectionFilter() bool {
-	if len(f.Name) == 0 || len(f.Name) > 100 || (f.Type != "I" && f.Type != "S") || (f.Type == "I" && (f.IpAddress == nil || f.TimeStart != nil || f.TimeEnd != nil)) || (f.Type == "S" && (f.IpAddress != nil || f.TimeStart == nil || f.TimeEnd == nil)) {
+	if !f.isValid() {
+		return false
+	}
+	f.cleanUp()
+
+	result := dbOrm.Create(&f)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.connection_filter(name, type, ip_address, time_start, time_end, enterprise) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := db.Exec(sqlStatement, f.Name, f.Type, f.IpAddress, f.TimeStart, f.TimeEnd, f.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
-	}
-
-	return err == nil
+	return true
 }
 
 func (f *ConnectionFilter) updateConnectionFilter() bool {
@@ -192,81 +222,112 @@ func (f *ConnectionFilter) updateConnectionFilter() bool {
 	if f.Type != filter.Type {
 		return false
 	}
-	if len(f.Name) == 0 || len(f.Name) > 100 || (f.Type != "I" && f.Type != "S") || (f.Type == "I" && (f.IpAddress == nil || f.TimeStart != nil || f.TimeEnd != nil)) || (f.Type == "S" && (f.IpAddress != nil || f.TimeStart == nil || f.TimeEnd == nil)) {
+	if !f.isValid() {
+		return false
+	}
+	f.cleanUp()
+
+	// get a single connection filter row by id using dbOrm
+	var connectionFilter ConnectionFilter
+	result := dbOrm.Where("id = ?", f.Id).First(&connectionFilter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	sqlStatement := `UPDATE public.connection_filter SET name=$2, ip_address=$3, time_start=$4, time_end=$5 WHERE id=$1 AND enterprise=$6`
-	_, err := db.Exec(sqlStatement, f.Id, f.Name, f.IpAddress, f.TimeStart, f.TimeEnd, f.enterprise)
+	// copy all the attributes from the f object to the connection filter object
+	connectionFilter.Name = f.Name
+	connectionFilter.Type = f.Type
+	connectionFilter.TimeStart = f.TimeStart
+	connectionFilter.TimeEnd = f.TimeEnd
 
-	if err != nil {
-		log("DB", err.Error())
+	// update the connection filter using dbOrm
+	result = dbOrm.Save(&connectionFilter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (f *ConnectionFilter) deleteConnectionFilter() bool {
-	sqlStatement := `DELETE FROM public.connection_filter WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, f.Id, f.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
+	// delete a single connetion filter by id and enterprise using dbOrm
+	result := dbOrm.Where("id = ? AND enterprise = ?", f.Id, f.EnterpriseId).Delete(ConnectionFilter{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-
-	return err == nil
+	return true
 }
 
 type ConnectionFilterUser struct {
-	ConnectionFilter int32  `json:"connectionFilter"`
-	User             int32  `json:"user"`
-	UserName         string `json:"userName"`
+	ConnectionFilterId int32            `json:"connectionFilterId" gorm:"primaryKey;column:connection_filter;not null:true"`
+	ConnectionFilter   ConnectionFilter `json:"connectionFilter" gorm:"foreignKey:ConnectionFilterId;references:Id"`
+	UserId             int32            `json:"userId" gorm:"primaryKey;column:user;not null:true"`
+	User               User             `json:"user" gorm:"foreignKey:UserId;references:Id"`
+}
+
+func (cfu *ConnectionFilterUser) TableName() string {
+	return "connection_filter_user"
 }
 
 func getConnectionFilterUser(filterId int32, enterpriseId int32) []ConnectionFilterUser {
-	filters := make([]ConnectionFilterUser, 0)
-	sqlStatement := `SELECT *,(SELECT username FROM "user" WHERE "user".id=connection_filter_user."user") FROM public.connection_filter_user WHERE connection_filter=$1 AND (SELECT enterprise FROM connection_filter WHERE connection_filter.id=connection_filter_user.connection_filter)=$2 ORDER BY connection_filter ASC, "user" ASC`
-	rows, err := db.Query(sqlStatement, filterId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return filters
+	// get a single connection filter row by id using dbOrm
+	var connectionFilter ConnectionFilter
+	result := dbOrm.Where("id = ? AND enterprise = ?", filterId, enterpriseId).First(&connectionFilter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
-	defer rows.Close()
+	if connectionFilter.EnterpriseId != enterpriseId {
+		return nil
+	}
 
-	for rows.Next() {
-		f := ConnectionFilterUser{}
-		rows.Scan(&f.ConnectionFilter, &f.User, &f.UserName)
-		filters = append(filters, f)
+	// get all connection filter users for the current filter using dbOrm sorted by id ascending
+	var connectionFilterUsers []ConnectionFilterUser
+	result = dbOrm.Where("connection_filter_user.connection_filter = ?", filterId).Order(`connection_filter_user.connection_filter,connection_filter_user."user" ASC`).Preload("User").Find(&connectionFilterUsers)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
-	return filters
+	return connectionFilterUsers
 }
 
 func (f *ConnectionFilterUser) insertConnectionFilterUser(enterpriseId int32) bool {
-	filterInMemory := getConnectionFilterRow(f.ConnectionFilter)
-	if filterInMemory.enterprise != enterpriseId {
+	filterInMemory := getConnectionFilterRow(f.ConnectionFilterId)
+	if filterInMemory.EnterpriseId != enterpriseId {
 		return false
 	}
-	userInMemory := getUserRow(f.User)
-	if userInMemory.enterprise != enterpriseId {
+	userInMemory := getUserRow(f.UserId)
+	if userInMemory.EnterpriseId != enterpriseId {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.connection_filter_user(connection_filter, "user") VALUES ($1, $2)`
-	_, err := db.Exec(sqlStatement, f.ConnectionFilter, f.User)
-	return err == nil
+	result := dbOrm.Create(&f)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (f *ConnectionFilterUser) deleteConnectionFilterUser(enterpriseId int32) bool {
-	filterInMemory := getConnectionFilterRow(f.ConnectionFilter)
-	if filterInMemory.enterprise != enterpriseId {
+	filterInMemory := getConnectionFilterRow(f.ConnectionFilterId)
+	if filterInMemory.EnterpriseId != enterpriseId {
 		return false
 	}
-	userInMemory := getUserRow(f.User)
-	if userInMemory.enterprise != enterpriseId {
+	userInMemory := getUserRow(f.UserId)
+	if userInMemory.EnterpriseId != enterpriseId {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.connection_filter_user WHERE connection_filter=$1 AND "user"=$2`
-	_, err := db.Exec(sqlStatement, f.ConnectionFilter, f.User)
-	return err == nil
+	result := dbOrm.Where(`connection_filter_user.connection_filter = ? AND connection_filter_user."user" = ?`, f.ConnectionFilterId, f.UserId).Delete(&ConnectionFilterUser{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }

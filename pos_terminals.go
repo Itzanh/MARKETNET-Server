@@ -2,63 +2,58 @@ package main
 
 import (
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type POSTerminal struct {
-	Id                        int64   `json:"id"`
-	Uuid                      string  `json:"uuid"`
-	Name                      string  `json:"name"`
-	OrdersCustomer            *int32  `json:"ordersCustomer"`
-	OrdersInvoiceAddress      *int32  `json:"ordersInvoiceAddress"`
-	OrdersDeliveryAddress     *int32  `json:"ordersDeliveryAddress"`
-	OrdersPaymentMethod       *int32  `json:"ordersPaymentMethod"`
-	OrdersBillingSeries       *string `json:"ordersBillingSeries"`
-	OrdersWarehouse           *string `json:"ordersWarehouse"`
-	OrdersCurrency            *int32  `json:"ordersCurrency"`
-	enterprise                int32
-	OrdersCustomerName        *string `json:"ordersCustomerName"`
-	OrdersInvoiceAddressName  *string `json:"ordersInvoiceAddressName"`
-	OrdersDeliveryAddressName *string `json:"ordersDeliveryAddressName"`
+	Id                      int64          `json:"id"`
+	Uuid                    string         `json:"uuid" gorm:"type:uuid;not null;true;index:pos_terminals_uuid,unique:true"`
+	Name                    string         `json:"name" gorm:"type:varchar(150);not null;true"`
+	OrdersCustomerId        *int32         `json:"ordersCustomerId" gorm:"column:orders_customer"`
+	OrdersCustomer          *Customer      `json:"ordersCustomer" gorm:"foreignKey:OrdersCustomerId,EnterpriseId;references:Id,EnterpriseId"`
+	OrdersInvoiceAddressId  *int32         `json:"ordersInvoiceAddressId" gorm:"column:orders_invoice_address"`
+	OrdersInvoiceAddress    *Address       `json:"ordersInvoiceAddress" gorm:"foreignKey:OrdersInvoiceAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	OrdersDeliveryAddressId *int32         `json:"ordersDeliveryAddressId" gorm:"column:orders_delivery_address"`
+	OrdersDeliveryAddress   *Address       `json:"ordersDeliveryAddress" gorm:"foreignKey:OrdersDeliveryAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	OrdersPaymentMethodId   *int32         `json:"ordersPaymentMethodId" gorm:"column:orders_payment_method"`
+	OrdersPaymentMethod     *PaymentMethod `json:"ordersPaymentMethod" gorm:"foreignKey:OrdersPaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
+	OrdersBillingSeriesId   *string        `json:"ordersBillingSeriesId" gorm:"column:orders_billing_series"`
+	OrdersBillingSeries     *BillingSerie  `json:"ordersBillingSeries" gorm:"foreignKey:OrdersBillingSeriesId,EnterpriseId;references:Id,EnterpriseId"`
+	OrdersWarehouseId       *string        `json:"ordersWarehouseId" gorm:"column:orders_warehouse"`
+	OrdersWarehouse         *Warehouse     `json:"ordersWarehouse" gorm:"foreignKey:OrdersWarehouseId,EnterpriseId;references:Id,EnterpriseId"`
+	OrdersCurrencyId        *int32         `json:"ordersCurrencyId" gorm:"column:orders_currency"`
+	OrdersCurrency          *Currency      `json:"ordersCurrency" gorm:"foreignKey:OrdersCurrencyId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId            int32          `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise              Settings       `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (t *POSTerminal) TableName() string {
+	return "pos_terminals"
 }
 
 func getPOSTerminals(enterpriseId int32) []POSTerminal {
 	var posTerminals []POSTerminal = make([]POSTerminal, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=pos_terminals.orders_customer),(SELECT address FROM address WHERE address.id=pos_terminals.orders_invoice_address),(SELECT address FROM address WHERE address.id=pos_terminals.orders_delivery_address) FROM public.pos_terminals WHERE enterprise = $1 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return posTerminals
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var t POSTerminal
-		rows.Scan(&t.Id, &t.Uuid, &t.Name, &t.OrdersCustomer, &t.OrdersInvoiceAddress, &t.OrdersDeliveryAddress, &t.OrdersPaymentMethod, &t.OrdersBillingSeries, &t.OrdersWarehouse, &t.OrdersCurrency, &t.enterprise, &t.OrdersCustomerName, &t.OrdersInvoiceAddressName, &t.OrdersDeliveryAddressName)
-		posTerminals = append(posTerminals, t)
-	}
+	// get all the pos terminals for the enterprise id sorted by id asc using dbOrm
+	dbOrm.Where("enterprise = ?", enterpriseId).Preload(clause.Associations).Order("id asc").Find(&posTerminals)
 	return posTerminals
 }
 
 func getPOSTerminalByUUID(uuid string, enterpriseId int32) POSTerminal {
-	sqlStatement := `SELECT * FROM public.pos_terminals WHERE uuid = $1 AND enterprise = $2`
-	row := db.QueryRow(sqlStatement, uuid, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return POSTerminal{}
-	}
-
 	var t POSTerminal
-	row.Scan(&t.Id, &t.Uuid, &t.Name, &t.OrdersCustomer, &t.OrdersInvoiceAddress, &t.OrdersDeliveryAddress, &t.OrdersPaymentMethod, &t.OrdersBillingSeries, &t.OrdersWarehouse, &t.OrdersCurrency, &t.enterprise)
-
+	result := dbOrm.Where("uuid = ? AND enterprise = ?", uuid, enterpriseId).First(&t)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return t
 }
 
 func (t *POSTerminal) isValid() bool {
-	return !(len(t.Name) == 0 || len(t.Name) > 150 || t.enterprise <= 0)
+	return !(len(t.Name) == 0 || len(t.Name) > 150 || t.EnterpriseId <= 0)
 }
 
 func (t *POSTerminal) isReady() bool {
-	return t.Id > 0 && t.isValid() && !(t.OrdersCustomer == nil || t.OrdersInvoiceAddress == nil || t.OrdersDeliveryAddress == nil || t.OrdersPaymentMethod == nil || t.OrdersBillingSeries == nil || t.OrdersWarehouse == nil || t.OrdersCurrency == nil)
+	return t.Id > 0 && t.isValid() && !(t.OrdersCustomerId == nil || t.OrdersInvoiceAddressId == nil || t.OrdersDeliveryAddressId == nil || t.OrdersPaymentMethodId == nil || t.OrdersBillingSeriesId == nil || t.OrdersWarehouseId == nil || t.OrdersCurrencyId == nil)
 }
 
 type TerminalRegisterResult struct {
@@ -70,7 +65,7 @@ type TerminalRegisterResult struct {
 func posTerminalRequest(terminal string, enterpriseId int32) TerminalRegisterResult {
 	if len(terminal) == 0 {
 		t := POSTerminal{
-			enterprise: enterpriseId,
+			EnterpriseId: enterpriseId,
 		}
 		ok := t.insertPOSTerminal()
 		if !ok {
@@ -81,7 +76,7 @@ func posTerminalRequest(terminal string, enterpriseId int32) TerminalRegisterRes
 		t := getPOSTerminalByUUID(terminal, enterpriseId)
 		if t.Id <= 0 {
 			t := POSTerminal{
-				enterprise: enterpriseId,
+				EnterpriseId: enterpriseId,
 			}
 			ok := t.insertPOSTerminal()
 			if !ok {
@@ -94,6 +89,13 @@ func posTerminalRequest(terminal string, enterpriseId int32) TerminalRegisterRes
 	}
 }
 
+func (t *POSTerminal) BeforeCreate(tx *gorm.DB) (err error) {
+	var posTerminal POSTerminal
+	tx.Model(&POSTerminal{}).Last(&posTerminal)
+	t.Id = posTerminal.Id + 1
+	return nil
+}
+
 func (t *POSTerminal) insertPOSTerminal() bool {
 	t.Uuid = uuid.New().String()
 	t.Name = t.Uuid
@@ -102,12 +104,19 @@ func (t *POSTerminal) insertPOSTerminal() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.pos_terminals(uuid, name, enterprise) VALUES ($1, $2, $3)`
-	_, err := db.Exec(sqlStatement, t.Uuid, t.Uuid, t.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var terminal POSTerminal
+
+	terminal.Uuid = t.Uuid
+	terminal.Name = t.Name
+	terminal.EnterpriseId = t.EnterpriseId
+
+	result := dbOrm.Create(&terminal)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	return true
 }
 
 func (t *POSTerminal) updatePOSTerminal() bool {
@@ -115,12 +124,31 @@ func (t *POSTerminal) updatePOSTerminal() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.pos_terminals SET name=$3, orders_customer=$4, orders_invoice_address=$5, orders_delivery_address=$6, orders_payment_method=$7, orders_billing_series=$8, orders_warehouse=$9, orders_currency=$10 WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, t.Id, t.enterprise, t.Name, t.OrdersCustomer, t.OrdersInvoiceAddress, t.OrdersDeliveryAddress, t.OrdersPaymentMethod, t.OrdersBillingSeries, t.OrdersWarehouse, t.OrdersCurrency)
-	if err != nil {
-		log("DB", err.Error())
+	// get a single pos terminal by id and enterprise id
+	var terminal POSTerminal
+	result := dbOrm.Where("id = ? AND enterprise = ?", t.Id, t.EnterpriseId).First(&terminal)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	// update the pos terminal
+	terminal.Name = t.Name
+	terminal.OrdersCustomerId = t.OrdersCustomerId
+	terminal.OrdersInvoiceAddressId = t.OrdersInvoiceAddressId
+	terminal.OrdersDeliveryAddressId = t.OrdersDeliveryAddressId
+	terminal.OrdersPaymentMethodId = t.OrdersPaymentMethodId
+	terminal.OrdersBillingSeriesId = t.OrdersBillingSeriesId
+	terminal.OrdersWarehouseId = t.OrdersWarehouseId
+	terminal.OrdersCurrencyId = t.OrdersCurrencyId
+
+	result = dbOrm.Save(&terminal)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func posInsertNewSaleOrder(terminal string, enterpriseId int32, userId int32) SaleOrder {
@@ -130,14 +158,14 @@ func posInsertNewSaleOrder(terminal string, enterpriseId int32, userId int32) Sa
 	}
 
 	o := SaleOrder{
-		Warehouse:       *posTerminal.OrdersWarehouse,
-		Customer:        *posTerminal.OrdersCustomer,
-		PaymentMethod:   *posTerminal.OrdersPaymentMethod,
-		BillingSeries:   *posTerminal.OrdersBillingSeries,
-		Currency:        *posTerminal.OrdersCurrency,
-		BillingAddress:  *posTerminal.OrdersInvoiceAddress,
-		ShippingAddress: *posTerminal.OrdersDeliveryAddress,
-		enterprise:      enterpriseId,
+		WarehouseId:       *posTerminal.OrdersWarehouseId,
+		CustomerId:        *posTerminal.OrdersCustomerId,
+		PaymentMethodId:   *posTerminal.OrdersPaymentMethodId,
+		BillingSeriesId:   *posTerminal.OrdersBillingSeriesId,
+		CurrencyId:        *posTerminal.OrdersCurrencyId,
+		BillingAddressId:  *posTerminal.OrdersInvoiceAddressId,
+		ShippingAddressId: *posTerminal.OrdersDeliveryAddressId,
+		EnterpriseId:      enterpriseId,
 	}
 	_, orderId := o.insertSalesOrder(userId)
 	o.Id = orderId
@@ -145,12 +173,14 @@ func posInsertNewSaleOrder(terminal string, enterpriseId int32, userId int32) Sa
 }
 
 func deletePOSTerminal(terminal string, enterpriseId int32) bool {
-	sqlStatement := `DELETE FROM public.pos_terminals WHERE uuid = $1 AND enterprise = $2`
-	_, err := db.Exec(sqlStatement, terminal, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// delete a single pos terminal by id and enterprise id
+	result := dbOrm.Where("uuid = ? AND enterprise = ?", terminal, enterpriseId).Delete(&POSTerminal{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	return true
 }
 
 type InsertNewSaleOrderDetail struct {
@@ -174,19 +204,19 @@ func (i *InsertNewSaleOrderDetail) posInsertNewSaleOrderDetail(enterpriseId int3
 	// increment by one the quantity if we scan the same code again
 	details := getSalesOrderDetail(i.Order, enterpriseId)
 	for i := 0; i < len(details); i++ {
-		if details[i].Product == product.Id {
+		if details[i].ProductId == product.Id {
 			details[i].Quantity++
 			return details[i].updateSalesOrderDetail(userId).Ok
 		}
 	}
 
 	d := SalesOrderDetail{
-		Order:      i.Order,
-		Product:    product.Id,
-		Quantity:   i.Quantity,
-		Price:      product.Price,
-		VatPercent: product.VatPercent,
-		enterprise: enterpriseId,
+		OrderId:      i.Order,
+		ProductId:    product.Id,
+		Quantity:     i.Quantity,
+		Price:        product.Price,
+		VatPercent:   product.VatPercent,
+		EnterpriseId: enterpriseId,
 	}
 	return d.insertSalesOrderDetail(userId).Ok
 }

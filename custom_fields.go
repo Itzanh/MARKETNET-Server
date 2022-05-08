@@ -2,27 +2,37 @@ package main
 
 import (
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
 type CustomFields struct {
-	Id            int64    `json:"id"`
-	Product       *int32   `json:"product"`
-	Customer      *int32   `json:"customer"`
-	Supplier      *int32   `json:"supplier"`
-	Name          string   `json:"name"`
-	FieldType     int16    `json:"fieldType"` // 1 = Short text, 2 = Long text, 3 = Number, 4 = Boolean, 5 = Image, 6 = File
-	ValueString   *string  `json:"valueString"`
-	ValueNumber   *float64 `json:"valueNumber"`
-	ValueBoolean  *bool    `json:"valueBoolean"`
-	ValueBinary   []byte   `json:"valueBinary"`
-	FileName      *string  `json:"fileName"`
-	FileSize      *int32   `json:"fileSize"`
-	ImageMimeType *string  `json:"imageMimeType"`
-	enterprise    int32
+	Id            int64     `json:"id"`
+	EnterpriseId  int32     `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise    Settings  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	ProductId     *int32    `json:"product" gorm:"column:product"`
+	Product       *Product  `json:"-" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	CustomerId    *int32    `json:"customer" gorm:"column:customer"`
+	Customer      *Customer `json:"-" gorm:"foreignKey:CustomerId,EnterpriseId;references:Id,EnterpriseId"`
+	SupplierId    *int32    `json:"supplier" gorm:"column:supplier"`
+	Supplier      *Supplier `json:"-" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
+	Name          string    `json:"name" gorm:"type:character varying(255);not null:true"`
+	FieldType     int16     `json:"fieldType" gorm:"not null:true"` // 1 = Short text, 2 = Long text, 3 = Number, 4 = Boolean, 5 = Image, 6 = File
+	ValueString   *string   `json:"valueString" gorm:"type:text"`
+	ValueNumber   *float64  `json:"valueNumber" gorm:"type:numeric(14,6)"`
+	ValueBoolean  *bool     `json:"valueBoolean"`
+	ValueBinary   []byte    `json:"valueBinary" gorm:"type:bytea"`
+	FileName      *string   `json:"fileName" gorm:"type:character varying(255)"`
+	FileSize      *int32    `json:"fileSize" gorm:"type:integer"`
+	ImageMimeType *string   `json:"imageMimeType" gorm:"type:character varying(255)"`
+}
+
+func (CustomFields) TableName() string {
+	return "custom_fields"
 }
 
 func (f *CustomFields) queryIsValid() bool {
-	return !(f.Product == nil && f.Customer == nil && f.Supplier == nil)
+	return !(f.ProductId == nil && f.CustomerId == nil && f.SupplierId == nil)
 }
 
 func (f *CustomFields) getCustomFields() []CustomFields {
@@ -31,34 +41,17 @@ func (f *CustomFields) getCustomFields() []CustomFields {
 		return fields
 	}
 
-	var interfaces []interface{} = make([]interface{}, 0)
+	// create a database cursor to get the custom fields using dbOrm
+	cursor := dbOrm.Model(CustomFields{}).Where("enterprise = ?", f.EnterpriseId)
 
-	sqlStatement := `SELECT * FROM public.custom_fields`
-	if f.Product != nil {
-		sqlStatement += ` WHERE product=$1`
-		interfaces = append(interfaces, f.Product)
-	} else if f.Customer != nil {
-		sqlStatement += ` WHERE customer=$1`
-		interfaces = append(interfaces, f.Customer)
-	} else if f.Supplier != nil {
-		sqlStatement += ` WHERE supplier=$1`
-		interfaces = append(interfaces, f.Supplier)
+	if f.ProductId != nil {
+		cursor = cursor.Where("product = ?", f.ProductId)
+	} else if f.CustomerId != nil {
+		cursor = cursor.Where("customer = ?", f.CustomerId)
+	} else if f.SupplierId != nil {
+		cursor = cursor.Where("supplier = ?", f.SupplierId)
 	}
-	sqlStatement += `AND enterprise=$2`
-	interfaces = append(interfaces, f.enterprise)
-	sqlStatement += ` ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return fields
-	}
-
-	for rows.Next() {
-		f := CustomFields{}
-		rows.Scan(&f.Id, &f.enterprise, &f.Product, &f.Customer, &f.Supplier, &f.Name, &f.FieldType, &f.ValueString, &f.ValueNumber, &f.ValueBoolean, &f.ValueBinary, &f.FileName, &f.FileSize, &f.ImageMimeType)
-		fields = append(fields, f)
-	}
-
+	cursor.Order("id ASC").Find(&fields)
 	return fields
 }
 
@@ -77,7 +70,7 @@ func (f *CustomFields) isValid() bool {
 		f.ImageMimeType = &mimeType
 	}
 
-	return !((f.Product == nil && f.Customer == nil && f.Supplier == nil) || len(f.Name) == 0 || len(f.Name) > 255 || f.FieldType < 1 || f.FieldType > 6 || (f.FileName != nil && len(*f.FileName) > 255) || ((f.FieldType == 5 || f.FieldType == 6) && (f.FileName == nil || len(*f.FileName) == 0)) || (f.ValueString != nil && len(*f.ValueString) > 80000) || ((f.FieldType == 1 || f.FieldType == 2) && (f.ValueString == nil || len(*f.ValueString) == 0)))
+	return !((f.ProductId == nil && f.CustomerId == nil && f.SupplierId == nil) || len(f.Name) == 0 || len(f.Name) > 255 || f.FieldType < 1 || f.FieldType > 6 || (f.FileName != nil && len(*f.FileName) > 255) || ((f.FieldType == 5 || f.FieldType == 6) && (f.FileName == nil || len(*f.FileName) == 0)) || (f.ValueString != nil && len(*f.ValueString) > 80000) || ((f.FieldType == 1 || f.FieldType == 2) && (f.ValueString == nil || len(*f.ValueString) == 0)))
 }
 
 func (f *CustomFields) cleanUpCustomFields() {
@@ -100,6 +93,13 @@ func (f *CustomFields) cleanUpCustomFields() {
 	}
 }
 
+func (f *CustomFields) BeforeCreate(tx *gorm.DB) (err error) {
+	var customFields CustomFields
+	tx.Model(&CustomFields{}).Last(&customFields)
+	f.Id = customFields.Id + 1
+	return nil
+}
+
 func (f *CustomFields) insertCustomFields() bool {
 	if !f.isValid() {
 		return false
@@ -118,12 +118,12 @@ func (f *CustomFields) insertCustomFields() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.custom_fields(enterprise, product, customer, supplier, name, field_type, value_string, value_number, value_boolean, value_binary, file_name, file_size, image_mime_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
-	_, err := db.Exec(sqlStatement, f.enterprise, f.Product, f.Customer, f.Supplier, f.Name, f.FieldType, f.ValueString, f.ValueNumber, f.ValueBoolean, f.ValueBinary, f.FileName, f.FileSize, f.ImageMimeType)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&f)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+	return true
 }
 
 func (f *CustomFields) updateCustomFields() bool {
@@ -132,12 +132,32 @@ func (f *CustomFields) updateCustomFields() bool {
 	}
 	f.cleanUpCustomFields()
 
-	sqlStatement := `UPDATE public.custom_fields SET product=$2, customer=$3, supplier=$4, name=$5, value_string=$6, value_number=$7, value_boolean=$8, value_binary=$9, file_name=$10, file_size=$11, image_mime_type=$13 WHERE id=$1 AND enterprise=$12`
-	_, err := db.Exec(sqlStatement, f.Id, f.Product, f.Customer, f.Supplier, f.Name, f.ValueString, f.ValueNumber, f.ValueBoolean, f.ValueBinary, f.FileName, f.FileSize, f.enterprise, f.ImageMimeType)
-	if err != nil {
-		log("DB", err.Error())
+	// get a single custom field from the database by id and enterprise using dbOrm
+	var customField CustomFields
+	result := dbOrm.Model(CustomFields{}).Where("enterprise = ? AND id = ?", f.EnterpriseId, f.Id).First(&customField)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	// copy all the fields from the database to the new custom field
+	customField.Name = f.Name
+	customField.FieldType = f.FieldType
+	customField.ValueString = f.ValueString
+	customField.ValueNumber = f.ValueNumber
+	customField.ValueBoolean = f.ValueBoolean
+	customField.ValueBinary = f.ValueBinary
+	customField.FileName = f.FileName
+	customField.FileSize = f.FileSize
+	customField.ImageMimeType = f.ImageMimeType
+
+	// update the custom field in the database using dbOrm
+	result = dbOrm.Save(&customField)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
 }
 
 func (f *CustomFields) deleteCustomFields() bool {
@@ -145,10 +165,11 @@ func (f *CustomFields) deleteCustomFields() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.custom_fields WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, f.Id, f.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	// delete a single custom field from the database by id and enterprise using dbOrm
+	result := dbOrm.Where("id = ? AND enterprise = ?", f.Id, f.EnterpriseId).Delete(CustomFields{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+	return true
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math"
 	"testing"
 )
 
@@ -28,10 +27,10 @@ func TestJournalInsertUpdateDelete(t *testing.T) {
 	}
 
 	j := Journal{
-		Id:         123,
-		Name:       "Test",
-		Type:       "G",
-		enterprise: 1,
+		Id:           123,
+		Name:         "Test",
+		Type:         "G",
+		EnterpriseId: 1,
 	}
 
 	ok := j.insertJournal()
@@ -106,17 +105,17 @@ func TestAccountInsertUpdateDelete(t *testing.T) {
 	}
 
 	j := Journal{
-		Id:         123,
-		Name:       "Test",
-		Type:       "G",
-		enterprise: 1,
+		Id:           123,
+		Name:         "Test",
+		Type:         "G",
+		EnterpriseId: 1,
 	}
 	j.insertJournal()
 
 	a := Account{
-		Journal:    123,
-		Name:       "Test",
-		enterprise: 1,
+		JournalId:    123,
+		Name:         "Test",
+		EnterpriseId: 1,
 	}
 	ok := a.insertAccount()
 	if !ok {
@@ -243,9 +242,9 @@ func TestAccountingMovementInsertDelete(t *testing.T) {
 	}
 
 	am := AccountingMovement{
-		Type:         "N",
-		BillingSerie: "INT",
-		enterprise:   1,
+		Type:           "N",
+		BillingSerieId: "INT",
+		EnterpriseId:   1,
 	}
 
 	ok := am.insertAccountingMovement(0, nil)
@@ -371,30 +370,30 @@ func TestSalesPostInvoices(t *testing.T) {
 
 	// insert invoice and details
 	i := SalesInvoice{
-		Customer:       1,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: 1,
-		enterprise:     1,
+		CustomerId:       1,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: 1,
+		EnterpriseId:     1,
 	}
 	_, invoiceId := i.insertSalesInvoice(0, nil)
 	d := SalesInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesInvoiceDetail(nil, 0)
 	d = SalesInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product2,
-		Price:      4.99,
-		Quantity:   1,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product2,
+		Price:        4.99,
+		Quantity:     1,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesInvoiceDetail(nil, 0)
 	i = getSalesInvoiceRow(invoiceId)
@@ -429,8 +428,8 @@ func TestSalesPostInvoices(t *testing.T) {
 	invoiceTotalAmount := i.TotalAmount
 	var isCustomerAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
-		if movementDetails[i].Journal == 430 {
-			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
+		if movementDetails[i].JournalId == 430 {
+			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != invoiceTotalAmount {
 				t.Error("The detail for the customer was not created successfully")
 				return
 			}
@@ -446,8 +445,8 @@ func TestSalesPostInvoices(t *testing.T) {
 	invoiceTotalProducts := i.TotalProducts
 	var isSalesAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
-		if movementDetails[i].Journal == 700 {
-			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float64(math.Round(float64(invoiceTotalProducts)*100)/100) {
+		if movementDetails[i].JournalId == 700 {
+			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != invoiceTotalProducts {
 				t.Error("The detail for the sales was not created successfully")
 				return
 			}
@@ -460,11 +459,11 @@ func TestSalesPostInvoices(t *testing.T) {
 		return
 	}
 	// check detail for the vat (credit)
-	invoiceTotalVat := i.TotalAmount - i.TotalProducts
+	invoiceTotalVat := i.VatAmount
 	var isVatAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
-		if movementDetails[i].Journal == 477 {
-			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float64(math.Round(float64(invoiceTotalVat)*100)/100) {
+		if movementDetails[i].JournalId == 477 {
+			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != invoiceTotalVat {
 				t.Error("The detail for the vat was not created successfully")
 				return
 			}
@@ -490,10 +489,10 @@ func TestSalesPostInvoices(t *testing.T) {
 
 	// add charges
 	charge := Charges{
-		CollectionOperation: collectionOperations[0].Id,
-		Amount:              collectionOperations[0].Pending,
-		Concept:             "TESTING...",
-		enterprise:          1,
+		CollectionOperationId: collectionOperations[0].Id,
+		Amount:                collectionOperations[0].Pending,
+		Concept:               "TESTING...",
+		EnterpriseId:          1,
 	}
 	ok := charge.insertCharges(0)
 	if !ok {
@@ -537,8 +536,8 @@ func TestSalesPostInvoices(t *testing.T) {
 	// check detail for the customer (credit)
 	isCustomerAccountPresent = false
 	for i := 0; i < len(newMovementDetails); i++ {
-		if newMovementDetails[i].Journal == 430 {
-			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
+		if newMovementDetails[i].JournalId == 430 {
+			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != invoiceTotalAmount {
 				t.Error("The detail for the customer was not created successfully")
 				return
 			}
@@ -553,8 +552,8 @@ func TestSalesPostInvoices(t *testing.T) {
 	// check detail for the bank (debit)
 	var isBankAccountPresent bool = false
 	for i := 0; i < len(newMovementDetails); i++ {
-		if newMovementDetails[i].Journal == 570 {
-			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
+		if newMovementDetails[i].JournalId == 570 {
+			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != invoiceTotalAmount {
 				t.Error("The detail for the bank was not created successfully")
 				return
 			}
@@ -569,7 +568,7 @@ func TestSalesPostInvoices(t *testing.T) {
 
 	// DELETE
 	// delete the charge (that will delete the new accounting movement)
-	charge.enterprise = 1
+	charge.EnterpriseId = 1
 	ok = charge.deleteCharges(0)
 	if !ok {
 		t.Error("Delete error, can't delete charge")
@@ -603,30 +602,30 @@ func TestPurchasePostInvoices(t *testing.T) {
 
 	// insert invoice and details
 	i := PurchaseInvoice{
-		Supplier:       1,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: 1,
-		enterprise:     1,
+		SupplierId:       1,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: 1,
+		EnterpriseId:     1,
 	}
 	_, invoiceId := i.insertPurchaseInvoice(0, nil)
 	d := PurchaseInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertPurchaseInvoiceDetail(0, nil)
 	d = PurchaseInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product2,
-		Price:      4.99,
-		Quantity:   1,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product2,
+		Price:        4.99,
+		Quantity:     1,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertPurchaseInvoiceDetail(0, nil)
 	i = getPurchaseInvoiceRow(invoiceId)
@@ -661,8 +660,8 @@ func TestPurchasePostInvoices(t *testing.T) {
 	invoiceTotalAmount := i.TotalAmount
 	var isSupplierAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
-		if movementDetails[i].Journal == 400 {
-			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
+		if movementDetails[i].JournalId == 400 {
+			if movementDetails[i].Debit != 0 || movementDetails[i].Credit != invoiceTotalAmount {
 				t.Error("The detail for the supplier was not created successfully")
 				return
 			}
@@ -678,8 +677,8 @@ func TestPurchasePostInvoices(t *testing.T) {
 	invoiceTotalProducts := i.TotalProducts
 	var isPurchaseAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
-		if movementDetails[i].Journal == 600 {
-			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float64(math.Round(float64(invoiceTotalProducts)*100)/100) {
+		if movementDetails[i].JournalId == 600 {
+			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != invoiceTotalProducts {
 				t.Error("The detail for the purchase was not created successfully")
 				return
 			}
@@ -692,11 +691,11 @@ func TestPurchasePostInvoices(t *testing.T) {
 		return
 	}
 	// check detail for the vat (debit)
-	invoiceTotalVat := i.TotalAmount - i.TotalProducts
+	invoiceTotalVat := i.VatAmount
 	var isVatAccountPresent bool = false
 	for i := 0; i < len(movementDetails); i++ {
-		if movementDetails[i].Journal == 472 {
-			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != float64(math.Round(float64(invoiceTotalVat)*100)/100) {
+		if movementDetails[i].JournalId == 472 {
+			if movementDetails[i].Credit != 0 || movementDetails[i].Debit != invoiceTotalVat {
 				t.Error("The detail for the vat was not created successfully")
 				return
 			}
@@ -722,10 +721,10 @@ func TestPurchasePostInvoices(t *testing.T) {
 
 	// add payments
 	payment := Payment{
-		PaymentTransaction: paymentTransactions[0].Id,
-		Amount:             paymentTransactions[0].Pending,
-		Concept:            "TESTING...",
-		enterprise:         1,
+		PaymentTransactionId: paymentTransactions[0].Id,
+		Amount:               paymentTransactions[0].Pending,
+		Concept:              "TESTING...",
+		EnterpriseId:         1,
 	}
 	ok := payment.insertPayment(0)
 	if !ok {
@@ -769,8 +768,8 @@ func TestPurchasePostInvoices(t *testing.T) {
 	// check detail for the supplier (debit)
 	isSupplierAccountPresent = false
 	for i := 0; i < len(newMovementDetails); i++ {
-		if newMovementDetails[i].Journal == 400 {
-			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
+		if newMovementDetails[i].JournalId == 400 {
+			if newMovementDetails[i].Credit != 0 || newMovementDetails[i].Debit != invoiceTotalAmount {
 				t.Error("The detail for the supplier was not created successfully")
 				return
 			}
@@ -785,8 +784,8 @@ func TestPurchasePostInvoices(t *testing.T) {
 	// check detail for the bank (credit)
 	var isBankAccountPresent bool = false
 	for i := 0; i < len(newMovementDetails); i++ {
-		if newMovementDetails[i].Journal == 570 {
-			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != float64(math.Round(float64(invoiceTotalAmount)*100)/100) {
+		if newMovementDetails[i].JournalId == 570 {
+			if newMovementDetails[i].Debit != 0 || newMovementDetails[i].Credit != invoiceTotalAmount {
 				t.Error("The detail for the bank was not created successfully")
 				return
 			}

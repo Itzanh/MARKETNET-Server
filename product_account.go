@@ -1,30 +1,31 @@
 package main
 
+import (
+	"gorm.io/gorm"
+)
+
 type ProductAccount struct {
-	Id            int32  `json:"id"`
-	Product       int32  `json:"product"`
-	Account       int32  `json:"account"`
-	Journal       int32  `json:"journal"`
-	AccountNumber int32  `json:"accountNumber"`
-	Type          string `json:"type"` // S = Sale, P = Purchase
-	AccountName   string `json:"accountName"`
-	enterprise    int32
+	Id           int32    `json:"id"`
+	ProductId    int32    `json:"productId" gorm:"column:product;not null:true;index:product_account_product_type,unique:true,priority:1"`
+	Product      Product  `json:"-" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,enterprise"`
+	AccountId    int32    `json:"accountId" gorm:"column:account;not null:true"`
+	Account      Account  `json:"account" gorm:"foreignKey:AccountId,EnterpriseId;references:Id,EnterpriseId"`
+	JournalId    int32    `json:"journal" gorm:"column:jorunal;not null:true"`
+	Journal      Journal  `json:"-" gorm:"foreignKey:JournalId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId int32    `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Type         string   `json:"type" gorm:"type:character(1);not null:true;index:product_account_product_type,unique:true,priority:2"` // S = Sale, P = Purchase
+}
+
+func (pa *ProductAccount) TableName() string {
+	return "product_account"
 }
 
 func getProductAccounts(productId int32, enterpriseId int32) []ProductAccount {
 	var accounts []ProductAccount = make([]ProductAccount, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=product_account.account) FROM public.product_account WHERE product = $1 AND enterprise = $2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, productId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := ProductAccount{}
-		rows.Scan(&a.Id, &a.Product, &a.Account, &a.Journal, &a.AccountNumber, &a.enterprise, &a.Type, &a.AccountName)
-		accounts = append(accounts, a)
+	result := dbOrm.Model(&ProductAccount{}).Where("product_account.product = ? AND product_account.enterprise = ?", productId, enterpriseId).Preload("Account").Order("product_account.id ASC").Find(&accounts)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 	return accounts
 }
@@ -36,34 +37,29 @@ func getProductAccount(productId int32, accType string) *ProductAccount {
 		return nil
 	}
 
-	sqlStatement := `SELECT COUNT(*) FROM public.product_account WHERE product = $1 AND type = $2`
-	row := db.QueryRow(sqlStatement, productId, accType)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return nil
-	}
+	cursor := dbOrm.Model(&ProductAccount{}).Where("product = ? AND type = ?", productId, accType)
 
-	var rowsNumber int16
-	row.Scan(&rowsNumber)
+	var rowsNumber int64
+	cursor.Count(&rowsNumber)
 
 	if rowsNumber == 0 {
 		return nil
 	}
 
-	sqlStatement = `SELECT * FROM public.product_account WHERE product = $1 AND type = $2`
-	row = db.QueryRow(sqlStatement, productId, accType)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return nil
-	}
-
-	a := ProductAccount{}
-	row.Scan(&a.Id, &a.Product, &a.Account, &a.Journal, &a.AccountNumber, &a.enterprise, &a.Type)
-	return &a
+	var productAccount ProductAccount
+	cursor.Joins("Account").First(&productAccount)
+	return &productAccount
 }
 
 func (a *ProductAccount) isValid() bool {
-	return !(a.Product <= 0 || a.Account <= 0 || a.enterprise <= 0 || (a.Type != "S" && a.Type != "P"))
+	return !(a.ProductId <= 0 || a.AccountId <= 0 || a.EnterpriseId <= 0 || (a.Type != "S" && a.Type != "P"))
+}
+
+func (a *ProductAccount) BeforeCreate(tx *gorm.DB) (err error) {
+	var productAccount ProductAccount
+	tx.Model(&ProductAccount{}).Last(&productAccount)
+	a.Id = productAccount.Id + 1
+	return nil
 }
 
 func (a *ProductAccount) insertProductAccount() bool {
@@ -71,19 +67,19 @@ func (a *ProductAccount) insertProductAccount() bool {
 		return false
 	}
 
-	account := getAccountRow(a.Account)
+	account := getAccountRow(a.AccountId)
 	if account.Id <= 0 {
 		return false
 	}
-	a.Journal = account.Journal
-	a.AccountNumber = account.AccountNumber
+	a.JournalId = account.JournalId
 
-	sqlStatement := `INSERT INTO public.product_account(product, account, jorunal, account_number, enterprise, type) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := db.Exec(sqlStatement, a.Product, a.Account, a.Journal, a.AccountNumber, a.enterprise, a.Type)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&a)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	return true
 }
 
 func (a *ProductAccount) updateProductAccount() bool {
@@ -91,19 +87,28 @@ func (a *ProductAccount) updateProductAccount() bool {
 		return false
 	}
 
-	account := getAccountRow(a.Account)
+	var productAccount ProductAccount
+	result := dbOrm.Where("id = ? AND enterprise = ?", a.Id, a.EnterpriseId).First(&productAccount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	productAccount.AccountId = a.AccountId
+
+	account := getAccountRow(a.AccountId)
 	if account.Id <= 0 {
 		return false
 	}
-	a.Journal = account.Journal
-	a.AccountNumber = account.AccountNumber
+	productAccount.JournalId = account.JournalId
 
-	sqlStatement := `UPDATE public.product_account SET account=$3, jorunal=$4, account_number=$5 WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, a.Id, a.enterprise, a.Account, a.Journal, a.AccountNumber)
-	if err != nil {
-		log("DB", err.Error())
+	result = dbOrm.Save(&productAccount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	return true
 }
 
 func (a *ProductAccount) deleteProductAccount() bool {
@@ -111,10 +116,11 @@ func (a *ProductAccount) deleteProductAccount() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.product_account WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, a.Id, a.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", a.Id, a.EnterpriseId).Delete(&ProductAccount{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	return true
 }

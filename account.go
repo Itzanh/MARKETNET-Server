@@ -1,37 +1,31 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+
+	"gorm.io/gorm"
 )
 
 type Account struct {
-	Id            int32   `json:"id"`
-	Journal       int32   `json:"journal"`
-	Name          string  `json:"name"`
-	Credit        float64 `json:"credit"`
-	Debit         float64 `json:"debit"`
-	Balance       float64 `json:"balance"`
-	AccountNumber int32   `json:"accountNumber"`
-	enterprise    int32
+	Id            int32    `json:"id" gorm:"primaryKey;index:account_id_enterprise,unique:true,priority:1"`
+	JournalId     int32    `json:"journalId" gorm:"not null:true;column:journal;index:account_account_number_journal,unique:true,priority:3"`
+	Journal       Journal  `json:"journal" gorm:"foreignKey:JournalId,EnterpriseId;references:Id,EnterpriseId"`
+	Name          string   `json:"name" gorm:"type:character varying(150);not null:true;index:account_name,type:gin"`
+	Credit        float64  `json:"credit" gorm:"type:numeric(14,6);not null:true"`
+	Debit         float64  `json:"debit" gorm:"type:numeric(14,6);not null:true"`
+	Balance       float64  `json:"balance" gorm:"type:numeric(14,6);not null:true"`
+	AccountNumber int32    `json:"accountNumber" gorm:"not null:true;index:account_account_number_journal,unique:true,priority:2"`
+	EnterpriseId  int32    `json:"-" gorm:"column:enterprise;not null:true;index:account_id_enterprise,unique:true,priority:2;index:account_account_number_journal,unique:true,priority:1"`
+	Enterprise    Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (a *Account) TableName() string {
+	return "account"
 }
 
 func getAccounts(enterpriseId int32) []Account {
 	accounts := make([]Account, 0)
-	sqlStatement := `SELECT * FROM public.account WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := Account{}
-		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber, &a.enterprise)
-		accounts = append(accounts, a)
-	}
-
+	dbOrm.Model(&Account{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&accounts)
 	return accounts
 }
 
@@ -42,46 +36,37 @@ type AccountSearch struct {
 
 func (s *AccountSearch) searchAccounts(enterpriseId int32) []Account {
 	accounts := make([]Account, 0)
-	var rows *sql.Rows
-	var err error
+	var query string
+	var interfaces []interface{} = make([]interface{}, 0)
+	interfaces = append(interfaces, "%"+s.Search+"%")
 	if s.Journal <= 0 {
-		sqlStatement := `SELECT * FROM public.account WHERE (name ILIKE $1) AND (enterprise=$2) ORDER BY id ASC`
-		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", enterpriseId)
+		query = `(name ILIKE ?) AND (enterprise = ?)`
+		interfaces = append(interfaces, enterpriseId)
 	} else {
-		sqlStatement := `SELECT * FROM public.account WHERE (name ILIKE $1) AND (journal=$2) AND (enterprise=$3) ORDER BY id ASC`
-		rows, err = db.Query(sqlStatement, "%"+s.Search+"%", s.Journal, enterpriseId)
-	}
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := Account{}
-		rows.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber, &a.enterprise)
-		accounts = append(accounts, a)
+		query = `(name ILIKE ?) AND (journal = ?) AND (enterprise = ?)`
+		interfaces = append(interfaces, s.Journal)
+		interfaces = append(interfaces, enterpriseId)
 	}
 
+	dbOrm.Model(&Account{}).Where(query, interfaces...).Order("id ASC").Find(&accounts)
 	return accounts
 }
 
 func getAccountRow(accountId int32) Account {
-	sqlStatement := `SELECT * FROM public.account WHERE id=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, accountId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Account{}
-	}
-
 	a := Account{}
-	row.Scan(&a.Id, &a.Journal, &a.Name, &a.Credit, &a.Debit, &a.Balance, &a.AccountNumber, &a.enterprise)
-
+	dbOrm.Model(&Account{}).Where("id = ?", accountId).First(&a)
 	return a
 }
 
 func (a *Account) isValid() bool {
-	return !(a.Journal <= 0 || len(a.Name) == 0 || len(a.Name) > 150)
+	return !(a.JournalId <= 0 || len(a.Name) == 0 || len(a.Name) > 150)
+}
+
+func (a *Account) BeforeCreate(tx *gorm.DB) (err error) {
+	var account Account
+	tx.Model(&Account{}).Last(&account)
+	a.Id = account.Id + 1
+	return nil
 }
 
 func (a *Account) insertAccount() bool {
@@ -96,31 +81,32 @@ func (a *Account) insertAccount() bool {
 		}
 	}
 
-	sqlStatement := `INSERT INTO public.account(journal, name, account_number, enterprise) VALUES ($1, $2, $3, $4) RETURNING id`
-	row := db.QueryRow(sqlStatement, a.Journal, a.Name, a.AccountNumber, a.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	a.Credit = 0
+	a.Debit = 0
+	a.Balance = 0
+
+	result := dbOrm.Create(&a)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	var accountId int32
-	row.Scan(&accountId)
-	a.Id = accountId
-
-	return accountId > 0
+	return true
 }
 
 func (a *Account) getNextAccountNumber() int32 {
-	sqlStatement := `SELECT CASE WHEN MAX(account_number) IS NULL THEN 1 ELSE MAX(account_number) + 1 END FROM account WHERE journal=$1`
-	row := db.QueryRow(sqlStatement, a.Journal)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return 0
+	var accountNumber int32
+	var rowsNumber int64
+	result := dbOrm.Model(&Account{}).Where("journal = ?", a.JournalId).Order("account_number DESC").Limit(1).Count(&rowsNumber).Select("account_number").Pluck("account_number", &accountNumber)
+	if rowsNumber == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return 1
 	}
 
-	var accountNumber int32
-	row.Scan(&accountNumber)
-	return accountNumber
+	return accountNumber + 1
 }
 
 func (a *Account) updateAccount() bool {
@@ -128,10 +114,24 @@ func (a *Account) updateAccount() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.account SET journal=$2, name=$3, account_number=$4 WHERE id=$1 AND enterprise=$5`
-	_, err := db.Exec(sqlStatement, a.Id, a.Journal, a.Name, a.AccountNumber, a.enterprise)
+	var account Account
+	result := dbOrm.Model(&Account{}).Where("id = ? AND enterprise=?", a.Id, a.EnterpriseId).First(&account)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
 
-	return err == nil
+	account.JournalId = a.JournalId
+	account.Name = a.Name
+	account.AccountNumber = a.AccountNumber
+
+	result = dbOrm.Save(&account)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (a *Account) deleteAccount() bool {
@@ -139,13 +139,13 @@ func (a *Account) deleteAccount() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.account WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, a.Id, a.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", a.Id, a.EnterpriseId).Delete(&Account{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func getAccountIdByAccountNumber(journal int32, accountNumber int32, enterpriseId int32) int32 {
@@ -153,160 +153,122 @@ func getAccountIdByAccountNumber(journal int32, accountNumber int32, enterpriseI
 		return 0
 	}
 
-	sqlStatement := `SELECT id FROM account WHERE account_number=$2 AND journal=$1 AND enterprise=$3 LIMIT 1`
-	row := db.QueryRow(sqlStatement, journal, accountNumber, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var accountId int32
+	result := dbOrm.Model(&Account{}).Where("account_number = ? AND journal = ? AND enterprise = ?", accountNumber, journal, enterpriseId).Select("id").Limit(1).Pluck("id", &accountId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var accountId int32
-	row.Scan(&accountId)
 	return accountId
 }
 
 type AccountLocate struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
+	Id            int32
+	Journal       int32
+	Name          string
+	AccountNumber int32
 }
 
-func locateAccountForCustomer(enterpriseId int32) []AccountLocate {
+func locateAccountForCustomer(enterpriseId int32) []NameInt32 {
 	s := getSettingsRecordById(enterpriseId)
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, s.CustomerJournal, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
+	names := make([]NameInt32, 0)
+	dbOrm.Model(&Account{}).Where("journal = ? AND enterprise = ?", s.CustomerJournalId, enterpriseId).Order("account_number ASC").Find(&accounts)
 
-	var journal int16
-	var accountNumber int32
-	var name string
-
-	for rows.Next() {
-		a := AccountLocate{}
-		rows.Scan(&a.Id, &journal, &accountNumber, &name)
-		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
-		accounts = append(accounts, a)
+	var account AccountLocate
+	for i := 0; i < len(accounts); i++ {
+		account = accounts[i]
+		names = append(names, NameInt32{
+			Id:   account.Id,
+			Name: fmt.Sprintf("%d.%06d - %s", account.Journal, account.AccountNumber, account.Name),
+		})
 	}
 
-	return accounts
+	return names
 }
 
-func locateAccountForSupplier(enterpriseId int32) []AccountLocate {
+func locateAccountForSupplier(enterpriseId int32) []NameInt32 {
 	s := getSettingsRecordById(enterpriseId)
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, s.SupplierJournal, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
+	names := make([]NameInt32, 0)
+	dbOrm.Model(&Account{}).Where("journal = ? AND enterprise = ?", s.SupplierJournalId, enterpriseId).Order("account_number ASC").Find(&accounts)
 
-	var journal int16
-	var accountNumber int32
-	var name string
-
-	for rows.Next() {
-		a := AccountLocate{}
-		rows.Scan(&a.Id, &journal, &accountNumber, &name)
-		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
-		accounts = append(accounts, a)
+	var account AccountLocate
+	for i := 0; i < len(accounts); i++ {
+		account = accounts[i]
+		names = append(names, NameInt32{
+			Id:   account.Id,
+			Name: fmt.Sprintf("%d.%06d - %s", account.Journal, account.AccountNumber, account.Name),
+		})
 	}
 
-	return accounts
+	return names
 }
 
-func locateAccountForSales(enterpriseId int32) []AccountLocate {
+func locateAccountForSales(enterpriseId int32) []NameInt32 {
 	s := getSettingsRecordById(enterpriseId)
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, s.SalesJournal, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
-
-	var journal int16
-	var accountNumber int32
-	var name string
-
-	for rows.Next() {
-		a := AccountLocate{}
-		rows.Scan(&a.Id, &journal, &accountNumber, &name)
-		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
-		accounts = append(accounts, a)
+	names := make([]NameInt32, 0)
+	result := dbOrm.Model(&Account{}).Where("journal = ? AND enterprise = ?", s.SalesJournalId, enterpriseId).Order("account_number ASC").Find(&accounts)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 
-	return accounts
+	var account AccountLocate
+	for i := 0; i < len(accounts); i++ {
+		account = accounts[i]
+		names = append(names, NameInt32{
+			Id:   account.Id,
+			Name: fmt.Sprintf("%d.%06d - %s", account.Journal, account.AccountNumber, account.Name),
+		})
+	}
+
+	return names
 }
 
-func locateAccountForPurchases(enterpriseId int32) []AccountLocate {
+func locateAccountForPurchases(enterpriseId int32) []NameInt32 {
 	s := getSettingsRecordById(enterpriseId)
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT id,journal,account_number,name FROM public.account WHERE journal=$1 AND enterprise=$2 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, s.PurchaseJournal, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
-
-	var journal int16
-	var accountNumber int32
-	var name string
-
-	for rows.Next() {
-		a := AccountLocate{}
-		rows.Scan(&a.Id, &journal, &accountNumber, &name)
-		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
-		accounts = append(accounts, a)
+	names := make([]NameInt32, 0)
+	result := dbOrm.Model(&Account{}).Where("journal = ? AND enterprise = ?", s.PurchaseJournalId, enterpriseId).Order("account_number ASC").Find(&accounts)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 
-	return accounts
+	var account AccountLocate
+	for i := 0; i < len(accounts); i++ {
+		account = accounts[i]
+		names = append(names, NameInt32{
+			Id:   account.Id,
+			Name: fmt.Sprintf("%d.%06d - %s", account.Journal, account.AccountNumber, account.Name),
+		})
+	}
+
+	return names
 }
 
-func locateAccountForBanks(enterpriseId int32) []AccountLocate {
+func locateAccountForBanks(enterpriseId int32) []NameInt32 {
 	accounts := make([]AccountLocate, 0)
-	sqlStatement := `SELECT account.id,account.journal,account.account_number,account.name FROM public.account INNER JOIN journal ON journal.id=account.journal WHERE journal.type='B' AND account.enterprise=$1 ORDER BY account_number ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return accounts
-	}
-	defer rows.Close()
+	names := make([]NameInt32, 0)
 
-	var journal int16
-	var accountNumber int32
-	var name string
+	var journals []Journal = make([]Journal, 0)
+	dbOrm.Model(&Journal{}).Where("type = 'B'").Find(&journals)
 
-	for rows.Next() {
-		a := AccountLocate{}
-		rows.Scan(&a.Id, &journal, &accountNumber, &name)
-		a.Name = fmt.Sprintf("%d.%06d - %s", journal, accountNumber, name)
-		accounts = append(accounts, a)
-	}
+	for i := 0; i < len(journals); i++ {
+		result := dbOrm.Model(&Account{}).Where("journal = ? AND enterprise = ?", journals[i].Id, enterpriseId).Order("account_number ASC").Find(&accounts)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+		}
 
-	return accounts
-}
-
-// Will add or take out credit and debit (if given a negative amount)
-// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (a *Account) addCreditAndDebit(credit float64, debit float64, trans sql.Tx) bool {
-	if a.Id <= 0 {
-		return false
+		var account AccountLocate
+		for i := 0; i < len(accounts); i++ {
+			account = accounts[i]
+			names = append(names, NameInt32{
+				Id:   account.Id,
+				Name: fmt.Sprintf("%d.%06d - %s", account.Journal, account.AccountNumber, account.Name),
+			})
+		}
 	}
 
-	sqlStatement := `UPDATE public.account SET debit=debit+$2,credit=credit+$3 WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, a.Id, debit, credit)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-	}
-
-	return err == nil
+	return names
 }

@@ -2,52 +2,56 @@ package main
 
 import (
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Inventory struct {
-	Id            int32      `json:"id"`
-	Name          string     `json:"name"`
-	DateCreated   time.Time  `json:"dateCreated"`
-	Finished      bool       `json:"finished"`
-	DateFinished  *time.Time `json:"dateFinished"`
-	Warehouse     string     `json:"warehouse"`
-	WarehouseName string     `json:"warehouseName"`
-	enterprise    int32
+	Id           int32      `json:"id" gorm:"index:inventory_id_enterprise,unique:true,priority:1"`
+	EnterpriseId int32      `json:"-" gorm:"column:enterprise;not null:true;index:inventory_id_enterprise,unique:true,priority:2"`
+	Enterprise   Settings   `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Name         string     `json:"name" gorm:"column:name;not null:true;type:character varying(50)"`
+	DateCreated  time.Time  `json:"dateCreated" gorm:"column:date_created;not null:true;type:timestamp(3) with time zone"`
+	Finished     bool       `json:"finished" gorm:"column:finished;not null:true"`
+	DateFinished *time.Time `json:"dateFinished" gorm:"column:date_finished;type:timestamp(3) with time zone"`
+	WarehouseId  string     `json:"warehouseId" gorm:"column:warehouse;not null:true;type:character(2)"`
+	Warehouse    Warehouse  `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
+}
+
+func (i *Inventory) TableName() string {
+	return "inventory"
 }
 
 func getInventories(enterpriseId int32) []Inventory {
 	var inventory []Inventory = make([]Inventory, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=inventory.warehouse AND warehouse.enterprise=inventory.enterprise) FROM public.inventory WHERE enterprise = $1 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Inventory{}).Where("inventory.enterprise = ?", enterpriseId).Order("inventory.id DESC").Preload(clause.Associations).Find(&inventory)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return inventory
 	}
-
-	for rows.Next() {
-		i := Inventory{}
-		rows.Scan(&i.Id, &i.enterprise, &i.Name, &i.DateCreated, &i.Finished, &i.DateFinished, &i.Warehouse, &i.WarehouseName)
-		inventory = append(inventory, i)
-	}
-
 	return inventory
 }
 
 func getInventoryRow(inventoryId int32) Inventory {
-	sqlStatement := `SELECT * FROM public.inventory WHERE id = $1 ORDER BY id DESC`
-	row := db.QueryRow(sqlStatement, inventoryId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Inventory{}
-	}
-
 	i := Inventory{}
-	row.Scan(&i.Id, &i.enterprise, &i.Name, &i.DateCreated, &i.Finished, &i.DateFinished, &i.Warehouse)
+	result := dbOrm.Model(&Inventory{}).Where("inventory.id = ?", inventoryId).Preload(clause.Associations).First(&i)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return i
+	}
 	return i
 }
 
 func (i *Inventory) isValid() bool {
-	return !(len(i.Name) == 0 || len(i.Name) > 50 || len(i.Warehouse) == 0 || len(i.Warehouse) > 2)
+	return !(len(i.Name) == 0 || len(i.Name) > 50 || len(i.WarehouseId) == 0 || len(i.WarehouseId) > 2)
+}
+
+func (i *Inventory) BeforeCreate(tx *gorm.DB) (err error) {
+	var inventory Inventory
+	tx.Model(&Inventory{}).Last(&inventory)
+	i.Id = inventory.Id + 1
+	return nil
 }
 
 func (i *Inventory) insertInventory(enterpriseId int32) bool {
@@ -55,12 +59,17 @@ func (i *Inventory) insertInventory(enterpriseId int32) bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.inventory(enterprise, name, warehouse) VALUES ($1, $2, $3)`
-	_, err := db.Exec(sqlStatement, enterpriseId, i.Name, i.Warehouse)
-	if err != nil {
-		log("DB", err.Error())
+	i.EnterpriseId = enterpriseId
+	i.DateCreated = time.Now()
+	i.Finished = false
+	i.DateFinished = nil
+
+	result := dbOrm.Create(&i)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
@@ -70,7 +79,7 @@ func (i *Inventory) deleteInventory(enterpriseId int32) OkAndErrorCodeReturn {
 	}
 
 	inventory := getInventoryRow(i.Id)
-	if inventory.Id <= 0 || inventory.enterprise != enterpriseId || inventory.Finished {
+	if inventory.Id <= 0 || inventory.EnterpriseId != enterpriseId || inventory.Finished {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
 
@@ -79,10 +88,9 @@ func (i *Inventory) deleteInventory(enterpriseId int32) OkAndErrorCodeReturn {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}
 	}
 
-	sqlStatement := `DELETE FROM public.inventory WHERE id = $1 AND enterprise = $2`
-	_, err := db.Exec(sqlStatement, i.Id, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Delete(&Inventory{}, "id = ? AND enterprise = ?", inventory.Id, enterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	return OkAndErrorCodeReturn{Ok: true}
@@ -90,29 +98,28 @@ func (i *Inventory) deleteInventory(enterpriseId int32) OkAndErrorCodeReturn {
 
 func (i *Inventory) finishInventory(userId int32, enterpriseId int32) bool {
 	inMemoyInventory := getInventoryRow(i.Id)
-	if inMemoyInventory.Id <= 0 || inMemoyInventory.Finished || inMemoyInventory.enterprise != enterpriseId {
+	if inMemoyInventory.Id <= 0 || inMemoyInventory.Finished || inMemoyInventory.EnterpriseId != enterpriseId {
 		return false
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement := `UPDATE public.inventory_products SET warehouse_movement=$3 WHERE inventory=$1 AND product=$2`
 	var ok bool
 	products := getInventoryProducts(inMemoyInventory.Id, enterpriseId)
 	for i := 0; i < len(products); i++ {
 		p := products[i]
 
 		wm := WarehouseMovement{
-			enterprise: enterpriseId,
-			Warehouse:  inMemoyInventory.Warehouse,
-			Product:    p.Product,
-			Quantity:   p.Quantity,
-			Type:       "R",
+			EnterpriseId: enterpriseId,
+			WarehouseId:  inMemoyInventory.WarehouseId,
+			ProductId:    p.ProductId,
+			Quantity:     p.Quantity,
+			Type:         "R",
 		}
 		ok = wm.insertWarehouseMovement(userId, trans)
 		if !ok {
@@ -120,18 +127,20 @@ func (i *Inventory) finishInventory(userId int32, enterpriseId int32) bool {
 			return false
 		}
 
-		_, err := trans.Exec(sqlStatement, p.Inventory, p.Product, wm.Id)
-		if err != nil {
-			log("DB", err.Error())
+		result := trans.Model(&InventoryProducts{}).Where("inventory = ? AND product = ?", p.InventoryId, p.ProductId).Update("warehouse_movement", wm.Id)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
 	}
 
-	sqlStatement = `UPDATE public.inventory SET finished=true, date_finished=CURRENT_TIMESTAMP(3) WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, inMemoyInventory.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Model(&Inventory{}).Where("id = ?", inMemoyInventory.Id).Updates(map[string]interface{}{
+		"finished":      true,
+		"date_finished": time.Now(),
+	})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
@@ -143,48 +152,43 @@ func (i *Inventory) finishInventory(userId int32, enterpriseId int32) bool {
 }
 
 type InventoryProducts struct {
-	Inventory         int32  `json:"inventory"`
-	Product           int32  `json:"product"`
-	Quantity          int32  `json:"quantity"`
-	WarehouseMovement *int64 `json:"warehouseMovement"`
-	ProductName       string `json:"productName"`
-	enterprise        int32
+	InventoryId         int32              `json:"inventoryId" gorm:"primaryKey;column:inventory;not null:true"`
+	Inventory           Inventory          `json:"inventory" gorm:"foreignKey:InventoryId,EnterpriseId;references:Id,EnterpriseId"`
+	ProductId           int32              `json:"productId" gorm:"primaryKey;column:product;not null:true"`
+	Product             Product            `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId        int32              `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise          Settings           `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Quantity            int32              `json:"quantity" gorm:"column:quantity;not null:true"`
+	WarehouseMovementId *int64             `json:"warehouseMovementId" gorm:"column:warehouse_movement"`
+	WarehouseMovement   *WarehouseMovement `json:"warehouseMovement" gorm:"foreignKey:WarehouseMovementId,EnterpriseId;references:Id,EnterpriseId"`
+}
+
+func (p *InventoryProducts) TableName() string {
+	return "inventory_products"
 }
 
 func getInventoryProducts(inventoryId int32, enterpriseId int32) []InventoryProducts {
 	var inventoryProducts []InventoryProducts = make([]InventoryProducts, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=inventory_products.product) FROM public.inventory_products WHERE inventory = $1 AND enterprise = $2 ORDER BY product ASC`
-	rows, err := db.Query(sqlStatement, inventoryId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&InventoryProducts{}).Where("inventory_products.inventory = ? AND inventory_products.enterprise = ?", inventoryId, enterpriseId).Order("inventory_products.product ASC").Preload(clause.Associations).Find(&inventoryProducts)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return inventoryProducts
 	}
-
-	for rows.Next() {
-		ip := InventoryProducts{}
-		rows.Scan(&ip.Inventory, &ip.Product, &ip.enterprise, &ip.Quantity, &ip.WarehouseMovement, &ip.ProductName)
-		inventoryProducts = append(inventoryProducts, ip)
-	}
-
 	return inventoryProducts
 }
 
 func getInventoryProductsRow(inventoryId int32, productId int32, enterpriseId int32) InventoryProducts {
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=inventory_products.product) FROM public.inventory_products WHERE inventory = $1 AND product = $2 AND enterprise = $3 ORDER BY product ASC`
-	row := db.QueryRow(sqlStatement, inventoryId, productId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return InventoryProducts{}
-	}
-
 	ip := InventoryProducts{}
-	row.Scan(&ip.Inventory, &ip.Product, &ip.enterprise, &ip.Quantity, &ip.WarehouseMovement, &ip.ProductName)
-
+	result := dbOrm.Model(&InventoryProducts{}).Where("inventory_products.inventory = ? AND inventory_products.product = ? AND inventory_products.enterprise = ?", inventoryId, productId, enterpriseId).Preload(clause.Associations).First(&ip)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return ip
+	}
 	return ip
 }
 
 func (i *InventoryProducts) isValid() bool {
-	return !(i.Inventory <= 0 || i.Product <= 0)
+	return !(i.InventoryId <= 0 || i.ProductId <= 0)
 }
 
 type InputInventoryProducts struct {
@@ -195,7 +199,7 @@ type InputInventoryProducts struct {
 
 func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpriseId int32) bool {
 	i := getInventoryRow(input.Inventory)
-	if i.Id <= 0 || i.enterprise != enterpriseId || i.Finished {
+	if i.Id <= 0 || i.EnterpriseId != enterpriseId || i.Finished {
 		return false
 	}
 
@@ -207,8 +211,8 @@ func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpr
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
@@ -218,7 +222,7 @@ func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpr
 	var existentInventoryProducts map[int32]InventoryProducts = make(map[int32]InventoryProducts)
 	for i := 0; i < len(arayExistentInventoryProducts); i++ {
 		a := arayExistentInventoryProducts[i]
-		existentInventoryProducts[a.Product] = a
+		existentInventoryProducts[a.ProductId] = a
 	}
 
 	// cross data
@@ -227,8 +231,8 @@ func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpr
 	for i := 0; i < len(input.InventoryProducts); i++ {
 		newIp := input.InventoryProducts[i]
 
-		oldIp, ok := existentInventoryProducts[newIp.Product]
-		delete(existentInventoryProducts, newIp.Product)
+		oldIp, ok := existentInventoryProducts[newIp.ProductId]
+		delete(existentInventoryProducts, newIp.ProductId)
 		if !ok {
 			toInsert = append(toInsert, newIp)
 		} else if oldIp.Quantity != newIp.Quantity {
@@ -239,11 +243,12 @@ func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpr
 	// insert data
 	for i := 0; i < len(toInsert); i++ {
 		pi := toInsert[i]
-		sqlStatement := `INSERT INTO public.inventory_products(inventory, product, enterprise, quantity) VALUES ($1, $2, $3, $4)`
-		_, err := trans.Exec(sqlStatement, input.Inventory, pi.Product, enterpriseId, pi.Quantity)
-		if err != nil {
+		pi.EnterpriseId = enterpriseId
+		pi.WarehouseMovementId = nil
+		result := trans.Create(&pi)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
-			log("DB", err.Error())
 			return false
 		}
 	}
@@ -251,22 +256,20 @@ func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpr
 	// update data
 	for i := 0; i < len(toUpdate); i++ {
 		pi := toUpdate[i]
-		sqlStatement := `UPDATE public.inventory_products SET quantity=$3 WHERE inventory=$1 AND product=$2`
-		_, err := trans.Exec(sqlStatement, input.Inventory, pi.Product, pi.Quantity)
-		if err != nil {
+		result := trans.Model(&InventoryProducts{}).Where("inventory = ? AND product = ?", input.Inventory, pi.ProductId).Update("quantity", pi.Quantity)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
-			log("DB", err.Error())
 			return false
 		}
 	}
 
 	// delete the remaining data in the map
 	for k := range existentInventoryProducts {
-		sqlStatement := `DELETE FROM public.inventory_products WHERE inventory=$1 AND product=$2`
-		_, err := trans.Exec(sqlStatement, input.Inventory, k)
-		if err != nil {
+		result := trans.Delete(&InventoryProducts{}, "inventory = ? AND product = ?", input.Inventory, k)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
-			log("DB", err.Error())
 			return false
 		}
 	}
@@ -279,46 +282,46 @@ func (input *InputInventoryProducts) insertUpdateDeleteInventoryProducts(enterpr
 
 func (input *InputInventoryProducts) insertProductFamilyInventoryProducts(enterpriseId int32) bool {
 	i := getInventoryRow(input.Inventory)
-	if i.Id <= 0 || i.enterprise != enterpriseId || i.Finished {
-		return false
-	}
-
-	sqlStatement := `SELECT enterprise FROM product_family WHERE id=$1`
-	row := db.QueryRow(sqlStatement, input.FamilyId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	if i.Id <= 0 || i.EnterpriseId != enterpriseId || i.Finished {
 		return false
 	}
 
 	var enterprise int32
-	row.Scan(&enterprise)
-	if enterprise != enterpriseId {
-		return false
-	}
-
-	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	result := dbOrm.Model(&ProductFamily{}).Where("id = ?", input.FamilyId).Pluck("enterprise", &enterprise)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 	///
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
+		return false
+	}
+	///
 
-	sqlStatement = `SELECT id FROM product WHERE family = $1 AND enterprise = $2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, input.FamilyId, enterpriseId)
+	rows, err := dbOrm.Model(&Product{}).Where("family = ? AND enterprise = ?", input.FamilyId, enterpriseId).Select("id").Order("id ASC").Rows()
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 
-	sqlStatement = `INSERT INTO public.inventory_products(inventory, product, enterprise, quantity) VALUES ($1, $2, $3, $4)`
 	var productId int32
 	for rows.Next() {
 		rows.Scan(&productId)
 
-		_, err := trans.Exec(sqlStatement, input.Inventory, productId, enterpriseId, 0)
-		if err != nil {
+		var inventoryProduct InventoryProducts = InventoryProducts{
+			InventoryId:         input.Inventory,
+			ProductId:           productId,
+			EnterpriseId:        enterpriseId,
+			Quantity:            0,
+			WarehouseMovementId: nil,
+		}
+
+		result := trans.Create(&inventoryProduct)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
-			log("DB", err.Error())
 			return false
 		}
 	}
@@ -331,20 +334,19 @@ func (input *InputInventoryProducts) insertProductFamilyInventoryProducts(enterp
 
 func (input *InputInventoryProducts) insertAllProductsInventoryProducts(enterpriseId int32) bool {
 	i := getInventoryRow(input.Inventory)
-	if i.Id <= 0 || i.enterprise != enterpriseId || i.Finished {
+	if i.Id <= 0 || i.EnterpriseId != enterpriseId || i.Finished {
 		return false
 	}
 
 	products := getProduct(enterpriseId)
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.inventory_products(inventory, product, enterprise, quantity) VALUES ($1, $2, $3, $4)`
 	var productId int32
 	for i := 0; i < len(products); i++ {
 		if products[i].Off {
@@ -352,10 +354,18 @@ func (input *InputInventoryProducts) insertAllProductsInventoryProducts(enterpri
 		}
 		productId = products[i].Id
 
-		_, err := trans.Exec(sqlStatement, input.Inventory, productId, enterpriseId, 0)
-		if err != nil {
+		var inventoryProduct InventoryProducts = InventoryProducts{
+			InventoryId:         input.Inventory,
+			ProductId:           productId,
+			EnterpriseId:        enterpriseId,
+			Quantity:            0,
+			WarehouseMovementId: nil,
+		}
+
+		result := trans.Create(&inventoryProduct)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
-			log("DB", err.Error())
 			return false
 		}
 	}
@@ -368,14 +378,13 @@ func (input *InputInventoryProducts) insertAllProductsInventoryProducts(enterpri
 
 func (input *InputInventoryProducts) deleteAllProductsInventoryProducts(enterpriseId int32) bool {
 	i := getInventoryRow(input.Inventory)
-	if i.Id <= 0 || i.enterprise != enterpriseId || i.Finished {
+	if i.Id <= 0 || i.EnterpriseId != enterpriseId || i.Finished {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.inventory_products WHERE inventory = $1 AND enterprise = $2`
-	_, err := db.Exec(sqlStatement, input.Inventory, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&InventoryProducts{}).Where("inventory = ? AND enterprise = ?", input.Inventory, enterpriseId).Delete(InventoryProducts{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 	return true
@@ -395,7 +404,7 @@ type BarCodeInputInventoryProductsResult struct {
 
 func (input *BarCodeInputInventoryProducts) insertOrCountInventoryProductsByBarcode(enterpriseId int32) BarCodeInputInventoryProductsResult {
 	i := getInventoryRow(input.Inventory)
-	if i.Id <= 0 || i.enterprise != enterpriseId || i.Finished {
+	if i.Id <= 0 || i.EnterpriseId != enterpriseId || i.Finished {
 		return BarCodeInputInventoryProductsResult{}
 	}
 
@@ -404,27 +413,40 @@ func (input *BarCodeInputInventoryProducts) insertOrCountInventoryProductsByBarc
 		return BarCodeInputInventoryProductsResult{}
 	}
 
-	sqlStatement := `SELECT COUNT(*) FROM public.inventory_products WHERE inventory = $1 AND product =$2`
-	row := db.QueryRow(sqlStatement, input.Inventory, product.Id)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var rowCount int64
+	result := dbOrm.Model(&InventoryProducts{}).Where("inventory = ? AND product = ?", input.Inventory, product.Id).Count(&rowCount)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return BarCodeInputInventoryProductsResult{}
 	}
 
-	var rowCount int16
-	row.Scan(&rowCount)
 	if rowCount == 0 {
-		sqlStatement = `INSERT INTO public.inventory_products(inventory, product, enterprise, quantity) VALUES ($1, $2, $3, $4)`
-		_, err := db.Exec(sqlStatement, input.Inventory, product.Id, enterpriseId, 1)
-		if err != nil {
-			log("DB", err.Error())
+		var inventoryProduct InventoryProducts = InventoryProducts{
+			InventoryId:         input.Inventory,
+			ProductId:           product.Id,
+			EnterpriseId:        enterpriseId,
+			Quantity:            1,
+			WarehouseMovementId: nil,
+		}
+
+		result := dbOrm.Create(&inventoryProduct)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			return BarCodeInputInventoryProductsResult{}
 		}
 	} else {
-		sqlStatement = `UPDATE public.inventory_products SET quantity = quantity + 1 WHERE inventory = $1 AND product = $2`
-		_, err := db.Exec(sqlStatement, input.Inventory, product.Id)
-		if err != nil {
-			log("DB", err.Error())
+		var quantity int32
+		result := dbOrm.Model(&InventoryProducts{}).Where("inventory = ? AND product = ?", input.Inventory, product.Id).Select("quantity").Pluck("quantity", &quantity)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			return BarCodeInputInventoryProductsResult{}
+		}
+
+		quantity += 1
+
+		result = dbOrm.Model(&InventoryProducts{}).Where("inventory = ? AND product = ?", input.Inventory, product.Id).Update("quantity", quantity)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			return BarCodeInputInventoryProductsResult{}
 		}
 	}

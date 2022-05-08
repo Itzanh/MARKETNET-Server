@@ -5,25 +5,22 @@ import (
 )
 
 type Warehouse struct {
-	Id         string `json:"id"`
-	Name       string `json:"name"`
-	enterprise int32
+	Id           string   `json:"id" gorm:"primaryKey;type:character(2)"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(50);not null:true"`
+	EnterpriseId int32    `gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (w *Warehouse) TableName() string {
+	return "warehouse"
 }
 
 func getWarehouses(enterpriseId int32) []Warehouse {
 	var warehouses []Warehouse = make([]Warehouse, 0)
-	sqlStatement := `SELECT * FROM public.warehouse WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Warehouse{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&warehouses)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return warehouses
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		w := Warehouse{}
-		rows.Scan(&w.Id, &w.Name, &w.enterprise)
-		warehouses = append(warehouses, w)
 	}
 
 	return warehouses
@@ -38,15 +35,13 @@ func (w *Warehouse) insertWarehouse() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.warehouse(id, name, enterprise) VALUES ($1, $2, $3)`
-	res, err := db.Exec(sqlStatement, w.Id, w.Name, w.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&w)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (w *Warehouse) updateWarehouse() bool {
@@ -54,15 +49,22 @@ func (w *Warehouse) updateWarehouse() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.warehouse SET name=$2 WHERE id=$1 AND enterprise=$3`
-	res, err := db.Exec(sqlStatement, w.Id, w.Name, w.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var warehouse Warehouse
+	result := dbOrm.Where("id = ? AND enterprise = ?", w.Id, w.EnterpriseId).First(&warehouse)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	warehouse.Name = w.Name
+
+	result = dbOrm.Save(&warehouse)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (w *Warehouse) deleteWarehouse() bool {
@@ -70,57 +72,46 @@ func (w *Warehouse) deleteWarehouse() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM warehouse WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, w.Id, w.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", w.Id, w.EnterpriseId).Delete(&Warehouse{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
-func findWarehouseByName(languageName string, enterpriseId int32) []NameString {
+func findWarehouseByName(warehouseName string, enterpriseId int32) []NameString {
 	var warehouses []NameString = make([]NameString, 0)
-	sqlStatement := `SELECT id,name FROM public.warehouse WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(languageName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Currency{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(warehouseName), enterpriseId).Limit(10).Find(&warehouses)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return warehouses
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		w := NameString{}
-		rows.Scan(&w.Id, &w.Name)
-		warehouses = append(warehouses, w)
 	}
 
 	return warehouses
 }
 
 func getNameWarehouse(id string, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.warehouse WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var warehouse Warehouse
+	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&warehouse)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return warehouse.Name
 }
 
 // Regenerates the stock of the product for all the products in the database.
 // This "stock" field is the sum of the stock in all the warehouses.
 func regenerateProductStock(enterpriseId int32) bool {
 	sqlStatement := `UPDATE product SET stock = CASE WHEN (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) IS NULL THEN 0 ELSE (SELECT SUM(quantity) FROM stock WHERE stock.product=product.id) END WHERE enterprise=$1`
-	_, err := db.Exec(sqlStatement, enterpriseId)
-
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Exec(sqlStatement, enterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }

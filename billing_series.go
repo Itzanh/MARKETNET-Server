@@ -5,27 +5,24 @@ import (
 )
 
 type BillingSerie struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	BillingType string `json:"billingType"`
-	Year        int16  `json:"year"`
-	enterprise  int32
+	Id           string   `json:"id" gorm:"primaryKey;type:character(3)"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(50);not null:true"`
+	BillingType  string   `json:"billingType" gorm:"type:character(1);not null:true"`
+	Year         int16    `json:"year" gorm:"not null:true"`
+	EnterpriseId int32    `gorm:"primaryKey;column:enterprise"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (b *BillingSerie) TableName() string {
+	return "billing_series"
 }
 
 func getBillingSeries(enterpriseId int32) []BillingSerie {
 	var series []BillingSerie = make([]BillingSerie, 0)
-	sqlStatement := `SELECT * FROM public.billing_series WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&BillingSerie{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&series)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return series
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		s := BillingSerie{}
-		rows.Scan(&s.Id, &s.Name, &s.BillingType, &s.Year, &s.enterprise)
-		series = append(series, s)
 	}
 
 	return series
@@ -40,15 +37,13 @@ func (s *BillingSerie) insertBillingSerie() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.billing_series(id, name, billing_type, year, enterprise) VALUES ($1, $2, $3, $4, $5)`
-	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.BillingType, s.Year, s.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (s *BillingSerie) updateBillingSerie() bool {
@@ -56,140 +51,144 @@ func (s *BillingSerie) updateBillingSerie() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.billing_series SET name=$2, billing_type=$3, year=$4 WHERE id=$1 AND enterprise=$5`
-	res, err := db.Exec(sqlStatement, s.Id, s.Name, s.BillingType, s.Year, s.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var serie BillingSerie
+	result := dbOrm.Where("id = ? AND enterprise = ?", s.Id, s.EnterpriseId).First(&serie)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	serie.Name = s.Name
+	serie.BillingType = s.BillingType
+	serie.Year = s.Year
+
+	result = dbOrm.Save(&serie)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (s *BillingSerie) deleteBillingSerie() bool {
-	if s.Id == "" {
+	if s.Id == "" || len(s.Id) > 3 {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM billing_series WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, s.Id, s.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", s.Id, s.EnterpriseId).Delete(&BillingSerie{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func getNextSaleOrderNumber(billingSerieId string, enterpriseId int32) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_order.order_number) END AS id FROM sales_order WHERE "billing_series"=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var orderNumber int32
+	var rowsCount int64
+	result := dbOrm.Model(&SaleOrder{}).Where("billing_series = ? AND enterprise = ?", billingSerieId, enterpriseId).Order("order_number DESC").Limit(1).Select("order_number").Count(&rowsCount).Pluck("order_number", &orderNumber)
+	if rowsCount == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var orderNumber int32
-	row.Scan(&orderNumber)
 	return (orderNumber + 1)
 }
 
 func getNextSaleInvoiceNumber(billingSerieId string, enterpriseId int32) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_invoice.invoice_number) END AS id FROM sales_invoice WHERE "billing_series"=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var orderNumber int32
+	var rowsCount int64
+	result := dbOrm.Model(&SalesInvoice{}).Where("billing_series = ? AND enterprise = ?", billingSerieId, enterpriseId).Order("invoice_number DESC").Limit(1).Select("invoice_number").Count(&rowsCount).Pluck("invoice_number", &orderNumber)
+	if rowsCount == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var orderNumber int32
-	row.Scan(&orderNumber)
 	return (orderNumber + 1)
 }
 
 func getNextSaleDeliveryNoteNumber(billingSerieId string, enterpriseId int32) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(sales_delivery_note.delivery_note_number) END AS id FROM sales_delivery_note WHERE "billing_series"=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var orderNumber int32
+	var rowsCount int64
+	result := dbOrm.Model(&SalesDeliveryNote{}).Where("billing_series = ? AND enterprise = ?", billingSerieId, enterpriseId).Order("delivery_note_number DESC").Limit(1).Select("delivery_note_number").Count(&rowsCount).Pluck("delivery_note_number", &orderNumber)
+	if rowsCount == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var orderNumber int32
-	row.Scan(&orderNumber)
 	return (orderNumber + 1)
 }
 
 func getNextPurchaseOrderNumber(billingSerieId string, enterpriseId int32) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_order.order_number) END AS id FROM purchase_order WHERE "billing_series"=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var orderNumber int32
+	var rowsCount int64
+	result := dbOrm.Model(&PurchaseOrder{}).Where("billing_series = ? AND enterprise = ?", billingSerieId, enterpriseId).Order("order_number DESC").Limit(1).Select("order_number").Count(&rowsCount).Pluck("order_number", &orderNumber)
+	if rowsCount == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var orderNumber int32
-	row.Scan(&orderNumber)
 	return (orderNumber + 1)
 }
 
 func getNextPurchaseInvoiceNumber(billingSerieId string, enterpriseId int32) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_invoice.invoice_number) END AS id FROM purchase_invoice WHERE "billing_series"=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var orderNumber int32
+	var rowsCount int64
+	result := dbOrm.Model(&PurchaseInvoice{}).Where("billing_series = ? AND enterprise = ?", billingSerieId, enterpriseId).Order("invoice_number DESC").Limit(1).Select("invoice_number").Count(&rowsCount).Pluck("invoice_number", &orderNumber)
+	if rowsCount == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var orderNumber int32
-	row.Scan(&orderNumber)
 	return (orderNumber + 1)
 }
 
 func getNextPurchaseDeliveryNoteNumber(billingSerieId string, enterpriseId int32) int32 {
-	sqlStatement := `SELECT CASE COUNT(*) WHEN 0 THEN 0 ELSE MAX(purchase_delivery_note.delivery_note_number) END AS id FROM purchase_delivery_note WHERE "billing_series"=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, billingSerieId, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var orderNumber int32
+	var rowsCount int64
+	result := dbOrm.Model(&PurchaseDeliveryNote{}).Where("billing_series = ? AND enterprise = ?", billingSerieId, enterpriseId).Order("delivery_note_number DESC").Limit(1).Select("delivery_note_number").Count(&rowsCount).Pluck("delivery_note_number", &orderNumber)
+	if rowsCount == 0 {
+		return 1
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-
-	var orderNumber int32
-	row.Scan(&orderNumber)
 	return (orderNumber + 1)
 }
 
 func findBillingSerieByName(billingSerieName string, enterpriseId int32) []NameString {
 	var billingSeries []NameString = make([]NameString, 0)
-	sqlStatement := `SELECT id,name FROM public.billing_series WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(billingSerieName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Currency{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(billingSerieName), enterpriseId).Limit(10).Find(&billingSeries)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return billingSeries
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		b := NameString{}
-		rows.Scan(&b.Id, &b.Name)
-		billingSeries = append(billingSeries, b)
 	}
 
 	return billingSeries
 }
 
 func getNameBillingSerie(id string, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.billing_series WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var serie BillingSerie
+	result := dbOrm.Where("id = ? AND enterprise = ?", serie, enterpriseId).First(&serie)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return serie.Name
 }
 
 type LocateBillingSerie struct {
@@ -199,18 +198,10 @@ type LocateBillingSerie struct {
 
 func locateBillingSeries(enterpriseId int32) []LocateBillingSerie {
 	var series []LocateBillingSerie = make([]LocateBillingSerie, 0)
-	sqlStatement := `SELECT id,name FROM public.billing_series WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&BillingSerie{}).Where("enterprise = ?", enterpriseId).Find(&series)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return series
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		s := LocateBillingSerie{}
-		rows.Scan(&s.Id, &s.Name)
-		series = append(series, s)
 	}
 
 	return series

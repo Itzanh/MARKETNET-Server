@@ -1,39 +1,44 @@
 package main
 
+import "gorm.io/gorm"
+
 type SalesOrderDetailDigitalProductData struct {
-	Id     int32  `json:"id"`
-	Detail int64  `json:"detail"`
-	Key    string `json:"key"`
-	Value  string `json:"value"`
+	Id       int32            `json:"id"`
+	DetailId int64            `json:"detailId" gorm:"column:detail;not null:true"`
+	Detail   SalesOrderDetail `json:"detail" gorm:"foreignKey:DetailId;reference:Id"`
+	Key      string           `json:"key" gorm:"column:key;not null:true;type:character varying(50)"`
+	Value    string           `json:"value" gorm:"column:value;not null:true;type:character varying(250)"`
+}
+
+func (s *SalesOrderDetailDigitalProductData) TableName() string {
+	return "sales_order_detail_digital_product_data"
 }
 
 func getSalesOrderDetailDigitalProductData(salesOrderDetailId int64, enterpriseId int32) []SalesOrderDetailDigitalProductData {
 	productData := make([]SalesOrderDetailDigitalProductData, 0)
 
 	detailRow := getSalesOrderDetailRow(salesOrderDetailId)
-	if detailRow.enterprise != enterpriseId {
+	if detailRow.EnterpriseId != enterpriseId {
 		return productData
 	}
 
-	sqlStatement := `SELECT * FROM public.sales_order_detail_digital_product_data WHERE detail = $1`
-	rows, err := db.Query(sqlStatement, salesOrderDetailId)
-	if err != nil {
-		log("DB", err.Error())
-		return productData
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		pd := SalesOrderDetailDigitalProductData{}
-		rows.Scan(&pd.Id, &pd.Detail, &pd.Key, &pd.Value)
-		productData = append(productData, pd)
+	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("detail = ?", salesOrderDetailId).Find(&productData)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 
 	return productData
 }
 
 func (d *SalesOrderDetailDigitalProductData) isValid() bool {
-	return !(d.Detail <= 0 || len(d.Key) == 0 || len(d.Value) == 0)
+	return !(d.DetailId <= 0 || len(d.Key) == 0 || len(d.Value) == 0)
+}
+
+func (d *SalesOrderDetailDigitalProductData) BeforeCreate(tx *gorm.DB) (err error) {
+	var salesOrderDetailDigitalProductData SalesOrderDetailDigitalProductData
+	tx.Model(&SalesOrderDetailDigitalProductData{}).Last(&salesOrderDetailDigitalProductData)
+	d.Id = salesOrderDetailDigitalProductData.Id + 1
+	return nil
 }
 
 func (d *SalesOrderDetailDigitalProductData) insertSalesOrderDetailDigitalProductData(enterpriseId int32) bool {
@@ -41,22 +46,22 @@ func (d *SalesOrderDetailDigitalProductData) insertSalesOrderDetailDigitalProduc
 		return false
 	}
 
-	detailRow := getSalesOrderDetailRow(d.Detail)
-	if detailRow.enterprise != enterpriseId || detailRow.Status != "E" {
+	detailRow := getSalesOrderDetailRow(d.DetailId)
+	if detailRow.EnterpriseId != enterpriseId || detailRow.Status != "E" {
 		return false
 	}
-	productRow := getProductRow(detailRow.Product)
+	productRow := getProductRow(detailRow.ProductId)
 	if !productRow.DigitalProduct {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.sales_order_detail_digital_product_data(detail, key, value) VALUES ($1, $2, $3)`
-	_, err := db.Exec(sqlStatement, d.Detail, d.Key, d.Value)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (d *SalesOrderDetailDigitalProductData) updateSalesOrderDetailDigitalProductData(enterpriseId int32) bool {
@@ -64,18 +69,21 @@ func (d *SalesOrderDetailDigitalProductData) updateSalesOrderDetailDigitalProduc
 		return false
 	}
 
-	detailRow := getSalesOrderDetailRow(d.Detail)
-	if detailRow.enterprise != enterpriseId || detailRow.Status != "E" {
+	detailRow := getSalesOrderDetailRow(d.DetailId)
+	if detailRow.EnterpriseId != enterpriseId || detailRow.Status != "E" {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.sales_order_detail_digital_product_data SET detail=$2, key=$3, value=$4 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, d.Id, d.Detail, d.Key, d.Value)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ?", d.Id).Updates(map[string]interface{}{
+		"key":   d.Key,
+		"value": d.Value,
+	})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (d *SalesOrderDetailDigitalProductData) deleteSalesOrderDetailDigitalProductData(enterpriseId int32) bool {
@@ -83,13 +91,24 @@ func (d *SalesOrderDetailDigitalProductData) deleteSalesOrderDetailDigitalProduc
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.sales_order_detail_digital_product_data WHERE id=$1 AND (SELECT enterprise FROM sales_order_detail WHERE sales_order_detail.id=sales_order_detail_digital_product_data.detail)=$2 AND (SELECT status FROM sales_order_detail WHERE sales_order_detail.id=sales_order_detail_digital_product_data.detail)='E'`
-	_, err := db.Exec(sqlStatement, d.Id, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	var digitalData SalesOrderDetailDigitalProductData
+	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ?", d.Id).First(&digitalData)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	detailRow := getSalesOrderDetailRow(digitalData.DetailId)
+	if detailRow.EnterpriseId != enterpriseId || detailRow.Status != "E" {
+		return false
 	}
 
-	return err == nil
+	result = dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ?", d.Id).Delete(&SalesOrderDetailDigitalProductData{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 type SetDigitalSalesOrderDetailAsSent struct {
@@ -100,9 +119,9 @@ type SetDigitalSalesOrderDetailAsSent struct {
 	Subject                string `json:"subject"`
 }
 
-func (data *SetDigitalSalesOrderDetailAsSent) setDigitalSalesOrderDetailAsSent(enterpriseId int32) bool {
+func (data *SetDigitalSalesOrderDetailAsSent) setDigitalSalesOrderDetailAsSent(enterpriseId int32, userId int32) bool {
 	detail := getSalesOrderDetailRow(data.Detail)
-	if detail.enterprise != enterpriseId || detail.Status != "E" {
+	if detail.EnterpriseId != enterpriseId || detail.Status != "E" {
 		return false
 	}
 	digitalProductData := getSalesOrderDetailDigitalProductData(detail.Id, enterpriseId)
@@ -116,16 +135,28 @@ func (data *SetDigitalSalesOrderDetailAsSent) setDigitalSalesOrderDetailAsSent(e
 			DestinationAddressName: data.DestinationAddressName,
 			Subject:                data.Subject,
 			ReportId:               "SALES_ORDER_DIGITAL_PRODUCT_DATA",
-			ReportDataId:           int32(detail.Order),
+			ReportDataId:           int32(detail.OrderId),
 		}
 		ei.sendEmail(enterpriseId)
 	}
 
-	sqlStatement := `UPDATE sales_order_detail SET status='G' WHERE id=$1`
-	_, err := db.Exec(sqlStatement, data.Detail)
-	if err != nil {
-		log("DB", err.Error())
+	///
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
+		return false
 	}
+	///
 
-	return err == nil
+	result := trans.Model(&SalesOrderDetail{}).Where("id = ?", data.Detail).Update("status", "G")
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+	setSalesOrderState(enterpriseId, detail.OrderId, userId, *trans)
+
+	///
+	trans.Commit()
+	///
+	return true
 }

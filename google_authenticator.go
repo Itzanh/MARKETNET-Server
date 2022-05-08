@@ -27,19 +27,22 @@ type GoogleAuthenticatorRegister struct {
 
 func registerUserInGoogleAuthenticator(userId int32, enterpriseId int32) GoogleAuthenticatorRegister {
 	user := getUserRow(userId)
-	if user.Id <= 0 || user.enterprise != enterpriseId {
+	if user.Id <= 0 || user.EnterpriseId != enterpriseId {
 		return GoogleAuthenticatorRegister{Ok: false, AuthLink: ""}
 	}
-	enterprise := getSettingsRecordById(user.enterprise)
+	enterprise := getSettingsRecordById(user.EnterpriseId)
 	if enterprise.Id <= 0 {
 		return GoogleAuthenticatorRegister{Ok: false, AuthLink: ""}
 	}
 	// generate a random string - preferbly 6 or 8 characters
 	randomStr := randStr(8)
 
-	sqlStatement := `UPDATE public."user" SET uses_google_authenticator=true, google_authenticator_secret=$3 WHERE id=$1 AND config=$2`
-	_, err := db.Exec(sqlStatement, user.Id, enterpriseId, randomStr)
-	if err != nil {
+	user.UsesGoogleAuthenticator = true
+	user.GoogleAuthenticatorSecret = &randomStr
+
+	result := dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return GoogleAuthenticatorRegister{Ok: false, AuthLink: ""}
 	}
 
@@ -53,12 +56,13 @@ func registerUserInGoogleAuthenticator(userId int32, enterpriseId int32) GoogleA
 
 func authenticateUserInGoogleAuthenticator(userId int32, enterpriseId int32, token string) bool {
 	user := getUserRow(userId)
-	if user.Id <= 0 || user.enterprise != enterpriseId {
+	if user.Id <= 0 || user.EnterpriseId != enterpriseId || user.GoogleAuthenticatorSecret == nil {
 		return false
 	}
 
 	// For Google Authenticator purpose for more details see https://github.com/google/google-authenticator/wiki/Key-Uri-Format
-	secret := base32.StdEncoding.EncodeToString([]byte(user.googleAuthenticatorSecret))
+	googleAuthenticatorSecret := *user.GoogleAuthenticatorSecret
+	secret := base32.StdEncoding.EncodeToString([]byte(googleAuthenticatorSecret))
 
 	// setup the one-time-password configuration.
 	otpConfig := &dgoogauth.OTPConfig{
@@ -82,7 +86,16 @@ func authenticateUserInGoogleAuthenticator(userId int32, enterpriseId int32, tok
 }
 
 func removeUserFromGoogleAuthenticator(userId int32, enterpriseId int32) bool {
-	sqlStatement := `UPDATE public."user" SET uses_google_authenticator=false, google_authenticator_secret=NULL WHERE id=$1 AND config=$2`
-	_, err := db.Exec(sqlStatement, userId, enterpriseId)
-	return err == nil
+	user := getUserRow(userId)
+
+	user.UsesGoogleAuthenticator = false
+	user.GoogleAuthenticatorSecret = nil
+
+	result := dbOrm.Updates(user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return result.RowsAffected > 0
 }

@@ -62,10 +62,10 @@ func TestManufacturingOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	mo := ManufacturingOrder{
-		Product:     1,
-		Type:        1,
-		UserCreated: 1,
-		enterprise:  1,
+		ProductId:     1,
+		TypeId:        1,
+		UserCreatedId: 1,
+		EnterpriseId:  1,
 	}
 	ok := mo.insertManufacturingOrder(0, nil).Ok
 	if !ok {
@@ -106,27 +106,27 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(1)
@@ -160,10 +160,10 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 
 	// delete created order
 	details := getSalesOrderDetail(orderId, 1)
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -173,27 +173,27 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(1)
@@ -230,10 +230,10 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	r.Invoices[0].deleteSalesInvoice(0)
 
 	// delete created order
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -246,21 +246,21 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	manufacturingOrderType := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	okAndErr := p.insertProduct(0)
@@ -273,27 +273,27 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	p = products[len(products)-1]
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(0)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(0)
@@ -394,10 +394,10 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 
 	// delete created order
 	details = getSalesOrderDetail(orderId, 1)
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(0, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(0)
 
 	ok = p.deleteProduct(0).Ok
@@ -416,21 +416,21 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 	manufacturingOrderType := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	okAndErr := p.insertProduct(0)
@@ -444,10 +444,10 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 
 	// creare manufacturing order
 	mo := ManufacturingOrder{
-		Product:     p.Id,
-		UserCreated: 1,
-		complex:     false,
-		enterprise:  1,
+		ProductId:     p.Id,
+		UserCreatedId: 1,
+		Complex:       false,
+		EnterpriseId:  1,
 	}
 	okAndErr = mo.insertManufacturingOrder(0, nil)
 	if !okAndErr.Ok {
@@ -457,27 +457,27 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 
 	// create sale order
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(0)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   1,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     1,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(0)
@@ -491,7 +491,7 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 		return
 	}
 	mo = getManufacturingOrderRow(mo.Id)
-	if mo.OrderDetail == nil {
+	if mo.OrderDetailId == nil {
 		t.Error("Order not associated")
 		return
 	}
@@ -509,10 +509,10 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 
 	// delete created order
 	details = getSalesOrderDetail(orderId, 1)
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(0, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(0)
 
 	// delete product
@@ -551,7 +551,7 @@ func TestManufacturingOrderTypeInsertUpdateDelete(t *testing.T) {
 
 	mot := ManufacturingOrderType{
 		Name:                 "Test",
-		enterprise:           1,
+		EnterpriseId:         1,
 		QuantityManufactured: 1,
 	}
 

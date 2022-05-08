@@ -9,48 +9,54 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type ApiKey struct {
 	Id                int32             `json:"id"`
-	Name              string            `json:"name"`
-	DateCreated       time.Time         `json:"dateCreated"`
-	UserCreated       int32             `json:"userCreated"`
-	Off               bool              `json:"off"`
-	User              int32             `json:"user"`
-	Token             *string           `json:"token"`
-	Auth              string            `json:"auth"` // P = Parameter, H = Header, B = Basic Auth, R = Bearer
-	BasicAuthUser     *string           `json:"basicAuthUser"`
-	BasicAuthPassword *string           `json:"basicAuthPassword"`
-	UserCreatedName   string            `json:"userCreatedName"`
-	UserName          string            `json:"userName"`
-	Permissions       ApiKeyPermissions `json:"permissions"`
-	permissionsJson   string
-	enterprise        int32
+	Name              string            `json:"name" gorm:"type:character varying(140);not null:true"`
+	DateCreated       time.Time         `json:"dateCreated" gorm:"type:timestamp(3) without time zone;not null:true"`
+	UserCreatedId     int32             `json:"userCreatedId" gorm:"column:user_created;not null:true"`
+	UserCreated       User              `json:"userCreated" gorm:"foreignkey:UserCreatedId,EnterpriseId;references:Id,EnterpriseId"`
+	Off               bool              `json:"off" gorm:"not null:true"`
+	UserId            int32             `json:"userId" gorm:"column:user;not null:true"`
+	User              User              `json:"user" gorm:"foreignkey:UserId,EnterpriseId;references:Id,EnterpriseId"`
+	Token             *string           `json:"token" gorm:"type:uuid;index:api_key_token,unique:true,where:token is not null"`
+	EnterpriseId      int32             `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise        Settings          `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Auth              string            `json:"auth" gorm:"type:character(1);not null:true"` // P = Parameter, H = Header, B = Basic Auth, R = Bearer
+	BasicAuthUser     *string           `json:"basicAuthUser" gorm:"type:character varying(20);index:api_key_basic_auth,unique:true,where:auth = 'B'"`
+	BasicAuthPassword *string           `json:"basicAuthPassword" gorm:"type:character varying(20);index:api_key_basic_auth,unique:true,where:auth = 'B'"`
+	Permissions       ApiKeyPermissions `json:"permissions" gorm:"-"`
+	PermissionsJson   string            `json:"-" gorm:"column:permissions;type:json;not null:true"`
+}
+
+func (ak *ApiKey) TableName() string {
+	return "api_key"
 }
 
 func getApiKeys(enterpriseId int32) []ApiKey {
 	keys := make([]ApiKey, 0)
-	sqlStatement := `SELECT *,(SELECT username FROM "user" WHERE "user".id=api_key.user_created),(SELECT username FROM "user" WHERE "user".id=api_key."user") FROM public.api_key WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return keys
+	// get all the api keys for the enterprise sorted by id ascending
+	result := dbOrm.Where("api_key.enterprise = ?", enterpriseId).Preload("UserCreated").Preload("User").Order("api_key.id ASC").Find(&keys)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := ApiKey{}
-		rows.Scan(&a.Id, &a.Name, &a.DateCreated, &a.UserCreated, &a.Off, &a.User, &a.Token, &a.enterprise, &a.Auth, &a.BasicAuthUser, &a.BasicAuthPassword, &a.permissionsJson, &a.UserCreatedName, &a.UserName)
-		json.Unmarshal([]byte(a.permissionsJson), &a.Permissions)
-		keys = append(keys, a)
+	for i := 0; i < len(keys); i++ {
+		json.Unmarshal([]byte(keys[i].PermissionsJson), &keys[i].Permissions)
 	}
-
 	return keys
 }
 
 func (a *ApiKey) isValid() bool {
-	return !(len(a.Name) == 0 || len(a.Name) > 64 || a.User <= 0 || (a.Auth != "P" && a.Auth != "H" && a.Auth != "B" && a.Auth != "R"))
+	return !(len(a.Name) == 0 || len(a.Name) > 140 || a.UserId <= 0 || (a.Auth != "P" && a.Auth != "H" && a.Auth != "B" && a.Auth != "R"))
+}
+
+func (a *ApiKey) BeforeCreate(tx *gorm.DB) (err error) {
+	var apiKey ApiKey
+	tx.Model(&ApiKey{}).Last(&apiKey)
+	a.Id = apiKey.Id + 1
+	return nil
 }
 
 func (a *ApiKey) insertApiKey() bool {
@@ -70,29 +76,41 @@ func (a *ApiKey) insertApiKey() bool {
 	}
 
 	permissionsJson, _ := json.Marshal(a.Permissions)
-	a.permissionsJson = string(permissionsJson)
-	sqlStatement := `INSERT INTO public.api_key(name, user_created, "user", token, enterprise, auth, basic_auth_user, basic_auth_password, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := db.Exec(sqlStatement, a.Name, a.UserCreated, a.User, a.Token, a.enterprise, a.Auth, a.BasicAuthUser, a.BasicAuthPassword, a.permissionsJson)
-	if err != nil {
-		log("DB", err.Error())
+	a.PermissionsJson = string(permissionsJson)
+
+	a.DateCreated = time.Now()
+
+	result := dbOrm.Create(&a)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
 func (a *ApiKey) updateApiKey() bool {
-	if a.Id <= 0 || a.enterprise <= 0 || len(a.Name) == 0 || len(a.Name) > 64 {
+	if a.Id <= 0 || a.EnterpriseId <= 0 || len(a.Name) == 0 || len(a.Name) > 64 {
 		return false
 	}
 
 	permissionsJson, _ := json.Marshal(a.Permissions)
-	a.permissionsJson = string(permissionsJson)
-	sqlStatement := `UPDATE public.api_key SET name=$3, permissions=$4 WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, a.Id, a.enterprise, a.Name, a.permissionsJson)
-	if err != nil {
-		log("DB", err.Error())
+	a.PermissionsJson = string(permissionsJson)
+
+	// get a single api key from the database using dbOrm where the id is the same as the id of the api key passed in and the enterprise id is the same as the enterprise id of the api key passed in
+	var dbApiKey ApiKey
+	dbOrm.Where("id = ? AND enterprise = ?", a.Id, a.EnterpriseId).First(&dbApiKey)
+
+	dbApiKey.Name = a.Name
+	dbApiKey.PermissionsJson = a.PermissionsJson
+
+	// update the api key in the database
+	result := dbOrm.Save(&dbApiKey)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
+
 	return true
 }
 
@@ -114,14 +132,13 @@ func (a *ApiKey) deleteApiKey() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.api_key WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, a.Id, a.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	// delete a single api key from the database using dbOrm where the id is the same as passed in and the enterprise id is the same as the enterprise id of the api key passed in
+	result := dbOrm.Delete(ApiKey{}, "id = ? AND enterprise = ?", a.Id, a.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
-
-	return err == nil
+	return true
 }
 
 func (a *ApiKey) offApiKey() bool {
@@ -129,14 +146,23 @@ func (a *ApiKey) offApiKey() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.api_key SET off=NOT off WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, a.Id, a.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	// get a single api key from the database using dbOrm where the id is the same as the id of the api key passed in and the enterprise id is the same as the enterprise id of the api key passed in
+	var dbApiKey ApiKey
+	result := dbOrm.Where("id = ? AND enterprise = ?", a.Id, a.EnterpriseId).First(&dbApiKey)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	return err == nil
+	dbApiKey.Off = !dbApiKey.Off
+
+	// update the api key in the database
+	result = dbOrm.Save(&dbApiKey)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
 }
 
 // checks if the api key exists.
@@ -213,24 +239,24 @@ func resetMaxRequestsPerEnterprise() {
 // P = Parameter, H = Header, B = Basic Auth
 // OK, user id, enterprise id
 func checkApiKeyByTokenAuthType(token string, auth string) (bool, int32, int32, *ApiKeyPermissions) {
-	sqlStatement := `SELECT "user",enterprise,permissions FROM public.api_key WHERE off=false AND token=$1 AND auth=$2`
-	row := db.QueryRow(sqlStatement, token, auth)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	// get the api keys from the database where the token and auth type are the same as the ones passed in
+	var dbApiKey ApiKey
+	var rowCount int64
+	result := dbOrm.Where("token = ? AND auth = ? AND off = false", token, auth).Limit(1).First(&dbApiKey).Count(&rowCount)
+	if rowCount == 0 {
+		return false, 0, 0, nil
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false, 0, 0, nil
 	}
 
-	var userId int32
-	var enterpriseId int32
-	var permissions string
-	row.Scan(&userId, &enterpriseId, &permissions)
-
 	p := ApiKeyPermissions{}
-	if len(permissions) > 0 {
-		json.Unmarshal([]byte(permissions), &p)
+	if len(dbApiKey.PermissionsJson) > 0 {
+		json.Unmarshal([]byte(dbApiKey.PermissionsJson), &p)
 	}
 
-	return true, userId, enterpriseId, &p
+	return true, dbApiKey.UserId, dbApiKey.EnterpriseId, &p
 }
 
 // checks if the api key exists.
@@ -238,24 +264,24 @@ func checkApiKeyByTokenAuthType(token string, auth string) (bool, int32, int32, 
 // P = Parameter, H = Header, B = Basic Auth
 // OK, user id, enterprise id
 func checkApiKeyByBasicAuthType(basicAuthUser string, basicAuthPassword string) (bool, int32, int32, *ApiKeyPermissions) {
-	sqlStatement := `SELECT "user",enterprise FROM public.api_key WHERE off=false AND basic_auth_user=$1 AND basic_auth_password=$2 AND auth='B'`
-	row := db.QueryRow(sqlStatement, basicAuthUser, basicAuthPassword)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	// get a single api key from the database where the basic_auth_user and basic_auth_password are the same as the ones passed in and the key is not off
+	var dbApiKey ApiKey
+	var rowCount int64
+	result := dbOrm.Where("basic_auth_user = ? AND basic_auth_password = ? AND off = false", basicAuthUser, basicAuthPassword).Limit(1).First(&dbApiKey).Count(&rowCount)
+	if rowCount == 0 {
+		return false, 0, 0, nil
+	}
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false, 0, 0, nil
 	}
 
-	var userId int32
-	var enterpriseId int32
-	var permissions string
-	row.Scan(&userId, &enterpriseId, &permissions)
-
 	p := ApiKeyPermissions{}
-	if len(permissions) > 0 {
-		json.Unmarshal([]byte(permissions), &p)
+	if len(dbApiKey.PermissionsJson) > 0 {
+		json.Unmarshal([]byte(dbApiKey.PermissionsJson), &p)
 	}
 
-	return true, userId, enterpriseId, &p
+	return true, dbApiKey.UserId, dbApiKey.EnterpriseId, &p
 }
 
 type ApiKeyPermissions struct {

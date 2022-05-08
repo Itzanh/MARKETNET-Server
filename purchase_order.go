@@ -6,45 +6,59 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PurchaseOrder struct {
-	Id                int64      `json:"id"`
-	Warehouse         string     `json:"warehouse"`
-	SupplierReference string     `json:"supplierReference"`
-	Supplier          int32      `json:"supplier"`
-	DateCreated       time.Time  `json:"dateCreated"`
-	DatePaid          *time.Time `json:"datePaid"`
-	PaymentMethod     int32      `json:"paymentMethod"`
-	BillingSeries     string     `json:"billingSeries"`
-	Currency          int32      `json:"currency"`
-	CurrencyChange    float64    `json:"currencyChange"`
-	BillingAddress    int32      `json:"billingAddress"`
-	ShippingAddress   int32      `json:"shippingAddress"`
-	LinesNumber       int16      `json:"linesNumber"`
-	InvoicedLines     int16      `json:"invoicedLines"`
-	DeliveryNoteLines int16      `json:"deliveryNoteLines"`
-	TotalProducts     float64    `json:"totalProducts"`
-	DiscountPercent   float64    `json:"discountPercent"`
-	FixDiscount       float64    `json:"fixDiscount"`
-	ShippingPrice     float64    `json:"shippingPrice"`
-	ShippingDiscount  float64    `json:"shippingDiscount"`
-	TotalWithDiscount float64    `json:"totalWithDiscount"`
-	VatAmount         float64    `json:"vatAmount"`
-	TotalAmount       float64    `json:"totalAmount"`
-	Description       string     `json:"description"`
-	Notes             string     `json:"notes"`
-	Off               bool       `json:"off"`
-	Cancelled         bool       `json:"cancelled"`
-	OrderNumber       int32      `json:"orderNumber"`
-	BillingStatus     string     `json:"billingStatus"`
-	OrderName         string     `json:"orderName"`
-	SupplierName      string     `json:"supplierName"`
-	enterprise        int32
+	Id                int64         `json:"id" gorm:"index:purchase_order_id_enterprise,unique:true,priority:1"`
+	WarehouseId       string        `json:"warehouseId" gorm:"column:warehouse;type:character(2);not null:true"`
+	Warehouse         Warehouse     `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
+	SupplierReference string        `json:"supplierReference " gorm:"column:supplier_reference;type:character varying(40);not null:true;index:purchase_order_supplier_reference,type:gin"`
+	SupplierId        int32         `json:"supplierId" gorm:"column:supplier;type:integer;not null:true"`
+	Supplier          Supplier      `json:"supplier" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
+	DateCreated       time.Time     `json:"dateCreated" gorm:"column:date_created;type:timestamp(3) with time zone;not null:true"`
+	DatePaid          *time.Time    `json:"datePaid" gorm:"column:date_paid;type:timestamp(3) with time zone"`
+	PaymentMethodId   int32         `json:"paymentMethodId" gorm:"column:payment_method;type:integer;not null:true"`
+	PaymentMethod     PaymentMethod `json:"paymentMethod" gorm:"foreignKey:PaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
+	BillingSeriesId   string        `json:"billingSeriesId" gorm:"column:billing_series;type:character(3);not null:true;index:purchase_order_order_number,unique:true,priority:2"`
+	BillingSeries     BillingSerie  `json:"billingSeries" gorm:"foreignKey:BillingSeriesId,EnterpriseId;references:Id,EnterpriseId"`
+	CurrencyId        int32         `json:"currencyId" gorm:"column:currency;type:integer;not null:true"`
+	Currency          Currency      `json:"currency" gorm:"foreignKey:CurrencyId,EnterpriseId;references:Id,EnterpriseId"`
+	CurrencyChange    float64       `json:"currencyChange" gorm:"column:currency_change;type:numeric(14,6);not null:true"`
+	BillingAddressId  int32         `json:"billingAddressId" gorm:"column:billing_address;type:integer;not null:true"`
+	BillingAddress    Address       `json:"billingAddress" gorm:"foreignKey:BillingAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	ShippingAddressId int32         `json:"shippingAddressId" gorm:"column:shipping_address;type:integer;not null:true"`
+	ShippingAddress   Address       `json:"shippingAddress" gorm:"foreignKey:ShippingAddressId,EnterpriseId;references:Id,EnterpriseId"`
+	LinesNumber       int16         `json:"linesNumber" gorm:"column:lines_number;type:smallint;not null:true"`
+	InvoicedLines     int16         `json:"invoicedLines" gorm:"column:invoiced_lines;type:smallint;not null:true"`
+	DeliveryNoteLines int16         `json:"deliveryNoteLines" gorm:"column:delivery_note_lines;type:smallint;not null:true"`
+	TotalProducts     float64       `json:"totalProducts" gorm:"column:total_products;type:numeric(14,6);not null:true"`
+	DiscountPercent   float64       `json:"discountPercent" gorm:"column:discount_percent;type:numeric(14,6);not null:true"`
+	FixDiscount       float64       `json:"fixDiscount" gorm:"column:fix_discount;type:numeric(14,6);not null:true"`
+	ShippingPrice     float64       `json:"shippingPrice" gorm:"column:shipping_price;type:numeric(14,6);not null:true"`
+	ShippingDiscount  float64       `json:"shippingDiscount" gorm:"column:shipping_discount;type:numeric(14,6);not null:true"`
+	TotalWithDiscount float64       `json:"totalWithDiscount" gorm:"column:total_with_discount;type:numeric(14,6);not null:true"`
+	VatAmount         float64       `json:"vatAmount" gorm:"column:total_vat;type:numeric(14,6);not null:true"`
+	TotalAmount       float64       `json:"totalAmount" gorm:"column:total_amount;type:numeric(14,6);not null:true"`
+	Description       string        `json:"description" gorm:"column:dsc;type:text;not null:true"`
+	Notes             string        `json:"notes" gorm:"column:notes;type:character varying(250);not null:true"`
+	Off               bool          `json:"off" gorm:"column:off;type:boolean;not null:true"`
+	Cancelled         bool          `json:"cancelled" gorm:"column:cancelled;type:boolean;not null:true"`
+	OrderNumber       int32         `json:"orderNumber" gorm:"column:order_number;type:integer;not null:true;index:purchase_order_order_number,unique:true,priority:3"`
+	BillingStatus     string        `json:"billingStatus" gorm:"column:billing_status;type:character(1);not null:true"`
+	OrderName         string        `json:"orderName" gorm:"column:order_name;type:character(15);not null:true"`
+	EnterpriseId      int32         `json:"-" gorm:"column:enterprise;not null:true;index:purchase_order_id_enterprise,unique:true,priority:2;index:purchase_order_order_number,unique:true,priority:1"`
+	Enterprise        Settings      `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (po *PurchaseOrder) TableName() string {
+	return "purchase_order"
 }
 
 type PurchaseOrders struct {
-	Rows   int32               `json:"rows"`
+	Rows   int64               `json:"rows"`
 	Orders []PurchaseOrder     `json:"orders"`
 	Footer PurchaseOrderFooter `json:"footer"`
 }
@@ -57,138 +71,86 @@ type PurchaseOrderFooter struct {
 func getPurchaseOrder(enterpriseId int32) PurchaseOrders {
 	o := PurchaseOrders{}
 	o.Orders = make([]PurchaseOrder, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order WHERE enterprise=$1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&PurchaseOrder{}).Where("purchase_order.enterprise = ?", enterpriseId).Order("purchase_order.date_created DESC").Preload(clause.Associations).Find(&o.Orders)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return o
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		s := PurchaseOrder{}
-		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
-			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.enterprise, &s.SupplierName)
-		o.Orders = append(o.Orders, s)
-	}
-
-	sqlStatement = `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_order WHERE enterprise=$1`
-	row := db.QueryRow(sqlStatement, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	o.Footer = PurchaseOrderFooter{}
+	result = dbOrm.Model(&PurchaseOrder{}).Where("purchase_order.enterprise = ?", enterpriseId).Count(&o.Rows).Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&o.Footer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return o
 	}
-	row.Scan(&o.Rows, &o.Footer.TotalProducts, &o.Footer.TotalAmount)
-
 	return o
 }
 
 func (s *OrderSearch) searchPurchaseOrder() PurchaseOrders {
 	o := PurchaseOrders{}
 	o.Orders = make([]PurchaseOrder, 0)
-	var rows *sql.Rows
+
+	cursor := dbOrm.Model(&PurchaseOrder{}).Where("purchase_order.enterprise = ?", s.enterprise)
 	orderNumber, err := strconv.Atoi(s.Search)
 	if err == nil {
-		sqlStatement := `SELECT purchase_order.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order WHERE order_number=$1 AND enterprise=$2 ORDER BY date_created DESC`
-		rows, err = db.Query(sqlStatement, orderNumber, s.enterprise)
+		cursor = cursor.Where("purchase_order.order_number = ?", orderNumber)
 	} else {
-		var interfaces []interface{} = make([]interface{}, 0)
-		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT purchase_order.*,(SELECT name FROM suppliers WHERE suppliers.id=purchase_order.supplier) FROM purchase_order INNER JOIN suppliers ON suppliers.id=purchase_order.supplier WHERE (suppliers.name ILIKE $1 OR purchase_order.supplier_reference ILIKE $1)`
+		cursor = cursor.Joins("INNER JOIN suppliers ON suppliers.id=purchase_order.supplier").Where("suppliers.name ILIKE @search OR purchase_order.supplier_reference ILIKE @search", sql.Named("search", "%"+s.Search+"%"))
 		if s.DateStart != nil {
-			sqlStatement += ` AND purchase_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateStart)
+			cursor = cursor.Where("purchase_order.date_created >= ?", s.DateStart)
 		}
 		if s.DateEnd != nil {
-			sqlStatement += ` AND purchase_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateEnd)
+			cursor = cursor.Where("purchase_order.date_created <= ?", s.DateEnd)
 		}
-		sqlStatement += ` AND purchase_order.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.enterprise)
-		sqlStatement += ` ORDER BY date_created DESC`
-		rows, err = db.Query(sqlStatement, interfaces...)
 	}
-	if err != nil {
-		log("DB", err.Error())
+	result := cursor.Preload(clause.Associations).Order("purchase_order.date_created DESC").Count(&o.Rows).Find(&o.Orders)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return o
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		s := PurchaseOrder{}
-		rows.Scan(&s.Id, &s.Warehouse, &s.SupplierReference, &s.Supplier, &s.DateCreated, &s.DatePaid, &s.PaymentMethod, &s.BillingSeries, &s.Currency, &s.CurrencyChange,
-			&s.BillingAddress, &s.ShippingAddress, &s.LinesNumber, &s.InvoicedLines, &s.DeliveryNoteLines, &s.TotalProducts, &s.DiscountPercent, &s.FixDiscount, &s.ShippingPrice, &s.ShippingDiscount,
-			&s.TotalWithDiscount, &s.VatAmount, &s.TotalAmount, &s.Description, &s.Notes, &s.Off, &s.Cancelled, &s.OrderNumber, &s.BillingStatus, &s.OrderName, &s.enterprise, &s.SupplierName)
-		o.Orders = append(o.Orders, s)
-	}
-
-	var row *sql.Row
+	cursor = dbOrm.Model(&PurchaseOrder{}).Where("purchase_order.enterprise = ?", s.enterprise)
 	if err == nil {
-		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_order WHERE order_number=$1 AND enterprise=$2`
-		row = db.QueryRow(sqlStatement, orderNumber, s.enterprise)
+		cursor = cursor.Where("purchase_order.order_number = ?", orderNumber)
 	} else {
-		var interfaces []interface{} = make([]interface{}, 0)
-		interfaces = append(interfaces, "%"+s.Search+"%")
-		sqlStatement := `SELECT COUNT(*),SUM(total_products),SUM(total_amount) FROM purchase_order INNER JOIN suppliers ON suppliers.id=purchase_order.supplier WHERE (suppliers.name ILIKE $1 OR purchase_order.supplier_reference ILIKE $1)`
+		cursor = cursor.Joins("INNER JOIN suppliers ON suppliers.id=purchase_order.supplier").Where("suppliers.name ILIKE @search OR purchase_order.supplier_reference ILIKE @search", sql.Named("search", "%"+s.Search+"%"))
 		if s.DateStart != nil {
-			sqlStatement += ` AND purchase_order.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateStart)
+			cursor = cursor.Where("purchase_order.date_created >= ?", s.DateStart)
 		}
 		if s.DateEnd != nil {
-			sqlStatement += ` AND purchase_order.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-			interfaces = append(interfaces, s.DateEnd)
+			cursor = cursor.Where("purchase_order.date_created <= ?", s.DateEnd)
 		}
-		sqlStatement += ` AND purchase_order.enterprise = $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, s.enterprise)
-		row = db.QueryRow(sqlStatement, interfaces...)
 	}
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result = cursor.Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&o.Footer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return o
 	}
-	row.Scan(&o.Rows, &o.Footer.TotalProducts, &o.Footer.TotalAmount)
 
 	return o
 }
 
 func getPurchaseOrderRow(orderId int64) PurchaseOrder {
-	sqlStatement := `SELECT * FROM purchase_order WHERE id=$1`
-	row := db.QueryRow(sqlStatement, orderId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return PurchaseOrder{}
-	}
-
 	p := PurchaseOrder{}
-	row.Scan(&p.Id, &p.Warehouse, &p.SupplierReference, &p.Supplier, &p.DateCreated, &p.DatePaid, &p.PaymentMethod, &p.BillingSeries, &p.Currency, &p.CurrencyChange,
-		&p.BillingAddress, &p.ShippingAddress, &p.LinesNumber, &p.InvoicedLines, &p.DeliveryNoteLines, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount,
-		&p.TotalWithDiscount, &p.VatAmount, &p.TotalAmount, &p.Description, &p.Notes, &p.Off, &p.Cancelled, &p.OrderNumber, &p.BillingStatus, &p.OrderName, &p.enterprise)
-
-	return p
-}
-
-func getPurchaseOrderRowTransaction(orderId int64, trans sql.Tx) PurchaseOrder {
-	sqlStatement := `SELECT * FROM purchase_order WHERE id=$1`
-	row := db.QueryRow(sqlStatement, orderId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return PurchaseOrder{}
+	result := dbOrm.Model(&PurchaseOrder{}).Where("purchase_order.id = ?", orderId).Preload(clause.Associations).First(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return p
 	}
-
-	p := PurchaseOrder{}
-	row.Scan(&p.Id, &p.Warehouse, &p.SupplierReference, &p.Supplier, &p.DateCreated, &p.DatePaid, &p.PaymentMethod, &p.BillingSeries, &p.Currency, &p.CurrencyChange,
-		&p.BillingAddress, &p.ShippingAddress, &p.LinesNumber, &p.InvoicedLines, &p.DeliveryNoteLines, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount,
-		&p.TotalWithDiscount, &p.VatAmount, &p.TotalAmount, &p.Description, &p.Notes, &p.Off, &p.Cancelled, &p.OrderNumber, &p.BillingStatus, &p.OrderName, &p.enterprise)
-
 	return p
 }
 
 func (p *PurchaseOrder) isValid() bool {
-	return !(len(p.Warehouse) == 0 || len(p.SupplierReference) > 40 || p.Supplier <= 0 || p.PaymentMethod <= 0 || len(p.BillingSeries) == 0 || p.Currency <= 0 || p.BillingAddress <= 0 || p.ShippingAddress <= 0 || len(p.Notes) > 250 || len(p.Description) > 3000)
+	return !(len(p.WarehouseId) == 0 || len(p.SupplierReference) > 40 || p.SupplierId <= 0 || p.PaymentMethodId <= 0 || len(p.BillingSeriesId) == 0 || p.CurrencyId <= 0 || p.BillingAddressId <= 0 || p.ShippingAddressId <= 0 || len(p.Notes) > 250 || len(p.Description) > 3000)
 }
 
-func (p *PurchaseOrder) insertPurchaseOrder(userId int32, trans *sql.Tx) (bool, int64) {
+func (o *PurchaseOrder) BeforeCreate(tx *gorm.DB) (err error) {
+	var purchaseOrder PurchaseOrder
+	tx.Model(&PurchaseOrder{}).Last(&purchaseOrder)
+	o.Id = purchaseOrder.Id + 1
+	return nil
+}
+
+func (p *PurchaseOrder) insertPurchaseOrder(userId int32, trans *gorm.DB) (bool, int64) {
 	if !p.isValid() {
 		return false, 0
 	}
@@ -196,50 +158,53 @@ func (p *PurchaseOrder) insertPurchaseOrder(userId int32, trans *sql.Tx) (bool, 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return false, 0
 		}
 		///
 	}
 
-	p.OrderNumber = getNextPurchaseOrderNumber(p.BillingSeries, p.enterprise)
+	p.OrderNumber = getNextPurchaseOrderNumber(p.BillingSeriesId, p.EnterpriseId)
 	if p.OrderNumber <= 0 {
 		return false, 0
 	}
-	p.CurrencyChange = getCurrencyExchange(p.Currency)
+	p.CurrencyChange = getCurrencyExchange(p.CurrencyId)
 	now := time.Now()
-	p.OrderName = p.BillingSeries + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", p.OrderNumber)
+	p.OrderName = p.BillingSeriesId + "/" + strconv.Itoa(now.Year()) + "/" + fmt.Sprintf("%06d", p.OrderNumber)
 
-	sqlStatement := `INSERT INTO public.purchase_order(warehouse, supplier_reference, supplier, payment_method, billing_series, currency, currency_change, billing_address, shipping_address, discount_percent, fix_discount, shipping_price, shipping_discount, dsc, notes, order_number, order_name, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`
-	row := trans.QueryRow(sqlStatement, p.Warehouse, p.SupplierReference, p.Supplier, p.PaymentMethod, p.BillingSeries, p.Currency, p.CurrencyChange, p.BillingAddress, p.ShippingAddress, p.DiscountPercent, p.FixDiscount, p.ShippingPrice, p.ShippingDiscount, p.Description, p.Notes, p.OrderNumber, p.OrderName, p.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	p.DateCreated = time.Now()
+	p.DatePaid = nil
+	p.LinesNumber = 0
+	p.InvoicedLines = 0
+	p.DeliveryNoteLines = 0
+	p.TotalProducts = 0
+	p.TotalWithDiscount = p.ShippingPrice - p.ShippingDiscount - p.FixDiscount
+	p.VatAmount = 0
+	p.Off = false
+	p.Cancelled = false
+
+	result := trans.Create(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false, 0
 	}
 
-	var invoiceId int64
-	row.Scan(&invoiceId)
-	p.Id = invoiceId
-
-	if invoiceId > 0 {
-		insertTransactionalLog(p.enterprise, "purchase_order", int(invoiceId), userId, "I")
-		json, _ := json.Marshal(p)
-		go fireWebHook(p.enterprise, "purchase_order", "POST", string(json))
-	}
+	insertTransactionalLog(p.EnterpriseId, "purchase_order", int(p.Id), userId, "I")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.EnterpriseId, "purchase_order", "POST", string(json))
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return false, 0
 		}
 		///
 	}
 
-	return invoiceId > 0, invoiceId
+	return true, p.Id
 }
 
 func (p *PurchaseOrder) updatePurchaseOrder(userId int32) bool {
@@ -248,62 +213,79 @@ func (p *PurchaseOrder) updatePurchaseOrder(userId int32) bool {
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
 	inMemoryOrder := getPurchaseOrderRow(p.Id)
-	if inMemoryOrder.Id <= 0 || inMemoryOrder.enterprise != p.enterprise {
+	if inMemoryOrder.Id <= 0 || inMemoryOrder.EnterpriseId != p.EnterpriseId {
 		trans.Rollback()
 		return false
 	}
 
-	var res sql.Result
-	var err error
 	if inMemoryOrder.InvoicedLines == 0 { // if the payment is pending, we allow to change more fields
-		if p.Currency != inMemoryOrder.Currency {
-			p.CurrencyChange = getCurrencyExchange(p.Currency)
+		if p.CurrencyId != inMemoryOrder.CurrencyId {
+			p.CurrencyChange = getCurrencyExchange(p.CurrencyId)
 		}
 
-		sqlStatement := `UPDATE purchase_order SET supplier=$2, payment_method=$3, currency=$4, currency_change=$5, billing_address=$6, shipping_address=$7, discount_percent=$8, fix_discount=$9, shipping_price=$10, shipping_discount=$11, dsc=$12, notes=$13, supplier_reference=$14 WHERE id = $1`
-		res, err = trans.Exec(sqlStatement, p.Id, p.Supplier, p.PaymentMethod, p.Currency, p.CurrencyChange, p.BillingAddress, p.ShippingAddress, p.DiscountPercent, p.FixDiscount, p.ShippingPrice, p.ShippingDiscount, p.Description, p.Notes, p.SupplierReference)
+		inMemoryOrder.SupplierId = p.SupplierId
+		inMemoryOrder.PaymentMethodId = p.PaymentMethodId
+		inMemoryOrder.CurrencyId = p.CurrencyId
+		inMemoryOrder.CurrencyChange = p.CurrencyChange
+		inMemoryOrder.BillingAddressId = p.BillingAddressId
+		inMemoryOrder.ShippingAddressId = p.ShippingAddressId
+		inMemoryOrder.DiscountPercent = p.DiscountPercent
+		inMemoryOrder.FixDiscount = p.FixDiscount
+		inMemoryOrder.ShippingPrice = p.ShippingPrice
+		inMemoryOrder.ShippingDiscount = p.ShippingDiscount
+		inMemoryOrder.Description = p.Description
+		inMemoryOrder.Notes = p.Notes
+		inMemoryOrder.SupplierReference = p.SupplierReference
+
+		result := trans.Save(&inMemoryOrder)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
 
 		if p.DiscountPercent != inMemoryOrder.DiscountPercent || p.FixDiscount != inMemoryOrder.FixDiscount || p.ShippingPrice != inMemoryOrder.ShippingPrice || p.ShippingDiscount != inMemoryOrder.ShippingDiscount {
-			ok := calcTotalsPurchaseOrder(p.Id, p.enterprise, userId, *trans)
+			ok := calcTotalsPurchaseOrder(p.Id, p.EnterpriseId, userId, *trans)
 			if !ok {
 				trans.Rollback()
 				return false
 			}
 		}
 	} else {
-		sqlStatement := `UPDATE purchase_order SET supplier=$2, billing_address=$3, shipping_address=$4, dsc=$5, notes=$6, supplier_reference=$7 WHERE id = $1`
-		res, err = trans.Exec(sqlStatement, p.Id, p.Supplier, p.BillingAddress, p.ShippingAddress, p.Description, p.Notes, p.SupplierReference)
-	}
+		inMemoryOrder.SupplierId = p.SupplierId
+		inMemoryOrder.BillingAddressId = p.BillingAddressId
+		inMemoryOrder.ShippingAddressId = p.ShippingAddressId
+		inMemoryOrder.Description = p.Description
+		inMemoryOrder.Notes = p.Notes
+		inMemoryOrder.SupplierReference = p.SupplierReference
 
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
+		result := trans.Save(&inMemoryOrder)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
+	result := trans.Commit()
+	if result.Error != nil {
 		return false
 	}
 	///
 
-	rows, _ := res.RowsAffected()
+	insertTransactionalLog(p.EnterpriseId, "purchase_order", int(p.Id), userId, "U")
+	json, _ := json.Marshal(p)
+	go fireWebHook(p.EnterpriseId, "purchase_order", "PUT", string(json))
 
-	if rows > 0 {
-		insertTransactionalLog(p.enterprise, "purchase_order", int(p.Id), userId, "U")
-		json, _ := json.Marshal(p)
-		go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
-	}
-
-	return rows > 0
+	return true
 }
 
 // ERROR CODES:
@@ -316,18 +298,18 @@ func (p *PurchaseOrder) deletePurchaseOrder(userId int32) OkAndErrorCodeReturn {
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	inMemoryOrder := getPurchaseOrderRow(p.Id)
-	if inMemoryOrder.enterprise != p.enterprise {
+	if inMemoryOrder.EnterpriseId != p.EnterpriseId {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	d := getPurchaseOrderDetail(p.Id, p.enterprise)
+	d := getPurchaseOrderDetail(p.Id, p.EnterpriseId)
 
 	// prevent the order to be deleted if there is an invoice or a delivery note
 	for i := 0; i < len(d); i++ {
@@ -343,44 +325,52 @@ func (p *PurchaseOrder) deletePurchaseOrder(userId int32) OkAndErrorCodeReturn {
 
 	// delete details
 	for i := 0; i < len(d); i++ {
-		d[i].enterprise = p.enterprise
+		d[i].EnterpriseId = p.EnterpriseId
 		ok := d[i].deletePurchaseOrderDetail(userId, trans)
 		if !ok.Ok {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{strconv.Itoa(int(ok.ErrorCode)), d[i].ProductName}}
+			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3, ExtraData: []string{strconv.Itoa(int(ok.ErrorCode)), d[i].Product.Name}}
 		}
 	}
 
-	insertTransactionalLog(inMemoryOrder.enterprise, "purchase_order", int(p.Id), userId, "D")
+	insertTransactionalLog(inMemoryOrder.EnterpriseId, "purchase_order", int(p.Id), userId, "D")
 	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "DELETE", string(json))
+	go fireWebHook(p.EnterpriseId, "purchase_order", "DELETE", string(json))
 
-	sqlStatement := `DELETE FROM public.purchase_order WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, p.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Delete(&PurchaseOrder{}, "id = ?", p.Id)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
+	result = trans.Commit()
+	if result.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
-	rows, _ := res.RowsAffected()
-	return OkAndErrorCodeReturn{Ok: rows > 0}
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 // Adds a total amount to the order total. This function will subsctract from the total if the totalAmount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addTotalProductsPurchaseOrder(orderId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE purchase_order SET total_products=total_products+$2,total_vat=total_vat+$3 WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, orderId, totalAmount, (totalAmount/100)*vatPercent)
-	if err != nil {
-		log("DB", err.Error())
+func addTotalProductsPurchaseOrder(orderId int64, totalAmount float64, vatPercent float64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	purchaseOrder.TotalProducts += totalAmount
+	purchaseOrder.VatAmount += (totalAmount / 100) * vatPercent
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
@@ -390,46 +380,58 @@ func addTotalProductsPurchaseOrder(orderId int64, totalAmount float64, vatPercen
 
 // If the payment accepted date is null, sets it to the current date and time.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func setDatePaymentAcceptedPurchaseOrder(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE purchase_order SET date_paid=CASE WHEN date_paid IS NOT NULL THEN date_paid ELSE CURRENT_TIMESTAMP(3) END WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func setDatePaymentAcceptedPurchaseOrder(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	if purchaseOrder.DatePaid == nil {
+		now := time.Now()
+		purchaseOrder.DatePaid = &now
+
+		result = trans.Save(&purchaseOrder)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
+
+		insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
+		json, _ := json.Marshal(purchaseOrder)
+		go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
+	}
 
 	return true
 }
 
 // Applies the logic to calculate the totals of the purchase order and the discounts.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func calcTotalsPurchaseOrder(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE purchase_order SET total_with_discount=(total_products-total_products*(discount_percent/100))-fix_discount+shipping_price-shipping_discount,total_amount=total_with_discount+total_vat WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func calcTotalsPurchaseOrder(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	sqlStatement = `UPDATE purchase_order SET total_amount=total_with_discount+total_vat WHERE id=$1`
-	_, err = trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+	purchaseOrder.TotalWithDiscount = (purchaseOrder.TotalProducts - purchaseOrder.TotalProducts*(purchaseOrder.DiscountPercent/100)) - purchaseOrder.FixDiscount + purchaseOrder.ShippingPrice - purchaseOrder.ShippingDiscount
+	purchaseOrder.TotalAmount = purchaseOrder.TotalWithDiscount + purchaseOrder.VatAmount
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
 	return true
 }
@@ -441,7 +443,9 @@ type PurchaseOrderDefaults struct {
 
 func getPurchaseOrderDefaults(enterpriseId int32) PurchaseOrderDefaults {
 	s := getSettingsRecordById(enterpriseId)
-	return PurchaseOrderDefaults{Warehouse: s.DefaultWarehouse, WarehouseName: s.DefaultWarehouseName}
+	warehouseName := getNameWarehouse(s.DefaultWarehouseId, s.Id)
+
+	return PurchaseOrderDefaults{Warehouse: s.DefaultWarehouseId, WarehouseName: warehouseName}
 }
 
 type PurchaseOrderRelations struct {
@@ -457,164 +461,219 @@ func getPurchaseOrderRelations(orderId int64, enterpriseId int32) PurchaseOrderR
 }
 
 func getPurchaseOrderInvoices(orderId int64, enterpriseId int32) []PurchaseInvoice {
-	// INVOICE
+	purchaseOrder := getPurchaseOrderRow(orderId)
+	if purchaseOrder.Id <= 0 || purchaseOrder.EnterpriseId != enterpriseId {
+		return []PurchaseInvoice{}
+	}
 	var invoices []PurchaseInvoice = make([]PurchaseInvoice, 0)
-	sqlStatement := `SELECT DISTINCT purchase_invoice.* FROM purchase_order INNER JOIN purchase_order_detail ON purchase_order.id=purchase_order_detail.order INNER JOIN purchase_invoice_details ON purchase_order_detail.id=purchase_invoice_details.order_detail INNER JOIN purchase_invoice ON purchase_invoice.id=purchase_invoice_details.invoice WHERE purchase_order.id=$1 AND purchase_order.enterprise=$2 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return invoices
+	purchaseOrderDetails := getPurchaseOrderDetail(orderId, enterpriseId)
+	for i := 0; i < len(purchaseOrderDetails); i++ {
+		var invoiceDetails []PurchaseInvoiceDetail
+		dbOrm.Model(&PurchaseInvoiceDetail{}).Where("order_detail = ?", purchaseOrderDetails[i].Id).Find(&invoiceDetails)
+		for j := 0; j < len(invoiceDetails); j++ {
+			// only append invoice to invoices if it doesn't already exist in the array searching by id
+			var ok bool = true
+			for k := 0; k < len(invoices); k++ {
+				if invoices[k].Id == invoiceDetails[j].InvoiceId {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				invoice := getPurchaseInvoiceRow(invoiceDetails[j].InvoiceId)
+				invoices = append(invoices, invoice)
+			}
+		}
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		i := PurchaseInvoice{}
-		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
-			&i.RentPercentage, &i.RentValue)
-		invoices = append(invoices, i)
-	}
-
 	return invoices
 }
 
 func getPurchaseOrderDeliveryNotes(orderId int64, enterpriseId int32) []PurchaseDeliveryNote {
-	// DELIVERY NOTES
-	var products []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
-	sqlStatement := `SELECT DISTINCT purchase_delivery_note.* FROM purchase_order_detail INNER JOIN warehouse_movement ON warehouse_movement.purchase_order_detail=purchase_order_detail.id INNER JOIN purchase_delivery_note ON warehouse_movement.purchase_delivery_note=purchase_delivery_note.id WHERE purchase_order_detail."order"=$1 AND purchase_order_detail.enterprise=$2`
-	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return products
+	purchaseOrder := getPurchaseOrderRow(orderId)
+	if purchaseOrder.Id <= 0 || purchaseOrder.EnterpriseId != enterpriseId {
+		return []PurchaseDeliveryNote{}
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := PurchaseDeliveryNote{}
-		rows.Scan(&p.Id, &p.Warehouse, &p.Supplier, &p.DateCreated, &p.PaymentMethod, &p.BillingSeries, &p.ShippingAddress, &p.TotalProducts, &p.DiscountPercent, &p.FixDiscount, &p.ShippingPrice, &p.ShippingDiscount, &p.TotalWithDiscount, &p.TotalVat, &p.TotalAmount, &p.LinesNumber, &p.DeliveryNoteName, &p.DeliveryNoteNumber, &p.Currency, &p.CurrencyChange, &p.enterprise)
-		products = append(products, p)
+	var notes []PurchaseDeliveryNote = make([]PurchaseDeliveryNote, 0)
+	purchaseOrderDetails := getPurchaseOrderDetail(orderId, enterpriseId)
+	for i := 0; i < len(purchaseOrderDetails); i++ {
+		var noteDetails []WarehouseMovement
+		dbOrm.Model(&WarehouseMovement{}).Where("purchase_order_detail = ?", purchaseOrderDetails[i].Id).Find(&noteDetails)
+		for j := 0; j < len(noteDetails); j++ {
+			// only append note to notes if it doesn't already exist in the array searching by id
+			var ok bool = true
+			for k := 0; k < len(notes); k++ {
+				if notes[k].Id == *noteDetails[j].PurchaseDeliveryNoteId {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				note := getPurchaseDeliveryNoteRow(*noteDetails[j].PurchaseDeliveryNoteId)
+				notes = append(notes, note)
+			}
+		}
 	}
-
-	return products
+	return notes
 }
 
 // Add an amount to the lines_number field in the purchase order. This number represents the total of lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addPurchaseOrderLinesNumber(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.purchase_order SET lines_number=lines_number+1 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func addPurchaseOrderLinesNumber(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
+
+	purchaseOrder.LinesNumber += 1
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
-	return err == nil && rows > 0
+	return true
 }
 
 // Takes out an amount to the lines_number field in the purchase order. This number represents the total of lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func removePurchaseOrderLinesNumber(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.purchase_order SET lines_number=lines_number-1 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func removePurchaseOrderLinesNumber(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
+
+	purchaseOrder.LinesNumber -= 1
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
-	return err == nil && rows > 0
+	return true
 }
 
 // Add an amount to the invoiced_lines field in the purchase order. This number represents the total of invoiced lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addPurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.purchase_order SET invoiced_lines=invoiced_lines+1 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func addPurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
+
+	purchaseOrder.InvoicedLines += 1
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
-	return err == nil && rows > 0
+	return true
 }
 
 // Takes out an amount to the invoiced_lines field in the purchase order. This number represents the total of invoiced lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func removePurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.purchase_order SET invoiced_lines=invoiced_lines-1 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func removePurchaseOrderInvoicedLines(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
+
+	purchaseOrder.InvoicedLines -= 1
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
-	return err == nil && rows > 0
+	return true
 }
 
 // Add an amount to the delivery_note_lines field in the purchase order. This number represents the total of delivery note lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addPurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.purchase_order SET delivery_note_lines=delivery_note_lines+1 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func addPurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
+
+	purchaseOrder.DeliveryNoteLines += 1
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
-	return err == nil && rows > 0
+	return true
 }
 
 // Takes out an amount to the delivery_note_lines field in the purchase order. This number represents the total of delivery note lines.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func removePurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.purchase_order SET delivery_note_lines=delivery_note_lines-1 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, orderId)
-	if err != nil {
-		log("DB", err.Error())
+func removePurchaseOrderDeliveryNoteLines(orderId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrder PurchaseOrder
+	result := trans.Model(&PurchaseOrder{}).Where("id = ?", orderId).First(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
+
+	purchaseOrder.DeliveryNoteLines -= 1
+
+	result = trans.Save(&purchaseOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order", int(orderId), userId, "U")
-	p := getPurchaseOrderRowTransaction(orderId, trans)
-	json, _ := json.Marshal(p)
-	go fireWebHook(p.enterprise, "purchase_order", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrder)
+	go fireWebHook(enterpriseId, "purchase_order", "PUT", string(json))
 
-	return err == nil && rows > 0
+	return true
 }

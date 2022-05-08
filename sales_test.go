@@ -3,9 +3,15 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	gorm_log "log"
 	"math"
+	"os"
 	"testing"
 	"time"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func ConnectTestWithDB(t *testing.T) {
@@ -24,6 +30,19 @@ func ConnectTestWithDB(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 		return
+	}
+
+	dbOrm, err = gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
+		Logger: logger.New(
+			gorm_log.New(os.Stdout, "\r\n", gorm_log.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold: time.Second, // Slow SQL threshold
+			},
+		),
+	})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
@@ -172,16 +191,16 @@ func TestIsValidSalesOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 	if !o.isValid() {
 		t.Error("Incorrect is valid in sale order.")
@@ -195,16 +214,16 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	ok, orderId := o.insertSalesOrder(1)
@@ -215,9 +234,9 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 
 	o.Id = orderId
 	carrer := int32(1)
-	o.Carrier = &carrer
+	o.CarrierId = &carrer
 
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	ok = o.updateSalesOrder(1)
 	if !ok || orderId <= 0 {
 		t.Error("Update error, sale order not updated.")
@@ -225,12 +244,12 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	orderInMemory := getSalesOrderRow(orderId)
-	if *orderInMemory.Carrier != carrer {
+	if *orderInMemory.CarrierId != carrer {
 		t.Error("Update not successful, sale order not updated.")
 		return
 	}
 
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Delete error, sale order not deleted.")
@@ -386,8 +405,8 @@ func TestIsValidSaleOrderDetail(t *testing.T) {
 	}
 
 	d := SalesOrderDetail{
-		Order:                    55042,
-		Product:                  4,
+		OrderId:                  55042,
+		ProductId:                4,
 		Price:                    9.99,
 		Quantity:                 2,
 		VatPercent:               21,
@@ -396,9 +415,8 @@ func TestIsValidSaleOrderDetail(t *testing.T) {
 		QuantityDeliveryNote:     0,
 		Status:                   "_",
 		QuantityPendingPackaging: 2,
-		PurchaseOrderDetail:      nil,
-		prestaShopId:             0,
-		ProductName:              "",
+		PurchaseOrderDetailId:    nil,
+		PrestaShopId:             0,
 		Cancelled:                false}
 
 	ok := d.isValid()
@@ -413,27 +431,27 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	// test insert
@@ -469,7 +487,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 
 	// attemp to update quantity
 	details[0].Quantity = 4
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	ok = details[0].updateSalesOrderDetail(1).Ok
 	if !ok {
 		t.Error("Update error, sale order detail not updated")
@@ -536,7 +554,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	// attempt delete
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	ok = details[0].deleteSalesOrderDetail(1, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale order detail not deleted")
@@ -551,7 +569,7 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -648,12 +666,12 @@ func TestSaleInvoiceInsertUpdateDelete(t *testing.T) {
 	}
 
 	i := SalesInvoice{
-		Customer:       1,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: 1,
-		enterprise:     1,
+		CustomerId:       1,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: 1,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice(0, nil)
@@ -678,27 +696,27 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(0)
@@ -745,10 +763,10 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created order
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -758,27 +776,27 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(0)
@@ -835,10 +853,10 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created order
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -902,16 +920,16 @@ func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -924,15 +942,15 @@ func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
 	c.Id = int32(customerId)
 
 	a := Address{
-		Customer:          &c.Id,
-		Supplier:          nil,
+		CustomerId:        &c.Id,
+		SupplierId:        nil,
 		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
 		Address2:          "GUULBOTQGDPGHYTZKZNRT",
 		City:              "NKTCH",
-		Country:           country,
+		CountryId:         country,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok = a.insertAddress(0).Id > 0
@@ -942,12 +960,12 @@ func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
 	}
 
 	i := SalesInvoice{
-		Customer:       c.Id,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: a.Id,
-		enterprise:     1,
+		CustomerId:       c.Id,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: a.Id,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice(0, nil)
@@ -955,21 +973,20 @@ func TestSaleInvoiceSimplifiedInvoiceExport(t *testing.T) {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
 	}
-	i.Id = invoiceId
 
-	i = getSalesInvoiceRow(i.Id)
+	i = getSalesInvoiceRow(invoiceId)
 	if i.SimplifiedInvoice {
 		t.Error("An export invoice has been marked as simplified invoice")
 		return
 	}
 
-	ok = toggleSimplifiedInvoiceSalesInvoice(i.Id, 1, 0)
+	ok = toggleSimplifiedInvoiceSalesInvoice(invoiceId, 1, 0)
 	if !ok {
 		t.Error("Can't toggle simplified invoice")
 		return
 	}
 
-	i = getSalesInvoiceRow(i.Id)
+	i = getSalesInvoiceRow(invoiceId)
 	if !i.SimplifiedInvoice {
 		t.Error("Simplified invoice not toggled")
 		return
@@ -1006,16 +1023,16 @@ func TestSaleInvoiceSimplifiedInvoiceNational(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -1028,15 +1045,15 @@ func TestSaleInvoiceSimplifiedInvoiceNational(t *testing.T) {
 	c.Id = int32(customerId)
 
 	a := Address{
-		Customer:          &c.Id,
-		Supplier:          nil,
+		CustomerId:        &c.Id,
+		SupplierId:        nil,
 		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
 		Address2:          "GUULBOTQGDPGHYTZKZNRT",
 		City:              "NKTCH",
-		Country:           country,
+		CountryId:         country,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok = a.insertAddress(0).Id > 0
@@ -1046,12 +1063,12 @@ func TestSaleInvoiceSimplifiedInvoiceNational(t *testing.T) {
 	}
 
 	i := SalesInvoice{
-		Customer:       c.Id,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: a.Id,
-		enterprise:     1,
+		CustomerId:       c.Id,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: a.Id,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice(0, nil)
@@ -1097,16 +1114,16 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithoutTaxId(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -1119,15 +1136,15 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithoutTaxId(t *testing.T) {
 	c.Id = int32(customerId)
 
 	a := Address{
-		Customer:          &c.Id,
-		Supplier:          nil,
+		CustomerId:        &c.Id,
+		SupplierId:        nil,
 		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
 		Address2:          "GUULBOTQGDPGHYTZKZNRT",
 		City:              "NKTCH",
-		Country:           country,
+		CountryId:         country,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok = a.insertAddress(0).Id > 0
@@ -1137,12 +1154,12 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithoutTaxId(t *testing.T) {
 	}
 
 	i := SalesInvoice{
-		Customer:       c.Id,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: a.Id,
-		enterprise:     1,
+		CustomerId:       c.Id,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: a.Id,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice(0, nil)
@@ -1188,18 +1205,18 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithTaxId(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
-		TaxId:         "IT1234",
-		VatNumber:     "IT1234",
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
+		TaxId:           "IT1234",
+		VatNumber:       "IT1234",
 	}
 
 	// insert
@@ -1212,15 +1229,15 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithTaxId(t *testing.T) {
 	c.Id = int32(customerId)
 
 	a := Address{
-		Customer:          &c.Id,
-		Supplier:          nil,
+		CustomerId:        &c.Id,
+		SupplierId:        nil,
 		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
 		Address2:          "GUULBOTQGDPGHYTZKZNRT",
 		City:              "NKTCH",
-		Country:           country,
+		CountryId:         country,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok = a.insertAddress(0).Id > 0
@@ -1230,12 +1247,12 @@ func TestSaleInvoiceSimplifiedInvoiceEUWithTaxId(t *testing.T) {
 	}
 
 	i := SalesInvoice{
-		Customer:       c.Id,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: a.Id,
-		enterprise:     1,
+		CustomerId:       c.Id,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: a.Id,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice(0, nil)
@@ -1281,16 +1298,16 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -1303,15 +1320,15 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 	c.Id = int32(customerId)
 
 	a := Address{
-		Customer:          &c.Id,
-		Supplier:          nil,
+		CustomerId:        &c.Id,
+		SupplierId:        nil,
 		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
 		Address2:          "GUULBOTQGDPGHYTZKZNRT",
 		City:              "NKTCH",
-		Country:           country,
+		CountryId:         country,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok = a.insertAddress(0).Id > 0
@@ -1321,12 +1338,12 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 	}
 
 	i := SalesInvoice{
-		Customer:       c.Id,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: a.Id,
-		enterprise:     1,
+		CustomerId:       c.Id,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: a.Id,
+		EnterpriseId:     1,
 	}
 
 	ok, invoiceId := i.insertSalesInvoice(0, nil)
@@ -1334,21 +1351,25 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 		t.Error("Insert error, the invoice could not be inserted")
 		return
 	}
-	i.Id = invoiceId
+	i = getSalesInvoiceRow(invoiceId)
+	if i.Id <= 0 {
+		t.Error("Insert error, the invoice could not be inserted (get row scan error)")
+		return
+	}
 
-	// we can't make an amending invoice the same day as the original invoice, so we set the original invoice to yesterday
+	// we can't make an amending invoice the same day as the original invoice, so we set the original invoice date to yesterday
 	sqlStatement := `UPDATE sales_invoice SET date_created=$2 WHERE id=$1`
 	db.Exec(sqlStatement, i.Id, time.Now().AddDate(0, 0, -1))
 
 	var product int32 = 1
 
 	d := SalesInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product,
-		Price:      65,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product,
+		Price:        65,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	ok = d.insertSalesInvoiceDetail(nil, 0).Ok
@@ -1374,11 +1395,11 @@ func TestMakeAmendingSaleInvoice(t *testing.T) {
 		t.Error("Amending invoice not generated as amending")
 		return
 	}
-	if amendingInv.AmendedInvoice == nil {
+	if amendingInv.AmendedInvoiceId == nil {
 		t.Error("The amending invoice does't have an amended invoce id")
 		return
 	}
-	if *amendingInv.AmendedInvoice != i.Id {
+	if *amendingInv.AmendedInvoiceId != i.Id {
 		t.Error("The ID of the amended invoice is not correct")
 		return
 	}
@@ -1480,23 +1501,23 @@ func TestSalesInvoiceDetailInsertUpdateDelete(t *testing.T) {
 	var product int32 = 4
 
 	i := SalesInvoice{
-		Customer:       1,
-		PaymentMethod:  1,
-		BillingSeries:  "INT",
-		Currency:       1,
-		BillingAddress: 1,
-		enterprise:     1,
+		CustomerId:       1,
+		PaymentMethodId:  1,
+		BillingSeriesId:  "INT",
+		CurrencyId:       1,
+		BillingAddressId: 1,
+		EnterpriseId:     1,
 	}
 
 	_, invoiceId := i.insertSalesInvoice(0, nil)
 
 	d := SalesInvoiceDetail{
-		Invoice:    invoiceId,
-		Product:    &product,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		InvoiceId:    invoiceId,
+		ProductId:    &product,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	ok := d.insertSalesInvoiceDetail(nil, 0).Ok
@@ -1651,13 +1672,13 @@ func TestSalesDeliveryNoteInsertUpdateDelete(t *testing.T) {
 	}
 
 	n := SalesDeliveryNote{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		ShippingAddress: 1,
-		Currency:        1,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		ShippingAddressId: 1,
+		CurrencyId:        1,
+		EnterpriseId:      1,
 	}
 
 	ok, noteId := n.insertSalesDeliveryNotes(0, nil)
@@ -1682,27 +1703,27 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(0)
@@ -1749,10 +1770,10 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 	}
 
 	// delete created order
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -1762,27 +1783,27 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	d.insertSalesOrderDetail(0)
@@ -1839,10 +1860,10 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 	}
 
 	// delete created order
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	details[0].deleteSalesOrderDetail(1, nil)
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }
 
@@ -1894,27 +1915,27 @@ func TestSaleOrderDiscount(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	// test insert
@@ -1927,11 +1948,11 @@ func TestSaleOrderDiscount(t *testing.T) {
 	totalAmount := o.TotalAmount
 
 	discount := SalesOrderDiscount{
-		Order:            orderId,
+		OrderId:          orderId,
 		Name:             "Test discount",
 		ValueTaxIncluded: 10,
 		ValueTaxExcluded: 10,
-		enterprise:       1,
+		EnterpriseId:     1,
 	}
 	ok = discount.insertSalesOrderDiscount(0)
 	if !ok {
@@ -1978,6 +1999,6 @@ func TestSaleOrderDiscount(t *testing.T) {
 	}
 
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(1)
 }

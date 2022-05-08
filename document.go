@@ -5,7 +5,6 @@ package main
 // si el servidor devuelve un error durante la subida, mostrar ese error en el fontend
 
 import (
-	"database/sql"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type DocumentAccessToken struct {
@@ -26,123 +26,102 @@ type DocumentAccessToken struct {
 var documentAccessTokens []DocumentAccessToken = make([]DocumentAccessToken, 0)
 
 type Document struct {
-	Id                   int32     `json:"id"`
-	Name                 string    `json:"name"`
-	Uuid                 string    `json:"uuid"`
-	DateCreated          time.Time `json:"dateCreated"`
-	DateUpdated          time.Time `json:"dateUpdated"`
-	Size                 int32     `json:"size"`
-	Container            int32     `json:"container"`
-	Description          string    `json:"description"`
-	SalesOrder           *int64    `json:"salesOrder"`
-	SalesInvoice         *int64    `json:"salesInvoice"`
-	SalesDeliveryNote    *int64    `json:"salesDeliveryNote"`
-	Shipping             *int64    `json:"shipping"`
-	PurchaseOrder        *int64    `json:"purchaseOrder"`
-	PurchaseInvoice      *int64    `json:"purchaseInvoice"`
-	PurchaseDeliveryNote *int64    `json:"purchaseDeliveryNote"`
-	MimeType             string    `json:"mimeType"`
-	enterprise           int32
+	Id                     int32                 `json:"id"`
+	Name                   string                `json:"name" gorm:"type:character varying(250);not null:true"`
+	Uuid                   string                `json:"uuid" gorm:"type:uuid;not null:true;index:document_uuid,unique:true"`
+	DateCreated            time.Time             `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	DateUpdated            time.Time             `json:"dateUpdated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	Size                   int32                 `json:"size" gorm:"not null:true"`
+	Container              int32                 `json:"container" gorm:"not null:true"`
+	Description            string                `json:"description" gorm:"column:dsc;type:text;not null:true"`
+	SalesOrderId           *int64                `json:"salesOrder" gorm:"column:sales_order"`
+	SalesOrder             *SaleOrder            `json:"-" gorm:"foreignKey:SalesOrderId,EnterpriseId;references:Id,EnterpriseId"`
+	SalesInvoiceId         *int64                `json:"salesInvoice" gorm:"column:sales_invoice"`
+	SalesInvoice           *SalesInvoice         `json:"-" gorm:"foreignKey:SalesInvoiceId,EnterpriseId;references:Id,EnterpriseId"`
+	SalesDeliveryNoteId    *int64                `json:"salesDeliveryNote" gorm:"column:sales_delivery_note"`
+	SalesDeliveryNote      *SalesDeliveryNote    `json:"-" gorm:"foreignKey:SalesDeliveryNoteId,EnterpriseId;references:Id,EnterpriseId"`
+	ShippingId             *int64                `json:"shipping" gorm:"column:shipping"`
+	Shipping               *Shipping             `json:"-" gorm:"foreignKey:ShippingId,EnterpriseId;references:Id,EnterpriseId"`
+	PurchaseOrderId        *int64                `json:"purchaseOrder" gorm:"column:purchase_order"`
+	PurchaseOrder          *PurchaseOrder        `json:"-" gorm:"foreignKey:PurchaseOrderId,EnterpriseId;references:Id,EnterpriseId"`
+	PurchaseInvoiceId      *int64                `json:"purchaseInvoice" gorm:"column:purchase_invoice"`
+	PurchaseInvoice        *PurchaseInvoice      `json:"-" gorm:"foreignKey:PurchaseInvoiceId,EnterpriseId;references:Id,EnterpriseId"`
+	PurchaseDeliveryNoteId *int64                `json:"purchaseDeliveryNote" gorm:"column:purchase_delivery_note"`
+	PurchaseDeliveryNote   *PurchaseDeliveryNote `json:"-" gorm:"foreignKey:PurchaseDeliveryNoteId,EnterpriseId;references:Id,EnterpriseId"`
+	MimeType               string                `json:"mimeType" gorm:"type:character varying(100);not null:true"`
+	EnterpriseId           int32                 `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise             Settings              `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (d *Document) TableName() string {
+	return "document"
 }
 
 func getDocuments(enterpriseId int32) []Document {
 	var document []Document = make([]Document, 0)
-	sqlStatement := `SELECT * FROM document WHERE enterprise=$1 ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return document
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := Document{}
-		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
-		document = append(document, d)
-	}
-
+	dbOrm.Model(&Document{}).Where("enterprise = ?", enterpriseId).Order("id DESC").Find(&document)
 	return document
 }
 
 func (d *Document) getDocumentsRelations(enterpriseId int32) []Document {
-	var document []Document = make([]Document, 0)
+	var documents []Document = make([]Document, 0)
 
 	docDB := getDocumentRowById(d.Id)
-	if docDB.enterprise != enterpriseId {
-		return document
+	if docDB.EnterpriseId != enterpriseId {
+		return documents
 	}
 
-	var rows *sql.Rows
-	var err error
-	if d.SalesOrder != nil {
-		sqlStatement := `SELECT * FROM document WHERE sales_order=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.SalesOrder)
-	} else if d.SalesInvoice != nil {
-		sqlStatement := `SELECT * FROM document WHERE sales_invoice=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.SalesInvoice)
-	} else if d.SalesDeliveryNote != nil {
-		sqlStatement := `SELECT * FROM document WHERE sales_delivery_note=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.SalesDeliveryNote)
-	} else if d.Shipping != nil {
-		sqlStatement := `SELECT * FROM document WHERE shipping=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.Shipping)
-	} else if d.PurchaseOrder != nil {
-		sqlStatement := `SELECT * FROM document WHERE purchase_order=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.PurchaseOrder)
-	} else if d.PurchaseInvoice != nil {
-		sqlStatement := `SELECT * FROM document WHERE purchase_invoice=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.PurchaseInvoice)
-	} else if d.PurchaseDeliveryNote != nil {
-		sqlStatement := `SELECT * FROM document WHERE purchase_delivery_note=$1 ORDER BY id DESC`
-		rows, err = db.Query(sqlStatement, d.PurchaseDeliveryNote)
+	var query string
+	var interfaces []interface{} = make([]interface{}, 0)
+	if d.SalesOrderId != nil {
+		query = `sales_order = ?`
+		interfaces = append(interfaces, d.SalesOrderId)
+	} else if d.SalesInvoiceId != nil {
+		query = `sales_invoice = ?`
+		interfaces = append(interfaces, d.SalesInvoiceId)
+	} else if d.SalesDeliveryNoteId != nil {
+		query = `sales_delivery_note = ?`
+		interfaces = append(interfaces, d.SalesDeliveryNoteId)
+	} else if d.ShippingId != nil {
+		query = `shipping = ?`
+		interfaces = append(interfaces, d.ShippingId)
+	} else if d.PurchaseOrderId != nil {
+		query = `purchase_order = ?`
+		interfaces = append(interfaces, d.PurchaseOrderId)
+	} else if d.PurchaseInvoiceId != nil {
+		query = `purchase_invoice = ?`
+		interfaces = append(interfaces, d.PurchaseInvoiceId)
+	} else if d.PurchaseDeliveryNoteId != nil {
+		query = `purchase_delivery_note = ?`
+		interfaces = append(interfaces, d.PurchaseDeliveryNoteId)
 	} else {
-		return document
+		return documents
 	}
-	if err != nil {
-		log("DB", err.Error())
-		return document
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := Document{}
-		rows.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
-		document = append(document, d)
-	}
-
-	return document
+	dbOrm.Model(&Document{}).Where(query, interfaces...).Order("id DESC").Find(&documents)
+	return documents
 }
 
 func getDocumentRow(uuid string) Document {
-	sqlStatement := `SELECT * FROM document WHERE uuid=$1`
-	row := db.QueryRow(sqlStatement, uuid)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Document{}
-	}
-
 	d := Document{}
-	row.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
-
+	dbOrm.Model(&Document{}).Where("uuid = ?", uuid).First(&d)
 	return d
 }
 
 func getDocumentRowById(id int32) Document {
-	sqlStatement := `SELECT * FROM document WHERE id=$1`
-	row := db.QueryRow(sqlStatement, id)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Document{}
-	}
-
 	d := Document{}
-	row.Scan(&d.Id, &d.Name, &d.Uuid, &d.DateCreated, &d.DateUpdated, &d.Size, &d.Container, &d.Description, &d.SalesOrder, &d.SalesInvoice, &d.SalesDeliveryNote, &d.Shipping, &d.PurchaseOrder, &d.PurchaseInvoice, &d.PurchaseDeliveryNote, &d.MimeType, &d.enterprise)
-
+	dbOrm.Model(&Document{}).Where("id = ?", id).First(&d)
 	return d
 }
 
 func (d *Document) isValid() bool {
 	return !(len(d.Name) == 0 || len(d.Name) > 250 || d.Size <= 0 || d.Container <= 0 || len(d.Description) > 3000)
+}
+
+func (d *Document) BeforeCreate(tx *gorm.DB) (err error) {
+	var document Document
+	tx.Model(&Document{}).Last(&document)
+	d.Id = document.Id + 1
+	return nil
 }
 
 func (d *Document) insertDocument() OkAndErrorCodeReturn {
@@ -169,17 +148,17 @@ func (d *Document) insertDocument() OkAndErrorCodeReturn {
 	}
 
 	d.Uuid = uuid.New().String()
-	sqlStatement := `INSERT INTO public.document(name, uuid, container, dsc, sales_order, sales_invoice, sales_delivery_note, shipping, purchase_order, purchase_invoice, purchase_delivery_note, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-	res, err := db.Exec(sqlStatement, d.Name, d.Uuid, d.Container, d.Description, d.SalesOrder, d.SalesInvoice, d.SalesDeliveryNote, d.Shipping, d.PurchaseOrder, d.PurchaseInvoice, d.PurchaseDeliveryNote, d.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	d.DateCreated = time.Now()
+	d.DateUpdated = time.Now()
+	d.Size = 0
+	d.MimeType = ""
+
+	result := dbOrm.Create(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return OkAndErrorCodeReturn{Ok: false}
-	}
 	return OkAndErrorCodeReturn{Ok: true, ExtraData: []string{
 		d.Uuid,
 	}}
@@ -191,7 +170,7 @@ func (d *Document) deleteDocument() bool {
 	}
 
 	inMemoryDocument := getDocumentRowById(d.Id)
-	if inMemoryDocument.Id <= 0 || d.enterprise != inMemoryDocument.enterprise {
+	if inMemoryDocument.Id <= 0 || d.EnterpriseId != inMemoryDocument.EnterpriseId {
 		return false
 	}
 	container := getDocumentContainerRow(inMemoryDocument.Container)
@@ -200,23 +179,15 @@ func (d *Document) deleteDocument() bool {
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement := `DELETE FROM public.document WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, d.Id)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		trans.Rollback()
+	result := trans.Where("id = ? AND enterprise = ?", d.Id, d.EnterpriseId).Delete(&Document{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
@@ -225,7 +196,7 @@ func (d *Document) deleteDocument() bool {
 		return false
 	}
 
-	err = os.Remove(path.Join(container.Path, inMemoryDocument.Uuid))
+	err := os.Remove(path.Join(container.Path, inMemoryDocument.Uuid))
 	if err != nil {
 		log("FS", err.Error())
 		trans.Rollback()
@@ -233,8 +204,12 @@ func (d *Document) deleteDocument() bool {
 	}
 
 	///
-	err = trans.Commit()
-	return err == nil
+	result = trans.Commit()
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
 	///
 }
 
@@ -314,8 +289,8 @@ func uploadDocument(token string, uuid string, document []byte) int {
 	mimeType := http.DetectContentType(document)
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return http.StatusInternalServerError
 	}
 	///
@@ -325,26 +300,29 @@ func uploadDocument(token string, uuid string, document []byte) int {
 		return http.StatusInternalServerError
 	}
 
-	sqlStatement := `UPDATE public.document SET date_updated=CURRENT_TIMESTAMP(3), size=$2, mime_type=$3 WHERE id=$1`
-	_, err := db.Exec(sqlStatement, doc.Id, len(document), mimeType)
-	if err != nil {
-		log("DB", err.Error())
+	doc.DateUpdated = time.Now()
+	doc.Size = int32(len(document))
+	doc.MimeType = mimeType
+
+	result := trans.Save(&doc)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return http.StatusInternalServerError
 	}
-
 	if !container.updateUsedStorage(int32(len(document)), trans) {
 		trans.Rollback()
 		return http.StatusInternalServerError
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
+	result = trans.Commit()
+	if result.Error != nil {
 		return http.StatusInternalServerError
 	}
 	///
 
-	err = ioutil.WriteFile(path.Join(container.Path, doc.Uuid), document, 0700)
+	err := ioutil.WriteFile(path.Join(container.Path, doc.Uuid), document, 0700)
 	if err != nil {
 		log("FS", err.Error())
 		return http.StatusInternalServerError

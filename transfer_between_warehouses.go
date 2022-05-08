@@ -3,23 +3,30 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TransferBetweenWarehouses struct {
-	Id                       int64      `json:"id"`
-	WarehouseOrigin          string     `json:"warehouseOrigin"`
-	WarehouseDestination     string     `json:"warehouseDestination"`
-	DateCreated              time.Time  `json:"dateCreated"`
-	DateFinished             *time.Time `json:"dateFinished"`
-	Finished                 bool       `json:"finished"`
-	LinesTransfered          int32      `json:"linesTransfered"`
-	LinesTotal               int32      `json:"linesTotal"`
-	Name                     string     `json:"name"`
-	WarehouseOriginName      string     `json:"warehouseOriginName"`
-	WarehouseDestinationName string     `json:"warehouseDestinationName"`
-	enterprise               int32
+	Id                     int64      `json:"id" gorm:"index:transfer_between_warehouses_id_enterprise,unique:true,priority:1"`
+	WarehouseOriginId      string     `json:"warehouseOriginId" gorm:"column:warehouse_origin;type:character(2);not null"`
+	WarehouseOrigin        Warehouse  `json:"warehouseOrigin" gorm:"foreignKey:WarehouseOriginId,EnterpriseId;references:Id,EnterpriseId"`
+	WarehouseDestinationId string     `json:"warehouseDestinationId" gorm:"column:warehouse_destination;type:character(2);not null"`
+	WarehouseDestination   Warehouse  `json:"warehouseDestination" gorm:"foreignKey:WarehouseDestinationId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId           int32      `json:"enterprise" gorm:"column:enterprise;type:integer;not null;index:transfer_between_warehouses_id_enterprise,unique:true,priority:2;index:transfer_between_warehouses_enterprise_finished_date_created,priority:1"`
+	Enterprise             Settings   `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	DateCreated            time.Time  `json:"dateCreated" gorm:"column:date_created;type:timestamp(3) with time zone;not null;index:transfer_between_warehouses_enterprise_finished_date_created,priority:3"`
+	DateFinished           *time.Time `json:"dateFinished" gorm:"column:date_finished;type:timestamp(3) with time zone"`
+	Finished               bool       `json:"finished" gorm:"column:finished;type:boolean;not null;index:transfer_between_warehouses_enterprise_finished_date_created,priority:2"`
+	LinesTransfered        int32      `json:"linesTransfered" gorm:"column:lines_transfered;type:integer;not null"`
+	LinesTotal             int32      `json:"linesTotal" gorm:"column:lines_total;type:integer;not null"`
+	Name                   string     `json:"name" gorm:"column:name;type:character varying(100);not null"`
+}
+
+func (t *TransferBetweenWarehouses) TableName() string {
+	return "transfer_between_warehouses"
 }
 
 type TransferBetweenWarehousesQuery struct {
@@ -32,53 +39,39 @@ type TransferBetweenWarehousesQuery struct {
 func (q *TransferBetweenWarehousesQuery) searchTransferBetweenWarehouses() []TransferBetweenWarehouses {
 	var transfers []TransferBetweenWarehouses = make([]TransferBetweenWarehouses, 0)
 
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id = transfer_between_warehouses.warehouse_origin AND warehouse.enterprise = transfer_between_warehouses.enterprise),(SELECT name FROM warehouse WHERE warehouse.id = transfer_between_warehouses.warehouse_destination AND warehouse.enterprise = transfer_between_warehouses.enterprise) FROM public.transfer_between_warehouses WHERE enterprise = $1 AND finished = $2`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, q.enterprise)
-	interfaces = append(interfaces, q.Finished)
-
+	cursor := dbOrm.Model(&TransferBetweenWarehouses{}).Where("transfer_between_warehouses.enterprise = ?", q.enterprise)
 	if q.DateStart != nil {
-		sqlStatement += ` AND date_created >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, q.DateStart)
+		cursor.Where("transfer_between_warehouses.date_created >= ?", q.DateStart)
 	}
 	if q.DateEnd != nil {
-		sqlStatement += ` AND date_created <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, q.DateEnd)
+		cursor.Where("transfer_between_warehouses.date_created <= ?", q.DateEnd)
 	}
 
-	sqlStatement += ` ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return transfers
+	result := cursor.Order("transfer_between_warehouses.date_created DESC").Preload(clause.Associations).Find(&transfers)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		t := TransferBetweenWarehouses{}
-		rows.Scan(&t.Id, &t.WarehouseOrigin, &t.WarehouseDestination, &t.enterprise, &t.DateCreated, &t.DateFinished, &t.Finished, &t.LinesTransfered, &t.LinesTotal, &t.Name,
-			&t.WarehouseOriginName, &t.WarehouseDestinationName)
-		transfers = append(transfers, t)
-	}
-
 	return transfers
 }
 
 func getTransferBetweenWarehousesRow(transferBetweenWarehousesId int64) TransferBetweenWarehouses {
-	sqlStatement := `SELECT * FROM public.transfer_between_warehouses WHERE id = $1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, transferBetweenWarehousesId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return TransferBetweenWarehouses{}
-	}
-
 	t := TransferBetweenWarehouses{}
-	row.Scan(&t.Id, &t.WarehouseOrigin, &t.WarehouseDestination, &t.enterprise, &t.DateCreated, &t.DateFinished, &t.Finished, &t.LinesTransfered, &t.LinesTotal, &t.Name)
+	result := dbOrm.Where("id = ?", transferBetweenWarehousesId).First(&t)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return t
 }
 
 func (t *TransferBetweenWarehouses) isValid() bool {
-	return !(len(t.WarehouseOrigin) == 0 || len(t.WarehouseDestination) == 0 || t.WarehouseOrigin == t.WarehouseDestination || len(t.Name) == 0 || len(t.Name) > 100)
+	return !(len(t.WarehouseOriginId) == 0 || len(t.WarehouseDestinationId) == 0 || t.WarehouseOriginId == t.WarehouseDestinationId || len(t.Name) == 0 || len(t.Name) > 100)
+}
+
+func (t *TransferBetweenWarehouses) BeforeCreate(tx *gorm.DB) (err error) {
+	var transferBetweenWarehouses TransferBetweenWarehouses
+	tx.Model(&TransferBetweenWarehouses{}).Last(&transferBetweenWarehouses)
+	t.Id = transferBetweenWarehouses.Id + 1
+	return nil
 }
 
 func (t *TransferBetweenWarehouses) insertTransferBetweenWarehouses() bool {
@@ -86,12 +79,19 @@ func (t *TransferBetweenWarehouses) insertTransferBetweenWarehouses() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.transfer_between_warehouses(warehouse_origin, warehouse_destination, enterprise, name) VALUES ($1, $2, $3, $4)`
-	_, err := db.Exec(sqlStatement, t.WarehouseOrigin, t.WarehouseDestination, t.enterprise, t.Name)
-	if err != nil {
-		log("DB", err.Error())
+	t.DateCreated = time.Now()
+	t.DateFinished = nil
+	t.Finished = false
+	t.LinesTransfered = 0
+	t.LinesTotal = 0
+
+	result := dbOrm.Create(&t)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
-	return err == nil
+
+	return true
 }
 
 func (t *TransferBetweenWarehouses) deleteTransferBetweenWarehouses() bool {
@@ -99,16 +99,16 @@ func (t *TransferBetweenWarehouses) deleteTransferBetweenWarehouses() bool {
 		return false
 	}
 
-	details := getTransferBetweenWarehousesDetails(t.Id, t.enterprise)
+	details := getTransferBetweenWarehousesDetails(t.Id, t.EnterpriseId)
 	for i := 0; i < len(details); i++ {
-		if details[i].QuantityTransfered > 0 {
+		if details[i].QuantityTransferred > 0 {
 			return false
 		}
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
@@ -120,14 +120,12 @@ func (t *TransferBetweenWarehouses) deleteTransferBetweenWarehouses() bool {
 		}
 	}
 
-	sqlStatement := `DELETE FROM public.transfer_between_warehouses WHERE id = $1 AND enterprise = $2`
-	_, err := trans.Exec(sqlStatement, t.Id, t.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Delete(&TransferBetweenWarehouses{}, "id = ? AND enterprise = ?", t.Id, t.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-
 	///
 	trans.Commit()
 	return true
@@ -135,54 +133,54 @@ func (t *TransferBetweenWarehouses) deleteTransferBetweenWarehouses() bool {
 }
 
 type TransferBetweenWarehousesDetail struct {
-	Id                        int64  `json:"id"`
-	TransferBetweenWarehouses int64  `json:"transferBetweenWarehouses"`
-	Product                   int32  `json:"product"`
-	Quantity                  int32  `json:"quantity"`
-	QuantityTransfered        int32  `json:"quantityTransferred"`
-	Finished                  bool   `json:"finished"`
-	ProductReference          string `json:"productReference"`
-	WarehouseMovementOut      *int64 `json:"warehouseMovementOut"`
-	WarehouseMovementIn       *int64 `json:"warehouseMovementIn"`
-	ProductName               string `json:"productName"`
-	enterprise                int32
+	Id                          int64                     `json:"id"`
+	TransferBetweenWarehousesId int64                     `json:"transferBetweenWarehousesId" gorm:"column:transfer_between_warehouses;type:bigint;not null;index:transfer_between_warehouses_detail_barcode,priority:2,where:quantity_transferred < quantity"`
+	TransferBetweenWarehouses   TransferBetweenWarehouses `json:"transferBetweenWarehouses" gorm:"foreignKey:TransferBetweenWarehousesId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId                int32                     `json:"enterprise" gorm:"column:enterprise;type:integer;not null;index:transfer_between_warehouses_detail_barcode,priority:1,where:quantity_transferred < quantity"`
+	Enterprise                  Settings                  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	ProductId                   int32                     `json:"productId" gorm:"column:product;type:integer;not null;index:transfer_between_warehouses_detail_barcode,priority:3,where:quantity_transferred < quantity"`
+	Product                     Product                   `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	Quantity                    int32                     `json:"quantity" gorm:"column:quantity;type:integer;not null"`
+	QuantityTransferred         int32                     `json:"quantityTransferred" gorm:"column:quantity_transferred;type:integer;not null"`
+	Finished                    bool                      `json:"finished" gorm:"column:finished;type:boolean;not null"`
+	WarehouseMovementOutId      *int64                    `json:"warehouseMovementOutId" gorm:"column:warehouse_movement_out;type:bigint"`
+	WarehouseMovementOut        *WarehouseMovement        `json:"warehouseMovementOut" gorm:"foreignKey:WarehouseMovementOutId,EnterpriseId;references:Id,EnterpriseId"`
+	WarehouseMovementInId       *int64                    `json:"warehouseMovementInId" gorm:"column:warehouse_movement_in;type:bigint"`
+	WarehouseMovementIn         *WarehouseMovement        `json:"warehouseMovementIn" gorm:"foreignKey:WarehouseMovementInId,EnterpriseId;references:Id,EnterpriseId"`
+}
+
+func (t *TransferBetweenWarehousesDetail) TableName() string {
+	return "transfer_between_warehouses_detail"
 }
 
 func getTransferBetweenWarehousesDetails(transferBetweenWarehousesId int64, enterpriseId int32) []TransferBetweenWarehousesDetail {
 	var details []TransferBetweenWarehousesDetail = make([]TransferBetweenWarehousesDetail, 0)
-
-	sqlStatement := `SELECT *,(SELECT reference FROM product WHERE product.id = transfer_between_warehouses_detail.product),(SELECT name FROM product WHERE product.id = transfer_between_warehouses_detail.product) FROM public.transfer_between_warehouses_detail WHERE transfer_between_warehouses = $1 AND enterprise = $2 ORDER BY product ASC, id ASC`
-	rows, err := db.Query(sqlStatement, transferBetweenWarehousesId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return details
+	result := dbOrm.Model(&TransferBetweenWarehousesDetail{}).Where("transfer_between_warehouses = ? AND enterprise = ?", transferBetweenWarehousesId, enterpriseId).Order("product ASC, id ASC").Preload(clause.Associations).Find(&details)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-
-	for rows.Next() {
-		d := TransferBetweenWarehousesDetail{}
-		rows.Scan(&d.Id, &d.TransferBetweenWarehouses, &d.enterprise, &d.Product, &d.Quantity, &d.QuantityTransfered, &d.Finished, &d.WarehouseMovementOut, &d.WarehouseMovementIn, &d.ProductReference, &d.ProductName)
-		details = append(details, d)
-	}
-
 	return details
 }
 
 // For internal use only
 func getTransferBetweenWarehousesDetailRow(transferBetweenWarehousesDetailId int64) TransferBetweenWarehousesDetail {
-	sqlStatement := `SELECT * FROM public.transfer_between_warehouses_detail WHERE id = $1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, transferBetweenWarehousesDetailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return TransferBetweenWarehousesDetail{}
-	}
-
 	d := TransferBetweenWarehousesDetail{}
-	row.Scan(&d.Id, &d.TransferBetweenWarehouses, &d.enterprise, &d.Product, &d.Quantity, &d.QuantityTransfered, &d.Finished, &d.WarehouseMovementOut, &d.WarehouseMovementIn)
+	result := dbOrm.Where("id = ?", transferBetweenWarehousesDetailId).First(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return d
 }
 
 func (d *TransferBetweenWarehousesDetail) isValid() bool {
-	return !(d.TransferBetweenWarehouses <= 0 || d.Product <= 0 || d.Quantity <= 0)
+	return !(d.TransferBetweenWarehousesId <= 0 || d.ProductId <= 0 || d.Quantity <= 0)
+}
+
+func (d *TransferBetweenWarehousesDetail) BeforeCreate(tx *gorm.DB) (err error) {
+	var transferBetweenWarehousesDetail TransferBetweenWarehousesDetail
+	tx.Model(&TransferBetweenWarehousesDetail{}).Last(&transferBetweenWarehousesDetail)
+	d.Id = transferBetweenWarehousesDetail.Id + 1
+	return nil
 }
 
 func (d *TransferBetweenWarehousesDetail) insertTransferBetweenWarehousesDetail() bool {
@@ -191,29 +189,34 @@ func (d *TransferBetweenWarehousesDetail) insertTransferBetweenWarehousesDetail(
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	transfer := getTransferBetweenWarehousesRow(d.TransferBetweenWarehouses)
-	if transfer.Id <= 0 || transfer.enterprise != d.enterprise || transfer.Finished {
+	transfer := getTransferBetweenWarehousesRow(d.TransferBetweenWarehousesId)
+	if transfer.Id <= 0 || transfer.EnterpriseId != d.EnterpriseId || transfer.Finished {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.transfer_between_warehouses_detail(transfer_between_warehouses, enterprise, product, quantity) VALUES ($1, $2, $3, $4)`
-	_, err := trans.Exec(sqlStatement, d.TransferBetweenWarehouses, d.enterprise, d.Product, d.Quantity)
-	if err != nil {
-		log("DB", err.Error())
+	d.QuantityTransferred = 0
+	d.Finished = false
+	d.WarehouseMovementInId = nil
+	d.WarehouseMovementOutId = nil
+
+	result := trans.Create(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	sqlStatement = `UPDATE public.transfer_between_warehouses SET lines_total = lines_total + 1 WHERE id = $1`
-	_, err = trans.Exec(sqlStatement, d.TransferBetweenWarehouses)
-	if err != nil {
-		log("DB", err.Error())
+	transfer.LinesTotal += 1
+
+	result = trans.Updates(&transfer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
@@ -224,39 +227,40 @@ func (d *TransferBetweenWarehousesDetail) insertTransferBetweenWarehousesDetail(
 	///
 }
 
-func (d *TransferBetweenWarehousesDetail) deleteTransferBetweenWarehousesDetail(trans *sql.Tx) bool {
+func (d *TransferBetweenWarehousesDetail) deleteTransferBetweenWarehousesDetail(trans *gorm.DB) bool {
 	if d.Id <= 0 {
 		return false
 	}
 
 	detailInMemory := getTransferBetweenWarehousesDetailRow(d.Id)
-	if detailInMemory.Id <= 0 || detailInMemory.enterprise != d.enterprise || detailInMemory.QuantityTransfered > 0 {
+	if detailInMemory.Id <= 0 || detailInMemory.EnterpriseId != d.EnterpriseId || detailInMemory.QuantityTransferred > 0 {
 		return false
 	}
+
+	transfer := getTransferBetweenWarehousesRow(d.TransferBetweenWarehousesId)
 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return false
 		}
 		///
 	}
 
-	sqlStatement := `DELETE FROM public.transfer_between_warehouses_detail WHERE id = $1 AND enterprise = $2`
-	_, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Delete(&TransferBetweenWarehousesDetail{}, "id = ? AND enterprise = ?", d.Id, d.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	sqlStatement = `UPDATE public.transfer_between_warehouses SET lines_total = lines_total + 1 WHERE id = $1`
-	_, err = trans.Exec(sqlStatement, d.TransferBetweenWarehouses)
-	if err != nil {
-		log("DB", err.Error())
+	transfer.LinesTotal -= 1
+
+	result = trans.Updates(&transfer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
@@ -287,55 +291,46 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 		q.BarCode = fmt.Sprintf("%013s", q.BarCode)
 	}
 
-	sqlStatement := `SELECT id FROM public.transfer_between_warehouses_detail WHERE enterprise = $1 AND transfer_between_warehouses = $2 AND quantity_transferred < quantity AND product = (SELECT id FROM product WHERE product.enterprise = $1 AND product.barCode = $3 LIMIT 1) ORDER BY id ASC LIMIT 1`
-	row := db.QueryRow(sqlStatement, enterpriseId, q.TransferBetweenWarehousesId, q.BarCode)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return false
-	}
-
 	var transferBetweenWarehousesDetailId int64
-	row.Scan(&transferBetweenWarehousesDetailId)
-	if transferBetweenWarehousesDetailId <= 0 {
+	result := dbOrm.Model(&TransferBetweenWarehousesDetail{}).Where("enterprise = @enterpriseId AND transfer_between_warehouses = @transferBetweenWarehousesId AND quantity_transferred < quantity AND product = (SELECT id FROM product WHERE product.enterprise = @enterpriseId AND product.barCode = @barCode LIMIT 1)", sql.Named("enterpriseId", enterpriseId), sql.Named("transferBetweenWarehousesId", q.TransferBetweenWarehousesId), sql.Named("barCode", q.BarCode)).Order("id ASC").Limit(1).Pluck("id", &transferBetweenWarehousesDetailId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
 	detail := getTransferBetweenWarehousesDetailRow(transferBetweenWarehousesDetailId)
-	if detail.Id <= 0 || detail.enterprise != enterpriseId {
+	if detail.Id <= 0 || detail.EnterpriseId != enterpriseId {
 		return false
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement = `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=quantity_transferred+1, finished=(quantity_transferred+1)=quantity WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, transferBetweenWarehousesDetailId)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
+	detail.QuantityTransferred += 1
+	detail.Finished = detail.QuantityTransferred == detail.Quantity
 
-	if detail.Quantity == detail.QuantityTransfered+1 {
-		sqlStatement := `UPDATE public.transfer_between_warehouses SET date_finished=CASE WHEN (lines_transfered+1=lines_total) THEN CURRENT_TIMESTAMP(3) ELSE NULL END, finished=lines_transfered+1=lines_total, lines_transfered=lines_transfered+1 WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, detail.TransferBetweenWarehouses)
-		if err != nil {
-			log("DB", err.Error())
-			trans.Rollback()
-			return false
+	if detail.Finished {
+		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehousesId)
+
+		transfer.LinesTransfered += 1
+		transfer.Finished = transfer.LinesTransfered == transfer.LinesTotal
+		if transfer.Finished {
+			now := time.Now()
+			transfer.DateFinished = &now
+		} else {
+			transfer.DateFinished = nil
 		}
 
-		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehouses)
 		wmOut := WarehouseMovement{
-			Warehouse:  transfer.WarehouseOrigin,
-			Product:    detail.Product,
-			Quantity:   detail.Quantity,
-			Type:       "O",
-			enterprise: detail.enterprise,
+			WarehouseId:  transfer.WarehouseOriginId,
+			ProductId:    detail.ProductId,
+			Quantity:     detail.Quantity,
+			Type:         "O",
+			EnterpriseId: detail.EnterpriseId,
 		}
 		if !wmOut.insertWarehouseMovement(userId, trans) {
 			trans.Rollback()
@@ -343,21 +338,30 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 		}
 
 		wmIn := WarehouseMovement{
-			Warehouse:  transfer.WarehouseDestination,
-			Product:    detail.Product,
-			Quantity:   detail.Quantity,
-			Type:       "I",
-			enterprise: detail.enterprise,
+			WarehouseId:  transfer.WarehouseDestinationId,
+			ProductId:    detail.ProductId,
+			Quantity:     detail.Quantity,
+			Type:         "I",
+			EnterpriseId: detail.EnterpriseId,
 		}
 		if !wmIn.insertWarehouseMovement(userId, trans) {
 			trans.Rollback()
 			return false
 		}
 
-		sqlStatement = `UPDATE public.transfer_between_warehouses_detail SET warehouse_movement_out=$2, warehouse_movement_in=$3 WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, detail.Id, wmOut.Id, wmIn.Id)
-		if err != nil {
-			log("DB", err.Error())
+		detail.WarehouseMovementOutId = &wmOut.Id
+		detail.WarehouseMovementInId = &wmIn.Id
+
+		result = trans.Updates(&detail)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
+	} else {
+		result := trans.Model(&TransferBetweenWarehousesDetail{}).Where("id = ?", detail.Id).Update("quantity_transferred", detail.QuantityTransferred)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
@@ -384,41 +388,38 @@ func (q *TransferBetweenWarehousesDetailQuantityQuery) transferBetweenWarehouses
 	}
 
 	detail := getTransferBetweenWarehousesDetailRow(q.TransferBetweenWarehousesDetailId)
-	if detail.Id <= 0 || detail.enterprise != enterpriseId || detail.QuantityTransfered+q.Quantity > detail.Quantity {
+	if detail.Id <= 0 || detail.EnterpriseId != enterpriseId || detail.QuantityTransferred+q.Quantity > detail.Quantity {
 		return false
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement := `UPDATE public.transfer_between_warehouses_detail SET quantity_transferred=quantity_transferred+$2, finished=(quantity_transferred+$2)=quantity WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, detail.Id, q.Quantity)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
+	detail.QuantityTransferred += q.Quantity
+	detail.Finished = detail.QuantityTransferred == detail.Quantity
 
-	if detail.Quantity == detail.QuantityTransfered+q.Quantity {
-		sqlStatement := `UPDATE public.transfer_between_warehouses SET date_finished=CASE WHEN (lines_transfered+$2=lines_total) THEN CURRENT_TIMESTAMP(3) ELSE NULL END, finished=lines_transfered+1=lines_total, lines_transfered=lines_transfered+$2 WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, detail.TransferBetweenWarehouses, q.Quantity)
-		if err != nil {
-			log("DB", err.Error())
-			trans.Rollback()
-			return false
+	if detail.Finished {
+		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehousesId)
+
+		transfer.LinesTransfered += 1
+		transfer.Finished = transfer.LinesTransfered == transfer.LinesTotal
+		if transfer.Finished {
+			now := time.Now()
+			transfer.DateFinished = &now
+		} else {
+			transfer.DateFinished = nil
 		}
 
-		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehouses)
 		wmOut := WarehouseMovement{
-			Warehouse:  transfer.WarehouseOrigin,
-			Product:    detail.Product,
-			Quantity:   detail.Quantity,
-			Type:       "O",
-			enterprise: detail.enterprise,
+			WarehouseId:  transfer.WarehouseOriginId,
+			ProductId:    detail.ProductId,
+			Quantity:     detail.Quantity,
+			Type:         "O",
+			EnterpriseId: detail.EnterpriseId,
 		}
 		if !wmOut.insertWarehouseMovement(userId, trans) {
 			trans.Rollback()
@@ -426,21 +427,30 @@ func (q *TransferBetweenWarehousesDetailQuantityQuery) transferBetweenWarehouses
 		}
 
 		wmIn := WarehouseMovement{
-			Warehouse:  transfer.WarehouseDestination,
-			Product:    detail.Product,
-			Quantity:   detail.Quantity,
-			Type:       "I",
-			enterprise: detail.enterprise,
+			WarehouseId:  transfer.WarehouseDestinationId,
+			ProductId:    detail.ProductId,
+			Quantity:     detail.Quantity,
+			Type:         "I",
+			EnterpriseId: detail.EnterpriseId,
 		}
 		if !wmIn.insertWarehouseMovement(userId, trans) {
 			trans.Rollback()
 			return false
 		}
 
-		sqlStatement = `UPDATE public.transfer_between_warehouses_detail SET warehouse_movement_out=$2, warehouse_movement_in=$3 WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, detail.Id, wmOut.Id, wmIn.Id)
-		if err != nil {
-			log("DB", err.Error())
+		detail.WarehouseMovementOutId = &wmOut.Id
+		detail.WarehouseMovementInId = &wmIn.Id
+
+		result := trans.Updates(&detail)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
+	} else {
+		result := trans.Model(&TransferBetweenWarehousesDetail{}).Where("id = ?", q.TransferBetweenWarehousesDetailId).Update("quantity_transferred", detail.QuantityTransferred)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
@@ -459,22 +469,18 @@ func getTransferBetweenWarehousesWarehouseMovements(transferBetweenWarehousesId 
 	}
 
 	transfer := getTransferBetweenWarehousesRow(transferBetweenWarehousesId)
-	if transfer.Id <= 0 || transfer.enterprise != enterpriseId {
+	if transfer.Id <= 0 || transfer.EnterpriseId != enterpriseId {
 		return movements
 	}
 
 	details := getTransferBetweenWarehousesDetails(transferBetweenWarehousesId, enterpriseId)
 	for i := 0; i < len(details); i++ {
-		if details[i].WarehouseMovementOut != nil {
-			m := getWarehouseMovementRow(*details[i].WarehouseMovementOut)
-			m.WarehouseName = getNameWarehouse(m.Warehouse, enterpriseId)
-			m.ProductName = getNameProduct(m.Product, enterpriseId)
+		if details[i].WarehouseMovementOutId != nil {
+			m := getWarehouseMovementRow(*details[i].WarehouseMovementOutId)
 			movements = append(movements, m)
 		}
-		if details[i].WarehouseMovementIn != nil {
-			m := getWarehouseMovementRow(*details[i].WarehouseMovementIn)
-			m.WarehouseName = getNameWarehouse(m.Warehouse, enterpriseId)
-			m.ProductName = getNameProduct(m.Product, enterpriseId)
+		if details[i].WarehouseMovementInId != nil {
+			m := getWarehouseMovementRow(*details[i].WarehouseMovementInId)
 			movements = append(movements, m)
 		}
 	}

@@ -105,7 +105,7 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 	user := users[len(users)-1]
 
 	user.Language = "es"
-	user.enterprise = 1
+	user.EnterpriseId = 1
 	ok = user.updateUser()
 	if !ok {
 		t.Error("Update error, user not updated")
@@ -172,7 +172,7 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 	}
 
 	// deactivate user
-	user.enterprise = 1
+	user.EnterpriseId = 1
 	ok = user.offUser()
 	if !ok {
 		t.Error("Can't deactivate user")
@@ -193,7 +193,7 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 
 	// reactivate user
 	ok = user.offUser()
-	user.enterprise = 1
+	user.EnterpriseId = 1
 	if !ok {
 		t.Error("Can't reactivate user")
 		return
@@ -212,7 +212,7 @@ func TestUserInsertUpdateDeleteLoginPassword(t *testing.T) {
 	}
 
 	// delete
-	user.enterprise = 1
+	user.EnterpriseId = 1
 	ok = user.deleteUser()
 	if !ok {
 		t.Error("Delete error, user not deleted")
@@ -240,8 +240,8 @@ func TestGroupInsertUpdateDelete(t *testing.T) {
 	}
 
 	g := Group{
-		Name:       "Test",
-		enterprise: 1,
+		Name:         "Test",
+		EnterpriseId: 1,
 	}
 	ok := g.insertGroup()
 	if !ok {
@@ -252,7 +252,7 @@ func TestGroupInsertUpdateDelete(t *testing.T) {
 	groups := getGroup(1)
 	g = groups[len(groups)-1]
 	g.Sales = true
-	g.enterprise = 1
+	g.EnterpriseId = 1
 	ok = g.updateGroup()
 	if !ok {
 		t.Error("Update error, group not updated")
@@ -314,8 +314,8 @@ func TestUserGroupInsertDelete(t *testing.T) {
 
 	// create group
 	g := Group{
-		Name:       "Test",
-		enterprise: 1,
+		Name:         "Test",
+		EnterpriseId: 1,
 	}
 	g.insertGroup()
 	groups := getGroup(1)
@@ -323,8 +323,8 @@ func TestUserGroupInsertDelete(t *testing.T) {
 
 	// create user group
 	ug := UserGroup{
-		User:  user.Id,
-		Group: g.Id,
+		UserId:  user.Id,
+		GroupId: g.Id,
 	}
 	ok := ug.insertUserGroup()
 	if !ok {
@@ -370,22 +370,22 @@ func TestPermissions(t *testing.T) {
 
 	// create groups
 	gSales := Group{
-		Name:       "Test sales",
-		Sales:      true,
-		enterprise: 1,
+		Name:         "Test sales",
+		Sales:        true,
+		EnterpriseId: 1,
 	}
 	gSales.insertGroup()
 	gPurchases := Group{
-		Name:       "Test purchases",
-		Purchases:  true,
-		enterprise: 1,
+		Name:         "Test purchases",
+		Purchases:    true,
+		EnterpriseId: 1,
 	}
 	gPurchases.insertGroup()
 
 	// create user group
 	ug := UserGroup{
-		User:  user.Id,
-		Group: gSales.Id,
+		UserId:  user.Id,
+		GroupId: gSales.Id,
 	}
 	ok := ug.insertUserGroup()
 	if !ok {
@@ -393,8 +393,8 @@ func TestPermissions(t *testing.T) {
 		return
 	}
 	ug = UserGroup{
-		User:  user.Id,
-		Group: gPurchases.Id,
+		UserId:  user.Id,
+		GroupId: gPurchases.Id,
 	}
 	ok = ug.insertUserGroup()
 	if !ok {
@@ -411,8 +411,8 @@ func TestPermissions(t *testing.T) {
 
 	// delete user group
 	ug = UserGroup{
-		User:  user.Id,
-		Group: gSales.Id,
+		UserId:  user.Id,
+		GroupId: gSales.Id,
 	}
 	ug.deleteUserGroup()
 	if !ok {
@@ -420,8 +420,8 @@ func TestPermissions(t *testing.T) {
 		return
 	}
 	ug = UserGroup{
-		User:  user.Id,
-		Group: gPurchases.Id,
+		UserId:  user.Id,
+		GroupId: gPurchases.Id,
 	}
 	ug.deleteUserGroup()
 	if !ok {
@@ -457,11 +457,11 @@ func TestApiKeys(t *testing.T) {
 	}
 
 	key := ApiKey{
-		Name:        "Test key",
-		UserCreated: 1,
-		User:        1,
-		enterprise:  1,
-		Auth:        "P",
+		Name:          "Test key",
+		UserCreatedId: 1,
+		UserId:        1,
+		EnterpriseId:  1,
+		Auth:          "P",
 	}
 	ok := key.insertApiKey()
 	if !ok {
@@ -485,7 +485,7 @@ func TestApiKeys(t *testing.T) {
 	}
 
 	ok, _, _, _ = checkApiKeyByTokenAuthType(*key.Token, "P")
-	if !ok {
+	if ok {
 		t.Error("The API key can be accessed after deactivating")
 		return
 	}
@@ -580,7 +580,7 @@ func TestGetGroupPermissionDictionary(t *testing.T) {
 	}
 
 	permissions := getGroupPermissionDictionary(1, 1)
-	if len(permissions.In) > 0 && permissions.In[0].PermissionKey == "" {
+	if len(permissions.In) > 0 && permissions.In[0].PermissionKeyId == "" {
 		t.Error("Can't scan permisssion dictionary")
 		return
 	}
@@ -596,9 +596,9 @@ func TestInsertDeletePermissionDictionaryGroup(t *testing.T) {
 	}
 
 	p := PermissionDictionaryGroup{
-		Group:         1,
-		PermissionKey: "CANT_CREATE_PRODUCT",
-		enterprise:    1,
+		GroupId:         1,
+		PermissionKeyId: "CANT_CREATE_PRODUCT",
+		EnterpriseId:    1,
 	}
 	if !p.insertPermissionDictionaryGroup() {
 		t.Error("Can't insert permisssion dictionary group")
@@ -628,7 +628,7 @@ func TestGetUserPermission(t *testing.T) {
 	}
 
 	permissions := getGroupPermissionDictionary(1, 2)
-	if len(permissions.In) > 0 && !getUserPermission(permissions.In[0].PermissionKey, 1, 2) {
+	if len(permissions.In) > 0 && !getUserPermission(permissions.In[0].PermissionKeyId, 1, 2) {
 		t.Error("Permission error")
 		return
 	}

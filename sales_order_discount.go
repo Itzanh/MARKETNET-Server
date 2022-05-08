@@ -1,52 +1,53 @@
 package main
 
-import "database/sql"
+import "gorm.io/gorm"
 
 type SalesOrderDiscount struct {
-	Id                 int32   `json:"id"`
-	Order              int64   `json:"order"`
-	Name               string  `json:"name"`
-	ValueTaxIncluded   float64 `json:"valueTaxIncluded"`
-	ValueTaxExcluded   float64 `json:"valueTaxExcluded"`
-	SalesInvoiceDetail *int32  `json:"salesInvoiceDetail"`
-	enterprise         int32
+	Id                   int32               `json:"id"`
+	OrderId              int64               `json:"orderId" gorm:"column:order;not null:true"`
+	Order                SaleOrder           `json:"-" gorm:"foreignKey:OrderId,EnterpriseId;references:Id,EnterpriseId"`
+	Name                 string              `json:"name" gorm:"column:name;not null:true;type:character varying(100)"`
+	ValueTaxIncluded     float64             `json:"valueTaxIncluded" gorm:"column:value_tax_included;not null:true;type:numeric(14,6)"`
+	ValueTaxExcluded     float64             `json:"valueTaxExcluded" gorm:"column:value_tax_excluded;not null:true;type:numeric(14,6)"`
+	EnterpriseId         int32               `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise           Settings            `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	SalesInvoiceDetailId *int32              `json:"salesInvoiceDetailId" gorm:"column:sales_invoice_detail;type:integer"`
+	SalesInvoiceDetail   *SalesInvoiceDetail `json:"-" gorm:"foreignKey:SalesInvoiceDetailId,EnterpriseId;references:Id,EnterpriseId"`
+}
+
+func (s *SalesOrderDiscount) TableName() string {
+	return "sales_order_discount"
 }
 
 func getSalesOrderDiscounts(orderId int64, enterpriseId int32) []SalesOrderDiscount {
 	var discounts []SalesOrderDiscount = make([]SalesOrderDiscount, 0)
-	sqlStatement := `SELECT * FROM public.sales_order_discount WHERE "order"=$1 AND enterprise=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&SalesOrderDiscount{}).Where("\"order\" = ? AND enterprise = ?", orderId, enterpriseId).Order("id ASC").Find(&discounts)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return discounts
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := SalesOrderDiscount{}
-		rows.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise, &d.SalesInvoiceDetail)
-		discounts = append(discounts, d)
-	}
-
 	return discounts
 }
 
 func getSalesOrderDiscountsRow(discountId int32) SalesOrderDiscount {
-	sqlStatement := `SELECT * FROM public.sales_order_discount WHERE id=$1`
-	row := db.QueryRow(sqlStatement, discountId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return SalesOrderDiscount{}
-	}
-
 	d := SalesOrderDiscount{}
-	row.Scan(&d.Id, &d.Order, &d.Name, &d.ValueTaxIncluded, &d.ValueTaxExcluded, &d.enterprise, &d.SalesInvoiceDetail)
-
+	result := dbOrm.Model(&SalesOrderDiscount{}).Where("id = ?", discountId).First(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return d
+	}
 	return d
 }
 
 func (d *SalesOrderDiscount) isValid() bool {
-	return !(d.Order <= 0 || len(d.Name) == 0 || len(d.Name) > 100 || d.ValueTaxIncluded <= 0 || d.ValueTaxExcluded <= 0)
+	return !(d.OrderId <= 0 || len(d.Name) == 0 || len(d.Name) > 100 || d.ValueTaxIncluded <= 0 || d.ValueTaxExcluded <= 0)
+}
+
+func (d *SalesOrderDiscount) BeforeCreate(tx *gorm.DB) (err error) {
+	var salesOrderDiscount SalesOrderDiscount
+	tx.Model(&SalesOrderDiscount{}).Last(&salesOrderDiscount)
+	d.Id = salesOrderDiscount.Id + 1
+	return nil
 }
 
 func (d *SalesOrderDiscount) insertSalesOrderDiscount(userId int32) bool {
@@ -55,39 +56,30 @@ func (d *SalesOrderDiscount) insertSalesOrderDiscount(userId int32) bool {
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
-	sqlStatement := `INSERT INTO public.sales_order_discount("order", name, value_tax_included, value_tax_excluded, enterprise) VALUES ($1, $2, $3, $4, $5)`
-	res, err := trans.Exec(sqlStatement, d.Order, d.Name, d.ValueTaxIncluded, d.ValueTaxExcluded, d.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
+	d.SalesInvoiceDetailId = nil
+
+	result := trans.Create(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return false
-	}
-
-	ok := addDiscountsSalesOrder(d.enterprise, d.Order, userId, d.ValueTaxExcluded, *trans)
+	ok := addDiscountsSalesOrder(d.EnterpriseId, d.OrderId, userId, d.ValueTaxExcluded, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		return false
-	}
+	result = trans.Commit()
+	return result.Error == nil
 	///
-
-	return rows > 0
 }
 
 func (d *SalesOrderDiscount) deleteSalesOrderDiscount(userId int32) bool {
@@ -96,46 +88,38 @@ func (d *SalesOrderDiscount) deleteSalesOrderDiscount(userId int32) bool {
 	}
 
 	///
-	trans, transErr := db.Begin()
-	if transErr != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
 
 	inMemoryDiscount := getSalesOrderDiscountsRow(d.Id)
-	if inMemoryDiscount.Id <= 0 || inMemoryDiscount.enterprise != d.enterprise {
+	if inMemoryDiscount.Id <= 0 || inMemoryDiscount.EnterpriseId != d.EnterpriseId {
 		trans.Rollback()
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.sales_order_discount WHERE id=$1 AND enterprise=$2`
-	res, err := trans.Exec(sqlStatement, d.Id, d.enterprise)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
+	result := trans.Delete(&SalesOrderDiscount{}, "id = ? AND enterprise = ?", d.Id, d.EnterpriseId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	ok := addDiscountsSalesOrder(d.enterprise, inMemoryDiscount.Order, userId, -inMemoryDiscount.ValueTaxExcluded, *trans)
+	ok := addDiscountsSalesOrder(d.EnterpriseId, inMemoryDiscount.OrderId, userId, -inMemoryDiscount.ValueTaxExcluded, *trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		return false
-	}
+	result = trans.Commit()
+	return result.Error == nil
 	///
-
-	rows, _ := res.RowsAffected()
-	return rows > 0
 }
 
-func invoiceSalesOrderDiscounts(orderId int64, invoiceId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `SELECT id,name,value_tax_excluded FROM public.sales_order_discount WHERE "order" = $1 AND enterprise = $2 AND sales_invoice_detail IS NULL ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
+func invoiceSalesOrderDiscounts(orderId int64, invoiceId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	rows, err := dbOrm.Model(&SalesOrderDiscount{}).Where("\"order\" = ? AND enterprise = ? AND sales_invoice_detail IS NULL", orderId, enterpriseId).Order("id ASC").Select("id,name,value_tax_excluded").Rows()
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -148,23 +132,22 @@ func invoiceSalesOrderDiscounts(orderId int64, invoiceId int64, enterpriseId int
 		rows.Scan(&id, &name, &valueTaxExcluded)
 
 		invoiceDetal := SalesInvoiceDetail{}
-		invoiceDetal.Invoice = invoiceId
+		invoiceDetal.InvoiceId = invoiceId
 		invoiceDetal.Description = name
 		invoiceDetal.Price = -valueTaxExcluded
 		invoiceDetal.Quantity = 1
 		invoiceDetal.TotalAmount = -valueTaxExcluded
 		invoiceDetal.VatPercent = 0
-		invoiceDetal.enterprise = enterpriseId
+		invoiceDetal.EnterpriseId = enterpriseId
 		ok := invoiceDetal.insertSalesInvoiceDetail(&trans, userId)
 		if !ok.Ok {
 			trans.Rollback()
 			return false
 		}
 
-		sqlStatement := `UPDATE public.sales_order_discount SET sales_invoice_detail=$2 WHERE id=$1`
-		_, err := trans.Exec(sqlStatement, id, invoiceDetal.Id)
-		if err != nil {
-			log("DB", err.Error())
+		result := trans.Where("id = ?", id).Update("sales_invoice_detail", invoiceDetal.Id)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}

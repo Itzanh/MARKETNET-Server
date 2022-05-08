@@ -98,16 +98,16 @@ func TestCustomerInsertUpdateDelete(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -203,16 +203,16 @@ func TestSetCustomerAccount(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Customer{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -229,7 +229,7 @@ func TestSetCustomerAccount(t *testing.T) {
 	c.setCustomerAccount()
 
 	c = getCustomerRow(c.Id)
-	if c.Account == nil {
+	if c.AccountId == nil {
 		t.Error("Customer account not set")
 		return
 	}
@@ -381,16 +381,16 @@ func TestSupplierInsertUpdateDelete(t *testing.T) {
 	billingSeries := "EXP"
 
 	c := Supplier{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -486,16 +486,16 @@ func TestSetSupplierAccount(t *testing.T) {
 	billingSeries := "EXP"
 
 	s := Supplier{
-		Name:          "Jake Kaiser",
-		Tradename:     "Jake Kaiser",
-		FiscalName:    "Jake Kaiser",
-		Phone:         "679681745",
-		Email:         "jake.kaiser@gmail.com",
-		Country:       &country,
-		Language:      &language,
-		PaymentMethod: &paymentMethod,
-		BillingSeries: &billingSeries,
-		enterprise:    1,
+		Name:            "Jake Kaiser",
+		Tradename:       "Jake Kaiser",
+		FiscalName:      "Jake Kaiser",
+		Phone:           "679681745",
+		Email:           "jake.kaiser@gmail.com",
+		CountryId:       &country,
+		LanguageId:      &language,
+		PaymentMethodId: &paymentMethod,
+		BillingSeriesId: &billingSeries,
+		EnterpriseId:    1,
 	}
 
 	// insert
@@ -512,7 +512,7 @@ func TestSetSupplierAccount(t *testing.T) {
 	s.setSupplierAccount()
 
 	s = getSupplierRow(s.Id)
-	if s.Account == nil {
+	if s.AccountId == nil {
 		t.Error("Supplier account not set")
 		return
 	}
@@ -670,22 +670,22 @@ func TestProductInsertUpdateDelete(t *testing.T) {
 	supplier := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "1234067891236",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		Supplier:               &supplier,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "1234067891236",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		SupplierId:               &supplier,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	ok := p.insertProduct(0).Ok
@@ -820,22 +820,22 @@ func TestGenerateBarcode(t *testing.T) {
 	supplier := int32(1)
 
 	p := Product{
-		Name:                   "Glass Office Desk",
-		Reference:              "OF-DSK",
-		BarCode:                "",
-		ControlStock:           true,
-		Weight:                 30,
-		Family:                 &family,
-		Width:                  160,
-		Height:                 100,
-		Depth:                  40,
-		VatPercent:             21,
-		Price:                  65,
-		Manufacturing:          true,
-		ManufacturingOrderType: &manufacturingOrderType,
-		Supplier:               &supplier,
-		TrackMinimumStock:      true,
-		enterprise:             1,
+		Name:                     "Glass Office Desk",
+		Reference:                "OF-DSK",
+		BarCode:                  "",
+		ControlStock:             true,
+		Weight:                   30,
+		FamilyId:                 &family,
+		Width:                    160,
+		Height:                   100,
+		Depth:                    40,
+		VatPercent:               21,
+		Price:                    65,
+		Manufacturing:            true,
+		ManufacturingOrderTypeId: &manufacturingOrderType,
+		SupplierId:               &supplier,
+		TrackMinimumStock:        true,
+		EnterpriseId:             1,
 	}
 
 	ok := p.insertProduct(0).Ok
@@ -892,8 +892,8 @@ func TestProductImageInsertUpdateDelete(t *testing.T) {
 	}
 
 	pi := ProductImage{
-		Product: 1,
-		URL:     "http://example.domain/picture.png",
+		ProductId: 1,
+		URL:       "http://example.domain/picture.png",
 	}
 
 	ok := pi.insertProductImage(1)
@@ -995,16 +995,16 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
@@ -1022,8 +1022,8 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 		Price:             65,
 		Manufacturing:     false,
 		TrackMinimumStock: true,
-		prestaShopId:      1,
-		enterprise:        1,
+		PrestaShopId:      1,
+		EnterpriseId:      1,
 		Off:               true,
 	}
 
@@ -1034,12 +1034,12 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 	}
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	// test insert
@@ -1056,7 +1056,7 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 	}
 
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Delete error, can't delete the temp sale order")
@@ -1084,16 +1084,16 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 
 	_, orderId := o.insertSalesOrder(1)
@@ -1111,8 +1111,8 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 		Price:             65,
 		Manufacturing:     true,
 		TrackMinimumStock: true,
-		prestaShopId:      1,
-		enterprise:        1,
+		PrestaShopId:      1,
+		EnterpriseId:      1,
 		DigitalProduct:    true,
 	}
 
@@ -1123,12 +1123,12 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	}
 
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    p.Id,
-		Price:      9.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    p.Id,
+		Price:        9.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 
 	// test insert
@@ -1149,9 +1149,9 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 
 	// CRUD digital product data
 	dpd := SalesOrderDetailDigitalProductData{
-		Detail: d.Id,
-		Key:    "test",
-		Value:  "1234-5678-90",
+		DetailId: d.Id,
+		Key:      "test",
+		Value:    "1234-5678-90",
 	}
 	dpd.insertSalesOrderDetailDigitalProductData(1)
 
@@ -1178,7 +1178,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 		DestinationAddressName: "admin@marketneterp.io",
 		Subject:                "UNIT TEST",
 	}
-	setAsSent.setDigitalSalesOrderDetailAsSent(1)
+	setAsSent.setDigitalSalesOrderDetailAsSent(1, 0)
 
 	// check if the order has the correct status
 	details = getSalesOrderDetail(orderId, 1)
@@ -1204,7 +1204,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	inv := getSalesOrderRelations(orderId, 1).Invoices[0]
 	inv.deleteSalesInvoice(0)
 
-	details[0].enterprise = 1
+	details[0].EnterpriseId = 1
 	ok = details[0].deleteSalesOrderDetail(1, nil).Ok
 	if !ok {
 		t.Error("Delete error, sale order detail not deleted")
@@ -1219,10 +1219,10 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	}
 
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	o.deleteSalesOrder(0)
 
-	p.enterprise = 1
+	p.EnterpriseId = 1
 	p.deleteProduct(0)
 }
 
@@ -1286,12 +1286,12 @@ func TestProductGenerator(t *testing.T) {
 		return
 	}
 
-	if !p.Manufacturing || p.ManufacturingOrderType == nil || *p.ManufacturingOrderType <= 0 {
+	if !p.Manufacturing || p.ManufacturingOrderTypeId == nil || *p.ManufacturingOrderTypeId <= 0 {
 		t.Error("Manufacturing information not set")
 		return
 	}
 
-	mot := getManufacturingOrderTypeRow(*p.ManufacturingOrderType)
+	mot := getManufacturingOrderTypeRow(*p.ManufacturingOrderTypeId)
 	if mot.Id <= 0 {
 		t.Error("Can't scan manufacturing order created")
 		return
@@ -1360,13 +1360,13 @@ func TestCountryInsertUpdateDelete(t *testing.T) {
 	}
 
 	c := Country{
-		Name:        "Test",
-		Iso2:        "XX",
-		Iso3:        "XYZ",
-		UNCode:      12345,
-		Zone:        "E",
-		PhonePrefix: 4321,
-		enterprise:  1,
+		Name:         "Test",
+		Iso2:         "XX",
+		Iso3:         "XYZ",
+		UNCode:       12345,
+		Zone:         "E",
+		PhonePrefix:  4321,
+		EnterpriseId: 1,
 	}
 
 	ok := c.insertCountry()
@@ -1471,10 +1471,10 @@ func TestStateInsertUpdateDelete(t *testing.T) {
 	}
 
 	s := State{
-		Country:    1,
-		Name:       "Test",
-		IsoCode:    "XYZ",
-		enterprise: 1,
+		CountryId:    1,
+		Name:         "Test",
+		IsoCode:      "XYZ",
+		EnterpriseId: 1,
 	}
 
 	ok := s.insertState()
@@ -1555,9 +1555,9 @@ func TestColorInsertUpdateDelete(t *testing.T) {
 	}
 
 	c := Color{
-		Name:       "Test",
-		HexColor:   "123456",
-		enterprise: 1,
+		Name:         "Test",
+		HexColor:     "123456",
+		EnterpriseId: 1,
 	}
 
 	ok := c.insertColor()
@@ -1640,9 +1640,9 @@ func TestProductFamilyInsertUpdateDelete(t *testing.T) {
 	}
 
 	pf := ProductFamily{
-		Name:       "Test",
-		Reference:  "XYZ",
-		enterprise: 1,
+		Name:         "Test",
+		Reference:    "XYZ",
+		EnterpriseId: 1,
 	}
 
 	ok := pf.insertProductFamily()
@@ -1752,15 +1752,15 @@ func TestAddressInsertUpdateDelete(t *testing.T) {
 
 	customer := int32(1)
 	a := Address{
-		Customer:          &customer,
-		Supplier:          nil,
+		CustomerId:        &customer,
+		SupplierId:        nil,
 		Address:           "DVY NPPVHLE WFPZKKIBFAIYMMR RYFPAIBTBYENHAGGJPNNT",
 		Address2:          "GUULBOTQGDPGHYTZKZNRT",
 		City:              "NKTCH",
-		Country:           1,
+		CountryId:         1,
 		PrivateOrBusiness: "_",
 		ZipCode:           "AWS13",
-		enterprise:        1,
+		EnterpriseId:      1,
 	}
 
 	ok := a.insertAddress(0).Id > 0
@@ -1878,16 +1878,16 @@ func TestCarrierInsertUpdateDelete(t *testing.T) {
 	}
 
 	c := Carrier{
-		Name:       "ACME Corp",
-		MaxWeight:  35,
-		MaxWidth:   150,
-		MaxHeight:  150,
-		MaxDepth:   150,
-		Phone:      "987654321",
-		Email:      "contact@acme.com",
-		Web:        "acmecorp.com",
-		Webservice: "_",
-		enterprise: 1,
+		Name:         "ACME Corp",
+		MaxWeight:    35,
+		MaxWidth:     150,
+		MaxHeight:    150,
+		MaxDepth:     150,
+		Phone:        "987654321",
+		Email:        "contact@acme.com",
+		Web:          "acmecorp.com",
+		Webservice:   "_",
+		EnterpriseId: 1,
 	}
 
 	ok := c.insertCarrier()
@@ -1980,11 +1980,11 @@ func TestBillingSeriesInsertUpdateDelete(t *testing.T) {
 	}
 
 	b := BillingSerie{
-		Id:          "EXA",
-		Name:        "Example series",
-		BillingType: "S",
-		Year:        2021,
-		enterprise:  1,
+		Id:           "EXA",
+		Name:         "Example series",
+		BillingType:  "S",
+		Year:         2021,
+		EnterpriseId: 1,
 	}
 
 	ok := b.insertBillingSerie()
@@ -2131,7 +2131,7 @@ func TestCurrenciesInsertUpdateDelete(t *testing.T) {
 		IsoNum:       12345,
 		Change:       1,
 		ExchangeDate: time.Now(),
-		enterprise:   1,
+		EnterpriseId: 1,
 	}
 
 	ok := c.insertCurrency()
@@ -2253,7 +2253,7 @@ func TestPaymentMethodInsertUpdateDelete(t *testing.T) {
 		PaidInAdvance:        true,
 		PrestashopModuleName: "btc",
 		DaysExpiration:       0,
-		enterprise:           1,
+		EnterpriseId:         1,
 	}
 
 	ok := pm.insertPaymentMethod()
@@ -2336,10 +2336,10 @@ func TestLanguageInsertUpdateDelete(t *testing.T) {
 	}
 
 	l := Language{
-		Name:       "ACME Corp. Super Secrete Language",
-		Iso2:       "AC",
-		Iso3:       "ACM",
-		enterprise: 1,
+		Name:         "ACME Corp. Super Secrete Language",
+		Iso2:         "AC",
+		Iso3:         "ACM",
+		EnterpriseId: 1,
 	}
 
 	ok := l.insertLanguage()
@@ -2434,13 +2434,13 @@ func TestPackagesInsertUpdateDelete(t *testing.T) {
 	}
 
 	p := Packages{
-		Name:       "Test box",
-		Weight:     1,
-		Width:      40,
-		Height:     40,
-		Depth:      40,
-		Product:    1,
-		enterprise: 1,
+		Name:         "Test box",
+		Weight:       1,
+		Width:        40,
+		Height:       40,
+		Depth:        40,
+		ProductId:    1,
+		EnterpriseId: 1,
 	}
 
 	ok := p.insertPackage()
@@ -2498,9 +2498,9 @@ func TestIncotermsInsertUpdateDelete(t *testing.T) {
 	}
 
 	i := Incoterm{
-		Name:       "Test incoterm",
-		Key:        "TST",
-		enterprise: 1,
+		Name:         "Test incoterm",
+		Key:          "TST",
+		EnterpriseId: 1,
 	}
 
 	ok := i.insertIncoterm()
@@ -2570,10 +2570,10 @@ func TestDocumentContainerInsertUpdateDelete(t *testing.T) {
 	}
 
 	p := DocumentContainer{
-		Name:        "Test",
-		Path:        "/marketnet/docs/",
-		MaxFileSize: 1000,
-		enterprise:  1,
+		Name:         "Test",
+		Path:         "/marketnet/docs/",
+		MaxFileSize:  1000,
+		EnterpriseId: 1,
 	}
 
 	ok := p.insertDocumentContainer()

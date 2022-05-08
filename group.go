@@ -1,58 +1,45 @@
 package main
 
+import "gorm.io/gorm"
+
 // When adding fields to this table/struct, add them also to:
 // The Permissions struct, and the getUserPermissions function at the bottom of this file.
 // The getUserGroupsIn function at the beginning of the user_group.go file.
 // The initialGroup function in the initial_data.go file, the admin always has all the permissions set.
 type Group struct {
-	Id            int32  `json:"id"`
-	Name          string `json:"name"`
-	Sales         bool   `json:"sales"`
-	Purchases     bool   `json:"purchases"`
-	Masters       bool   `json:"masters"`
-	Warehouse     bool   `json:"warehouse"`
-	Manufacturing bool   `json:"manufacturing"`
-	Preparation   bool   `json:"preparation"`
-	Admin         bool   `json:"admin"`
-	PrestaShop    bool   `json:"prestashop"`
-	Accounting    bool   `json:"accounting"`
-	PointOfSale   bool   `json:"pointOfSale"`
-	enterprise    int32
+	Id            int32    `json:"id" gorm:"index:group_id_enterprise,unique:true,priority:1"`
+	Name          string   `json:"name" gorm:"type:character varying(50);not null:true"`
+	Sales         bool     `json:"sales" gorm:"not null:true"`
+	Purchases     bool     `json:"purchases" gorm:"not null:true"`
+	Masters       bool     `json:"masters" gorm:"not null:true"`
+	Warehouse     bool     `json:"warehouse" gorm:"not null:true"`
+	Manufacturing bool     `json:"manufacturing" gorm:"not null:true"`
+	Preparation   bool     `json:"preparation" gorm:"not null:true"`
+	Admin         bool     `json:"admin" gorm:"not null:true"`
+	PrestaShop    bool     `json:"prestashop" gorm:"column:prestashop;not null:true"`
+	Accounting    bool     `json:"accounting" gorm:"not null:true"`
+	EnterpriseId  int32    `json:"-" gorm:"column:enterprise;not null:true;index:group_id_enterprise,unique:true,priority:2"`
+	Enterprise    Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	PointOfSale   bool     `json:"pointOfSale" gorm:"not null:true"`
+}
+
+func (g *Group) TableName() string {
+	return "group"
 }
 
 func getGroup(enterpriseId int32) []Group {
 	var groups []Group = make([]Group, 0)
-	sqlStatement := `SELECT * FROM "group" WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return groups
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)
-		groups = append(groups, g)
-	}
-
+	dbOrm.Model(&Group{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&groups)
 	return groups
 }
 
 func getGroupsPermissionDictionary(enterpriseId int32, permission string) []Group {
 	var groups []Group = make([]Group, 0)
-	sqlStatement := `SELECT "group".* FROM "group" INNER JOIN permission_dictionary_group ON permission_dictionary_group."group" = "group".id AND permission_dictionary_group.enterprise = "group".enterprise WHERE permission_dictionary_group.permission_key = $2 AND "group".enterprise = $1`
-	rows, err := db.Query(sqlStatement, enterpriseId, permission)
-	if err != nil {
-		log("DB", err.Error())
-		return groups
-	}
-	defer rows.Close()
+	var permissionDictionaryGroups []PermissionDictionaryGroup = make([]PermissionDictionaryGroup, 0)
+	dbOrm.Model(&PermissionDictionaryGroup{}).Where(`permission_key = ? AND enterprise = ?`, permission, enterpriseId).Order(`"group" ASC`).Preload("Group").Find(&permissionDictionaryGroups)
 
-	for rows.Next() {
-		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)
-		groups = append(groups, g)
+	for i := 0; i < len(permissionDictionaryGroups); i++ {
+		groups = append(groups, permissionDictionaryGroups[i].Group)
 	}
 
 	return groups
@@ -62,21 +49,25 @@ func (g *Group) isValid() bool {
 	return !(len(g.Name) > 50)
 }
 
+func (g *Group) BeforeCreate(tx *gorm.DB) (err error) {
+	var group Group
+	tx.Model(&Group{}).Last(&group)
+	g.Id = group.Id + 1
+	return nil
+}
+
 func (g *Group) insertGroup() bool {
 	if !g.isValid() {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public."group"(name, sales, purchases, masters, warehouse, manufacturing, preparation, admin, prestashop, accounting, enterprise, point_of_sale) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`
-	row := db.QueryRow(sqlStatement, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, g.PrestaShop, g.Accounting, g.enterprise, g.PointOfSale)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result := dbOrm.Create(&g)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	row.Scan(&g.Id)
-
-	return g.Id > 0
+	return true
 }
 
 func (g *Group) updateGroup() bool {
@@ -84,15 +75,32 @@ func (g *Group) updateGroup() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."group" SET name=$2, sales=$3, purchases=$4, masters=$5, warehouse=$6, manufacturing=$7, preparation=$8, admin=$9, prestashop=$10, accounting=$11, point_of_sale=$13 WHERE id=$1 AND enterprise=$12`
-	res, err := db.Exec(sqlStatement, g.Id, g.Name, g.Sales, g.Purchases, g.Masters, g.Warehouse, g.Manufacturing, g.Preparation, g.Admin, &g.PrestaShop, g.Accounting, g.enterprise, g.PointOfSale)
-	if err != nil {
-		log("DB", err.Error())
+	var group Group
+	result := dbOrm.Where("id = ? AND enterprise = ?", g.Id, g.EnterpriseId).First(&group)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	group.Name = g.Name
+	group.Sales = g.Sales
+	group.Purchases = g.Purchases
+	group.Masters = g.Masters
+	group.Warehouse = g.Warehouse
+	group.Manufacturing = g.Manufacturing
+	group.Preparation = g.Preparation
+	group.Admin = g.Admin
+	group.PrestaShop = g.PrestaShop
+	group.Accounting = g.Accounting
+	group.PointOfSale = g.PointOfSale
+
+	result = dbOrm.Save(&group)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (g *Group) deleteGroup() bool {
@@ -100,15 +108,13 @@ func (g *Group) deleteGroup() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public."group" WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, g.Id, g.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", g.Id, g.EnterpriseId).Delete(&Group{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 type Permissions struct {

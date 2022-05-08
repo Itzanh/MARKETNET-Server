@@ -1,58 +1,50 @@
 package main
 
 import (
-	"database/sql"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type DocumentContainer struct {
-	Id                  int32     `json:"id"`
-	Name                string    `json:"name"`
-	DateCreated         time.Time `json:"dateCreated"`
-	Path                string    `json:"path"`
-	MaxFileSize         int32     `json:"maxFileSize"`
-	DisallowedMimeTypes string    `json:"disallowedMimeTypes"`
-	AllowedMimeTypes    string    `json:"allowedMimeTypes"`
-	UsedStorage         int64     `json:"usedStorage"`
-	MaxStorage          int64     `json:"maxStorage"`
-	enterprise          int32
+	Id                  int32     `json:"id" gorm:"index:_document_container_id_enterprise,unique:true,priority:1"`
+	Name                string    `json:"name" gorm:"type:character varying(50);not null:true"`
+	DateCreated         time.Time `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	Path                string    `json:"path" gorm:"type:character varying(250);not null:true"`
+	MaxFileSize         int32     `json:"maxFileSize" gorm:"not null:true"`
+	DisallowedMimeTypes string    `json:"disallowedMimeTypes" gorm:"type:character varying(250);not null:true"`
+	AllowedMimeTypes    string    `json:"allowedMimeTypes" gorm:"type:character varying(250);not null:true"`
+	EnterpriseId        int32     `json:"-" gorm:"column:enterprise;not null:true;index:_document_container_id_enterprise,unique:true,priority:2"`
+	Enterprise          Settings  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	UsedStorage         int64     `json:"usedStorage" gorm:"not null:true"`
+	MaxStorage          int64     `json:"maxStorage" gorm:"not null:true"`
+}
+
+func (dc *DocumentContainer) TableName() string {
+	return "document_container"
 }
 
 func getDocumentContainer(enterpriseId int32) []DocumentContainer {
 	var containters []DocumentContainer = make([]DocumentContainer, 0)
-	sqlStatement := `SELECT * FROM document_container WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return containters
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := DocumentContainer{}
-		rows.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise, &d.UsedStorage, &d.MaxStorage)
-		containters = append(containters, d)
-	}
-
+	dbOrm.Model(&DocumentContainer{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&containters)
 	return containters
 }
 
 func getDocumentContainerRow(containerId int32) DocumentContainer {
-	sqlStatement := `SELECT * FROM document_container WHERE id=$1`
-	row := db.QueryRow(sqlStatement, containerId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return DocumentContainer{}
-	}
-
 	d := DocumentContainer{}
-	row.Scan(&d.Id, &d.Name, &d.DateCreated, &d.Path, &d.MaxFileSize, &d.DisallowedMimeTypes, &d.AllowedMimeTypes, &d.enterprise, &d.UsedStorage, &d.MaxStorage)
-
+	dbOrm.Model(&DocumentContainer{}).Where("id = ?", containerId).First(&d)
 	return d
 }
 
 func (c *DocumentContainer) isValid() bool {
 	return !(len(c.Name) == 0 || len(c.Name) > 50 || len(c.Path) == 0 || len(c.Path) > 250 || c.MaxFileSize <= 0 || len(c.DisallowedMimeTypes) > 250 || len(c.AllowedMimeTypes) > 250)
+}
+
+func (d *DocumentContainer) BeforeCreate(tx *gorm.DB) (err error) {
+	var documentContainer DocumentContainer
+	tx.Model(&DocumentContainer{}).Last(&documentContainer)
+	d.Id = documentContainer.Id + 1
+	return nil
 }
 
 func (d *DocumentContainer) insertDocumentContainer() bool {
@@ -64,15 +56,17 @@ func (d *DocumentContainer) insertDocumentContainer() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.document_container(name, path, max_file_size, disallowed_mime_types, allowed_mime_types, enterprise) VALUES ($1, $2, $3, $4, $5, $6)`
-	res, err := db.Exec(sqlStatement, d.Name, d.Path, d.MaxFileSize, d.DisallowedMimeTypes, d.AllowedMimeTypes, d.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	d.DateCreated = time.Now()
+	d.UsedStorage = 0
+	d.MaxStorage = 0
+
+	result := dbOrm.Create(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (d *DocumentContainer) updateDocumentContainer() bool {
@@ -84,15 +78,27 @@ func (d *DocumentContainer) updateDocumentContainer() bool {
 		d.MaxStorage = getDocumentContainerRow(d.Id).MaxStorage
 	}
 
-	sqlStatement := `UPDATE public.document_container SET name=$2, path=$3, max_file_size=$4, disallowed_mime_types=$5, allowed_mime_types=$6, enterprise=$7, max_storage=$8 WHERE id=$1`
-	res, err := db.Exec(sqlStatement, d.Id, d.Name, d.Path, d.MaxFileSize, d.DisallowedMimeTypes, d.AllowedMimeTypes, d.enterprise, d.MaxStorage)
-	if err != nil {
-		log("DB", err.Error())
+	documentContainer := DocumentContainer{}
+	result := dbOrm.Model(&DocumentContainer{}).Where("id = ? AND enterprise = ?", d.Id, d.EnterpriseId).First(&documentContainer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	documentContainer.Name = d.Name
+	documentContainer.Path = d.Path
+	documentContainer.MaxFileSize = d.MaxFileSize
+	documentContainer.DisallowedMimeTypes = d.DisallowedMimeTypes
+	documentContainer.AllowedMimeTypes = d.AllowedMimeTypes
+	documentContainer.MaxStorage = d.MaxStorage
+
+	result = dbOrm.Save(&documentContainer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (d *DocumentContainer) deleteDocumentContainer() bool {
@@ -104,32 +110,37 @@ func (d *DocumentContainer) deleteDocumentContainer() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.document_container WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, d.Id, d.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", d.Id, d.EnterpriseId).Delete(&DocumentContainer{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
-func (d *DocumentContainer) updateUsedStorage(sizeInBytes int32, trans *sql.Tx) bool {
+func (d *DocumentContainer) updateUsedStorage(sizeInBytes int32, trans *gorm.DB) bool {
 	if d.Id <= 0 {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.document_container SET used_storage=used_storage + $2 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, d.Id, sizeInBytes)
-	if err != nil {
-		log("DB", err.Error())
+	documentContainer := DocumentContainer{}
+	result := trans.Model(&DocumentContainer{}).Where("id = ?", d.Id).First(&documentContainer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	documentContainer.UsedStorage += int64(sizeInBytes)
+
+	result = trans.Save(&documentContainer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+	return true
 }
 
 type DocumentContainerLocate struct {
@@ -137,21 +148,8 @@ type DocumentContainerLocate struct {
 	Name string `json:"name"`
 }
 
-func locateDocumentContainer(enterpriseId int32) []DocumentContainerLocate {
-	var containters []DocumentContainerLocate = make([]DocumentContainerLocate, 0)
-	sqlStatement := `SELECT id,name FROM document_container WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return containters
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := DocumentContainerLocate{}
-		rows.Scan(&d.Id, &d.Name)
-		containters = append(containters, d)
-	}
-
+func locateDocumentContainer(enterpriseId int32) []NameInt32 {
+	var containters []NameInt32 = make([]NameInt32, 0)
+	dbOrm.Model(&DocumentContainer{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&containters)
 	return containters
 }

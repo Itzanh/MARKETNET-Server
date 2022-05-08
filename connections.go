@@ -65,11 +65,8 @@ func getConnections(enterpriseId int32) []ConnectionWeb {
 			continue
 		}
 		var userName string
-
-		sqlStatement := `SELECT username FROM "user" WHERE id=$1`
-		row := db.QueryRow(sqlStatement, connections[i].User)
-		row.Scan(&userName)
-
+		// get a user's username from the user id in the connection using dbOrm
+		dbOrm.Model(&User{}).Where("id = ?", connections[i].User).Pluck("name", &userName)
 		conn = append(conn, ConnectionWeb{Id: connections[i].Id, Address: connections[i].Address, User: userName, DateConnected: connections[i].DateConnected})
 	}
 

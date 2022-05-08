@@ -1,8 +1,16 @@
 package main
 
+import "gorm.io/gorm/clause"
+
 type UserGroup struct {
-	User  int32 `json:"user"`
-	Group int32 `json:"group"`
+	UserId  int32 `json:"userId" gorm:"primaryKey;column:user;not null:true"`
+	User    User  `json:"user" gorm:"foreignKey:UserId;references:Id"`
+	GroupId int32 `json:"groupId" gorm:"primaryKey;column:group;not null:true"`
+	Group   Group `json:"group" gorm:"foreignKey:GroupId;references:Id"`
+}
+
+func (ug *UserGroup) TableName() string {
+	return "user_group"
 }
 
 type UserGroups struct {
@@ -19,19 +27,16 @@ func getUserGroups(userId int32, enterpriseId int32) UserGroups {
 }
 
 func getUserGroupsIn(userId int32) []Group {
+	var userGroups []UserGroup = make([]UserGroup, 0)
 	var groups []Group = make([]Group, 0)
-	sqlStatement := `SELECT "group".* FROM "user" INNER JOIN user_group ON "user".id=user_group.user INNER JOIN "group" ON "group".id=user_group.group WHERE "user".id=$1 ORDER BY "group".id ASC`
-	rows, err := db.Query(sqlStatement, userId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&UserGroup{}).Where("\"user\" = ?", userId).Order("\"group\" ASC").Preload(clause.Associations).Find(&userGroups)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return groups
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		g := Group{}
-		rows.Scan(&g.Id, &g.Name, &g.Sales, &g.Purchases, &g.Masters, &g.Warehouse, &g.Manufacturing, &g.Preparation, &g.Admin, &g.PrestaShop, &g.Accounting, &g.enterprise, &g.PointOfSale)
-		groups = append(groups, g)
+	for i := 0; i < len(userGroups); i++ {
+		groups = append(groups, userGroups[i].Group)
 	}
 
 	return groups
@@ -53,7 +58,7 @@ func getUserGroupsOut(userId int32, groupsIn []Group, enterpriseId int32) []Grou
 }
 
 func (u *UserGroup) isValid() bool {
-	return !(u.User <= 0 || u.Group <= 0)
+	return !(u.UserId <= 0 || u.GroupId <= 0)
 }
 
 func (u *UserGroup) insertUserGroup() bool {
@@ -61,15 +66,13 @@ func (u *UserGroup) insertUserGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.user_group("user", "group") VALUES ($1, $2)`
-	res, err := db.Exec(sqlStatement, u.User, u.Group)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&u)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (u *UserGroup) deleteUserGroup() bool {
@@ -77,13 +80,11 @@ func (u *UserGroup) deleteUserGroup() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.user_group WHERE "user"=$1 AND "group"=$2`
-	res, err := db.Exec(sqlStatement, u.User, u.Group)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("\"user\" = ? AND \"group\" = ?", u.UserId, u.GroupId).Delete(&UserGroup{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }

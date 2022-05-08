@@ -1,87 +1,85 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PurchaseOrderDetail struct {
-	Id                       int64   `json:"id"`
-	Order                    int64   `json:"order"`
-	Product                  int32   `json:"product"`
-	Price                    float64 `json:"price"`
-	Quantity                 int32   `json:"quantity"`
-	VatPercent               float64 `json:"vatPercent"`
-	TotalAmount              float64 `json:"totalAmount"`
-	QuantityInvoiced         int32   `json:"quantityInvoiced"`
-	QuantityDeliveryNote     int32   `json:"quantityDeliveryNote"`
-	QuantityPendingPackaging int32   `json:"quantityPendingPackaging"`
-	QuantityAssignedSale     int32   `json:"quantityAssignedSale"`
-	ProductName              string  `json:"productName"`
-	Cancelled                bool    `json:"cancelled"`
-	enterprise               int32
+	Id                       int64         `json:"id" gorm:"index:purchase_order_detail_id_enterprise,unique:true,priority:1"`
+	OrderId                  int64         `json:"orderId" gorm:"column:order;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:1"`
+	Order                    PurchaseOrder `json:"-" gorm:"foreignKey:OrderId,EnterpriseId;references:Id,EnterpriseId"`
+	ProductId                int32         `json:"productId" gorm:"column:product;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:2"`
+	Product                  Product       `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	Price                    float64       `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`
+	Quantity                 int32         `json:"quantity" gorm:"column:quantity;not null:true"`
+	VatPercent               float64       `json:"vatPercent" gorm:"column:vat_percent;not null:true;type:numeric(14,6)"`
+	TotalAmount              float64       `json:"totalAmount" gorm:"column:total_amount;not null:true;type:numeric(14,6)"`
+	QuantityInvoiced         int32         `json:"quantityInvoiced" gorm:"column:quantity_invoiced;not null:true"`
+	QuantityDeliveryNote     int32         `json:"quantityDeliveryNote" gorm:"column:quantity_delivery_note;not null:true"`
+	QuantityPendingPackaging int32         `json:"quantityPendingPackaging" gorm:"column:quantity_pending_packaging;not null:true"`
+	QuantityAssignedSale     int32         `json:"quantityAssignedSale" gorm:"column:quantity_assigned_sale;not null:true"`
+	EnterpriseId             int32         `json:"-" gorm:"column:enterprise;not null:true;index:purchase_order_detail_id_enterprise,unique:true,priority:2"`
+	Enterprise               Settings      `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Cancelled                bool          `json:"cancelled" gorm:"column:cancelled;not null:true"`
+}
+
+func (pod *PurchaseOrderDetail) TableName() string {
+	return "purchase_order_detail"
 }
 
 func getPurchaseOrderDetail(orderId int64, enterpriseId int32) []PurchaseOrderDetail {
 	var details []PurchaseOrderDetail = make([]PurchaseOrderDetail, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM product WHERE product.id=purchase_order_detail.product) FROM purchase_order_detail WHERE "order"=$1 AND enterprise=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, orderId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return details
+	result := dbOrm.Where("purchase_order_detail.order = ? AND purchase_order_detail.enterprise = ?", orderId, enterpriseId).Order("purchase_order_detail.id ASC").Preload(clause.Associations).Find(&details)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := PurchaseOrderDetail{}
-		rows.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled, &d.ProductName)
-		details = append(details, d)
-	}
-
 	return details
 }
 
 func getPurchaseOrderDetailRow(detailId int64) PurchaseOrderDetail {
-	sqlStatement := `SELECT * FROM purchase_order_detail WHERE id=$1`
-	row := db.QueryRow(sqlStatement, detailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var d PurchaseOrderDetail
+	result := dbOrm.Where("purchase_order_detail.id = ?", detailId).Preload(clause.Associations).First(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return PurchaseOrderDetail{}
 	}
-
-	d := PurchaseOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled)
-
 	return d
 }
 
-func getPurchaseOrderDetailRowTransaction(detailId int64, trans sql.Tx) PurchaseOrderDetail {
-	sqlStatement := `SELECT * FROM purchase_order_detail WHERE id=$1`
-	row := trans.QueryRow(sqlStatement, detailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+func getPurchaseOrderDetailRowTransaction(detailId int64, trans gorm.DB) PurchaseOrderDetail {
+	var d PurchaseOrderDetail
+	result := trans.Where("purchase_order_detail.id = ?", detailId).Preload(clause.Associations).First(&d)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return PurchaseOrderDetail{}
 	}
-
-	d := PurchaseOrderDetail{}
-	row.Scan(&d.Id, &d.Order, &d.Product, &d.Price, &d.Quantity, &d.VatPercent, &d.TotalAmount, &d.QuantityInvoiced, &d.QuantityDeliveryNote, &d.QuantityPendingPackaging, &d.QuantityAssignedSale, &d.enterprise, &d.Cancelled)
-
 	return d
 }
 
 func (d *PurchaseOrderDetail) isValid() bool {
-	return !(d.Order <= 0 || d.Product <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
+	return !(d.OrderId <= 0 || d.ProductId <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
+}
+
+func (d *PurchaseOrderDetail) BeforeCreate(tx *gorm.DB) (err error) {
+	var purchaseOrderDetail PurchaseOrderDetail
+	tx.Model(&PurchaseOrderDetail{}).Last(&purchaseOrderDetail)
+	d.Id = purchaseOrderDetail.Id + 1
+	return nil
 }
 
 // 1. the product is deactivated
 // 2. there is aleady a detail with this product
-func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql.Tx) (OkAndErrorCodeReturn, int64) {
+func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *gorm.DB) (OkAndErrorCodeReturn, int64) {
 	if !s.isValid() {
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 
-	product := getProductRow(s.Product)
+	product := getProductRow(s.ProductId)
 	if product.Id <= 0 {
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
@@ -90,15 +88,12 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 	}
 
 	// the product and sale order are unique, there can't exist another detail for the same product in the same order
-	sqlStatement := `SELECT COUNT(purchase_order_detail) FROM public.purchase_order_detail WHERE "order" = $1 AND product = $2`
-	row := db.QueryRow(sqlStatement, s.Order, s.Product)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var countProductInSaleOrder int64
+	result := dbOrm.Model(&PurchaseOrderDetail{}).Where("\"order\" = ? AND product = ?", s.OrderId, s.ProductId).Count(&countProductInSaleOrder)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
-
-	var countProductInSaleOrder int16
-	row.Scan(&countProductInSaleOrder)
 	if countProductInSaleOrder > 0 {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2}, 0
 	}
@@ -108,76 +103,61 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 	///
 	var beginTrans bool = (trans == nil)
 	if beginTrans {
-		var err error
-		trans, err = db.Begin()
-		if err != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return OkAndErrorCodeReturn{Ok: false}, 0
 		}
 	}
 	///
 
-	sqlStatement = `INSERT INTO public.purchase_order_detail("order", product, price, quantity, vat_percent, total_amount, quantity_pending_packaging, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
-	row = trans.QueryRow(sqlStatement, s.Order, s.Product, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.Quantity, s.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	s.QuantityInvoiced = 0
+	s.QuantityDeliveryNote = 0
+	s.QuantityPendingPackaging = s.Quantity
+	s.QuantityAssignedSale = 0
+	s.Cancelled = false
+
+	result = trans.Create(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 
-	var detailId int64
-	row.Scan(&detailId)
-	s.Id = detailId
-
-	if detailId <= 0 {
-		return OkAndErrorCodeReturn{Ok: false}, 0
-	}
-
-	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "I")
+	insertTransactionalLog(s.EnterpriseId, "purchase_order_detail", int(s.Id), userId, "I")
 	jsn, _ := json.Marshal(s)
-	go fireWebHook(s.enterprise, "purchase_order_detail", "POST", string(jsn))
+	go fireWebHook(s.EnterpriseId, "purchase_order_detail", "POST", string(jsn))
 
-	ok := addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId, *trans)
+	ok := addTotalProductsPurchaseOrder(s.OrderId, s.Price*float64(s.Quantity), s.VatPercent, s.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
-	ok = addPurchaseOrderLinesNumber(s.Order, s.enterprise, userId, *trans)
+	ok = addPurchaseOrderLinesNumber(s.OrderId, s.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 
-	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(detailId, s.Product, s.Quantity, s.enterprise, userId, *trans)
+	quantityAssignedSale := associatePurchaseOrderWithPendingSalesOrders(s.Id, s.ProductId, s.Quantity, s.EnterpriseId, userId, *trans)
 	if quantityAssignedSale < 0 {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 
-	sqlStatement = `UPDATE purchase_order_detail SET quantity_assigned_sale=$2 WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, detailId, quantityAssignedSale)
-	if err != nil {
-		log("DB", err.Error())
+	result = trans.Model(&PurchaseOrderDetail{}).Where("id = ?", s.Id).Update("quantity_assigned_sale", quantityAssignedSale)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}, 0
 	}
 
-	insertTransactionalLog(s.enterprise, "purchase_order_detail", int(detailId), userId, "U")
+	insertTransactionalLog(s.EnterpriseId, "purchase_order_detail", int(s.Id), userId, "U")
 	jsn, _ = json.Marshal(s)
-	go fireWebHook(s.enterprise, "purchase_order_detail", "POST", string(jsn))
+	go fireWebHook(s.EnterpriseId, "purchase_order_detail", "POST", string(jsn))
 
 	// add quantity pending receiving
-	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
-	row = trans.QueryRow(sqlStatement, s.Order)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		if beginTrans {
-			trans.Rollback()
-		}
-		return OkAndErrorCodeReturn{Ok: false}, 0
-	}
-	var warehouse string
-	row.Scan(&warehouse)
-	ok = addQuantityPendingReveiving(s.Product, warehouse, s.Quantity, s.enterprise, *trans)
+	purchaseOrder := getPurchaseOrderRow(s.OrderId)
+	ok = addQuantityPendingReveiving(s.ProductId, purchaseOrder.WarehouseId, s.Quantity, s.EnterpriseId, *trans)
 	if !ok {
 		if beginTrans {
 			trans.Rollback()
@@ -187,82 +167,82 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *sql
 
 	if beginTrans {
 		///
-		err = trans.Commit()
-		return OkAndErrorCodeReturn{Ok: err == nil}, detailId
+		result = trans.Commit()
+		return OkAndErrorCodeReturn{Ok: result.Error == nil}, s.Id
 		///
 	} else {
-		return OkAndErrorCodeReturn{Ok: true}, detailId
+		return OkAndErrorCodeReturn{Ok: true}, s.Id
 	}
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func deassociatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE sales_order_detail SET status='A',purchase_order_detail=NULL WHERE purchase_order_detail=$1`
-	_, err := trans.Exec(sqlStatement, purchaseDetailId)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Commit()
+func deassociatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	result := trans.Model(&SalesOrderDetail{}).Where("purchase_order_detail = ?", purchaseDetailId).Updates(map[string]interface{}{
+		"status":                "A",
+		"purchase_order_detail": nil,
+	})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return false
 	}
 	return true
 }
 
 type AssociatePurchaseOrderWithPendingSalesOrders struct {
-	SalesDetailId int32
+	SalesDetailId int64
 	SalesQuantity int32
 	OrderId       int64
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, productId int32, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) int32 {
+func associatePurchaseOrderWithPendingSalesOrders(purchaseDetailId int64, productId int32, quantity int32, enterpriseId int32, userId int32, trans gorm.DB) int32 {
 	// associate pending sales order detail until there are no more quantity pending to be assigned, or there are no more pending sales order details
-	sqlStatement := `SELECT id,quantity,"order" FROM sales_order_detail WHERE product=$1 AND status='A' ORDER BY (SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail."order") ASC`
-	rows, err := trans.Query(sqlStatement, productId)
-	if err != nil {
-		log("DB", err.Error())
+	var salesOrderDetails []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	result := trans.Model(&SalesOrderDetail{}).Where("product = ? AND status = 'A'", productId).Order("(SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail.\"order\") ASC").Find(&salesOrderDetails)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return -1
 	}
 	var associations []AssociatePurchaseOrderWithPendingSalesOrders = make([]AssociatePurchaseOrderWithPendingSalesOrders, 0)
 
+	var i int
 	var quantityAssignedSale int32
 	for quantityAssignedSale < quantity {
-		if rows.Next() {
-			var salesDetailId int32
-			var salesQuantity int32
-			var orderId int64
-			rows.Scan(&salesDetailId, &salesQuantity, &orderId)
+		if i < len(salesOrderDetails) {
+			saleDetail := salesOrderDetails[i]
+			i++
 
-			if quantityAssignedSale+salesQuantity > quantity { // no more rows to proecss
+			if quantityAssignedSale+saleDetail.Quantity > quantity { // no more rows to proecss
 				break
 			}
 
-			quantityAssignedSale += salesQuantity
+			quantityAssignedSale += saleDetail.Quantity
 			associations = append(associations, AssociatePurchaseOrderWithPendingSalesOrders{
-				SalesDetailId: salesDetailId,
-				SalesQuantity: salesQuantity,
-				OrderId:       orderId,
+				SalesDetailId: saleDetail.Id,
+				SalesQuantity: saleDetail.Quantity,
+				OrderId:       saleDetail.OrderId,
 			})
 		} else { // no more rows to process
 			break
 		}
 	}
-	rows.Close()
 
 	for i := 0; i < len(associations); i++ {
 		association := associations[i]
-		sqlStatement := `UPDATE sales_order_detail SET status='B', purchase_order_detail=$2 WHERE id=$1`
-		_, err := trans.Exec(sqlStatement, association.SalesDetailId, purchaseDetailId)
-		if err == nil {
-			setSalesOrderState(enterpriseId, association.OrderId, userId, trans)
-			insertTransactionalLog(enterpriseId, "sales_order_detail", int(association.SalesDetailId), userId, "U")
-		} else {
-			log("DB", err.Error())
+		result = trans.Model(&SalesOrderDetail{}).Where("id = ?", association.SalesDetailId).Updates(map[string]interface{}{
+			"status":                "B",
+			"purchase_order_detail": purchaseDetailId,
+		})
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return -1
 		}
+		setSalesOrderState(enterpriseId, association.OrderId, userId, trans)
+		insertTransactionalLog(enterpriseId, "sales_order_detail", int(association.SalesDetailId), userId, "U")
 	}
-
 	return quantityAssignedSale
 }
 
@@ -275,14 +255,14 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
 
 	detailInMemory := getPurchaseOrderDetailRow(s.Id)
-	if detailInMemory.Id <= 0 || detailInMemory.enterprise != s.enterprise {
+	if detailInMemory.Id <= 0 || detailInMemory.EnterpriseId != s.EnterpriseId {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
@@ -296,10 +276,10 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 	}
 
 	if detailInMemory.Quantity != s.Quantity {
-		if !deassociatePurchaseOrderWithPendingSalesOrders(s.Id, s.enterprise, userId, *trans) {
+		if !deassociatePurchaseOrderWithPendingSalesOrders(s.Id, s.EnterpriseId, userId, *trans) {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
-		s.QuantityAssignedSale = associatePurchaseOrderWithPendingSalesOrders(s.Id, s.Product, s.Quantity, s.enterprise, userId, *trans)
+		s.QuantityAssignedSale = associatePurchaseOrderWithPendingSalesOrders(s.Id, s.ProductId, s.Quantity, s.EnterpriseId, userId, *trans)
 		if s.QuantityAssignedSale < 0 {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
@@ -310,30 +290,41 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 
-	ok := addTotalProductsPurchaseOrder(s.Order, -detailInMemory.Price*float64(detailInMemory.Quantity), detailInMemory.VatPercent, s.enterprise, userId, *trans)
+	ok := addTotalProductsPurchaseOrder(s.OrderId, -detailInMemory.Price*float64(detailInMemory.Quantity), detailInMemory.VatPercent, s.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	ok = addTotalProductsPurchaseOrder(s.Order, s.Price*float64(s.Quantity), s.VatPercent, s.enterprise, userId, *trans)
+	ok = addTotalProductsPurchaseOrder(s.OrderId, s.Price*float64(s.Quantity), s.VatPercent, s.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	sqlStatement := `UPDATE public.purchase_order_detail SET price = $2, quantity = $3, vat_percent = $4, total_amount = $5, quantity_assigned_sale = $6 WHERE id = $1`
-	_, err = trans.Exec(sqlStatement, s.Id, s.Price, s.Quantity, s.VatPercent, s.TotalAmount, s.QuantityAssignedSale)
-	if err != nil {
-		log("DB", err.Error())
+	detailInMemory.Price = s.Price
+	detailInMemory.Quantity = s.Quantity
+	detailInMemory.VatPercent = s.VatPercent
+	detailInMemory.TotalAmount = s.TotalAmount
+	detailInMemory.QuantityAssignedSale = s.QuantityAssignedSale
+
+	result := trans.Model(&PurchaseOrderDetail{}).Where("id = ?", s.Id).Updates(map[string]interface{}{
+		"price":                  detailInMemory.Price,
+		"quantity":               detailInMemory.Quantity,
+		"vat_percent":            detailInMemory.VatPercent,
+		"total_amount":           detailInMemory.TotalAmount,
+		"quantity_assigned_sale": detailInMemory.QuantityAssignedSale,
+	})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		log("DB", err.Error())
+	result = trans.Commit()
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 	///
@@ -346,7 +337,7 @@ func (s *PurchaseOrderDetail) updatePurchaseOrderDetail(userId int32) OkAndError
 // ERROR CODES:
 // 1. the detail is already invoiced
 // 2. the detail has a delivery note generated
-func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql.Tx) OkAndErrorCodeReturn {
+func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *gorm.DB) OkAndErrorCodeReturn {
 	if s.Id <= 0 {
 		return OkAndErrorCodeReturn{Ok: false}
 	}
@@ -354,16 +345,15 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 	var beginTransaction bool = (trans == nil)
 	if beginTransaction {
 		///
-		var err error
-		trans, err = db.Begin()
-		if err != nil {
+		trans = dbOrm.Begin()
+		if trans.Error != nil {
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 		///
 	}
 
 	detailInMemory := getPurchaseOrderDetailRow(s.Id)
-	if detailInMemory.Id <= 0 || detailInMemory.enterprise != s.enterprise {
+	if detailInMemory.Id <= 0 || detailInMemory.EnterpriseId != s.EnterpriseId {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
@@ -379,54 +369,47 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 	// roll back the state of the sale order details
 	details := getSalesOrderDetailPurchaseOrderPending(s.Id)
 	for i := 0; i < len(details); i++ {
-		sqlStatement := `UPDATE sales_order_detail SET status='A',purchase_order_detail=NULL WHERE id=$1`
-		_, err := trans.Exec(sqlStatement, details[i].Id)
-		if err != nil {
-			log("DB", err.Error())
+		result := trans.Model(&SalesOrderDetail{}).Where("id = ?", details[i].Id).Updates(map[string]interface{}{
+			"status":                "A",
+			"purchase_order_detail": nil,
+		})
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
 		}
-		ok := setSalesOrderState(detailInMemory.enterprise, details[i].Order, userId, *trans)
+		ok := setSalesOrderState(detailInMemory.EnterpriseId, details[i].OrderId, userId, *trans)
 		if !ok {
 			trans.Rollback()
 			return OkAndErrorCodeReturn{Ok: false}
 		}
 	}
 
-	insertTransactionalLog(detailInMemory.enterprise, "purchase_order_detail", int(s.Id), userId, "D")
+	insertTransactionalLog(detailInMemory.EnterpriseId, "purchase_order_detail", int(s.Id), userId, "D")
 	json, _ := json.Marshal(s)
-	go fireWebHook(s.enterprise, "purchase_order_detail", "DELETE", string(json))
+	go fireWebHook(s.EnterpriseId, "purchase_order_detail", "DELETE", string(json))
 
-	sqlStatement := `DELETE FROM public.purchase_order_detail WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, s.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Delete(&PurchaseOrderDetail{}, "id = ?", s.Id)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
-	ok := addTotalProductsPurchaseOrder(detailInMemory.Order, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, detailInMemory.enterprise, userId, *trans)
+	ok := addTotalProductsPurchaseOrder(detailInMemory.OrderId, -(detailInMemory.Price * float64(detailInMemory.Quantity)), detailInMemory.VatPercent, detailInMemory.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
-	ok = removePurchaseOrderLinesNumber(detailInMemory.Order, detailInMemory.enterprise, userId, *trans)
+	ok = removePurchaseOrderLinesNumber(detailInMemory.OrderId, detailInMemory.EnterpriseId, userId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
 	}
 
 	// substract quantity pending receiving
-	sqlStatement = `SELECT warehouse FROM purchase_order WHERE id=$1`
-	row := db.QueryRow(sqlStatement, detailInMemory.Order)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false}
-	}
-	var warehouse string
-	row.Scan(&warehouse)
-	ok = addQuantityPendingReveiving(detailInMemory.Product, warehouse, -detailInMemory.Quantity, s.enterprise, *trans)
+	purchaseOrder := getPurchaseOrderRow(detailInMemory.OrderId)
+	ok = addQuantityPendingReveiving(detailInMemory.ProductId, purchaseOrder.WarehouseId, -detailInMemory.Quantity, s.EnterpriseId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}
@@ -434,114 +417,119 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *sql
 
 	if beginTransaction {
 		///
-		err = trans.Commit()
+		trans.Commit()
 		///
 	}
-	return OkAndErrorCodeReturn{Ok: err == nil}
+	return OkAndErrorCodeReturn{Ok: true}
 }
 
 // Adds quantity to the field to prevent from other sale orders to use the quantity that is already reserved for order that are already waiting a purchase order.
 // This function will substract if a negative quantity is given.
 // THIS FUNCION DOES NOT OPEN A TRANSACTION
-func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE purchase_order_detail SET quantity_assigned_sale=quantity_assigned_sale+$2 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, detailId, quantity)
-	if err != nil {
-		log("DB", err.Error())
+func addQuantityAssignedSalePurchaseOrder(detailId int64, quantity int32, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	var purchaseOrderDetail PurchaseOrderDetail
+	result := trans.Model(&PurchaseOrderDetail{}).Where("id = ?", detailId).First(&purchaseOrderDetail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
+
+	purchaseOrderDetail.QuantityAssignedSale += quantity
+
+	result = trans.Save(&purchaseOrderDetail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
-	s := getPurchaseOrderDetailRowTransaction(detailId, trans)
-	json, _ := json.Marshal(s)
-	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
+	json, _ := json.Marshal(purchaseOrderDetail)
+	go fireWebHook(enterpriseId, "purchase_order_detail", "PUT", string(json))
 
 	return true
 }
 
 // Adds an invoiced quantity to the purchase order detail. This function will subsctract from the quantity if the amount is negative.
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) bool {
+func addQuantityInvoicedPurchaseOrderDetail(detailId int64, quantity int32, enterpriseId int32, userId int32, trans gorm.DB) bool {
 	detailBefore := getPurchaseOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false
 	}
 
-	sqlStatement := `UPDATE purchase_order_detail SET quantity_invoiced=quantity_invoiced+$2 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, detailId, quantity)
-	if err != nil {
-		log("DB", err.Error())
+	var detailAfter PurchaseOrderDetail
+	result := trans.Model(&PurchaseOrderDetail{}).Where("id = ?", detailId).First(&detailAfter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
 
-	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
-	s := getPurchaseOrderDetailRowTransaction(detailId, trans)
-	json, _ := json.Marshal(s)
-	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
+	detailAfter.QuantityInvoiced += quantity
 
-	detailAfter := getPurchaseOrderDetailRowTransaction(detailId, trans)
-	if detailAfter.Id <= 0 {
+	result = trans.Save(&detailAfter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return false
 	}
 
+	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+	json, _ := json.Marshal(detailAfter)
+	go fireWebHook(enterpriseId, "purchase_order_detail", "PUT", string(json))
+
 	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity { // set as invoced
-		ok := addPurchaseOrderInvoicedLines(detailBefore.Order, enterpriseId, userId, trans)
+		ok := addPurchaseOrderInvoicedLines(detailBefore.OrderId, enterpriseId, userId, trans)
 		if !ok {
 			return false
 		}
 	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity { // undo invoiced
-		ok := removePurchaseOrderInvoicedLines(detailBefore.Order, enterpriseId, userId, trans)
+		ok := removePurchaseOrderInvoicedLines(detailBefore.OrderId, enterpriseId, userId, trans)
 		if !ok {
 			return false
 		}
 	}
 
-	return err == nil && rows > 0
+	return true
 }
 
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, enterpriseId int32, userId int32, trans sql.Tx) bool {
+func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, enterpriseId int32, userId int32, trans gorm.DB) bool {
 	detailBefore := getPurchaseOrderDetailRow(detailId)
 	if detailBefore.Id <= 0 {
 		return false
 	}
 
-	sqlStatement := `UPDATE purchase_order_detail SET quantity_delivery_note=quantity_delivery_note+$2 WHERE id=$1`
-	res, err := trans.Exec(sqlStatement, detailId, quantity)
-	if err != nil {
-		log("DB", err.Error())
+	var detailAfter PurchaseOrderDetail
+	result := trans.Model(&PurchaseOrderDetail{}).Where("id = ?", detailId).First(&detailAfter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
+
+	detailAfter.QuantityDeliveryNote += quantity
+
+	result = trans.Save(&detailAfter)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return false
 	}
 
 	insertTransactionalLog(enterpriseId, "purchase_order_detail", int(detailId), userId, "U")
-	s := getPurchaseOrderDetailRowTransaction(detailId, trans)
-	json, _ := json.Marshal(s)
-	go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
-
-	detailAfter := getPurchaseOrderDetailRowTransaction(detailId, trans)
-	if detailAfter.Id <= 0 {
-		return false
-	}
+	json, _ := json.Marshal(detailAfter)
+	go fireWebHook(enterpriseId, "purchase_order_detail", "PUT", string(json))
 
 	if detailBefore.QuantityDeliveryNote != detailBefore.Quantity && detailAfter.QuantityDeliveryNote == detailAfter.Quantity { // set as delivery note generated
-		ok := addPurchaseOrderDeliveryNoteLines(detailBefore.Order, enterpriseId, userId, trans)
+		ok := addPurchaseOrderDeliveryNoteLines(detailBefore.OrderId, enterpriseId, userId, trans)
 		if !ok {
 			return false
 		}
 	} else if detailBefore.QuantityDeliveryNote == detailBefore.Quantity && detailAfter.QuantityDeliveryNote != detailAfter.Quantity { // undo delivery note generated
-		ok := removePurchaseOrderDeliveryNoteLines(detailBefore.Order, enterpriseId, userId, trans)
+		ok := removePurchaseOrderDeliveryNoteLines(detailBefore.OrderId, enterpriseId, userId, trans)
 		if !ok {
 			return false
 		}
@@ -556,13 +544,13 @@ func addQuantityDeliveryNotePurchaseOrderDetail(detailId int64, quantity int32, 
 
 func cancelPurchaseOrderDetail(detailId int64, enterpriseId int32, userId int32) bool {
 	detail := getPurchaseOrderDetailRow(detailId)
-	if detail.Id <= 0 {
+	if detail.Id <= 0 || detail.EnterpriseId != enterpriseId {
 		return false
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
 		return false
 	}
 	///
@@ -572,96 +560,93 @@ func cancelPurchaseOrderDetail(detailId int64, enterpriseId int32, userId int32)
 			return false
 		}
 
-		sqlStatement := `UPDATE public.purchase_order_detail SET quantity_invoiced=quantity, quantity_delivery_note=quantity, cancelled=true WHERE id=$1 AND enterprise=$2`
-		_, err := trans.Exec(sqlStatement, detailId, enterpriseId)
-		if err != nil {
-			log("DB", err.Error())
+		detail.QuantityInvoiced = detail.Quantity
+		detail.QuantityDeliveryNote = detail.Quantity
+		detail.Cancelled = true
+
+		result := trans.Save(&detail)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
 
-		if err != nil {
-			insertTransactionalLog(detail.enterprise, "purchase_order_detail", int(detailId), userId, "U")
-			s := getSalesOrderDetailRow(detailId)
-			json, _ := json.Marshal(s)
-			go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
-		}
+		insertTransactionalLog(detail.EnterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+		json, _ := json.Marshal(detail)
+		go fireWebHook(enterpriseId, "purchase_order_detail", "PUT", string(json))
 
 		///
-		err = trans.Commit()
-		if err != nil {
-			return false
-		}
+		result = trans.Commit()
+		return result.Error == nil
 		///
-
-		return err == nil
 	} else {
 		if detail.Quantity <= 0 || detail.QuantityInvoiced == 0 || detail.QuantityDeliveryNote == 0 {
 			return false
 		}
 
-		sqlStatement := `UPDATE public.purchase_order_detail SET quantity_invoiced=0, quantity_delivery_note=0, cancelled=false, quantity_assigned_sale=0 WHERE id=$1 AND enterprise=$2`
-		_, err := trans.Exec(sqlStatement, detailId, enterpriseId)
-		if err != nil {
-			log("DB", err.Error())
+		detail.QuantityInvoiced = 0
+		detail.QuantityDeliveryNote = 0
+		detail.Cancelled = false
+		detail.QuantityAssignedSale = 0
+
+		result := trans.Save(&detail)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
 
-		salesDetails := getSalesOrderDetailsFromPurchaseOrderDetail(detail.Id, detail.enterprise)
+		salesDetails := getSalesOrderDetailsFromPurchaseOrderDetail(detail.Id, detail.EnterpriseId)
 
-		sqlStatement = `UPDATE public.sales_order_detail SET status='A', purchase_order_detail=NULL WHERE id=$1`
 		for i := 0; i < len(salesDetails); i++ {
-			_, err := trans.Exec(sqlStatement, salesDetails[i].Id)
-			if err != nil {
-				log("DB", err.Error())
+			result := trans.Model(&SalesOrderDetail{}).Where("id = ?", salesDetails[i].Id).Updates(map[string]interface{}{
+				"status":                "A",
+				"purchase_order_detail": nil,
+			})
+			if result.Error != nil {
+				log("DB", result.Error.Error())
 				trans.Rollback()
 				return false
 			}
 		}
 
-		if err != nil {
-			insertTransactionalLog(detail.enterprise, "purchase_order_detail", int(detailId), userId, "U")
-			s := getSalesOrderDetailRow(detailId)
-			json, _ := json.Marshal(s)
-			go fireWebHook(s.enterprise, "purchase_order_detail", "PUT", string(json))
-		}
+		insertTransactionalLog(detail.EnterpriseId, "purchase_order_detail", int(detailId), userId, "U")
+		json, _ := json.Marshal(detail)
+		go fireWebHook(enterpriseId, "purchase_order_detail", "PUT", string(json))
 
 		///
-		err = trans.Commit()
-		if err != nil {
-			return false
-		}
+		result = trans.Commit()
+		return result.Error == nil
 		///
-
-		return err == nil
 	}
 }
 
 // All the purchase order detail has been added to a delivery note. Advance the status from all the pending sales details to "Sent to preparation".
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
+func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
 	purchaseOrderDetail := getPurchaseOrderDetailRowTransaction(detailId, trans)
 
 	// Get the quantity that the orders are currently using
-	sqlStatement := `SELECT SUM(quantity) FROM sales_order_detail WHERE purchase_order_detail=$1 AND status!='B'`
-	row := db.QueryRow(sqlStatement, detailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var quantityUsedDeliveryNote *int32
+	result := dbOrm.Model(&SalesOrderDetail{}).Where("purchase_order_detail = ? AND status != 'B'", detailId).Select("SUM(quantity) AS quantity").Scan(&quantityUsedDeliveryNote)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
 		return false
 	}
 
-	var quantityUsedDeliveryNote int32
-	row.Scan(&quantityUsedDeliveryNote)
+	if quantityUsedDeliveryNote == nil {
+		zero := int32(0)
+		quantityUsedDeliveryNote = &zero
+	}
 
 	// Get the quantity that the orders are not currently using + the added quantity
-	quantityAddedToDeliveryNote := purchaseOrderDetail.QuantityDeliveryNote - quantityUsedDeliveryNote
-
-	sqlStatement = `SELECT id,"order",quantity FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='B' ORDER BY quantity ASC`
-	rows, err := db.Query(sqlStatement, detailId)
+	quantityAddedToDeliveryNote := purchaseOrderDetail.QuantityDeliveryNote - *quantityUsedDeliveryNote
+	rows, err := dbOrm.Model(&SalesOrderDetail{}).Where("purchase_order_detail = ? AND status = 'B'", detailId).Select(`id,"order",quantity`).Order("quantity ASC").Rows()
 	if err != nil {
 		log("DB", err.Error())
+		trans.Rollback()
 		return false
 	}
 	defer rows.Close()
@@ -680,10 +665,9 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseI
 
 		quantityUsed += quantity
 
-		sqlStatement = `UPDATE sales_order_detail SET status='E' WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, salesOrderDetailId)
-		if err != nil {
-			log("DB", err.Error())
+		result := trans.Model(&SalesOrderDetail{}).Where("id = ?", salesOrderDetailId).Update("status", "E")
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
@@ -697,30 +681,32 @@ func setSalesOrderDetailStateAllPendingPurchaseOrder(detailId int64, enterpriseI
 			return true
 		}
 
-		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
+		go fireWebHook(s.EnterpriseId, "sales_order_detail", "PUT", string(json))
 	}
 
-	return err == nil
+	return true
 }
 
 // The purchase order detail was added to a delivery note and it advanced the status from the sales details, but the delivery note was deleted.
 // Roll back the status change.
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
+func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
 	purchaseOrderDetail := getPurchaseOrderDetailRowTransaction(detailId, trans)
 
-	sqlStatement := `SELECT SUM(quantity) FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='E'`
-	row := db.QueryRow(sqlStatement, detailId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var quantityUsedDeliveryNote *int32
+	result := dbOrm.Model(&SalesOrderDetail{}).Where("purchase_order_detail = ? AND status = 'E'", detailId).Select("SUM(quantity) AS quantity").Scan(&quantityUsedDeliveryNote)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	var quantityUsedDeliveryNote int32
-	row.Scan(&quantityUsedDeliveryNote)
+	if quantityUsedDeliveryNote == nil {
+		zero := int32(0)
+		quantityUsedDeliveryNote = &zero
+	}
 
-	quantityToRemoveFromDeliveryNote := quantityUsedDeliveryNote - purchaseOrderDetail.QuantityDeliveryNote
+	quantityToRemoveFromDeliveryNote := *quantityUsedDeliveryNote - purchaseOrderDetail.QuantityDeliveryNote
 	// The sale orders are using less quantity that the one remaining in the purchase delivery note, do nothing.
 	if quantityToRemoveFromDeliveryNote <= 0 {
 		return true
@@ -728,8 +714,7 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 
 	var quantityDeleted int32
 
-	sqlStatement = `SELECT id,"order",quantity FROM sales_order_detail WHERE purchase_order_detail=$1 AND status='E' ORDER BY quantity DESC`
-	rows, err := db.Query(sqlStatement, detailId)
+	rows, err := dbOrm.Model(&SalesOrderDetail{}).Where("purchase_order_detail = ? AND status = 'E'", detailId).Select(`id,"order",quantity`).Order("quantity DESC").Rows()
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -743,10 +728,9 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 	for rows.Next() {
 		rows.Scan(&salesOrderDetailId, &saleOrderId, &quantity)
 
-		sqlStatement = `UPDATE sales_order_detail SET status='B' WHERE id=$1`
-		_, err = trans.Exec(sqlStatement, salesOrderDetailId)
-		if err != nil {
-			log("DB", err.Error())
+		result := trans.Model(&SalesOrderDetail{}).Where("id = ?", salesOrderDetailId).Update("status", "B")
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			trans.Rollback()
 			return false
 		}
@@ -755,7 +739,7 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 		insertTransactionalLog(enterpriseId, "sales_order_detail", int(salesOrderDetailId), userId, "U")
 		s := getSalesOrderDetailRowTransaction(salesOrderDetailId, trans)
 		json, _ := json.Marshal(s)
-		go fireWebHook(s.enterprise, "sales_order_detail", "PUT", string(json))
+		go fireWebHook(s.EnterpriseId, "sales_order_detail", "PUT", string(json))
 
 		quantityDeleted += quantity
 
@@ -771,9 +755,8 @@ func undoSalesOrderDetailStatueFromPendingPurchaseOrder(detailId int64, enterpri
 // and sets them to manufactured (and the parent order as manufacturable).
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `SELECT DISTINCT complex_manufacturing_order FROM public.complex_manufacturing_order_manufacturing_order WHERE purchase_order_detail = $1`
-	rows, err := trans.Query(sqlStatement, detailId)
+func setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	rows, err := trans.Model(&ComplexManufacturingOrderManufacturingOrder{}).Where("purchase_order_detail = ?", detailId).Distinct("complex_manufacturing_order").Select("complex_manufacturing_order").Rows()
 	if err != nil {
 		log("DB", err.Error())
 		trans.Rollback()
@@ -802,9 +785,8 @@ func setComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int6
 // Roll back the status change.
 //
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
-func undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int64, enterpriseId int32, userId int32, trans sql.Tx) bool {
-	sqlStatement := `SELECT DISTINCT complex_manufacturing_order FROM public.complex_manufacturing_order_manufacturing_order WHERE purchase_order_detail = $1`
-	rows, err := db.Query(sqlStatement, detailId)
+func undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int64, enterpriseId int32, userId int32, trans gorm.DB) bool {
+	rows, err := trans.Model(&ComplexManufacturingOrderManufacturingOrder{}).Where("purchase_order_detail = ?", detailId).Distinct("complex_manufacturing_order").Select("complex_manufacturing_order").Rows()
 	if err != nil {
 		log("DB", err.Error())
 		return false
@@ -830,9 +812,10 @@ func undoComplexManufacturingOrdersPendingPurchaseOrderManufactured(detailId int
 
 type PurchaseSalesOrderDetail struct {
 	Id           int32     `json:"id"`
-	Order        int32     `json:"order"`
+	Order        int64     `json:"order"`
 	OrderName    string    `json:"orderName"`
 	DateCreated  time.Time `json:"dateCreated"`
+	Customer     int32     `json:"customer"`
 	CustomerName string    `json:"customerName"`
 	Quantity     int32     `json:"quantity"`
 	TotalAmount  float64   `json:"totalAmount"`
@@ -840,20 +823,17 @@ type PurchaseSalesOrderDetail struct {
 
 func getSalesOrderDetailsFromPurchaseOrderDetail(detailId int64, enterpriseId int32) []PurchaseSalesOrderDetail {
 	purchaseSalesOrderDetail := make([]PurchaseSalesOrderDetail, 0)
-	sqlStatement := `SELECT sales_order_detail.id,"order",(SELECT order_name FROM sales_order WHERE sales_order.id=sales_order_detail."order"),(SELECT date_created FROM sales_order WHERE sales_order.id=sales_order_detail."order"),(SELECT name FROM customer WHERE customer.id=(SELECT customer FROM sales_order WHERE sales_order.id=sales_order_detail."order")),quantity,total_amount FROM sales_order_detail WHERE purchase_order_detail=$1 AND enterprise=$2`
-	rows, err := db.Query(sqlStatement, detailId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return purchaseSalesOrderDetail
+	result := dbOrm.Model(&SalesOrderDetail{}).Where("purchase_order_detail = ? AND enterprise = ?", detailId, enterpriseId).Order("id DESC").Scan(&purchaseSalesOrderDetail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := PurchaseSalesOrderDetail{}
-		rows.Scan(&p.Id, &p.Order, &p.OrderName, &p.DateCreated, &p.CustomerName, &p.Quantity, &p.TotalAmount)
-		purchaseSalesOrderDetail = append(purchaseSalesOrderDetail, p)
+	for i := 0; i < len(purchaseSalesOrderDetail); i++ {
+		order := getSalesOrderRow(purchaseSalesOrderDetail[i].Order)
+		purchaseSalesOrderDetail[i].OrderName = order.OrderName
+		purchaseSalesOrderDetail[i].DateCreated = order.DateCreated
+		purchaseSalesOrderDetail[i].CustomerName = order.Customer.Name
 	}
-
 	return purchaseSalesOrderDetail
 }
 
@@ -867,19 +847,24 @@ type PurchaseComplexManufacturingOrder struct {
 
 func getComplexManufacturingOrdersFromPurchaseOrderDetail(detailId int64, enterpriseId int32) []PurchaseComplexManufacturingOrder {
 	purchaseComplexManufacturingOrder := make([]PurchaseComplexManufacturingOrder, 0)
-	sqlStatement := `SELECT DISTINCT complex_manufacturing_order.id,complex_manufacturing_order.type,complex_manufacturing_order.manufactured,complex_manufacturing_order.date_created,(SELECT name FROM manufacturing_order_type WHERE manufacturing_order_type.id=complex_manufacturing_order.type) FROM public.complex_manufacturing_order INNER JOIN complex_manufacturing_order_manufacturing_order ON complex_manufacturing_order_manufacturing_order.complex_manufacturing_order=complex_manufacturing_order.id WHERE complex_manufacturing_order_manufacturing_order.purchase_order_detail = $1 AND complex_manufacturing_order.enterprise = $2 ORDER BY complex_manufacturing_order.date_created ASC`
-	rows, err := db.Query(sqlStatement, detailId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return purchaseComplexManufacturingOrder
+	var complexManufacturingOrderDetails []ComplexManufacturingOrderManufacturingOrder = make([]ComplexManufacturingOrderManufacturingOrder, 0)
+	result := dbOrm.Model(&ComplexManufacturingOrderManufacturingOrder{}).Where("purchase_order_detail = ?", detailId).Select("complex_manufacturing_order").Distinct("complex_manufacturing_order").Scan(&complexManufacturingOrderDetails)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		o := PurchaseComplexManufacturingOrder{}
-		rows.Scan(&o.Id, &o.Type, &o.Manufactured, &o.DateCreated, &o.TypeName)
-		purchaseComplexManufacturingOrder = append(purchaseComplexManufacturingOrder, o)
+	for i := 0; i < len(complexManufacturingOrderDetails); i++ {
+		var complexManufacturingOrder PurchaseComplexManufacturingOrder
+		result := dbOrm.Model(&ComplexManufacturingOrder{}).Where("id = ?", complexManufacturingOrderDetails[i].ComplexManufacturingOrderId).Scan(&complexManufacturingOrder)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			return nil
+		}
+		complexManufacturingOrder.TypeName = getManufacturingOrderTypeRow(complexManufacturingOrder.Type).Name
+		purchaseComplexManufacturingOrder = append(purchaseComplexManufacturingOrder, complexManufacturingOrder)
 	}
+
 	return purchaseComplexManufacturingOrder
 }
 

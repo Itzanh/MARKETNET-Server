@@ -2,55 +2,55 @@ package main
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Payment struct {
-	Id                             int32     `json:"id"`
-	AccountingMovement             int64     `json:"accountingMovement"`
-	AccountingMovementDetailDebit  int64     `json:"accountingMovementDetailDebit"`
-	AccountingMovementDetailCredit int64     `json:"accountingMovementDetailCredit"`
-	Account                        int32     `json:"account"`
-	DateCreated                    time.Time `json:"dateCreated"`
-	Amount                         float64   `json:"amount"`
-	Concept                        string    `json:"concept"`
-	PaymentTransaction             int32     `json:"paymentTransaction"`
-	enterprise                     int32
+	Id                               int32                    `json:"id"`
+	AccountingMovementId             int64                    `json:"accountingMovementId" gorm:"column:accounting_movement;not null:true"`
+	AccountingMovement               AccountingMovement       `json:"accountingMovement" gorm:"foreignkey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountingMovementDetailDebitId  int64                    `json:"accountingMovementDetailDebitId" gorm:"column:accounting_movement_detail_debit;not null:true"`
+	AccountingMovementDetailDebit    AccountingMovementDetail `json:"accountingMovementDetailDebit" gorm:"foreignkey:AccountingMovementDetailDebitId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountingMovementDetailCreditId int64                    `json:"accountingMovementDetailCreditId" gorm:"column:accounting_movement_detail_credit;not null:true"`
+	AccountingMovementDetailCredit   AccountingMovementDetail `json:"accountingMovementDetailCredit" gorm:"foreignkey:AccountingMovementDetailCreditId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountId                        int32                    `json:"accountId" gorm:"column:account;not null:true"`
+	Account                          Account                  `json:"account" gorm:"foreignkey:AccountId,EnterpriseId;references:Id,EnterpriseId"`
+	DateCreated                      time.Time                `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	Amount                           float64                  `json:"amount" gorm:"type:numeric(14,6);not null:true"`
+	Concept                          string                   `json:"concept" gorm:"type:character varying(140);not null:true"`
+	PaymentTransactionId             int32                    `json:"paymentTransactionId" gorm:"column:payment_transaction;not null:true"`
+	PaymentTransaction               PaymentTransaction       `json:"paymentTransaction" gorm:"foreignkey:PaymentTransactionId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId                     int32                    `json:"-" gorm:"column:enterprise;not null"`
+	Enterprise                       Settings                 `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (p *Payment) TableName() string {
+	return "payments"
 }
 
 func getPayments(paymentTransaction int32, enterpriseId int32) []Payment {
 	payments := make([]Payment, 0)
-	sqlStatement := `SELECT * FROM public.payments WHERE payment_transaction=$1 AND enterprise=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, paymentTransaction, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return payments
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := Payment{}
-		rows.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetailDebit, &p.AccountingMovementDetailCredit, &p.Account, &p.DateCreated, &p.Amount, &p.Concept, &p.PaymentTransaction, &p.enterprise)
-		payments = append(payments, p)
-	}
+	// get payments for this enterprise and payment transacion
+	dbOrm.Model(&Payment{}).Where("payment_transaction = ? AND enterprise = ?", paymentTransaction, enterpriseId).Order("id ASC").Find(&payments)
 	return payments
 }
 
 func getPaymentsRow(chargesId int32) Payment {
-	sqlStatement := `SELECT * FROM public.payments WHERE id=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, chargesId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return Payment{}
-	}
-
 	p := Payment{}
-	row.Scan(&p.Id, &p.AccountingMovement, &p.AccountingMovementDetailDebit, &p.AccountingMovementDetailCredit, &p.Account, &p.DateCreated, &p.Amount, &p.Concept, &p.PaymentTransaction, &p.enterprise)
-
+	dbOrm.Model(&Payment{}).Where("id = ?", chargesId).First(&p)
 	return p
 }
 
 func (c *Payment) isValid() bool {
-	return !(c.PaymentTransaction <= 0 || len(c.Concept) > 140 || c.Amount <= 0)
+	return !(c.PaymentTransactionId <= 0 || len(c.Concept) > 140 || c.Amount <= 0)
+}
+
+func (c *Payment) BeforeCreate(tx *gorm.DB) (err error) {
+	var payment Payment
+	tx.Model(&Payment{}).Last(&payment)
+	c.Id = payment.Id + 1
+	return nil
 }
 
 func (c *Payment) insertPayment(userId int32) bool {
@@ -60,22 +60,19 @@ func (c *Payment) insertPayment(userId int32) bool {
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
-		return false
-	}
+	trans := dbOrm.Begin()
 	///
 
 	// get data from payment transaction
-	pt := getPaymentTransactionRow(c.PaymentTransaction)
-	if pt.Id <= 0 || pt.Bank == nil || pt.enterprise != c.enterprise || pt.Pending <= 0 {
+	pt := getPaymentTransactionRow(c.PaymentTransactionId)
+	if pt.Id <= 0 || pt.BankId == nil || pt.EnterpriseId != c.EnterpriseId || pt.Pending <= 0 {
 		trans.Rollback()
 		return false
 	}
 
-	c.AccountingMovement = pt.AccountingMovement
-	c.AccountingMovementDetailDebit = pt.AccountingMovementDetail
-	c.Account = pt.Account
+	c.AccountingMovementId = pt.AccountingMovementId
+	c.AccountingMovementDetailDebitId = pt.AccountingMovementDetailId
+	c.AccountId = pt.AccountId
 
 	ok := pt.addQuantityCharges(c.Amount, userId, *trans)
 	if !ok {
@@ -83,7 +80,7 @@ func (c *Payment) insertPayment(userId int32) bool {
 		return false
 	}
 
-	am := getAccountingMovementRow(pt.AccountingMovement)
+	am := getAccountingMovementRow(pt.AccountingMovementId)
 	if am.Id <= 0 {
 		trans.Rollback()
 		return false
@@ -92,8 +89,8 @@ func (c *Payment) insertPayment(userId int32) bool {
 	// insert accounting movement for the payment
 	m := AccountingMovement{}
 	m.Type = "N"
-	m.BillingSerie = am.BillingSerie
-	m.enterprise = c.enterprise
+	m.BillingSerieId = am.BillingSerieId
+	m.EnterpriseId = c.EnterpriseId
 	ok = m.insertAccountingMovement(userId, trans)
 	if !ok {
 		trans.Rollback()
@@ -101,16 +98,16 @@ func (c *Payment) insertPayment(userId int32) bool {
 	}
 
 	// 1. debit detail for the bank
-	bank := getAccountRow(*pt.Bank)
+	bank := getAccountRow(*pt.BankId)
 
 	dInc := AccountingMovementDetail{}
-	dInc.Movement = m.Id
-	dInc.Journal = bank.Journal
+	dInc.MovementId = m.Id
+	dInc.JournalId = bank.JournalId
 	dInc.AccountNumber = bank.AccountNumber
 	dInc.Credit = c.Amount
 	dInc.Type = "N"
-	dInc.PaymentMethod = pt.PaymentMethod
-	dInc.enterprise = c.enterprise
+	dInc.PaymentMethodId = pt.PaymentMethodId
+	dInc.EnterpriseId = c.EnterpriseId
 	ok = dInc.insertAccountingMovementDetail(userId, trans)
 	if !ok {
 		trans.Rollback()
@@ -118,46 +115,42 @@ func (c *Payment) insertPayment(userId int32) bool {
 	}
 
 	// 2. credit detail for the suppliers's account
-	dSuppDebit := getAccountingMovementDetailRow(c.AccountingMovementDetailDebit)
+	dSuppDebit := getAccountingMovementDetailRow(c.AccountingMovementDetailDebitId)
 	if dSuppDebit.Id <= 0 {
 		trans.Rollback()
 		return false
 	}
 
 	Supp := AccountingMovementDetail{}
-	Supp.Movement = m.Id
-	Supp.Journal = dSuppDebit.Journal
-	Supp.AccountNumber = dSuppDebit.AccountNumber
+	Supp.MovementId = m.Id
+	Supp.JournalId = dSuppDebit.JournalId
+	Supp.AccountNumber = dSuppDebit.Account.AccountNumber
 	Supp.Debit = c.Amount
 	Supp.Type = "N"
 	Supp.DocumentName = dSuppDebit.DocumentName
-	Supp.PaymentMethod = pt.PaymentMethod
-	Supp.enterprise = c.enterprise
+	Supp.PaymentMethodId = pt.PaymentMethodId
+	Supp.EnterpriseId = c.EnterpriseId
 	ok = Supp.insertAccountingMovementDetail(userId, trans)
 	if !ok {
 		trans.Rollback()
 		return false
 	}
-	c.AccountingMovementDetailCredit = Supp.Id
+	c.AccountingMovementDetailCreditId = Supp.Id
 
 	// insert row
-	sqlStatement := `INSERT INTO public.payments(accounting_movement, accounting_movement_detail_debit, accounting_movement_detail_credit, account, amount, concept, payment_transaction, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
-	row := trans.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetailDebit, c.AccountingMovementDetailCredit, c.Account, c.Amount, c.Concept, c.PaymentTransaction, c.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	c.DateCreated = time.Now()
+	result := trans.Create(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	var paymentId int32
-	row.Scan(&paymentId)
-	c.Id = paymentId
-
-	insertTransactionalLog(c.enterprise, "payments", int(c.Id), userId, "I")
+	insertTransactionalLog(c.EnterpriseId, "payments", int(c.Id), userId, "I")
 
 	///
-	err = trans.Commit()
-	return err == nil
+	trans.Commit()
+	return true
 	///
 }
 
@@ -167,30 +160,26 @@ func (c *Payment) deletePayment(userId int32) bool {
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
-		return false
-	}
+	trans := dbOrm.Begin()
 	///
 
 	inMemoryPayment := getPaymentsRow(c.Id)
-	if inMemoryPayment.Id <= 0 || inMemoryPayment.enterprise != c.enterprise {
+	if inMemoryPayment.Id <= 0 || inMemoryPayment.EnterpriseId != c.EnterpriseId {
 		trans.Rollback()
 		return false
 	}
 	// get the payment transaction
-	pt := getPaymentTransactionRow(inMemoryPayment.PaymentTransaction)
+	pt := getPaymentTransactionRow(inMemoryPayment.PaymentTransactionId)
 	if pt.Id <= 0 {
 		trans.Rollback()
 		return false
 	}
 
-	insertTransactionalLog(c.enterprise, "payments", int(c.Id), userId, "D")
+	insertTransactionalLog(c.EnterpriseId, "payments", int(c.Id), userId, "D")
 
-	sqlStatement := `DELETE FROM public.payments WHERE id=$1 AND enterprise=$2`
-	_, err = trans.Exec(sqlStatement, c.Id, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).Delete(&Payment{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
@@ -203,8 +192,8 @@ func (c *Payment) deletePayment(userId int32) bool {
 	}
 
 	// delete the associated account movement (credit)
-	amd := getAccountingMovementDetailRow(inMemoryPayment.AccountingMovementDetailCredit)
-	am := getAccountingMovementRow(amd.Movement)
+	amd := getAccountingMovementDetailRow(inMemoryPayment.AccountingMovementDetailCreditId)
+	am := getAccountingMovementRow(amd.MovementId)
 	ok = am.deleteAccountingMovement(userId, trans)
 	if !ok {
 		trans.Rollback()
@@ -212,7 +201,7 @@ func (c *Payment) deletePayment(userId int32) bool {
 	}
 
 	///
-	err = trans.Commit()
-	return err == nil
+	trans.Commit()
+	return true
 	///
 }

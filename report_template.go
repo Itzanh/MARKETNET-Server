@@ -1,44 +1,43 @@
 package main
 
 type ReportTemplate struct {
-	enterprise int32
-	Key        string `json:"key"`
-	Html       string `json:"html"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Key          string   `json:"key" gorm:"primaryKey;column:key;not null:true;type:character varying(50)"`
+	Html         string   `json:"html" gorm:"column:html;not null:true;type:text"`
+}
+
+func (r *ReportTemplate) TableName() string {
+	return "report_template"
 }
 
 func getReportTemplates(enterpriseId int32) []ReportTemplate {
 	templates := make([]ReportTemplate, 0)
-	sqlStatement := `SELECT * FROM public.report_template WHERE enterprise=$1`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return templates
-	}
-
-	for rows.Next() {
-		t := ReportTemplate{}
-		rows.Scan(&t.enterprise, &t.Key, &t.Html)
-		templates = append(templates, t)
+	// get all the report templates for the enterprise using dbOrm
+	result := dbOrm.Model(&ReportTemplate{}).Where("enterprise = ?", enterpriseId).Order("key ASC").Find(&templates)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 	return templates
 }
 
 func getReportTemplate(enterpriseId int32, key string) ReportTemplate {
 	t := ReportTemplate{}
-	sqlStatement := `SELECT * FROM public.report_template WHERE enterprise=$1 AND key=$2`
-	row := db.QueryRow(sqlStatement, enterpriseId, key)
-	if row.Err() != nil {
-		return t
+	// get the report template for the enterprise and the given key using dbOrm
+	result := dbOrm.Model(&ReportTemplate{}).Where("enterprise = ? AND key = ?", enterpriseId, key).First(&t)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-
-	row.Scan(&t.enterprise, &t.Key, &t.Html)
 	return t
 }
 
 // Must NOT be callable from the web client!
 func (r ReportTemplate) insertReportTemplate() {
-	sqlStatement := `INSERT INTO public.report_template(enterprise, key, html) VALUES ($1, $2, $3)`
-	db.Exec(sqlStatement, r.enterprise, r.Key, r.Html)
+	// insert the report template using dbOrm
+	result := dbOrm.Create(&r)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 }
 
 func (r *ReportTemplate) updateReportTemplate() bool {
@@ -46,7 +45,21 @@ func (r *ReportTemplate) updateReportTemplate() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.report_template SET html=$3 WHERE enterprise=$1 AND key=$2`
-	db.Exec(sqlStatement, r.enterprise, r.Key, r.Html)
-	return false
+	// get a single report template from the database for the given enterprise id and key using dbOrm
+	var t ReportTemplate
+	result := dbOrm.Model(&ReportTemplate{}).Where("enterprise = ? AND key = ?", r.EnterpriseId, r.Key).First(&t)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	t.Html = r.Html
+
+	// update the report template using dbOrm
+	result = dbOrm.Save(&t)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
 }

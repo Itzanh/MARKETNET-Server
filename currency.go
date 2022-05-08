@@ -1,39 +1,37 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Currency struct {
-	Id           int32     `json:"id"`
-	Name         string    `json:"name"`
-	Sign         string    `json:"sign"`
-	IsoCode      string    `json:"isoCode"`
-	IsoNum       int16     `json:"isoNum"`
-	Change       float64   `json:"change"`
-	ExchangeDate time.Time `json:"exchangeDate"`
-	enterprise   int32
+	Id           int32     `json:"id" gorm:"primaryKey;index:currency_id_enterprise,unique:true,priority:1"`
+	Name         string    `json:"name" gorm:"column:name;type:character varying(150);not null:true"`
+	Sign         string    `json:"sign" gorm:"column:sign;type:character(3);not null:true"`
+	IsoCode      string    `json:"isoCode" gorm:"column:iso_code;type:character(3);not null:true;index:currency_iso_code,unique:true,priority:2"`
+	IsoNum       int16     `json:"isoNum" gorm:"not null:true;index:currency_num,unique:true,priority:2"`
+	Change       float64   `json:"change" gorm:"column:exchange;type:numeric(14,6);not null:true"`
+	ExchangeDate time.Time `json:"exchangeDate" gorm:"column:exchange_date;type:date;not null:true"`
+	EnterpriseId int32     `json:"-" gorm:"column:enterprise;not null:true;index:currency_id_enterprise,unique:true,priority:2;index:currency_iso_code,unique:true,priority:1;index:currency_num,unique:true,priority:1"`
+	Enterprise   Settings  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (c *Currency) TableName() string {
+	return "currency"
 }
 
 func getCurrencies(enterpriseId int32) []Currency {
 	var currencies []Currency = make([]Currency, 0)
-	sqlStatement := `SELECT * FROM public.currency WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&Currency{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&currencies)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return currencies
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := Currency{}
-		rows.Scan(&c.Id, &c.Name, &c.Sign, &c.IsoCode, &c.IsoNum, &c.Change, &c.ExchangeDate, &c.enterprise)
-		currencies = append(currencies, c)
 	}
 
 	return currencies
@@ -43,20 +41,28 @@ func (c *Currency) isValid() bool {
 	return !(len(c.Name) == 0 || len(c.Name) > 150 || len([]rune(c.Sign)) > 3 || len(c.IsoCode) > 3 || c.IsoNum < 0 || c.Change < 0)
 }
 
+func (c *Currency) BeforeCreate(tx *gorm.DB) (err error) {
+	var currency Currency
+	tx.Model(&Currency{}).Last(&currency)
+	c.Id = currency.Id + 1
+	return nil
+}
+
 func (c *Currency) insertCurrency() bool {
 	if !c.isValid() {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.currency(name, sign, iso_code, iso_num, exchange, enterprise) VALUES ($1, $2, $3, $4, $5, $6)`
-	res, err := db.Exec(sqlStatement, c.Name, c.Sign, c.IsoCode, c.IsoNum, c.Change, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	// DEFAULTS
+	c.ExchangeDate = time.Now()
+
+	result := dbOrm.Create(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (c *Currency) updateCurrency() bool {
@@ -64,15 +70,26 @@ func (c *Currency) updateCurrency() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.currency SET name=$2, sign=$3, iso_code=$4, iso_num=$5, exchange=$6 WHERE id=$1 AND enterprise=$7`
-	res, err := db.Exec(sqlStatement, c.Id, c.Name, c.Sign, c.IsoCode, c.IsoNum, c.Change, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var currency Currency
+	result := dbOrm.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).First(&currency)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	currency.Name = c.Name
+	currency.Sign = c.Sign
+	currency.IsoCode = c.IsoCode
+	currency.IsoNum = c.IsoNum
+	currency.Change = c.Change
+
+	result = dbOrm.Save(&currency)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (c *Currency) deleteCurrency() bool {
@@ -80,79 +97,54 @@ func (c *Currency) deleteCurrency() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.currency WHERE id=$1 AND enterprise=$2`
-	res, err := db.Exec(sqlStatement, c.Id, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).Delete(&Currency{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func getCurrencyExchange(currencyId int32) float64 {
-	sqlStatement := `SELECT exchange FROM public.currency WHERE id=$1`
-	row := db.QueryRow(sqlStatement, currencyId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var currency Currency
+	result := dbOrm.Where("id = ?", currencyId).First(&currency)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return 0
 	}
-	var change float64
-	row.Scan(&change)
-	return change
+
+	return currency.Change
 }
 
-func findCurrencyByName(currencyName string, enterpriseId int32) []NameInt16 {
-	var currencies []NameInt16 = make([]NameInt16, 0)
-	sqlStatement := `SELECT id,name FROM public.currency WHERE (UPPER(name) LIKE $1 || '%') AND enterprise=$2 ORDER BY id ASC LIMIT 10`
-	rows, err := db.Query(sqlStatement, strings.ToUpper(currencyName), enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func findCurrencyByName(currencyName string, enterpriseId int32) []NameInt32 {
+	var currencies []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Currency{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(currencyName), enterpriseId).Limit(10).Find(&currencies)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return currencies
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := NameInt16{}
-		rows.Scan(&c.Id, &c.Name)
-		currencies = append(currencies, c)
 	}
 
 	return currencies
 }
 
 func getNameCurrency(id int32, enterpriseId int32) string {
-	sqlStatement := `SELECT name FROM public.currency WHERE id=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, id, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var currency Currency
+	result := dbOrm.Where("id = ? AND enterprise = ?", currency, enterpriseId).First(&currency)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return ""
 	}
-	name := ""
-	row.Scan(&name)
-	return name
+
+	return currency.Name
 }
 
-type LocateCurrency struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
-}
-
-func locateCurrency(enterpriseId int32) []LocateCurrency {
-	var currencies []LocateCurrency = make([]LocateCurrency, 0)
-	sqlStatement := `SELECT id,name FROM public.currency WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+func locateCurrency(enterpriseId int32) []NameInt32 {
+	var currencies []NameInt32 = make([]NameInt32, 0)
+	result := dbOrm.Model(&Currency{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Limit(10).Find(&currencies)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return currencies
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := LocateCurrency{}
-		rows.Scan(&c.Id, &c.Name)
-		currencies = append(currencies, c)
 	}
 
 	return currencies
@@ -174,12 +166,13 @@ func updateCurrencyExchange(enterpriseId int32) {
 		currentDate := now.Format("2006-01-02")
 		resp, err := http.Get(getSettingsRecordById(enterpriseId).CurrencyECBurl + "D." + currencies[i].IsoCode + ".EUR.SP00.A?startPeriod=" + currentDate + "&endPeriod=" + currentDate)
 		if err != nil {
-			fmt.Println(err)
+			log("ECB Exchange", err.Error())
 			return
 		}
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
+			log("ECB Exchange", err.Error())
 			return
 		}
 
@@ -208,14 +201,18 @@ func updateCurrencyExchange(enterpriseId int32) {
 
 		date, err := time.Parse("2006-01-02", dateString)
 		if err != nil {
+			log("ECB Exchange", err.Error())
 			continue
 		}
 		value, err := strconv.ParseFloat(valueString, 64)
 		if err != nil {
+			log("ECB Exchange", err.Error())
 			continue
 		}
 
-		sqlStatement := `UPDATE currency SET exchange=$2,exchange_date=$3 WHERE id=$1`
-		db.Exec(sqlStatement, currencies[i].Id, value, date)
+		currency := currencies[i]
+		currency.Change = value
+		currency.ExchangeDate = date
+		currency.updateCurrency()
 	}
 }

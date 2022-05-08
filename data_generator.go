@@ -54,12 +54,12 @@ func generateCustomers(enterpriseId int32) {
 
 		// country
 		country := countries[rand.Intn(len(countries))]
-		c.Country = &country.Id
+		c.CountryId = &country.Id
 
 		// state
-		states := getStatesByCountry(*c.Country, 1)
+		states := getStatesByCountry(*c.CountryId, 1)
 		if len(states) > 0 {
-			c.State = &states[rand.Intn(len(states))].Id
+			c.StateId = &states[rand.Intn(len(states))].Id
 		}
 
 		// vat number
@@ -86,20 +86,20 @@ func generateCustomers(enterpriseId int32) {
 
 		// billing serie
 		if country.Zone == "N" || country.Zone == "U" && c.VatNumber == "" {
-			c.BillingSeries = &INT
+			c.BillingSeriesId = &INT
 		} else if country.Zone == "E" {
-			c.BillingSeries = &EXP
+			c.BillingSeriesId = &EXP
 		} else {
-			c.BillingSeries = &IEU
+			c.BillingSeriesId = &IEU
 		}
 
 		// language
-		c.Language = &languages[rand.Intn(len(languages))].Id
+		c.LanguageId = &languages[rand.Intn(len(languages))].Id
 
 		// paymet method
-		c.PaymentMethod = &paymentMethods[rand.Intn(len(paymentMethods))].Id
+		c.PaymentMethodId = &paymentMethods[rand.Intn(len(paymentMethods))].Id
 
-		c.enterprise = 1
+		c.EnterpriseId = 1
 		c.insertCustomer(0)
 	}
 }
@@ -115,7 +115,7 @@ func generateAddresses(enterpriseId int32) {
 		addressesGenerate := rand.Intn(4) + 1
 		for l := 0; l < addressesGenerate; l++ {
 			a := Address{}
-			a.Customer = &customer.Id
+			a.CustomerId = &customer.Id
 
 			// address 2
 			words := rand.Intn(4) + 1
@@ -141,12 +141,12 @@ func generateAddresses(enterpriseId int32) {
 
 			// country
 			country := countries[rand.Intn(len(countries))]
-			a.Country = country.Id
+			a.CountryId = country.Id
 
 			// state
-			states := getStatesByCountry(a.Country, 1)
+			states := getStatesByCountry(a.CountryId, 1)
 			if len(states) > 0 {
-				a.State = &states[rand.Intn(len(states))].Id
+				a.StateId = &states[rand.Intn(len(states))].Id
 			}
 
 			// city
@@ -180,7 +180,7 @@ func generateAddresses(enterpriseId int32) {
 			}
 
 			a.PrivateOrBusiness = "_"
-			a.enterprise = enterpriseId
+			a.EnterpriseId = enterpriseId
 			a.insertAddress(0)
 		}
 	}
@@ -197,21 +197,21 @@ func generateSaleOrders(enterpriseId int32) {
 		customer := customers.Customers[i]
 		addresses := getCustomerAddresses(customer.Id, 1)
 
-		if customer.PaymentMethod == nil || customer.BillingSeries == nil {
+		if customer.PaymentMethodId == nil || customer.BillingSeriesId == nil {
 			continue
 		}
 
 		ordersGenerate := rand.Intn(10) + 1
 		for l := 0; l < ordersGenerate; l++ {
 			o := SaleOrder{}
-			o.Warehouse = "W1"
-			o.Customer = customer.Id
-			o.PaymentMethod = *customer.PaymentMethod
-			o.BillingSeries = *customer.BillingSeries
-			o.Currency = currencies[rand.Intn(len(currencies))].Id
-			o.BillingAddress = addresses[rand.Intn(len(addresses))].Id
-			o.ShippingAddress = addresses[rand.Intn(len(addresses))].Id
-			o.enterprise = 1
+			o.WarehouseId = "W1"
+			o.CustomerId = customer.Id
+			o.PaymentMethodId = *customer.PaymentMethodId
+			o.BillingSeriesId = *customer.BillingSeriesId
+			o.CurrencyId = currencies[rand.Intn(len(currencies))].Id
+			o.BillingAddressId = addresses[rand.Intn(len(addresses))].Id
+			o.ShippingAddressId = addresses[rand.Intn(len(addresses))].Id
+			o.EnterpriseId = 1
 			ok, id := o.insertSalesOrder(1)
 
 			if !ok {
@@ -223,12 +223,12 @@ func generateSaleOrders(enterpriseId int32) {
 				product := products[rand.Intn(len(products))]
 
 				d := SalesOrderDetail{}
-				d.Order = id
-				d.Product = product.Id
+				d.OrderId = id
+				d.ProductId = product.Id
 				d.Price = product.Price
 				d.Quantity = int32(rand.Intn(10) + 1)
 				d.VatPercent = product.VatPercent
-				d.enterprise = 1
+				d.EnterpriseId = 1
 				d.insertSalesOrderDetail(0)
 			}
 		}

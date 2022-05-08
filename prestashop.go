@@ -46,9 +46,17 @@ type PSZones struct {
 }
 
 type PSZone struct {
-	Id     int32  `json:"id"`
-	Name   string `json:"name"`
-	Active string `json:"active"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(64);not null:true"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null:true"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_zone_ps_exists"`
+	Zone         string   `json:"-" gorm:"column:zone;type:character(1);not null:true"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSZone) TableName() string {
+	return "ps_zone"
 }
 
 type PSCurrencies struct {
@@ -56,14 +64,21 @@ type PSCurrencies struct {
 }
 
 type PSCurrency struct {
-	Id             int32  `json:"id"`
-	Name           string `json:"name"`
-	Symbol         string `json:"symbol"`
-	IsoCode        string `json:"iso_code"`
-	NumericIsoCode string `json:"numeric_iso_code"`
-	ConversionRate string `json:"conversion_rate"`
-	Deleted        string `json:"deleted"`
-	Active         string `json:"active"`
+	Id             int32    `json:"id" gorm:"primaryKey"`
+	Name           string   `json:"name" gorm:"column:name;type: character varying(64);not null:true"`
+	IsoCode        string   `json:"iso_code" gorm:"column:iso_code;type: character varying(3);not null:true"`
+	ConversionRate string   `json:"conversion_rate" gorm:"column:conversion_rate;type:numeric(10,6);not null:true"`
+	Deleted        string   `json:"deleted" gorm:"column:deleted;type:boolean;not null:true"`
+	Active         string   `json:"active" gorm:"column:active;type:boolean;not null:true"`
+	PsExists       bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_currency_ps_exists"`
+	Symbol         string   `json:"symbol" gorm:"column:symbol;type: character varying(3);not null:true"`
+	NumericIsoCode string   `json:"numeric_iso_code" gorm:"column:numeric_iso_code;type:integer;not null:true"`
+	EnterpriseId   int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise     Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSCurrency) TableName() string {
+	return "ps_currency"
 }
 
 type PSCountries struct {
@@ -71,13 +86,20 @@ type PSCountries struct {
 }
 
 type PSCountry struct {
-	Id         int32  `json:"id"`
-	IdZone     string `json:"id_zone"`
-	IdCurrency string `json:"id_currency"`
-	IsoCode    string `json:"iso_code"`
-	CallPrefix string `json:"call_prefix"`
-	Active     string `json:"active"`
-	Name       string `json:"name"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	IdZone       string   `json:"id_zone" gorm:"column:id_zone;type:integer;not null"`
+	IdCurrency   string   `json:"id_currency" gorm:"column:id_currency;type:integer;not null"`
+	IsoCode      string   `json:"iso_code" gorm:"column:iso_code;type:character varying(3);not null"`
+	CallPrefix   string   `json:"call_prefix" gorm:"column:call_prefix;type:integer;not null"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(64);not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_country_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSCountry) TableName() string {
+	return "ps_country"
 }
 
 type PSStates struct {
@@ -85,12 +107,19 @@ type PSStates struct {
 }
 
 type PSState struct {
-	Id        int32  `json:"id"`
-	IdZone    string `json:"id_zone"`
-	IdCountry string `json:"id_country"`
-	IsoCode   string `json:"iso_code"`
-	Name      string `json:"name"`
-	Active    string `json:"active"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	IdCountry    string   `json:"id_country" gorm:"column:id_country;type:integer;not null"`
+	IdZone       string   `json:"id_zone" gorm:"column:id_zone;type:integer;not null"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(64);not null"`
+	IsoCode      string   `json:"iso_code" gorm:"column:iso_code;type:character varying(7);not null"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_state_ps_exists "`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSState) TableName() string {
+	return "ps_state"
 }
 
 type PSCustomers struct {
@@ -98,17 +127,24 @@ type PSCustomers struct {
 }
 
 type PSCustomer struct {
-	Id        int32  `json:"id"`
-	IdLang    string `json:"id_lang"`
-	Company   string `json:"company"`
-	Firstname string `json:"firstname"`
-	Lastname  string `json:"lastname"`
-	Email     string `json:"email"`
-	Note      string `json:"note"`
-	Active    string `json:"active"`
-	Deleted   string `json:"deleted"`
-	DateAdd   string `json:"date_add"`
-	DateUpd   string `json:"date_upd"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	IdLang       string   `json:"id_lang" gorm:"column:id_lang;type:integer;not null"`
+	Company      string   `json:"company" gorm:"column:company;type:character varying(255);not null"`
+	Firstname    string   `json:"firstname" gorm:"column:firstname;type:character varying(255);not null"`
+	Lastname     string   `json:"lastname" gorm:"column:lastname;type:character varying(255);not null"`
+	Email        string   `json:"email" gorm:"column:email;type:character varying(255);not null"`
+	Note         string   `json:"note" gorm:"column:note;type:text;not null:true"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null"`
+	Deleted      string   `json:"deleted" gorm:"column:deleted;type:boolean;not null"`
+	DateAdd      string   `json:"date_add" gorm:"column:date_add;type:timestamp(0) with time zone;not null"`
+	DateUpd      string   `json:"date_upd" gorm:"column:date_upd;type:timestamp(0) with time zone;not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_customer_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSCustomer) TableName() string {
+	return "ps_customer"
 }
 
 type PSAddresses struct {
@@ -116,26 +152,33 @@ type PSAddresses struct {
 }
 
 type PSAddress struct {
-	Id          int32  `json:"id"`
-	IdCustomer  string `json:"id_customer"`
-	IdCountry   string `json:"id_country"`
-	IdState     string `json:"id_state"`
-	Alias       string `json:"alias"`
-	Company     string `json:"company"`
-	Lastname    string `json:"lastname"`
-	Firstname   string `json:"firstname"`
-	VatNumber   string `json:"vat_number"`
-	Address1    string `json:"address1"`
-	Address2    string `json:"address2"`
-	Postcode    string `json:"postcode"`
-	City        string `json:"city"`
-	Other       string `json:"other"`
-	Phone       string `json:"phone"`
-	PhoneMobile string `json:"phone_mobile"`
-	Dni         string `json:"dni"`
-	Deleted     string `json:"deleted"`
-	DateAdd     string `json:"date_add"`
-	DateUpd     string `json:"date_upd"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	IdCountry    string   `json:"id_country" gorm:"column:id_country;type:integer;not null"`
+	IdState      string   `json:"id_state" gorm:"column:id_state;type:integer;not null"`
+	IdCustomer   string   `json:"id_customer" gorm:"column:id_customer;type:integer;not null"`
+	Alias        string   `json:"alias" gorm:"column:alias;type:character varying(32);not null"`
+	Company      string   `json:"company" gorm:"column:company;type:character varying(255);not null"`
+	Lastname     string   `json:"lastname" gorm:"column:lastname;type:character varying(255);not null"`
+	Firstname    string   `json:"firstname" gorm:"column:firstname;type:character varying(255);not null"`
+	Address1     string   `json:"address1" gorm:"column:address1;type:character varying(128);not null"`
+	Address2     string   `json:"address2" gorm:"column:address2;type:character varying(128);not null"`
+	Postcode     string   `json:"postcode" gorm:"column:postcode;type:character varying(12);not null"`
+	City         string   `json:"city" gorm:"column:city;type:character varying(64);not null"`
+	Other        string   `json:"other" gorm:"column:other;type:text;not null"`
+	Phone        string   `json:"phone" gorm:"column:phone;type:character varying(32);not null"`
+	PhoneMobile  string   `json:"phone_mobile" gorm:"column:phone_mobile;type:character varying(32);not null"`
+	VatNumber    string   `json:"vat_number" gorm:"column:vat_number;type:character varying(32);not null"`
+	Dni          string   `json:"dni" gorm:"column:dni;type:character varying(16);not null"`
+	DateAdd      string   `json:"date_add" gorm:"column:date_add;type:timestamp(0) with time zone;not null"`
+	DateUpd      string   `json:"date_upd" gorm:"column:date_upd;type:timestamp(0) with time zone;not null"`
+	Deleted      string   `json:"deleted" gorm:"column:deleted;type:boolean;not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_address_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSAddress) TableName() string {
+	return "ps_address"
 }
 
 type PSProducts struct {
@@ -143,16 +186,23 @@ type PSProducts struct {
 }
 
 type PSProduct struct {
-	Id          int32  `json:"id"`
-	OnSale      string `json:"on_sale"`
-	Ean13       string `json:"ean13"`
-	Price       string `json:"price"`
-	Reference   string `json:"reference"`
-	Active      string `json:"active"`
-	DateAdd     string `json:"date_add"`
-	DateUpd     string `json:"date_upd"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	OnSale       string   `json:"on_sale" gorm:"column:on_sale;type:boolean;not null"`
+	Ean13        string   `json:"ean13" gorm:"column:ean13;type:character varying(13);not null"`
+	Price        string   `json:"price" gorm:"column:price;type:numeric(12,6);not null"`
+	Reference    string   `json:"reference" gorm:"column:reference;type:character varying(64);not null"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null"`
+	DateAdd      string   `json:"date_add" gorm:"column:date_add;type:timestamp(0) with time zone;not null"`
+	DateUpd      string   `json:"date_upd" gorm:"column:date_upd;type:timestamp(0) with time zone;not null"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(128);not null"`
+	Description  string   `json:"description" gorm:"column:description;type:text;not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_product_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSProduct) TableName() string {
+	return "ps_product"
 }
 
 type PSProductCombinations struct {
@@ -160,12 +210,20 @@ type PSProductCombinations struct {
 }
 
 type PSProductCombination struct {
-	Id           int32                            `json:"id"`
-	IdProduct    string                           `json:"id_product"`
-	Ean13        string                           `json:"ean13"`
-	Reference    string                           `json:"reference"`
-	Price        string                           `json:"price"`
-	Associations PSProductCombinationAssociations `json:"associations"`
+	Id                  int32                            `json:"id" gorm:"primaryKey"`
+	IdProduct           string                           `json:"id_product" gorm:"column:id_product;type:integer;not null"`
+	Reference           string                           `json:"reference" gorm:"column:reference;type:character varying(64);not null"`
+	Ean13               string                           `json:"ean13" gorm:"column:ean13;type:character varying(13);not null"`
+	Price               string                           `json:"price" gorm:"column:price;type:numeric(12,6);not null"`
+	Associations        PSProductCombinationAssociations `json:"associations" gorm:"-"`
+	ProductOptionValues []int32                          `json:"-" gorm:"column:product_option_values;type:integer[];not null:true"`
+	PsExists            bool                             `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_product_combination_ps_exists"`
+	EnterpriseId        int32                            `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise          Settings                         `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSProductCombination) TableName() string {
+	return "ps_product_combination"
 }
 
 type PSProductCombinationAssociations struct {
@@ -182,8 +240,15 @@ type PSProductOptionValues struct {
 }
 
 type PSProductOptionValue struct {
-	Id   int32  `json:"id"`
-	Name string `json:"name"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(128);not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_product_option_values_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSProductOptionValue) TableName() string {
+	return "ps_product_option_values"
 }
 
 type PSLanguages struct {
@@ -191,10 +256,17 @@ type PSLanguages struct {
 }
 
 type PSLanguage struct {
-	Id      int32  `json:"id"`
-	Name    string `json:"name"`
-	IsoCode string `json:"iso_code"`
-	Active  string `json:"active"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(32);not null"`
+	IsoCode      string   `json:"iso_code" gorm:"column:iso_code;type:character varying(2);not null"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_language_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSLanguage) TableName() string {
+	return "ps_language"
 }
 
 type PSCarriers struct {
@@ -202,15 +274,22 @@ type PSCarriers struct {
 }
 
 type PSCarrier struct {
-	Id        int32  `json:"id"`
-	Deleted   string `json:"deleted"`
-	Name      string `json:"name"`
-	Active    string `json:"active"`
-	Url       string `json:"url"`
-	MaxWidth  string `json:"max_width"`
-	MaxHeight string `json:"max_height"`
-	MaxDepth  string `json:"max_depth"`
-	MaxWeight string `json:"max_weight"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	Deleted      string   `json:"deleted" gorm:"olumn:deleted;type:boolean;not null"`
+	Name         string   `json:"name" gorm:"column:name;type:character varying(64);not null"`
+	Active       string   `json:"active" gorm:"column:active;type:boolean;not null"`
+	Url          string   `json:"url" gorm:"column:url;type:character varying(255);not null"`
+	MaxWidth     string   `json:"max_width" gorm:"column:max_width;type:numeric(10,6);not null"`
+	MaxHeight    string   `json:"max_height" gorm:"column:max_height;type:numeric(10,6);not null"`
+	MaxDepth     string   `json:"max_depth" gorm:"column:max_depth;type:numeric(10,6);not null"`
+	MaxWeight    string   `json:"max_weight" gorm:"column:max_weight;type:numeric(10,6);not null"`
+	PsExists     bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_carrier_ps_exists"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSCarrier) TableName() string {
+	return "ps_carrier"
 }
 
 type PSOrders struct {
@@ -218,21 +297,29 @@ type PSOrders struct {
 }
 
 type PSOrder struct {
-	Id                    int32  `json:"id"`
-	IdAddressDelivery     string `json:"id_address_delivery"`
-	IdAddressInvoice      string `json:"id_address_invoice"`
-	IdCurrency            string `json:"id_currency"`
-	IdLang                string `json:"id_lang"`
-	IdCustomer            string `json:"id_customer"`
-	IdCarrier             string `json:"id_carrier"`
-	Module                string `json:"module"`
-	DateAdd               string `json:"date_add"`
-	DateUpd               string `json:"date_upd"`
-	TotalDiscountsTaxExcl string `json:"total_discounts_tax_excl"`
-	TotalShippingTaxExcl  string `json:"total_shipping_tax_excl"`
-	Reference             string `json:"reference"`
-	TotalPaidTaxIncl      string `json:"total_paid_tax_incl"`
-	TotalPaidTaxExcl      string `json:"total_paid_tax_excl"`
+	Id                    int32    `json:"id" gorm:"primaryKey"`
+	Reference             string   `json:"reference" gorm:"column:reference;type:character varying(9);not null"`
+	IdCarrier             string   `json:"id_carrier" gorm:"column:id_carrier;type:integer;not null"`
+	IdLang                string   `json:"id_lang" gorm:"column:id_lang;type:integer;not null"`
+	IdCustomer            string   `json:"id_customer" gorm:"column:id_customer;type:integer;not null"`
+	IdCurrency            string   `json:"id_currency" gorm:"column:id_currency;type:integer;not null"`
+	IdAddressDelivery     string   `json:"id_address_delivery" gorm:"column:id_address_delivery;type:integer;not null"`
+	IdAddressInvoice      string   `json:"id_address_invoice" gorm:"column:id_address_invoice;type:integer;not null"`
+	Module                string   `json:"module" gorm:"column:module;type:character varying(255);not null"`
+	TotalDiscountsTaxExcl string   `json:"total_discounts_tax_excl" gorm:"column:total_discounts_tax_excl;type:numeric(14,6);not null"`
+	TotalShippingTaxExcl  string   `json:"total_shipping_tax_excl" gorm:"column:total_shipping_tax_excl;type:numeric(14,6);not null"`
+	DateAdd               string   `json:"date_add" gorm:"column:date_add;type:timestamp(0) with time zone;not null"`
+	DateUpd               string   `json:"date_upd" gorm:"column:date_upd;type:timestamp(0) with time zone;not null"`
+	TotalPaidTaxIncl      string   `json:"total_paid_tax_incl" gorm:"-"`
+	TotalPaidTaxExcl      string   `json:"total_paid_tax_excl" gorm:"-"`
+	PsExists              bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_order_ps_exists"`
+	TaxIncluded           bool     `json:"-" gorm:"column:tax_included;type:boolean;not null"`
+	EnterpriseId          int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise            Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSOrder) TableName() string {
+	return "ps_order"
 }
 
 type PSOrderDetails struct {
@@ -240,12 +327,19 @@ type PSOrderDetails struct {
 }
 
 type PSOrderDetail struct {
-	Id                 int32  `json:"id"`
-	IdOrder            string `json:"id_order"`
-	ProductId          string `json:"product_id"`
-	ProductAttributeId string `json:"product_attribute_id"`
-	ProductQuantity    string `json:"product_quantity"`
-	ProductPrice       string `json:"product_price"`
+	Id                 int32    `json:"id" gorm:"primaryKey"`
+	IdOrder            string   `json:"id_order" gorm:"column:id_order;type:integer;not null"`
+	ProductId          string   `json:"product_id" gorm:"column:product_id;type:integer;not null"`
+	ProductAttributeId string   `json:"product_attribute_id" gorm:"column:product_attribute_id;type:integer;not null"`
+	ProductQuantity    string   `json:"product_quantity" gorm:"column:product_quantity;type:integer;not null"`
+	ProductPrice       string   `json:"product_price" gorm:"column:product_price;type:numeric(12,6);not null"`
+	PsExists           bool     `json:"-" gorm:"column:ps_exists;type:boolean;not null;index:ps_order_detail_ps_exists"`
+	EnterpriseId       int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise         Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (PSOrderDetail) TableName() string {
+	return "ps_order_detail"
 }
 
 // main import function
@@ -920,7 +1014,7 @@ func copyPsCurrencies(enterpriseId int32) bool {
 			c.Sign = symbol
 			c.IsoNum = int16(numericIsoCode)
 			c.ExchangeDate = time.Now()
-			c.enterprise = enterpriseId
+			c.EnterpriseId = enterpriseId
 			c.insertCurrency()
 		}
 	}
@@ -986,7 +1080,7 @@ func copyPsCountries(enterpriseId int32) bool {
 			c.Name = name
 			c.PhonePrefix = int16(call_prefix)
 			c.Zone = zone
-			c.enterprise = enterpriseId
+			c.EnterpriseId = enterpriseId
 			c.insertCountry()
 		}
 	}
@@ -1062,10 +1156,10 @@ func copyPsStates(enterpriseId int32) bool {
 			row.Scan(&country)
 
 			s := State{}
-			s.Country = country
+			s.CountryId = country
 			s.Name = name
 			s.IsoCode = iso_code
-			s.enterprise = enterpriseId
+			s.EnterpriseId = enterpriseId
 			s.insertState()
 		}
 	}
@@ -1171,13 +1265,13 @@ func copyPsCustomers(enterpriseId int32) bool {
 			c.Name = c.Tradename + " / " + c.FiscalName
 			c.Email = email
 			c.DateCreated = date_add
-			c.prestaShopId = id
+			c.PrestaShopId = id
 			if lang != 0 {
-				c.Language = &lang
+				c.LanguageId = &lang
 			}
 			c.TaxId = taxId
 			c.VatNumber = vatNumber
-			c.enterprise = enterpriseId
+			c.EnterpriseId = enterpriseId
 			c.insertCustomer(0)
 		}
 	}
@@ -1305,17 +1399,17 @@ func copyPsAddresses(enterpriseId int32) bool {
 			}
 
 			a := Address{}
-			a.Customer = &customer
-			a.Country = country
-			a.State = state
+			a.CustomerId = &customer
+			a.CountryId = country
+			a.StateId = state
 			a.City = city
 			a.ZipCode = postcode
 			a.Address = address1
 			a.Address2 = address2
 			a.Notes = other
-			a.prestaShopId = id
+			a.PrestaShopId = id
 			a.PrivateOrBusiness = "_"
-			a.enterprise = enterpriseId
+			a.EnterpriseId = enterpriseId
 			a.insertAddress(0)
 
 			// set the customer details if are empty
@@ -1329,11 +1423,11 @@ func copyPsAddresses(enterpriseId int32) bool {
 			if c.Phone == "" {
 				c.Phone = phone
 			}
-			if c.Country == nil {
-				c.Country = &country
+			if c.CountryId == nil {
+				c.CountryId = &country
 			}
-			if c.State == nil {
-				c.State = state
+			if c.StateId == nil {
+				c.StateId = state
 			}
 			c.updateCustomer(0)
 		}
@@ -1382,7 +1476,7 @@ func copyPsLanguages(enterpriseId int32) bool {
 			l := Language{}
 			l.Name = name
 			l.Iso2 = strings.ToUpper(isoCode)
-			l.enterprise = enterpriseId
+			l.EnterpriseId = enterpriseId
 			l.insertLanguage()
 		}
 	}
@@ -1427,7 +1521,7 @@ func copyPsCarriers(enterpriseId int32) bool {
 			c.MaxDepth = max_depth
 			c.MaxWeight = max_weight
 			c.PrestaShopId = id
-			c.enterprise = enterpriseId
+			c.EnterpriseId = enterpriseId
 			c.insertCarrier()
 		}
 	}
@@ -1482,8 +1576,8 @@ func copyPsProducts(enterpriseId int32) bool {
 				p.Price = price
 				p.DateCreated = dateAdd
 				p.Description = description
-				p.prestaShopId = ps_productId
-				p.enterprise = enterpriseId
+				p.PrestaShopId = ps_productId
+				p.EnterpriseId = enterpriseId
 				result := p.insertProduct(0)
 				if !result.Ok {
 					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
@@ -1550,9 +1644,9 @@ func copyPsProducts(enterpriseId int32) bool {
 					p.Price = combinationPrice
 					p.DateCreated = dateAdd
 					p.Description = description
-					p.prestaShopId = ps_productId
-					p.prestaShopCombinationId = combinationId
-					p.enterprise = enterpriseId
+					p.PrestaShopId = ps_productId
+					p.PrestaShopCombinationId = combinationId
+					p.EnterpriseId = enterpriseId
 					result := p.insertProduct(0)
 					if !result.Ok {
 						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
@@ -1731,35 +1825,35 @@ func copyPsOrders(enterpriseId int32) bool {
 		}
 
 		s := SaleOrder{}
-		s.Warehouse = settings.DefaultWarehouse
+		s.WarehouseId = settings.DefaultWarehouseId
 		s.Reference = reference
-		s.Customer = customer
-		s.PaymentMethod = paymentMethod
-		s.Currency = currency
-		s.BillingAddress = billingAddress
-		s.ShippingAddress = shippingAddress
-		s.prestaShopId = orderId
+		s.CustomerId = customer
+		s.PaymentMethodId = paymentMethod
+		s.CurrencyId = currency
+		s.BillingAddressId = billingAddress
+		s.ShippingAddressId = shippingAddress
+		s.PrestaShopId = orderId
 
 		if billingZone == "E" {
-			s.BillingSeries = *settings.PrestaShopExportSerie
+			s.BillingSeriesId = *settings.PrestaShopExportSerieId
 		} else if billingZone == "U" && !taxIncluded {
-			s.BillingSeries = *settings.PrestaShopIntracommunitySerie
+			s.BillingSeriesId = *settings.PrestaShopIntracommunitySerieId
 		} else {
-			s.BillingSeries = *settings.PrestaShopInteriorSerie
+			s.BillingSeriesId = *settings.PrestaShopInteriorSerieId
 		}
 
-		s.enterprise = enterpriseId
+		s.EnterpriseId = enterpriseId
 		if ok, _ := s.insertSalesOrder(0); !ok {
 			errors = append(errors, "Can't import order. Error creating the order in MARKETNET. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
 		}
 
 		// set the customer details if are empty
 		c := getCustomerRow(customer)
-		if c.PaymentMethod == nil {
-			c.PaymentMethod = &paymentMethod
+		if c.PaymentMethodId == nil {
+			c.PaymentMethodId = &paymentMethod
 		}
-		if c.BillingSeries == nil || *c.BillingSeries == "" {
-			c.BillingSeries = &s.BillingSeries
+		if c.BillingSeriesId == nil || *c.BillingSeriesId == "" {
+			c.BillingSeriesId = &s.BillingSeriesId
 		}
 		if !c.updateCustomer(0) {
 			errors = append(errors, "Can't update the customer data. Order reference "+reference+" order id "+strconv.Itoa(int(orderId)))
@@ -1838,8 +1932,8 @@ func copyPsOrderDetails(enterpriseId int32) bool {
 		}
 
 		d := SalesOrderDetail{}
-		d.Order = order
-		d.Product = product
+		d.OrderId = order
+		d.ProductId = product
 		d.Quantity = ProductQuantity
 		d.Price = productPrice
 
@@ -1849,8 +1943,8 @@ func copyPsOrderDetails(enterpriseId int32) bool {
 			d.VatPercent = vatPercent
 		}
 
-		d.enterprise = enterpriseId
-		d.prestaShopId = detailId
+		d.EnterpriseId = enterpriseId
+		d.PrestaShopId = detailId
 		ok := d.insertSalesOrderDetail(0).Ok
 
 		if ok {
@@ -1952,11 +2046,11 @@ func updateTrackingNumberPrestaShopOrder(salesOrderId int64, trackingNumber stri
 	}
 
 	s := getSalesOrderRow(salesOrderId)
-	if s.Id <= 0 || s.prestaShopId <= 0 {
+	if s.Id <= 0 || s.PrestaShopId <= 0 {
 		return false
 	}
 
-	url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.prestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+	url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
 
 	xmlPs, err := getPrestaShopJSON(url)
 	if err != nil {
@@ -1982,7 +2076,7 @@ func updateTrackingNumberPrestaShopOrder(salesOrderId int64, trackingNumber stri
 	xml = append(xml[:index], "<![CDATA["+trackingNumber+"]]>"...)
 	xml = append(xml, xmlPs[indexEnd:]...)
 
-	xmlSend := setStatusXmlOrderPrestaShop(xml, strconv.Itoa(int(settings.PrestashopStatusShipped)))
+	xmlSend := setStatusXmlOrderPrestaShop(xml, strconv.Itoa(int(settings.PrestaShopStatusShipped)))
 	if xmlSend == nil {
 		return false
 	}
@@ -2025,7 +2119,7 @@ func updateStatusPaymentAcceptedPrestaShop(orderId int64, enterpriseId int32) bo
 	}
 
 	s := getSalesOrderRow(orderId)
-	if s.prestaShopId <= 0 {
+	if s.PrestaShopId <= 0 {
 		return true
 	}
 
@@ -2036,14 +2130,14 @@ func updateStatusPaymentAcceptedPrestaShop(orderId int64, enterpriseId int32) bo
 	row.Scan(&paidInAdvance)
 
 	if !paidInAdvance { // this is not an automatically generated invoice, someone accepted the payment, notify PrestaShop
-		url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.prestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+		url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
 
 		xmlPs, err := getPrestaShopJSON(url)
 		if err != nil {
 			return false
 		}
 
-		xml := setStatusXmlOrderPrestaShop(xmlPs, strconv.Itoa(int(settings.PrestashopStatusPaymentAccepted)))
+		xml := setStatusXmlOrderPrestaShop(xmlPs, strconv.Itoa(int(settings.PrestaShopStatusPaymentAccepted)))
 		if xml == nil {
 			return false
 		}

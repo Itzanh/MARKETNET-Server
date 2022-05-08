@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
+	"gorm.io/gorm"
 )
 
 const CONFIG_VER = "1.0"
@@ -145,131 +146,137 @@ func (s *BackendSettings) upgradeConfig() bool {
 
 // Advanced settings stored in the database. Configurable by final users.
 type Settings struct {
-	Id                              int32      `json:"id"`
-	DefaultVatPercent               float64    `json:"defaultVatPercent"`
-	DefaultWarehouse                string     `json:"defaultWarehouse"`
-	DefaultWarehouseName            string     `json:"defaultWarehouseName"`
-	DateFormat                      string     `json:"dateFormat"`
-	EnterpriseName                  string     `json:"enterpriseName"`
-	EnterpriseDescription           string     `json:"enterpriseDescription"`
-	Ecommerce                       string     `json:"ecommerce"` // "_" = None, "P" = PrestaShop, "M" = Magento, "W" = WooCommerce, "S" = Shopify
-	PrestaShopUrl                   string     `json:"prestaShopUrl"`
-	PrestaShopApiKey                string     `json:"prestaShopApiKey"`
-	PrestaShopLanguageId            int32      `json:"prestaShopLanguageId"`
-	PrestaShopExportSerie           *string    `json:"prestaShopExportSerie"`
-	PrestaShopIntracommunitySerie   *string    `json:"prestaShopIntracommunitySerie"`
-	PrestaShopInteriorSerie         *string    `json:"prestaShopInteriorSerie"`
-	Email                           string     `json:"email"`    // "_" = None, "S" = SendGrid, "T" = SMTP
-	Currency                        string     `json:"currency"` // "_" = None, "E" = European Central Bank
-	CurrencyECBurl                  string     `json:"currencyECBurl"`
-	BarcodePrefix                   string     `json:"barcodePrefix"`
-	CronCurrency                    string     `json:"cronCurrency"`
-	CronPrestaShop                  string     `json:"cronPrestaShop"`
-	SendGridKey                     string     `json:"sendGridKey"`
-	EmailFrom                       string     `json:"emailFrom"`
-	NameFrom                        string     `json:"nameFrom"`
-	PalletWeight                    float64    `json:"palletWeight"`
-	PalletWidth                     float64    `json:"palletWidth"`
-	PalletHeight                    float64    `json:"palletHeight"`
-	PalletDepth                     float64    `json:"palletDepth"`
-	MaxConnections                  int32      `json:"maxConnections"`
-	PrestashopStatusPaymentAccepted int32      `json:"prestashopStatusPaymentAccepted"`
-	PrestashopStatusShipped         int32      `json:"prestashopStatusShipped"`
-	MinimumStockSalesPeriods        int16      `json:"minimumStockSalesPeriods"`
-	MinimumStockSalesDays           int16      `json:"minimumStockSalesDays"`
-	CustomerJournal                 *int32     `json:"customerJournal"`
-	SalesJournal                    *int32     `json:"salesJournal"`
-	SalesAccount                    *int32     `json:"salesAccount"`
-	SupplierJournal                 *int32     `json:"supplierJournal"`
-	PurchaseJournal                 *int32     `json:"purchaseJournal"`
-	PurchaseAccount                 *int32     `json:"purchaseAccount"`
-	EnableApiKey                    bool       `json:"enableApiKey"`
-	CronClearLabels                 string     `json:"cronClearLabels"`
-	LimitAccountingDate             *time.Time `json:"limitAccountingDate"`
-	WooCommerceUrl                  string     `json:"woocommerceUrl"`
-	WooCommerceConsumerKey          string     `json:"woocommerceConsumerKey"`
-	WooCommerceConsumerSecret       string     `json:"woocommerceConsumerSecret"`
-	WooCommerceExportSerie          *string    `json:"wooCommerceExportSerie"`
-	WooCommerceIntracommunitySerie  *string    `json:"wooCommerceIntracommunitySerie"`
-	WooCommerceInteriorSerie        *string    `json:"wooCommerceInteriorSerie"`
-	WooCommerceDefaultPaymentMethod *int32     `json:"wooCommerceDefaultPaymentMethod"`
-	ConnectionLog                   bool       `json:"connectionLog"`
-	FilterConnections               bool       `json:"filterConnections"`
-	ShopifyUrl                      string     `json:"shopifyUrl"`
-	ShopifyToken                    string     `json:"shopifyToken"`
-	ShopifyExportSerie              *string    `json:"shopifyExportSerie"`
-	ShopifyIntracommunitySerie      *string    `json:"shopifyIntracommunitySerie"`
-	ShopifyInteriorSerie            *string    `json:"shopifyInteriorSerie"`
-	ShopifyDefaultPaymentMethod     *int32     `json:"shopifyDefaultPaymentMethod"`
-	ShopifyShopLocationId           int64      `json:"shopifyShopLocationId"`
-	EnterpriseKey                   string     `json:"enterpriseKey"`
-	PasswordMinimumLength           int16      `json:"passwordMinimumLength"`
-	PasswordMinumumComplexity       string     `json:"passwordMinumumComplexity"` // "A": Alphabetical, "B": Alphabetical + numbers, "C": Uppercase + lowercase + numbers, "D": Uppercase + lowercase + numbers + symbols
-	InvoiceDeletePolicy             int16      `json:"invoiceDeletePolicy"`       // 0 = Allow invoice deletion, 1 = Only allow the deletion of the latest invoice in the billing serie, 2 = Never allow invoice deletion
-	TransactionLog                  bool       `json:"transactionLog"`
-	UndoManufacturingOrderSeconds   int16      `json:"undoManufacturingOrderSeconds"`
-	CronSendcloudTracking           string     `json:"cronSendcloudTracking"`
-	SMTPIdentity                    string     `json:"SMTPIdentity"`
-	SMTPUsername                    string     `json:"SMTPUsername"`
-	SMTPPassword                    string     `json:"SMTPPassword"`
-	SMTPHostname                    string     `json:"SMTPHostname"`
-	SMTPSTARTTLS                    bool       `json:"SMTPSTARTTLS"`
-	SMTPReplyTo                     string     `json:"SMTPReplyTo"`
-	EmailSendErrorEcommerce         string     `json:"emailSendErrorEcommerce"`
-	EmailSendErrorSendCloud         string     `json:"emailSendErrorSendCloud"`
-	ProductBarCodeLabelWidth        int16      `json:"productBarCodeLabelWidth"`
-	ProductBarCodeLabelHeight       int16      `json:"productBarCodeLabelHeight"`
-	ProductBarCodeLabelSize         int16      `json:"productBarCodeLabelSize"`
-	ProductBarCodeLabelMarginTop    int16      `json:"productBarCodeLabelMarginTop"`
-	ProductBarCodeLabelMarginBottom int16      `json:"productBarCodeLabelMarginBottom"`
-	ProductBarCodeLabelMarginLeft   int16      `json:"productBarCodeLabelMarginLeft"`
-	ProductBarCodeLabelMarginRight  int16      `json:"productBarCodeLabelMarginRight"`
+	Id                                int32          `json:"id" gorm:"primaryKey"`
+	DefaultVatPercent                 float64        `json:"defaultVatPercent" gorm:"type:numeric(14,6);not null:true"`
+	DefaultWarehouseId                string         `json:"defaultWarehouseId" gorm:"column:default_warehouse;type:character(2)"`
+	DefaultWarehouse                  *Warehouse     `json:"defaultWarehouse" gorm:"foreignKey:DefaultWarehouseId,Id;references:Id,EnterpriseId"`
+	DateFormat                        string         `json:"dateFormat" gorm:"type:character varying(25);not null:true"`
+	EnterpriseName                    string         `json:"enterpriseName" gorm:"type:character varying(50);not null:true"`
+	EnterpriseDescription             string         `json:"enterpriseDescription" gorm:"type:character varying(250);not null:true"`
+	Ecommerce                         string         `json:"ecommerce" gorm:"type:character(1);not null:true"` // "_" = None, "P" = PrestaShop, "M" = Magento, "W" = WooCommerce, "S" = Shopify
+	Email                             string         `json:"email" gorm:"type:character(1);not null:true"`     // "_" = None, "S" = SendGrid, "T" = SMTP
+	Currency                          string         `json:"currency" gorm:"type:character(1);not null:true"`  // "_" = None, "E" = European Central Bank
+	CurrencyECBurl                    string         `json:"currencyECBurl" gorm:"column:currency_ecb_url;type:character varying(100);not null:true"`
+	BarcodePrefix                     string         `json:"barcodePrefix" gorm:"type:character varying(4);not null:true"`
+	PrestaShopUrl                     string         `json:"prestaShopUrl" gorm:"column:prestashop_url;type:character varying(100);not null:true"`
+	PrestaShopApiKey                  string         `json:"prestaShopApiKey" gorm:"column:prestashop_api_key;type:character varying(32);not null:true"`
+	PrestaShopLanguageId              int32          `json:"prestaShopLanguageId" gorm:"column:prestashop_language_id;not null:true"`
+	PrestaShopExportSerieId           *string        `json:"prestaShopExportSerieId" gorm:"column:prestashop_export_serie;type:character(3)"`
+	PrestaShopExportSerie             *BillingSerie  `json:"prestaShopExportSerie"  gorm:"foreignKey:PrestaShopExportSerieId,Id;references:Id,EnterpriseId"`
+	PrestaShopIntracommunitySerieId   *string        `json:"prestaShopIntracommunitySerieId" gorm:"column:prestashop_intracommunity_serie;type:character(3)"`
+	PrestaShopIntracommunitySerie     *BillingSerie  `json:"prestaShopIntracommunitySerie"  gorm:"foreignKey:PrestaShopIntracommunitySerieId,Id;references:Id,EnterpriseId"`
+	PrestaShopInteriorSerieId         *string        `json:"prestaShopInteriorSerieId" gorm:"column:prestashop_interior_serie;type:character(3)"`
+	PrestaShopInteriorSerie           *BillingSerie  `json:"prestaShopInteriorSerie" gorm:"foreignKey:PrestaShopInteriorSerieId,Id;references:Id,EnterpriseId"`
+	CronCurrency                      string         `json:"cronCurrency" gorm:"type:character varying(25);not null:true"`
+	CronPrestaShop                    string         `json:"cronPrestaShop" gorm:"column:cron_prestashop;type:character varying(25);not null:true"`
+	SendGridKey                       string         `json:"sendGridKey" gorm:"column:sendgrid_key;type:character varying(75);not null:true"`
+	EmailFrom                         string         `json:"emailFrom" gorm:"type:character varying(50);not null:true"`
+	NameFrom                          string         `json:"nameFrom" gorm:"type:character varying(50);not null:true"`
+	PalletWeight                      float64        `json:"palletWeight" gorm:"type:numeric(14,6);not null:true"`
+	PalletWidth                       float64        `json:"palletWidth" gorm:"type:numeric(14,6);not null:true"`
+	PalletHeight                      float64        `json:"palletHeight" gorm:"type:numeric(14,6);not null:true"`
+	PalletDepth                       float64        `json:"palletDepth" gorm:"type:numeric(14,6);not null:true"`
+	MaxConnections                    int32          `json:"maxConnections" gorm:"not null:true"`
+	PrestaShopStatusPaymentAccepted   int32          `json:"prestashopStatusPaymentAccepted" gorm:"column:prestashop_status_payment_accepted;not null:true"`
+	PrestaShopStatusShipped           int32          `json:"prestashopStatusShipped" gorm:"column:prestashop_status_shipped;not null:true"`
+	MinimumStockSalesPeriods          int16          `json:"minimumStockSalesPeriods" gorm:"not null:true"`
+	MinimumStockSalesDays             int16          `json:"minimumStockSalesDays" gorm:"not null:true"`
+	CustomerJournalId                 *int32         `json:"customerJournalId" gorm:"column:customer_journal"`
+	CustomerJournal                   *Journal       `json:"customerJournal" gorm:"foreignKey:CustomerJournalId,Id;references:Id,EnterpriseId"`
+	SalesJournalId                    *int32         `json:"salesJournalId" gorm:"column:sales_journal"`
+	SalesJournal                      *Journal       `json:"salesJournal" gorm:"foreignKey:SalesJournalId,Id;references:Id,EnterpriseId"`
+	SalesAccountId                    *int32         `json:"salesAccountId" gorm:"column:sales_account"`
+	SalesAccount                      *Account       `json:"salesAccount" gorm:"foreignKey:SalesAccountId,Id;references:Id,EnterpriseId"`
+	SupplierJournalId                 *int32         `json:"supplierJournalId" gorm:"column:supplier_journal"`
+	SupplierJournal                   *Journal       `json:"supplierJournal" gorm:"foreignKey:SupplierJournalId,Id;references:Id,EnterpriseId"`
+	PurchaseJournalId                 *int32         `json:"purchaseJournalId" gorm:"column:purchase_journal"`
+	PurchaseJournal                   *Journal       `json:"purchaseJournal" gorm:"foreignKey:PurchaseJournalId,Id;references:Id,EnterpriseId"`
+	PurchaseAccountId                 *int32         `json:"purchaseAccountId" gorm:"column:purchase_account"`
+	PurchaseAccount                   *Account       `json:"purchaseAccount" gorm:"foreignKey:PurchaseAccountId,Id;references:Id,EnterpriseId"`
+	EnableApiKey                      bool           `json:"enableApiKey" gorm:"not null:true"`
+	CronClearLabels                   string         `json:"cronClearLabels" gorm:"type:character varying(25);not null:true"`
+	LimitAccountingDate               *time.Time     `json:"limitAccountingDate" gorm:"type:timestamp(0) with time zone"`
+	WooCommerceUrl                    string         `json:"woocommerceUrl" gorm:"column:woocommerce_url;type:character varying(100);not null:true"`
+	WooCommerceConsumerKey            string         `json:"woocommerceConsumerKey" gorm:"column:woocommerce_consumer_key;type:character varying(50);not null:true"`
+	WooCommerceConsumerSecret         string         `json:"woocommerceConsumerSecret" gorm:"column:woocommerce_consumer_secret;type:character varying(50);not null:true"`
+	WooCommerceExportSerieId          *string        `json:"wooCommerceExportSerieId" gorm:"column:woocommerce_export_serie;type:character(3)"`
+	WooCommerceExportSerie            *BillingSerie  `json:"wooCommerceExportSerie" gorm:"foreignKey:WooCommerceExportSerieId,Id;references:Id,EnterpriseId"`
+	WooCommerceIntracommunitySerieId  *string        `json:"wooCommerceIntracommunitySerieId" gorm:"column:woocommerce_intracommunity_serie;type:character(3)"`
+	WooCommerceIntracommunitySerie    *BillingSerie  `json:"wooCommerceIntracommunitySerie" gorm:"foreignKey:WooCommerceIntracommunitySerieId,Id;references:Id,EnterpriseId"`
+	WooCommerceInteriorSerieId        *string        `json:"wooCommerceInteriorSerieId" gorm:"column:woocommerce_interior_serie;type:character(3)"`
+	WooCommerceInteriorSerie          *BillingSerie  `json:"wooCommerceInteriorSerie" gorm:"foreignKey:WooCommerceInteriorSerieId,Id;references:Id,EnterpriseId"`
+	WooCommerceDefaultPaymentMethodId *int32         `json:"wooCommerceDefaultPaymentMethodId" gorm:"column:woocommerce_default_payment_method"`
+	WooCommerceDefaultPaymentMethod   *PaymentMethod `json:"wooCommerceDefaultPaymentMethod" gorm:"foreignKey:WooCommerceDefaultPaymentMethodId,Id;references:Id,EnterpriseId"`
+	ConnectionLog                     bool           `json:"connectionLog" gorm:"not null:true"`
+	FilterConnections                 bool           `json:"filterConnections" gorm:"not null:true"`
+	ShopifyUrl                        string         `json:"shopifyUrl" gorm:"type:character varying(100);not null:true"`
+	ShopifyToken                      string         `json:"shopifyToken" gorm:"type:character varying(50);not null:true"`
+	ShopifyExportSerieId              *string        `json:"shopifyExportSerieId" gorm:"type:character(3);column:shopify_export_serie"`
+	ShopifyExportSerie                *BillingSerie  `json:"shopifyExportSerie" gorm:"foreignKey:ShopifyExportSerieId,Id;references:Id,EnterpriseId"`
+	ShopifyIntracommunitySerieId      *string        `json:"shopifyIntracommunitySerieId" gorm:"type:character(3);column:shopify_intracommunity_serie"`
+	ShopifyIntracommunitySerie        *BillingSerie  `json:"shopifyIntracommunitySerie" gorm:"foreignKey:ShopifyIntracommunitySerieId,Id;references:Id,EnterpriseId"`
+	ShopifyInteriorSerieId            *string        `json:"shopifyInteriorSerieId" gorm:"type:character(3);column:shopify_interior_serie"`
+	ShopifyInteriorSerie              *BillingSerie  `json:"shopifyInteriorSerie" gorm:"foreignKey:ShopifyInteriorSerieId,Id;references:Id,EnterpriseId"`
+	ShopifyDefaultPaymentMethodId     *int32         `json:"shopifyDefaultPaymentMethodId" gorm:"column:shopify_default_payment_method"`
+	ShopifyDefaultPaymentMethod       *PaymentMethod `json:"shopifyDefaultPaymentMethod" gorm:"foreignKey:ShopifyDefaultPaymentMethodId,Id;references:Id,EnterpriseId"`
+	ShopifyShopLocationId             int64          `json:"shopifyShopLocationId" gorm:"not null:true"`
+	EnterpriseKey                     string         `json:"enterpriseKey" gorm:"type:character varying(25);not null:true;index:config_enterprise_key,unique:true,priority:1"`
+	PasswordMinimumLength             int16          `json:"passwordMinimumLength" gorm:"not null:true"`
+	PasswordMinumumComplexity         string         `json:"passwordMinumumComplexity" gorm:"type:character(1);not null:true"` // "A": Alphabetical, "B": Alphabetical + numbers, "C": Uppercase + lowercase + numbers, "D": Uppercase + lowercase + numbers + symbols
+	InvoiceDeletePolicy               int16          `json:"invoiceDeletePolicy" gorm:"not null:true"`                         // 0 = Allow invoice deletion, 1 = Only allow the deletion of the latest invoice in the billing serie, 2 = Never allow invoice deletion
+	TransactionLog                    bool           `json:"transactionLog" gorm:"not null:true"`
+	UndoManufacturingOrderSeconds     int16          `json:"undoManufacturingOrderSeconds" gorm:"not null:true"`
+	CronSendCloudTracking             string         `json:"cronSendCloudTracking" gorm:"column:cron_sendcloud_tracking;type:character varying(25);not null:true"`
+	SMTPIdentity                      string         `json:"SMTPIdentity" gorm:"type:character varying(50);not null:true"`
+	SMTPUsername                      string         `json:"SMTPUsername" gorm:"type:character varying(50);not null:true"`
+	SMTPPassword                      string         `json:"SMTPPassword" gorm:"type:character varying(50);not null:true"`
+	SMTPHostname                      string         `json:"SMTPHostname" gorm:"type:character varying(50);not null:true"`
+	SMTPSTARTTLS                      bool           `json:"SMTPSTARTTLS" gorm:"column:smtp_starttls;not null:true"`
+	SMTPReplyTo                       string         `json:"SMTPReplyTo" gorm:"type:character varying(50);not null:true"`
+	EmailSendErrorEcommerce           string         `json:"emailSendErrorEcommerce" gorm:"type:character varying(150);not null:true"`
+	EmailSendErrorSendCloud           string         `json:"emailSendErrorSendCloud" gorm:"column:email_send_error_sendcloud;type:character varying(150);not null:true"`
+	ProductBarCodeLabelWidth          int16          `json:"productBarCodeLabelWidth" gorm:"column:product_barcode_label_width;not null:true"`
+	ProductBarCodeLabelHeight         int16          `json:"productBarCodeLabelHeight" gorm:"column:product_barcode_label_height;not null:true"`
+	ProductBarCodeLabelSize           int16          `json:"productBarCodeLabelSize" gorm:"column:product_barcode_label_size;not null:true"`
+	ProductBarCodeLabelMarginTop      int16          `json:"productBarCodeLabelMarginTop" gorm:"column:product_barcode_label_margin_top;not null:true"`
+	ProductBarCodeLabelMarginBottom   int16          `json:"productBarCodeLabelMarginBottom" gorm:"column:product_barcode_label_margin_bottom;not null:true"`
+	ProductBarCodeLabelMarginLeft     int16          `json:"productBarCodeLabelMarginLeft" gorm:"column:product_barcode_label_margin_left;not null:true"`
+	ProductBarCodeLabelMarginRight    int16          `json:"productBarCodeLabelMarginRight" gorm:"column:product_barcode_label_margin_right;not null:true"`
+}
+
+func (s *Settings) TableName() string {
+	return "config"
 }
 
 func getSettingsRecordById(id int32) Settings {
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE id=$1`
-	row := db.QueryRow(sqlStatement, id)
-	if row.Err() != nil {
-		return Settings{}
-	}
-
 	var s Settings
-	row.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.PasswordMinimumLength, &s.PasswordMinumumComplexity, &s.InvoiceDeletePolicy, &s.TransactionLog, &s.UndoManufacturingOrderSeconds, &s.CronSendcloudTracking, &s.SMTPIdentity, &s.SMTPUsername, &s.SMTPPassword, &s.SMTPHostname, &s.SMTPSTARTTLS, &s.SMTPReplyTo, &s.EmailSendErrorEcommerce, &s.EmailSendErrorSendCloud, &s.ProductBarCodeLabelWidth, &s.ProductBarCodeLabelHeight, &s.ProductBarCodeLabelSize, &s.ProductBarCodeLabelMarginTop, &s.ProductBarCodeLabelMarginBottom, &s.ProductBarCodeLabelMarginLeft, &s.ProductBarCodeLabelMarginRight, &s.DefaultWarehouseName)
+	result := dbOrm.Where("config.id = ?", id).Joins("DefaultWarehouse").Joins("PrestaShopExportSerie").Joins("PrestaShopIntracommunitySerie").Joins("PrestaShopInteriorSerie").Joins("CustomerJournal").Joins("SalesJournal").Joins("SalesAccount").Joins("SupplierJournal").Joins("PurchaseJournal").Joins("PurchaseAccount").Joins("WooCommerceExportSerie").Joins("WooCommerceIntracommunitySerie").Joins("WooCommerceInteriorSerie").Joins("WooCommerceDefaultPaymentMethod").Joins("ShopifyExportSerie").Joins("ShopifyIntracommunitySerie").Joins("ShopifyInteriorSerie").Joins("ShopifyDefaultPaymentMethod").First(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return s
 }
 
 func getSettingsRecords() []Settings {
 	settings := make([]Settings, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config`
-	rows, err := db.Query(sqlStatement)
-	if err != nil {
-		return settings
+	result := dbOrm.Model(&Settings{}).Joins("DefaultWarehouse").Joins("PrestaShopExportSerie").Joins("PrestaShopIntracommunitySerie").Joins("PrestaShopInteriorSerie").Joins("CustomerJournal").Joins("SalesJournal").Joins("SalesAccount").Joins("SupplierJournal").Joins("PurchaseJournal").Joins("PurchaseAccount").Joins("WooCommerceExportSerie").Joins("WooCommerceIntracommunitySerie").Joins("WooCommerceInteriorSerie").Joins("WooCommerceDefaultPaymentMethod").Joins("ShopifyExportSerie").Joins("ShopifyIntracommunitySerie").Joins("ShopifyInteriorSerie").Joins("ShopifyDefaultPaymentMethod").Find(&settings)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var s Settings
-		rows.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.PasswordMinimumLength, &s.PasswordMinumumComplexity, &s.InvoiceDeletePolicy, &s.TransactionLog, &s.UndoManufacturingOrderSeconds, &s.CronSendcloudTracking, &s.SMTPIdentity, &s.SMTPUsername, &s.SMTPPassword, &s.SMTPHostname, &s.SMTPSTARTTLS, &s.SMTPReplyTo, &s.EmailSendErrorEcommerce, &s.EmailSendErrorSendCloud, &s.ProductBarCodeLabelWidth, &s.ProductBarCodeLabelHeight, &s.ProductBarCodeLabelSize, &s.ProductBarCodeLabelMarginTop, &s.ProductBarCodeLabelMarginBottom, &s.ProductBarCodeLabelMarginLeft, &s.ProductBarCodeLabelMarginRight, &s.DefaultWarehouseName)
-		settings = append(settings, s)
-	}
-
 	return settings
 }
 
 func getSettingsRecordByEnterprise(enterpriseKey string) Settings {
-	sqlStatement := `SELECT *,(SELECT name FROM warehouse WHERE warehouse.id=config.default_warehouse AND warehouse.enterprise=config.id) FROM config WHERE enterprise_key=$1`
-	row := db.QueryRow(sqlStatement, strings.ToUpper(enterpriseKey))
-	if row.Err() != nil {
-		return Settings{}
-	}
-
 	var s Settings
-	row.Scan(&s.Id, &s.DefaultVatPercent, &s.DefaultWarehouse, &s.DateFormat, &s.EnterpriseName, &s.EnterpriseDescription, &s.Ecommerce, &s.Email, &s.Currency, &s.CurrencyECBurl, &s.BarcodePrefix, &s.PrestaShopUrl, &s.PrestaShopApiKey, &s.PrestaShopLanguageId, &s.PrestaShopExportSerie, &s.PrestaShopIntracommunitySerie, &s.PrestaShopInteriorSerie, &s.CronCurrency, &s.CronPrestaShop, &s.SendGridKey, &s.EmailFrom, &s.NameFrom, &s.PalletWeight, &s.PalletWidth, &s.PalletHeight, &s.PalletDepth, &s.MaxConnections, &s.PrestashopStatusPaymentAccepted, &s.PrestashopStatusShipped, &s.MinimumStockSalesPeriods, &s.MinimumStockSalesDays, &s.CustomerJournal, &s.SalesJournal, &s.SalesAccount, &s.SupplierJournal, &s.PurchaseJournal, &s.PurchaseAccount, &s.EnableApiKey, &s.CronClearLabels, &s.LimitAccountingDate, &s.WooCommerceUrl, &s.WooCommerceConsumerKey, &s.WooCommerceConsumerSecret, &s.WooCommerceExportSerie, &s.WooCommerceIntracommunitySerie, &s.WooCommerceInteriorSerie, &s.WooCommerceDefaultPaymentMethod, &s.ConnectionLog, &s.FilterConnections, &s.ShopifyUrl, &s.ShopifyToken, &s.ShopifyExportSerie, &s.ShopifyIntracommunitySerie, &s.ShopifyInteriorSerie, &s.ShopifyDefaultPaymentMethod, &s.ShopifyShopLocationId, &s.EnterpriseKey, &s.PasswordMinimumLength, &s.PasswordMinumumComplexity, &s.InvoiceDeletePolicy, &s.TransactionLog, &s.UndoManufacturingOrderSeconds, &s.CronSendcloudTracking, &s.SMTPIdentity, &s.SMTPUsername, &s.SMTPPassword, &s.SMTPHostname, &s.SMTPSTARTTLS, &s.SMTPReplyTo, &s.EmailSendErrorEcommerce, &s.EmailSendErrorSendCloud, &s.DefaultWarehouseName, &s.ProductBarCodeLabelWidth, &s.ProductBarCodeLabelHeight, &s.ProductBarCodeLabelSize, &s.ProductBarCodeLabelMarginTop, &s.ProductBarCodeLabelMarginBottom, &s.ProductBarCodeLabelMarginLeft, &s.ProductBarCodeLabelMarginRight)
+	result := dbOrm.Where("enterprise_key = ?", enterpriseKey).Joins("DefaultWarehouse").Joins("PrestaShopExportSerie").Joins("PrestaShopIntracommunitySerie").Joins("PrestaShopInteriorSerie").Joins("CustomerJournal").Joins("SalesJournal").Joins("SalesAccount").Joins("SupplierJournal").Joins("PurchaseJournal").Joins("PurchaseAccount").Joins("WooCommerceExportSerie").Joins("WooCommerceIntracommunitySerie").Joins("WooCommerceInteriorSerie").Joins("WooCommerceDefaultPaymentMethod").Joins("ShopifyExportSerie").Joins("ShopifyIntracommunitySerie").Joins("ShopifyInteriorSerie").Joins("ShopifyDefaultPaymentMethod").First(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return s
 }
 
 func (s *Settings) isValid() bool {
-	return !(s.DefaultVatPercent < 0 || len(s.DefaultWarehouse) != 2 || len(s.DateFormat) == 0 || len(s.DateFormat) > 25 || len(s.EnterpriseName) == 0 || len(s.EnterpriseName) > 50 || len(s.EnterpriseDescription) > 250 || (s.Ecommerce != "_" && s.Ecommerce != "P" && s.Ecommerce != "M" && s.Ecommerce != "W" && s.Ecommerce != "S") || (s.Email != "_" && s.Email != "S" && s.Email != "T") || (s.Currency != "_" && s.Currency != "E") || len(s.CurrencyECBurl) > 100 || len(s.BarcodePrefix) > 4 || len(s.PrestaShopUrl) > 100 || len(s.PrestaShopApiKey) > 32 || s.PrestaShopLanguageId < 0 || len(s.CronCurrency) > 25 || len(s.CronPrestaShop) > 25 || len(s.SendGridKey) > 75 || len(s.EmailFrom) > 50 || len(s.NameFrom) > 50 || s.PalletWeight < 0 || s.PalletWidth < 0 || s.PalletHeight < 0 || s.PalletDepth < 0 || s.MaxConnections < 0 || s.PrestashopStatusPaymentAccepted < 0 || s.PrestashopStatusShipped < 0 || s.MinimumStockSalesPeriods < 0 || s.MinimumStockSalesDays < 0 || (s.Ecommerce == "P" && (s.PrestaShopLanguageId == 0 || s.PrestaShopExportSerie == nil || s.PrestaShopIntracommunitySerie == nil || s.PrestaShopInteriorSerie == nil || s.PrestashopStatusPaymentAccepted == 0 || s.PrestashopStatusShipped == 0)) || (s.Ecommerce == "W" && (s.WooCommerceDefaultPaymentMethod == nil || s.WooCommerceExportSerie == nil || s.WooCommerceInteriorSerie == nil || s.WooCommerceIntracommunitySerie == nil)) || (s.Ecommerce == "S" && (s.ShopifyDefaultPaymentMethod == nil || s.ShopifyExportSerie == nil || s.ShopifyInteriorSerie == nil || s.ShopifyIntracommunitySerie == nil)) || s.PasswordMinimumLength < 6 || (s.PasswordMinumumComplexity != "A" && s.PasswordMinumumComplexity != "B" && s.PasswordMinumumComplexity != "C" && s.PasswordMinumumComplexity != "D") || s.InvoiceDeletePolicy < 0 || s.InvoiceDeletePolicy > 2 || s.UndoManufacturingOrderSeconds < 0 || len(s.CronSendcloudTracking) > 25 || (s.Email == "S" && (len(s.SendGridKey) == 0 || len(s.EmailFrom) == 0 || len(s.NameFrom) == 0 || !emailIsValid(s.EmailFrom))) || (s.Email == "T" && (len(s.SMTPUsername) == 0 || len(s.SMTPPassword) == 0 || len(s.SMTPHostname) == 0 || !emailIsValid(s.SMTPUsername) || !hostnameWithPortValid(s.SMTPHostname))) || s.ProductBarCodeLabelWidth < 0 || s.ProductBarCodeLabelHeight < 0 || s.ProductBarCodeLabelSize < 0 || s.ProductBarCodeLabelMarginTop < 0 || s.ProductBarCodeLabelMarginBottom < 0 || s.ProductBarCodeLabelMarginLeft < 0 || s.ProductBarCodeLabelMarginRight < 0)
+	return !(s.DefaultVatPercent < 0 || len(s.DefaultWarehouseId) != 2 || len(s.DateFormat) == 0 || len(s.DateFormat) > 25 || len(s.EnterpriseName) == 0 || len(s.EnterpriseName) > 50 || len(s.EnterpriseDescription) > 250 || (s.Ecommerce != "_" && s.Ecommerce != "P" && s.Ecommerce != "M" && s.Ecommerce != "W" && s.Ecommerce != "S") || (s.Email != "_" && s.Email != "S" && s.Email != "T") || (s.Currency != "_" && s.Currency != "E") || len(s.CurrencyECBurl) > 100 || len(s.BarcodePrefix) > 4 || len(s.PrestaShopUrl) > 100 || len(s.PrestaShopApiKey) > 32 || s.PrestaShopLanguageId < 0 || len(s.CronCurrency) > 25 || len(s.CronPrestaShop) > 25 || len(s.SendGridKey) > 75 || len(s.EmailFrom) > 50 || len(s.NameFrom) > 50 || s.PalletWeight < 0 || s.PalletWidth < 0 || s.PalletHeight < 0 || s.PalletDepth < 0 || s.MaxConnections < 0 || s.PrestaShopStatusPaymentAccepted < 0 || s.PrestaShopStatusShipped < 0 || s.MinimumStockSalesPeriods < 0 || s.MinimumStockSalesDays < 0 || (s.Ecommerce == "P" && (s.PrestaShopLanguageId == 0 || s.PrestaShopExportSerieId == nil || s.PrestaShopIntracommunitySerieId == nil || s.PrestaShopInteriorSerieId == nil || s.PrestaShopStatusPaymentAccepted == 0 || s.PrestaShopStatusShipped == 0)) || (s.Ecommerce == "W" && (s.WooCommerceDefaultPaymentMethodId == nil || s.WooCommerceExportSerieId == nil || s.WooCommerceInteriorSerieId == nil || s.WooCommerceIntracommunitySerieId == nil)) || (s.Ecommerce == "S" && (s.ShopifyDefaultPaymentMethodId == nil || s.ShopifyExportSerieId == nil || s.ShopifyInteriorSerieId == nil || s.ShopifyIntracommunitySerieId == nil)) || s.PasswordMinimumLength < 6 || (s.PasswordMinumumComplexity != "A" && s.PasswordMinumumComplexity != "B" && s.PasswordMinumumComplexity != "C" && s.PasswordMinumumComplexity != "D") || s.InvoiceDeletePolicy < 0 || s.InvoiceDeletePolicy > 2 || s.UndoManufacturingOrderSeconds < 0 || len(s.CronSendCloudTracking) > 25 || (s.Email == "S" && (len(s.SendGridKey) == 0 || len(s.EmailFrom) == 0 || len(s.NameFrom) == 0 || !emailIsValid(s.EmailFrom))) || (s.Email == "T" && (len(s.SMTPUsername) == 0 || len(s.SMTPPassword) == 0 || len(s.SMTPHostname) == 0 || !emailIsValid(s.SMTPUsername) || !hostnameWithPortValid(s.SMTPHostname))) || s.ProductBarCodeLabelWidth < 0 || s.ProductBarCodeLabelHeight < 0 || s.ProductBarCodeLabelSize < 0 || s.ProductBarCodeLabelMarginTop < 0 || s.ProductBarCodeLabelMarginBottom < 0 || s.ProductBarCodeLabelMarginLeft < 0 || s.ProductBarCodeLabelMarginRight < 0)
 }
 
 func (s *Settings) updateSettingsRecord() bool {
@@ -278,15 +285,15 @@ func (s *Settings) updateSettingsRecord() bool {
 	}
 
 	var salesAccount *int32
-	if s.SalesJournal != nil && *s.SalesJournal > 0 {
-		acc := getAccountIdByAccountNumber(*s.SalesJournal, 1, s.Id)
+	if s.SalesJournalId != nil && *s.SalesJournalId > 0 {
+		acc := getAccountIdByAccountNumber(*s.SalesJournalId, 1, s.Id)
 		if acc > 0 {
 			salesAccount = &acc
 		}
 	}
 	var purchaseAccount *int32
-	if s.PurchaseJournal != nil && *s.PurchaseJournal > 0 {
-		acc := getAccountIdByAccountNumber(*s.PurchaseJournal, 1, s.Id)
+	if s.PurchaseJournalId != nil && *s.PurchaseJournalId > 0 {
+		acc := getAccountIdByAccountNumber(*s.PurchaseJournalId, 1, s.Id)
 		if acc > 0 {
 			purchaseAccount = &acc
 		}
@@ -339,15 +346,102 @@ func (s *Settings) updateSettingsRecord() bool {
 		refreshRunningCrons(settingsInMemory, *s)
 	}
 
-	sqlStatement := `UPDATE public.config SET default_vat_percent=$1, default_warehouse=$2, date_format=$3, enterprise_name=$4, enterprise_description=$5, ecommerce=$6, email=$7, currency=$8, currency_ecb_url=$9, barcode_prefix=$10, prestashop_url=$11, prestashop_api_key=$12, prestashop_language_id=$13, prestashop_export_serie=$14, prestashop_intracommunity_serie=$15, prestashop_interior_serie=$16, cron_currency=$17, cron_prestashop=$18, sendgrid_key=$19, email_from=$20, name_from=$21, pallet_weight=$22, pallet_width=$23, pallet_height=$24, pallet_depth=$25, max_connections=$26, prestashop_status_payment_accepted=$27, prestashop_status_shipped=$28, minimum_stock_sales_periods=$29, minimum_stock_sales_days=$30, customer_journal=$31, sales_journal=$32, sales_account=$33, supplier_journal=$34, purchase_journal=$35, purchase_account=$36, enable_api_key=$37, cron_clear_labels=$38, limit_accounting_date=$39, woocommerce_url=$40, woocommerce_consumer_key=$41, woocommerce_consumer_secret=$42, woocommerce_export_serie=$43, woocommerce_intracommunity_serie=$44, woocommerce_interior_serie=$45, woocommerce_default_payment_method=$46, connection_log=$47, filter_connections=$48, shopify_url=$49, shopify_token=$50, shopify_export_serie=$51, shopify_intracommunity_serie=$52, shopify_interior_serie=$53, shopify_default_payment_method=$54, shopify_shop_location_id=$55, password_minimum_length=$57, password_minumum_complexity=$58, invoice_delete_policy=$59, transaction_log=$60, undo_manufacturing_order_seconds=$61, cron_sendcloud_tracking=$62, smtp_identity=$63, smtp_username=$64, smtp_password=$65, smtp_hostname=$66, smtp_starttls=$67, smtp_reply_to=$68, email_send_error_ecommerce=$69, email_send_error_sendcloud=$70, product_barcode_label_width=$71, product_barcode_label_height=$72, product_barcode_label_size=$73, product_barcode_label_margin_top=$74, product_barcode_label_margin_bottom=$75, product_barcode_label_margin_left=$76, product_barcode_label_margin_right=$77 WHERE id=$56`
-	res, err := db.Exec(sqlStatement, s.DefaultVatPercent, s.DefaultWarehouse, s.DateFormat, s.EnterpriseName, s.EnterpriseDescription, s.Ecommerce, s.Email, s.Currency, s.CurrencyECBurl, s.BarcodePrefix, s.PrestaShopUrl, s.PrestaShopApiKey, s.PrestaShopLanguageId, s.PrestaShopExportSerie, s.PrestaShopIntracommunitySerie, s.PrestaShopInteriorSerie, s.CronCurrency, s.CronPrestaShop, s.SendGridKey, s.EmailFrom, s.NameFrom, s.PalletWeight, s.PalletWidth, s.PalletHeight, s.PalletDepth, s.MaxConnections, s.PrestashopStatusPaymentAccepted, s.PrestashopStatusShipped, s.MinimumStockSalesPeriods, s.MinimumStockSalesDays, s.CustomerJournal, s.SalesJournal, salesAccount, s.SupplierJournal, s.PurchaseJournal, purchaseAccount, s.EnableApiKey, s.CronClearLabels, s.LimitAccountingDate, s.WooCommerceUrl, s.WooCommerceConsumerKey, s.WooCommerceConsumerSecret, s.WooCommerceExportSerie, s.WooCommerceIntracommunitySerie, s.WooCommerceInteriorSerie, s.WooCommerceDefaultPaymentMethod, s.ConnectionLog, s.FilterConnections, s.ShopifyUrl, s.ShopifyToken, s.ShopifyExportSerie, s.ShopifyIntracommunitySerie, s.ShopifyInteriorSerie, s.ShopifyDefaultPaymentMethod, s.ShopifyShopLocationId, s.Id, s.PasswordMinimumLength, s.PasswordMinumumComplexity, s.InvoiceDeletePolicy, s.TransactionLog, s.UndoManufacturingOrderSeconds, s.CronSendcloudTracking, s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, s.SMTPSTARTTLS, s.SMTPReplyTo, s.EmailSendErrorEcommerce, s.EmailSendErrorSendCloud, s.ProductBarCodeLabelWidth, s.ProductBarCodeLabelHeight, s.ProductBarCodeLabelSize, s.ProductBarCodeLabelMarginTop, s.ProductBarCodeLabelMarginBottom, s.ProductBarCodeLabelMarginLeft, s.ProductBarCodeLabelMarginRight)
-	if err != nil {
-		log("DB", err.Error())
+	var settingsInDisk Settings
+	dbOrm.Model(&Settings{}).Where("id = ?", s.Id).First(&settingsInDisk)
+
+	settingsInDisk.DefaultVatPercent = s.DefaultVatPercent
+	settingsInDisk.DefaultWarehouseId = s.DefaultWarehouseId
+	settingsInDisk.DateFormat = s.DateFormat
+	settingsInDisk.EnterpriseName = s.EnterpriseName
+	settingsInDisk.EnterpriseDescription = s.EnterpriseDescription
+	settingsInDisk.Ecommerce = s.Ecommerce
+	if s.Ecommerce == "P" {
+		settingsInDisk.PrestaShopUrl = s.PrestaShopUrl
+		settingsInDisk.PrestaShopApiKey = s.PrestaShopApiKey
+		settingsInDisk.PrestaShopLanguageId = s.PrestaShopLanguageId
+		settingsInDisk.PrestaShopExportSerieId = s.PrestaShopExportSerieId
+		settingsInDisk.PrestaShopIntracommunitySerieId = s.PrestaShopIntracommunitySerieId
+		settingsInDisk.PrestaShopInteriorSerieId = s.PrestaShopInteriorSerieId
+		settingsInDisk.PrestaShopStatusPaymentAccepted = s.PrestaShopStatusPaymentAccepted
+		settingsInDisk.PrestaShopStatusShipped = s.PrestaShopStatusShipped
+	} else if s.Ecommerce == "W" {
+		settingsInDisk.WooCommerceUrl = s.WooCommerceUrl
+		settingsInDisk.WooCommerceConsumerKey = s.WooCommerceConsumerKey
+		settingsInDisk.WooCommerceConsumerSecret = s.WooCommerceConsumerSecret
+		settingsInDisk.WooCommerceExportSerieId = s.WooCommerceExportSerieId
+		settingsInDisk.WooCommerceIntracommunitySerieId = s.WooCommerceIntracommunitySerieId
+		settingsInDisk.WooCommerceInteriorSerieId = s.WooCommerceInteriorSerieId
+		settingsInDisk.WooCommerceDefaultPaymentMethodId = s.WooCommerceDefaultPaymentMethodId
+	} else if s.Ecommerce == "S" {
+		settingsInDisk.ShopifyUrl = s.ShopifyUrl
+		settingsInDisk.ShopifyToken = s.ShopifyToken
+		settingsInDisk.ShopifyExportSerieId = s.ShopifyExportSerieId
+		settingsInDisk.ShopifyIntracommunitySerieId = s.ShopifyIntracommunitySerieId
+		settingsInDisk.ShopifyInteriorSerieId = s.ShopifyInteriorSerieId
+		settingsInDisk.ShopifyDefaultPaymentMethodId = s.ShopifyDefaultPaymentMethodId
+		settingsInDisk.ShopifyShopLocationId = s.ShopifyShopLocationId
+	}
+	settingsInDisk.Email = s.Email
+	if s.Email == "S" {
+		settingsInDisk.SendGridKey = s.SendGridKey
+		settingsInDisk.EmailFrom = s.EmailFrom
+		settingsInDisk.NameFrom = s.NameFrom
+	} else if s.Email == "T" {
+		settingsInDisk.SMTPIdentity = s.SMTPIdentity
+		settingsInDisk.SMTPUsername = s.SMTPUsername
+		settingsInDisk.SMTPPassword = s.SMTPPassword
+		settingsInDisk.SMTPHostname = s.SMTPHostname
+		settingsInDisk.SMTPSTARTTLS = s.SMTPSTARTTLS
+		settingsInDisk.SMTPReplyTo = s.SMTPReplyTo
+	}
+	settingsInDisk.Currency = s.Currency
+	if s.Currency == "E" {
+		settingsInDisk.CurrencyECBurl = s.CurrencyECBurl
+	}
+	settingsInDisk.BarcodePrefix = s.BarcodePrefix
+	settingsInDisk.CronCurrency = s.CronCurrency
+	settingsInDisk.CronPrestaShop = s.CronPrestaShop
+	settingsInDisk.PalletWeight = s.PalletWeight
+	settingsInDisk.PalletHeight = s.PalletHeight
+	settingsInDisk.PalletDepth = s.PalletDepth
+	settingsInDisk.MaxConnections = s.MaxConnections
+	settingsInDisk.MinimumStockSalesPeriods = s.MinimumStockSalesPeriods
+	settingsInDisk.MinimumStockSalesDays = s.MinimumStockSalesDays
+	settingsInDisk.CustomerJournalId = s.CustomerJournalId
+	settingsInDisk.SalesJournalId = s.SalesJournalId
+	settingsInDisk.SalesAccountId = salesAccount
+	settingsInDisk.SupplierJournalId = s.SupplierJournalId
+	settingsInDisk.PurchaseJournalId = s.PurchaseJournalId
+	settingsInDisk.PurchaseAccountId = purchaseAccount
+	settingsInDisk.EnableApiKey = s.EnableApiKey
+	settingsInDisk.CronClearLabels = s.CronClearLabels
+	settingsInDisk.LimitAccountingDate = s.LimitAccountingDate
+	settingsInDisk.ConnectionLog = s.ConnectionLog
+	settingsInDisk.FilterConnections = s.FilterConnections
+	settingsInDisk.PasswordMinimumLength = s.PasswordMinimumLength
+	settingsInDisk.PasswordMinumumComplexity = s.PasswordMinumumComplexity
+	settingsInDisk.InvoiceDeletePolicy = s.InvoiceDeletePolicy
+	settingsInDisk.TransactionLog = s.TransactionLog
+	settingsInDisk.UndoManufacturingOrderSeconds = s.UndoManufacturingOrderSeconds
+	settingsInDisk.CronSendCloudTracking = s.CronSendCloudTracking
+	settingsInDisk.EmailSendErrorEcommerce = s.EmailSendErrorEcommerce
+	settingsInDisk.EmailSendErrorSendCloud = s.EmailSendErrorSendCloud
+	settingsInDisk.ProductBarCodeLabelWidth = s.ProductBarCodeLabelWidth
+	settingsInDisk.ProductBarCodeLabelHeight = s.ProductBarCodeLabelHeight
+	settingsInDisk.ProductBarCodeLabelSize = s.ProductBarCodeLabelSize
+	settingsInDisk.ProductBarCodeLabelMarginTop = s.ProductBarCodeLabelMarginTop
+	settingsInDisk.ProductBarCodeLabelMarginBottom = s.ProductBarCodeLabelMarginBottom
+	settingsInDisk.ProductBarCodeLabelMarginLeft = s.ProductBarCodeLabelMarginLeft
+	settingsInDisk.ProductBarCodeLabelMarginRight = s.ProductBarCodeLabelMarginRight
+
+	result := dbOrm.Save(&settingsInDisk)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 // Don't allow every client to get the secret data, like API keys.
@@ -369,10 +463,12 @@ type ClientSettings struct {
 }
 
 func (s Settings) censorSettings() ClientSettings {
+	warehouse_name := getNameWarehouse(s.DefaultWarehouseId, s.Id)
+
 	c := ClientSettings{}
 	c.DefaultVatPercent = s.DefaultVatPercent
-	c.DefaultWarehouse = s.DefaultWarehouse
-	c.DefaultWarehouseName = s.DefaultWarehouseName
+	c.DefaultWarehouse = s.DefaultWarehouseId
+	c.DefaultWarehouseName = warehouse_name
 	c.DateFormat = s.DateFormat
 	c.Ecommerce = s.Ecommerce
 	c.InvoiceDeletePolicy = s.InvoiceDeletePolicy
@@ -431,12 +527,12 @@ func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
 			}
 		}
 	}
-	if oldSettings.CronSendcloudTracking != newSettings.CronSendcloudTracking {
+	if oldSettings.CronSendCloudTracking != newSettings.CronSendCloudTracking {
 		if enterpriseCronInfo.CronSendcloudTracking != nil {
 			c.Remove(*enterpriseCronInfo.CronSendcloudTracking)
 		}
-		if newSettings.CronSendcloudTracking != "" {
-			cronId, err := c.AddFunc(newSettings.CronSendcloudTracking, func() {
+		if newSettings.CronSendCloudTracking != "" {
+			cronId, err := c.AddFunc(newSettings.CronSendCloudTracking, func() {
 				getShippingTrackingSendCloud(oldSettings.Id)
 			})
 			if err != nil {
@@ -447,6 +543,13 @@ func refreshRunningCrons(oldSettings Settings, newSettings Settings) {
 
 	runningCrons[oldSettings.Id] = enterpriseCronInfo
 	runningCronsMutex.Unlock()
+}
+
+func (s *Settings) BeforeCreate(tx *gorm.DB) (err error) {
+	var settings Settings
+	tx.Model(&Settings{}).Last(&settings)
+	s.Id = settings.Id + 1
+	return nil
 }
 
 func addEnterpriseFromParameters() bool {
@@ -509,17 +612,17 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 	ecommerceExportSerie := "EXP"
 	ecommerceIntracommunitySerie := "IEU"
 	ecommerceInteriorSerie := "INT"
-	config.PrestaShopExportSerie = &ecommerceExportSerie
-	config.PrestaShopIntracommunitySerie = &ecommerceIntracommunitySerie
-	config.PrestaShopInteriorSerie = &ecommerceInteriorSerie
-	config.PrestashopStatusPaymentAccepted = 2
-	config.PrestashopStatusShipped = 4
-	config.WooCommerceExportSerie = &ecommerceExportSerie
-	config.WooCommerceIntracommunitySerie = &ecommerceIntracommunitySerie
-	config.WooCommerceInteriorSerie = &ecommerceInteriorSerie
-	config.ShopifyExportSerie = &ecommerceExportSerie
-	config.ShopifyIntracommunitySerie = &ecommerceIntracommunitySerie
-	config.ShopifyInteriorSerie = &ecommerceInteriorSerie
+	config.PrestaShopExportSerieId = &ecommerceExportSerie
+	config.PrestaShopIntracommunitySerieId = &ecommerceIntracommunitySerie
+	config.PrestaShopInteriorSerieId = &ecommerceInteriorSerie
+	config.PrestaShopStatusPaymentAccepted = 2
+	config.PrestaShopStatusShipped = 4
+	config.WooCommerceExportSerieId = &ecommerceExportSerie
+	config.WooCommerceIntracommunitySerieId = &ecommerceIntracommunitySerie
+	config.WooCommerceInteriorSerieId = &ecommerceInteriorSerie
+	config.ShopifyExportSerieId = &ecommerceExportSerie
+	config.ShopifyIntracommunitySerieId = &ecommerceIntracommunitySerie
+	config.ShopifyInteriorSerieId = &ecommerceInteriorSerie
 	if !config.updateSettingsRecord() {
 		fmt.Println("Error: Could not update the settings record.")
 		return false
@@ -560,7 +663,7 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 		Admin:         true,
 		PrestaShop:    true,
 		Accounting:    true,
-		enterprise:    enterpriseId,
+		EnterpriseId:  enterpriseId,
 	}
 	if !group.insertGroup() {
 		fmt.Println("Error: Could not create the admin group.")
@@ -573,8 +676,8 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 	user := users[len(users)-1]
 
 	ug := UserGroup{
-		User:  user.Id,
-		Group: group.Id,
+		UserId:  user.Id,
+		GroupId: group.Id,
 	}
 	if !ug.insertUserGroup() {
 		fmt.Println("Error: Could not assign the admin user to the admin group.")
@@ -598,10 +701,10 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 		}
 
 		dc := DocumentContainer{
-			Name:       "Default Document Container",
-			Path:       path.Join(workingDir, documentContainerUUID),
-			MaxStorage: int64(documentSpace) * 1000000000, // Gb to bytes
-			enterprise: enterpriseId,
+			Name:         "Default Document Container",
+			Path:         path.Join(workingDir, documentContainerUUID),
+			MaxStorage:   int64(documentSpace) * 1000000000, // Gb to bytes
+			EnterpriseId: enterpriseId,
 		}
 		if !dc.insertDocumentContainer() {
 			fmt.Println("Could not create document container")

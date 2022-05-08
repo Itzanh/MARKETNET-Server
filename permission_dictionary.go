@@ -6,35 +6,33 @@ package main
 // A function will tell if a given user (int32) has a given permission (string) and will return a boolean, and it can be used however we want.
 
 type PermissionDictionary struct {
-	enterprise  int32
-	Key         string `json:"key"`
-	Description string `json:"description"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;not null:true;column:enterprise"`
+	Key          string   `json:"key" gorm:"primaryKey;not null:true;type:character varying(150)"`
+	Description  string   `json:"description" gorm:"not null:true;type:character varying(250)"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (pd *PermissionDictionary) TableName() string {
+	return "permission_dictionary"
 }
 
 func getPermissionDictionary(enterpriseId int32) []PermissionDictionary {
 	var dictionary []PermissionDictionary = make([]PermissionDictionary, 0)
-	sqlStatement := `SELECT * FROM public.permission_dictionary WHERE enterprise = $1 ORDER BY key ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return dictionary
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := PermissionDictionary{}
-		rows.Scan(&d.enterprise, &d.Key, &d.Description)
-		dictionary = append(dictionary, d)
-	}
-
+	dbOrm.Model(&PermissionDictionary{}).Where("enterprise = ?", enterpriseId).Order("key ASC").Find(&dictionary)
 	return dictionary
 }
 
 type PermissionDictionaryGroup struct {
-	Group         int32  `json:"group"`
-	PermissionKey string `json:"permissionKey"`
-	Description   string `json:"description"`
-	enterprise    int32
+	GroupId         int32                `json:"group" gorm:"primaryKey;column:group;not null:true"`
+	Group           Group                `json:"-" gorm:"foreignKey:GroupId,EnterpriseId;references:Id,EnterpriseId"`
+	PermissionKeyId string               `json:"permissionKey" gorm:"primaryKey;column:permission_key;not null:true;type:character varying(150)"`
+	PermissionKey   PermissionDictionary `json:"-" gorm:"foreignKey:PermissionKeyId,EnterpriseId;references:Key,EnterpriseId"`
+	EnterpriseId    int32                `json:"-" gorm:"primaryKey;not null:true;column:enterprise"`
+	Enterprise      Settings             `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (pdg *PermissionDictionaryGroup) TableName() string {
+	return "permission_dictionary_group"
 }
 
 type PermissionDictionaryGroupInOut struct {
@@ -51,20 +49,11 @@ func getGroupPermissionDictionary(enterpriseId int32, groupId int32) PermissionD
 
 func getPermissionDictionaryGroupIn(enterpriseId int32, groupId int32) []PermissionDictionaryGroup {
 	var dictionary []PermissionDictionaryGroup = make([]PermissionDictionaryGroup, 0)
-	sqlStatement := `SELECT *,(SELECT description FROM permission_dictionary WHERE permission_dictionary.enterprise = permission_dictionary_group.enterprise AND permission_dictionary.key = permission_dictionary_group.permission_key) FROM public.permission_dictionary_group WHERE "group" = $1 AND enterprise = $2 ORDER BY permission_key ASC`
-	rows, err := db.Query(sqlStatement, groupId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&PermissionDictionaryGroup{}).Where("permission_dictionary_group.\"group\" = ? AND permission_dictionary_group.enterprise = ?", groupId, enterpriseId).Joins("Group").Joins("PermissionKey").Joins("Enterprise").Order("permission_key ASC").Find(&dictionary)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return dictionary
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		d := PermissionDictionaryGroup{}
-		rows.Scan(&d.Group, &d.PermissionKey, &d.enterprise, &d.Description)
-		dictionary = append(dictionary, d)
-	}
-
 	return dictionary
 }
 
@@ -75,7 +64,7 @@ func getPermissionDictionaryGroupOut(enterpriseId int32, groupId int32) []Permis
 	for i := len(dictionary) - 1; i >= 0; i-- {
 		d := dictionary[i]
 		for j := 0; j < len(permissions); j++ {
-			if permissions[j].PermissionKey == d.Key {
+			if permissions[j].PermissionKeyId == d.Key {
 				dictionary = append(dictionary[:i], dictionary[i+1:]...)
 				permissions = append(permissions[:j], permissions[j+1:]...) // little optimization :D
 				break
@@ -87,7 +76,7 @@ func getPermissionDictionaryGroupOut(enterpriseId int32, groupId int32) []Permis
 }
 
 func (p *PermissionDictionaryGroup) isValid() bool {
-	return !(p.Group <= 0 || len(p.PermissionKey) == 0 || len(p.PermissionKey) > 150 || p.enterprise <= 0)
+	return !(p.GroupId <= 0 || len(p.PermissionKeyId) == 0 || len(p.PermissionKeyId) > 150 || p.EnterpriseId <= 0)
 }
 
 func (p *PermissionDictionaryGroup) insertPermissionDictionaryGroup() bool {
@@ -95,14 +84,13 @@ func (p *PermissionDictionaryGroup) insertPermissionDictionaryGroup() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.permission_dictionary_group("group", permission_key, enterprise) VALUES ($1, $2, $3)`
-	_, err := db.Exec(sqlStatement, p.Group, p.PermissionKey, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&p)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (p *PermissionDictionaryGroup) deletePermissionDictionaryGroup() bool {
@@ -110,48 +98,37 @@ func (p *PermissionDictionaryGroup) deletePermissionDictionaryGroup() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.permission_dictionary_group WHERE "group" = $1 AND permission_key = $2 AND enterprise = $3`
-	_, err := db.Exec(sqlStatement, p.Group, p.PermissionKey, p.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where(`"group" = ? AND permission_key = ? AND enterprise = ?`, p.GroupId, p.PermissionKeyId, p.EnterpriseId).Delete(&PermissionDictionaryGroup{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func getPermissionDictionaryUserGroupInForWebClient(userId int32) []string {
 	var dictionary []string = make([]string, 0)
-	sqlStatement := `SELECT permission_dictionary_group.permission_key FROM public.permission_dictionary_group INNER JOIN "group" ON "group".id=permission_dictionary_group."group" INNER JOIN user_group ON user_group."group"="group".id WHERE user_group."user" = $1`
-	rows, err := db.Query(sqlStatement, userId)
-	if err != nil {
-		log("DB", err.Error())
-		return dictionary
-	}
-	defer rows.Close()
+	groups := getUserGroupsIn(userId)
 
-	for rows.Next() {
-		d := ""
-		rows.Scan(&d)
-		dictionary = append(dictionary, d)
+	for i := 0; i < len(groups); i++ {
+		var permissionsInGroup []PermissionDictionaryGroup = make([]PermissionDictionaryGroup, 0)
+		dbOrm.Model(&PermissionDictionaryGroup{}).Where("\"group\" = ?", groups[i].Id).Find(&permissionsInGroup)
+
+		for j := 0; j < len(permissionsInGroup); j++ {
+			dictionary = append(dictionary, permissionsInGroup[j].PermissionKeyId)
+		}
 	}
 
 	return dictionary
 }
 
 func getUserPermission(permission string, enterpriseId int32, userId int32) bool {
-	sqlStatement := `SELECT COUNT(*) FROM public.permission_dictionary_group WHERE "group" = $1 AND permission_key = $2 AND enterprise = $3`
 	groups := getUserGroupsIn(userId)
 
 	for i := 0; i < len(groups); i++ {
-		row := db.QueryRow(sqlStatement, groups[i].Id, permission, enterpriseId)
-		if row.Err() != nil {
-			log("DB", row.Err().Error())
-			return false
-		}
-
-		var count int16
-		row.Scan(&count)
+		var count int64
+		dbOrm.Model(&PermissionDictionaryGroup{}).Where(`"group" = ? AND permission_key = ? AND enterprise = ?`, groups[i].Id, permission, enterpriseId).Count(&count)
 		if count > 0 {
 			return true
 		}

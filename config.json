@@ -5,7 +5,7 @@
         "port": 5432,
         "user": "marketnet",
         "password": "-.qu@.5vaqBE6GH",
-        "dbname": "marketnet"
+        "dbname": "marketnet_restore"
     },
     "server": {
         "port": 12279,

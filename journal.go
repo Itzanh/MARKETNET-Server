@@ -1,28 +1,20 @@
 package main
 
 type Journal struct {
-	Id         int32  `json:"id"`
-	Name       string `json:"name"`
-	Type       string `json:"type"` // S = Sale, P = Purchase, B = Bank, C = Cash, G = General
-	enterprise int32
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	Name         string   `json:"name" gorm:"type:character varying(150);not null:true"`
+	Type         string   `json:"type" gorm:"type:character(1);not null:true"` // S = Sale, P = Purchase, B = Bank, C = Cash, G = General
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (j *Journal) TableName() string {
+	return "journal"
 }
 
 func getJournals(enterpriseId int32) []Journal {
 	journals := make([]Journal, 0)
-	sqlStatement := `SELECT * FROM public.journal WHERE enterprise=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return journals
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		j := Journal{}
-		rows.Scan(&j.Id, &j.Name, &j.Type, &j.enterprise)
-		journals = append(journals, j)
-	}
-
+	dbOrm.Model(&Journal{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&journals)
 	return journals
 }
 
@@ -35,14 +27,13 @@ func (j *Journal) insertJournal() bool {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.journal(id, name, type, enterprise) VALUES ($1, $2, $3, $4)`
-	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type, j.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(j)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (j *Journal) updateJournal() bool {
@@ -50,14 +41,23 @@ func (j *Journal) updateJournal() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public.journal SET name=$2, type=$3 WHERE id=$1 AND enterprise=$4`
-	_, err := db.Exec(sqlStatement, j.Id, j.Name, j.Type, j.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
+	var journal Journal
+	result := dbOrm.Where("id = ? AND enterprise = ?", j.Id, j.EnterpriseId).First(&journal)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	journal.Name = j.Name
+	journal.Type = j.Type
+
+	result = dbOrm.Save(&journal)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (j *Journal) deleteJournal() bool {
@@ -65,12 +65,11 @@ func (j *Journal) deleteJournal() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public.journal WHERE id=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, j.Id, j.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("id = ? AND enterprise = ?", j.Id, j.EnterpriseId).Delete(&Journal{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }

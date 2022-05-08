@@ -11,59 +11,59 @@ func TestPackaging(t *testing.T) {
 
 	// create a sale order and two details (and a manual carrier)
 	c := Carrier{
-		Name:       "ACME Corp",
-		MaxWeight:  35,
-		MaxWidth:   150,
-		MaxHeight:  150,
-		MaxDepth:   150,
-		Phone:      "987654321",
-		Email:      "contact@acme.com",
-		Web:        "acmecorp.com",
-		Webservice: "_",
-		enterprise: 1,
+		Name:         "ACME Corp",
+		MaxWeight:    35,
+		MaxWidth:     150,
+		MaxHeight:    150,
+		MaxDepth:     150,
+		Phone:        "987654321",
+		Email:        "contact@acme.com",
+		Web:          "acmecorp.com",
+		Webservice:   "_",
+		EnterpriseId: 1,
 	}
 	c.insertCarrier()
 	carriers := getCariers(1)
 	carrierId := carriers[len(carriers)-1].Id
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		Carrier:         &carrierId,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		CarrierId:         &carrierId,
+		EnterpriseId:      1,
 	}
 	_, orderId := o.insertSalesOrder(1)
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesOrderDetail(1)
 	d = SalesOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      19.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        19.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesOrderDetail(1)
 	details := getSalesOrderDetail(orderId, 1)
 
 	// create a package
 	p := Packaging{
-		Package:    1,
-		SalesOrder: orderId,
-		enterprise: 1,
+		PackageId:    1,
+		SalesOrderId: orderId,
+		EnterpriseId: 1,
 	}
 	ok := p.insertPackaging()
 	if !ok {
@@ -78,10 +78,10 @@ func TestPackaging(t *testing.T) {
 		return
 	}
 	detailPackaged := SalesOrderDetailPackaged{
-		OrderDetail: details[0].Id,
-		Packaging:   orderPackaging[0].Id,
-		Quantity:    details[0].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[0].Id,
+		PackagingId:   orderPackaging[0].Id,
+		Quantity:      details[0].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -91,7 +91,7 @@ func TestPackaging(t *testing.T) {
 
 	// unpack de detail
 	detailsPackaged := getSalesOrderDetailPackaged(orderPackaging[0].Id, 1)
-	if len(detailsPackaged) == 0 || detailsPackaged[0].OrderDetail <= 0 {
+	if len(detailsPackaged) == 0 || detailsPackaged[0].OrderDetailId <= 0 {
 		t.Error("Can't scan packed details")
 		return
 	}
@@ -103,9 +103,9 @@ func TestPackaging(t *testing.T) {
 
 	// create a second package, pack every detail in a separate package
 	p = Packaging{
-		Package:    1,
-		SalesOrder: orderId,
-		enterprise: 1,
+		PackageId:    1,
+		SalesOrderId: orderId,
+		EnterpriseId: 1,
 	}
 	ok = p.insertPackaging()
 	if !ok {
@@ -119,10 +119,10 @@ func TestPackaging(t *testing.T) {
 	}
 
 	detailPackaged = SalesOrderDetailPackaged{
-		OrderDetail: details[0].Id,
-		Packaging:   orderPackaging[0].Id,
-		Quantity:    details[0].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[0].Id,
+		PackagingId:   orderPackaging[0].Id,
+		Quantity:      details[0].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -130,10 +130,10 @@ func TestPackaging(t *testing.T) {
 		return
 	}
 	detailPackaged = SalesOrderDetailPackaged{
-		OrderDetail: details[1].Id,
-		Packaging:   orderPackaging[1].Id,
-		Quantity:    details[1].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[1].Id,
+		PackagingId:   orderPackaging[1].Id,
+		Quantity:      details[1].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -176,10 +176,10 @@ func TestPackaging(t *testing.T) {
 		return
 	}
 	detailPackaged = SalesOrderDetailPackaged{
-		OrderDetail: details[1].Id,
-		Packaging:   orderPackaging[0].Id,
-		Quantity:    details[1].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[1].Id,
+		PackagingId:   orderPackaging[0].Id,
+		Quantity:      details[1].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -217,7 +217,7 @@ func TestPackaging(t *testing.T) {
 
 	// DELETE ALL
 	// delete the shipping
-	shipping.enterprise = 1
+	shipping.EnterpriseId = 1
 	ok = shipping.deleteShipping(0)
 	if !ok {
 		t.Error("Can't delete shipping")
@@ -246,7 +246,7 @@ func TestPackaging(t *testing.T) {
 	// delete the details
 	details = getSalesOrderDetail(orderId, 1)
 	for i := 0; i < len(details); i++ {
-		details[i].enterprise = 1
+		details[i].EnterpriseId = 1
 		ok = details[i].deleteSalesOrderDetail(1, nil).Ok
 		if !ok {
 			t.Error("Can't delete sale order detail")
@@ -255,7 +255,7 @@ func TestPackaging(t *testing.T) {
 	}
 	// delete the sale order
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Can't delete sale order")
@@ -277,60 +277,60 @@ func TestPackagingWithPallets(t *testing.T) {
 
 	// create a sale order and two details (and a manual carrier)
 	c := Carrier{
-		Name:       "ACME Corp",
-		MaxWeight:  35,
-		MaxWidth:   150,
-		MaxHeight:  150,
-		MaxDepth:   150,
-		Phone:      "987654321",
-		Email:      "contact@acme.com",
-		Web:        "acmecorp.com",
-		Webservice: "_",
-		Pallets:    true,
-		enterprise: 1,
+		Name:         "ACME Corp",
+		MaxWeight:    35,
+		MaxWidth:     150,
+		MaxHeight:    150,
+		MaxDepth:     150,
+		Phone:        "987654321",
+		Email:        "contact@acme.com",
+		Web:          "acmecorp.com",
+		Webservice:   "_",
+		Pallets:      true,
+		EnterpriseId: 1,
 	}
 	c.insertCarrier()
 	carriers := getCariers(1)
 	carrierId := carriers[len(carriers)-1].Id
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		Carrier:         &carrierId,
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		CarrierId:         &carrierId,
+		EnterpriseId:      1,
 	}
 	_, orderId := o.insertSalesOrder(1)
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    4,
-		Price:      9.99,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    4,
+		Price:        9.99,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesOrderDetail(1)
 	d = SalesOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      19.99,
-		Quantity:   2,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        19.99,
+		Quantity:     2,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesOrderDetail(1)
 	details := getSalesOrderDetail(orderId, 1)
 
 	// create a pallet
 	pallet := Pallet{
-		SalesOrder: orderId,
-		Name:       "Pallet 1",
-		enterprise: 1,
+		SalesOrderId: orderId,
+		Name:         "Pallet 1",
+		EnterpriseId: 1,
 	}
 	ok := pallet.insertPallet()
 	if !ok {
@@ -346,10 +346,10 @@ func TestPackagingWithPallets(t *testing.T) {
 
 	// create a package
 	p := Packaging{
-		Package:    1,
-		SalesOrder: orderId,
-		Pallet:     &pallet.Id,
-		enterprise: 1,
+		PackageId:    1,
+		SalesOrderId: orderId,
+		PalletId:     &pallet.Id,
+		EnterpriseId: 1,
 	}
 	ok = p.insertPackaging()
 	if !ok {
@@ -364,10 +364,10 @@ func TestPackagingWithPallets(t *testing.T) {
 		return
 	}
 	detailPackaged := SalesOrderDetailPackaged{
-		OrderDetail: details[0].Id,
-		Packaging:   orderPackaging[0].Id,
-		Quantity:    details[0].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[0].Id,
+		PackagingId:   orderPackaging[0].Id,
+		Quantity:      details[0].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -377,7 +377,7 @@ func TestPackagingWithPallets(t *testing.T) {
 
 	// unpack de detail
 	detailsPackaged := getSalesOrderDetailPackaged(orderPackaging[0].Id, 1)
-	if len(detailsPackaged) == 0 || detailsPackaged[0].OrderDetail <= 0 {
+	if len(detailsPackaged) == 0 || detailsPackaged[0].OrderDetailId <= 0 {
 		t.Error("Can't scan packed details")
 		return
 	}
@@ -389,10 +389,10 @@ func TestPackagingWithPallets(t *testing.T) {
 
 	// create a second package, pack every detail in a separate package
 	p = Packaging{
-		Package:    1,
-		SalesOrder: orderId,
-		Pallet:     &pallet.Id,
-		enterprise: 1,
+		PackageId:    1,
+		SalesOrderId: orderId,
+		PalletId:     &pallet.Id,
+		EnterpriseId: 1,
 	}
 	ok = p.insertPackaging()
 	if !ok {
@@ -406,10 +406,10 @@ func TestPackagingWithPallets(t *testing.T) {
 	}
 
 	detailPackaged = SalesOrderDetailPackaged{
-		OrderDetail: details[0].Id,
-		Packaging:   orderPackaging[0].Id,
-		Quantity:    details[0].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[0].Id,
+		PackagingId:   orderPackaging[0].Id,
+		Quantity:      details[0].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -417,10 +417,10 @@ func TestPackagingWithPallets(t *testing.T) {
 		return
 	}
 	detailPackaged = SalesOrderDetailPackaged{
-		OrderDetail: details[1].Id,
-		Packaging:   orderPackaging[1].Id,
-		Quantity:    details[1].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[1].Id,
+		PackagingId:   orderPackaging[1].Id,
+		Quantity:      details[1].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -463,10 +463,10 @@ func TestPackagingWithPallets(t *testing.T) {
 		return
 	}
 	detailPackaged = SalesOrderDetailPackaged{
-		OrderDetail: details[1].Id,
-		Packaging:   orderPackaging[0].Id,
-		Quantity:    details[1].Quantity,
-		enterprise:  1,
+		OrderDetailId: details[1].Id,
+		PackagingId:   orderPackaging[0].Id,
+		Quantity:      details[1].Quantity,
+		EnterpriseId:  1,
 	}
 	ok = detailPackaged.insertSalesOrderDetailPackaged(0)
 	if !ok {
@@ -521,7 +521,7 @@ func TestPackagingWithPallets(t *testing.T) {
 
 	// DELETE ALL
 	// delete the shipping
-	shipping.enterprise = 1
+	shipping.EnterpriseId = 1
 	ok = shipping.deleteShipping(0)
 	if !ok {
 		t.Error("Can't delete shipping")
@@ -541,7 +541,7 @@ func TestPackagingWithPallets(t *testing.T) {
 	// delete the details
 	details = getSalesOrderDetail(orderId, 1)
 	for i := 0; i < len(details); i++ {
-		details[i].enterprise = 1
+		details[i].EnterpriseId = 1
 		ok = details[i].deleteSalesOrderDetail(0, nil).Ok
 		if !ok {
 			t.Error("Can't delete sale order detail")
@@ -550,7 +550,7 @@ func TestPackagingWithPallets(t *testing.T) {
 	}
 	// delete the sale order
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Can't delete sale order")
@@ -572,34 +572,34 @@ func TestPackWithjEAN13(t *testing.T) {
 
 	// create a sale order and two details
 	o := SaleOrder{
-		Warehouse:       "W1",
-		Customer:        1,
-		PaymentMethod:   3,
-		BillingSeries:   "EXP",
-		Currency:        1,
-		BillingAddress:  1,
-		ShippingAddress: 1,
-		Description:     "",
-		Notes:           "",
-		enterprise:      1,
+		WarehouseId:       "W1",
+		CustomerId:        1,
+		PaymentMethodId:   3,
+		BillingSeriesId:   "EXP",
+		CurrencyId:        1,
+		BillingAddressId:  1,
+		ShippingAddressId: 1,
+		Description:       "",
+		Notes:             "",
+		EnterpriseId:      1,
 	}
 	_, orderId := o.insertSalesOrder(1)
 	d := SalesOrderDetail{
-		Order:      orderId,
-		Product:    1,
-		Price:      9.99,
-		Quantity:   4,
-		VatPercent: 21,
-		enterprise: 1,
+		OrderId:      orderId,
+		ProductId:    1,
+		Price:        9.99,
+		Quantity:     4,
+		VatPercent:   21,
+		EnterpriseId: 1,
 	}
 	d.insertSalesOrderDetail(1)
 	details := getSalesOrderDetail(orderId, 1)
 
 	// create a package
 	p := Packaging{
-		Package:    1,
-		SalesOrder: orderId,
-		enterprise: 1,
+		PackageId:    1,
+		SalesOrderId: orderId,
+		EnterpriseId: 1,
 	}
 	ok := p.insertPackaging()
 	if !ok {
@@ -628,7 +628,7 @@ func TestPackWithjEAN13(t *testing.T) {
 
 	// unpack de detail
 	detailsPackaged := getSalesOrderDetailPackaged(orderPackaging[0].Id, 1)
-	if len(detailsPackaged) == 0 || detailsPackaged[0].OrderDetail <= 0 {
+	if len(detailsPackaged) == 0 || detailsPackaged[0].OrderDetailId <= 0 {
 		t.Error("Can't scan packed details")
 		return
 	}
@@ -650,7 +650,7 @@ func TestPackWithjEAN13(t *testing.T) {
 	// delete the details
 	details = getSalesOrderDetail(orderId, 1)
 	for i := 0; i < len(details); i++ {
-		details[i].enterprise = 1
+		details[i].EnterpriseId = 1
 		ok = details[i].deleteSalesOrderDetail(0, nil).Ok
 		if !ok {
 			t.Error("Can't delete sale order detail")
@@ -659,7 +659,7 @@ func TestPackWithjEAN13(t *testing.T) {
 	}
 	// delete the sale order
 	o.Id = orderId
-	o.enterprise = 1
+	o.EnterpriseId = 1
 	ok = o.deleteSalesOrder(1).Ok
 	if !ok {
 		t.Error("Can't delete sale order")

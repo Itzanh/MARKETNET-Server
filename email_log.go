@@ -1,20 +1,27 @@
 package main
 
 import (
-	"strconv"
+	"database/sql"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type EmailLog struct {
 	Id               int64     `json:"id"`
-	EmailFrom        string    `json:"emailFrom"`
-	NameFrom         string    `json:"nameFrom"`
-	DestinationEmail string    `json:"destinationEmail"`
-	DestinationName  string    `json:"destinationName"`
-	Subject          string    `json:"subject"`
-	Content          string    `json:"content"`
-	DateSent         time.Time `json:"dateSent"`
-	enterprise       int32
+	EmailFrom        string    `json:"emailFrom" gorm:"type:character varying(100);not null:true;index:email_log_trn,type:gin"`
+	NameFrom         string    `json:"nameFrom" gorm:"type:character varying(100);not null:true;index:email_log_trn,type:gin"`
+	DestinationEmail string    `json:"destinationEmail" gorm:"type:character varying(100);not null:true;index:email_log_trn,type:gin"`
+	DestinationName  string    `json:"destinationName" gorm:"type:character varying(100);not null:true;index:email_log_trn,type:gin"`
+	Subject          string    `json:"subject" gorm:"type:character varying(100);not null:true;index:email_log_trn,type:gin"`
+	Content          string    `json:"content" gorm:"type:text;not null:true"`
+	DateSent         time.Time `json:"dateSent" gorm:"type:timestamp(3) with time zone;not null:true;index:email_log_date_sent,sort:desc"`
+	EnterpriseId     int32     `json:"-" gorm:"column:enterprise;not null:true"`
+	Enterprise       Settings  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (e *EmailLog) TableName() string {
+	return "email_log"
 }
 
 type EmailLogSearch struct {
@@ -25,45 +32,44 @@ type EmailLogSearch struct {
 
 func (search *EmailLogSearch) getEmailLogs(enterpriseId int32) []EmailLog {
 	var emailLogs []EmailLog = make([]EmailLog, 0)
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, enterpriseId)
 
-	sqlStatement := `SELECT * FROM public.email_log WHERE enterprise=$1`
+	// create a database cursor to query the email logs table using dbOrm
+	cursor := dbOrm.Model(&EmailLog{}).Where("enterprise = ?", enterpriseId)
 
 	if search.SearchText != "" {
-		sqlStatement += ` AND (email_from ILIKE $2 OR name_from ILIKE $2 OR destination_email ILIKE $2 OR destination_name ILIKE $2 OR subject ILIKE $2)`
-		interfaces = append(interfaces, "%"+search.SearchText+"%")
+		// search for the search text in the email logs table using named parameters
+		cursor.Where("email_from LIKE @search OR destination_email LIKE @search OR subject LIKE @search", sql.Named("search", "%"+search.SearchText+"%"))
 	}
 
 	if search.DateSentStart != nil {
-		sqlStatement += ` AND date_sent >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, search.DateSentStart)
+		cursor.Where("date_sent >= ?", search.DateSentStart)
 	}
 
 	if search.DateSentEnd != nil {
-		sqlStatement += ` AND date_sent <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, search.DateSentEnd)
+		cursor.Where("date_sent <= ?", search.DateSentEnd)
 	}
 
-	sqlStatement += ` ORDER BY id DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
+	result := cursor.Order("date_sent DESC").Find(&emailLogs)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return emailLogs
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		p := EmailLog{}
-		rows.Scan(&p.Id, &p.EmailFrom, &p.NameFrom, &p.DestinationEmail, &p.DestinationName, &p.Subject, &p.Content, &p.DateSent, &p.enterprise)
-		emailLogs = append(emailLogs, p)
-	}
-
 	return emailLogs
 }
 
+func (el *EmailLog) BeforeCreate(tx *gorm.DB) (err error) {
+	var emailLog EmailLog
+	tx.Model(&EmailLog{}).Last(&emailLog)
+	el.Id = emailLog.Id + 1
+	return nil
+}
+
 func (el *EmailLog) insertEmailLog() bool {
-	sqlStatement := `INSERT INTO public.email_log(email_from, name_from, destination_email, destination_name, subject, content, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := db.Exec(sqlStatement, el.EmailFrom, el.NameFrom, el.DestinationEmail, el.DestinationName, el.Subject, el.Content, el.enterprise)
-	return err == nil
+	el.DateSent = time.Now()
+	result := dbOrm.Create(&el)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
 }

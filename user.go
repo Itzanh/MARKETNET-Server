@@ -11,74 +11,52 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type User struct {
-	Id                        int32     `json:"id"`
-	Username                  string    `json:"username"`
-	FullName                  string    `json:"fullName"`
-	Email                     string    `json:"email"`
-	DateCreated               time.Time `json:"dateCreated"`
-	DateLastPwd               time.Time `json:"dateLastPwd"`
-	PwdNextLogin              bool      `json:"pwdNextLogin"`
-	Off                       bool      `json:"off"`
-	Pwd                       []byte
-	Salt                      string
-	Iterations                int32     `json:"iterations"`
-	Description               string    `json:"description"`
-	DateLastLogin             time.Time `json:"dateLastLogin"`
-	FailedLoginAttemps        int16
-	Language                  string `json:"language"`
-	enterprise                int32
-	UsesGoogleAuthenticator   bool `json:"usesGoogleAuthenticator"`
-	googleAuthenticatorSecret string
+	Id                        int32     `json:"id" gorm:"index:user_id_enterprise,unique:true,priority:1"`
+	Username                  string    `json:"username" gorm:"column:username;type:character varying(40);not null:true;index:user_username,unique:true,priority:2"`
+	FullName                  string    `json:"fullName" gorm:"column:full_name;type:character varying(150);not null:true"`
+	Email                     string    `json:"email" gorm:"column:email;type:character varying(100);not null:true"`
+	DateCreated               time.Time `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
+	DateLastPwd               time.Time `json:"dateLastPwd" gorm:"type:timestamp(3) with time zone;not null:true"`
+	PwdNextLogin              bool      `json:"pwdNextLogin" gorm:"column:pwd_next_login;not null:true"`
+	Off                       bool      `json:"off" gorm:"column:off;not null:true"`
+	Pwd                       []byte    `json:"-" gorm:"column:pwd;type:bytea;not null:true"`
+	Salt                      string    `json:"-" gorm:"column:salt;type:character(30);not null:true"`
+	Iterations                int32     `json:"iterations" gorm:"column:iterations;not null:true"`
+	Description               string    `json:"description" gorm:"column:dsc;not null:true"`
+	DateLastLogin             time.Time `json:"dateLastLogin" gorm:"type:timestamp(3) with time zone;not null:true"`
+	FailedLoginAttemps        int16     `json:"-" gorm:"not null:true"`
+	Language                  string    `json:"language" gorm:"column:lang;type:character(2);not null:true"`
+	EnterpriseId              int32     `json:"-" gorm:"column:config;not null:true;index:user_id_enterprise,unique:true,priority:2;index:user_username,unique:true,priority:1"`
+	Enterprise                Settings  `json:"-" gorm:"foreignKey:config;references:Id"`
+	UsesGoogleAuthenticator   bool      `json:"usesGoogleAuthenticator" gorm:"not null:true"`
+	GoogleAuthenticatorSecret *string   `json:"-" gorm:"type:character(8)"`
+}
+
+func (u *User) TableName() string {
+	return "user"
 }
 
 func getUser(enterpriseId int32) []User {
 	var users []User = make([]User, 0)
-	sqlStatement := `SELECT * FROM "user" WHERE config=$1 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return users
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		u := User{}
-		rows.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)
-		users = append(users, u)
-	}
-
+	dbOrm.Model(&User{}).Where("config = ?", enterpriseId).Order("id ASC").Find(&users)
 	return users
 }
 
 func getUserByUsername(enterpriseId int32, username string) User {
-	sqlStatement := `SELECT * FROM "user" WHERE config=$1 AND username=$2`
-	row := db.QueryRow(sqlStatement, enterpriseId, username)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return User{}
-	}
-
-	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)
-
-	return u
+	var user User
+	dbOrm.Model(&User{}).Where("config = ? AND username = ?", enterpriseId, username).First(&user)
+	return user
 }
 
 func getUserRow(userId int32) User {
-	sqlStatement := `SELECT * FROM "user" WHERE id=$1`
-	row := db.QueryRow(sqlStatement, userId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return User{}
-	}
-
-	u := User{}
-	row.Scan(&u.Id, &u.Username, &u.FullName, &u.Email, &u.DateCreated, &u.DateLastPwd, &u.PwdNextLogin, &u.Off, &u.Pwd, &u.Salt, &u.Iterations, &u.Description, &u.DateLastLogin, &u.FailedLoginAttemps, &u.Language, &u.enterprise, &u.UsesGoogleAuthenticator, &u.googleAuthenticatorSecret)
-
-	return u
+	var user User
+	dbOrm.Model(&User{}).Where("id = ?", userId).First(&user)
+	return user
 }
 
 type UserInsert struct {
@@ -118,6 +96,13 @@ func hashPassword(password []byte, iterations int32) []byte {
 	return pwd
 }
 
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	var user User
+	tx.Model(&User{}).Last(&user)
+	u.Id = user.Id + 1
+	return nil
+}
+
 func (u *UserInsert) insertUser(enterpriseId int32) bool {
 	if !u.isValid() {
 		return false
@@ -126,15 +111,26 @@ func (u *UserInsert) insertUser(enterpriseId int32) bool {
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
-	sqlStatement := `INSERT INTO public."user"(username, full_name, pwd, salt, iterations, lang, config) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	res, err := db.Exec(sqlStatement, u.Username, u.FullName, passwd, salt, settings.Server.HashIterations, u.Language, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	var user User = User{}
+	user.Username = u.Username
+	user.FullName = u.FullName
+	user.Email = ""
+	user.DateCreated = time.Now()
+	user.DateLastPwd = time.Now()
+	user.Pwd = passwd
+	user.Salt = salt
+	user.Iterations = settings.Server.HashIterations
+	user.DateLastLogin = time.Now()
+	user.Language = u.Language
+	user.EnterpriseId = enterpriseId
+
+	result := dbOrm.Create(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func (u *User) isValid() bool {
@@ -146,15 +142,26 @@ func (u *User) updateUser() bool {
 		return false
 	}
 
-	sqlStatement := `UPDATE public."user" SET username=$2, full_name=$3, email=$4, dsc=$5, lang=$6 WHERE id=$1 AND config=$7`
-	res, err := db.Exec(sqlStatement, u.Id, u.Username, u.FullName, u.Email, u.Description, u.Language, u.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	var user User
+	result := dbOrm.Model(&User{}).Where("id = ? AND config = ?", u.Id, u.EnterpriseId).First(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	user.Username = u.Username
+	user.FullName = u.FullName
+	user.Email = u.Email
+	user.Description = u.Description
+	user.Language = u.Language
+
+	result = dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 func (u *User) deleteUser() bool {
@@ -162,15 +169,36 @@ func (u *User) deleteUser() bool {
 		return false
 	}
 
-	sqlStatement := `DELETE FROM public."user" WHERE id=$1 AND config=$2`
-	res, err := db.Exec(sqlStatement, u.Id, u.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	user := getUserRow(u.Id)
+	if user.Id <= 0 || user.EnterpriseId != u.EnterpriseId {
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	///
+	trans := dbOrm.Begin()
+	if trans.Error != nil {
+		return false
+	}
+	///
+
+	result := trans.Where(`"user" = ?`, u.Id).Delete(&UserGroup{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	result = trans.Where("id = ? AND config = ?", u.Id, u.EnterpriseId).Delete(&User{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	///
+	trans.Commit()
+	///
+	return true
 }
 
 type UserPassword struct {
@@ -187,15 +215,27 @@ func (u *UserPassword) userPassword(enterpriseId int32) bool {
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.Password), settings.Server.HashIterations)
 
-	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5, failed_login_attemps=0 WHERE id=$1 AND config=$6`
-	res, err := db.Exec(sqlStatement, u.Id, passwd, salt, settings.Server.HashIterations, u.PwdNextLogin, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	var user User
+	result := dbOrm.Model(&User{}).Where("id = ? AND config = ?", u.Id, enterpriseId).First(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	user.DateLastPwd = time.Now()
+	user.Pwd = passwd
+	user.Salt = salt
+	user.Iterations = settings.Server.HashIterations
+	user.PwdNextLogin = u.PwdNextLogin
+	user.FailedLoginAttemps = 0
+
+	result = dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 type UserAutoPassword struct {
@@ -215,7 +255,7 @@ func (u *UserAutoPassword) userAutoPassword(enterpriseId int32, userId int32) bo
 	}
 
 	user := getUserRow(userId)
-	if user.Id <= 0 {
+	if user.Id <= 0 || user.EnterpriseId != enterpriseId {
 		return false
 	}
 	oldPasswd := hashPassword([]byte(user.Salt+u.CurrentPassword), user.Iterations)
@@ -227,15 +267,20 @@ func (u *UserAutoPassword) userAutoPassword(enterpriseId int32, userId int32) bo
 	salt := generateSalt()
 	passwd := hashPassword([]byte(salt+u.NewPassword), settings.Server.HashIterations)
 
-	sqlStatement := `UPDATE public."user" SET date_last_pwd=CURRENT_TIMESTAMP(3), pwd=$2, salt=$3, iterations=$4, pwd_next_login=$5, failed_login_attemps=0 WHERE id=$1 AND config=$6`
-	res, err := db.Exec(sqlStatement, userId, passwd, salt, settings.Server.HashIterations, false, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	user.DateLastPwd = time.Now()
+	user.Pwd = passwd
+	user.Salt = salt
+	user.Iterations = settings.Server.HashIterations
+	user.PwdNextLogin = false
+	user.FailedLoginAttemps = 0
+
+	result := dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func checkForPasswordComplexity(enterpriseId int32, password string) bool {
@@ -301,15 +346,23 @@ func (u *User) offUser() bool {
 	if u.Id <= 0 {
 		return false
 	}
-	sqlStatement := `UPDATE public."user" SET off = NOT off WHERE id=$1 AND config=$2`
-	res, err := db.Exec(sqlStatement, u.Id, u.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+
+	var user User
+	result := dbOrm.Model(&User{}).Where("id = ? AND config = ?", u.Id, u.EnterpriseId).First(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	user.Off = !user.Off
+
+	result = dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
 }
 
 type UserLogin struct {
@@ -349,7 +402,7 @@ func (u *UserLogin) login(ipAddress string) (UserLoginResult, int32, int32) {
 
 	if comparePasswords(passwd, user.Pwd) {
 		user.setUserFailedLoginAttemps(false)
-		t := LoginToken{User: user.Id, IpAddress: ipAddress}
+		t := LoginToken{UserId: user.Id, IpAddress: ipAddress}
 		t.insertLoginToken()
 		perm := getUserPermissions(user.Id, enterprise.Id)
 		return UserLoginResult{Ok: true, Token: t.Name, Permissions: &perm, Language: user.Language}, user.Id, enterprise.Id
@@ -403,28 +456,32 @@ func comparePasswords(passwordInput []byte, passwordOutput []byte) bool {
 // addOrReset = true: Add one failed attemps
 // addOrReset = false: Resets the failed attemps
 func (u *User) setUserFailedLoginAttemps(addOrReset bool) bool {
-	sqlStatement := ""
+	user := getUserRow(u.Id)
+
 	if addOrReset {
-		sqlStatement = `UPDATE "user" SET failed_login_attemps=failed_login_attemps+1 WHERE id=$1`
+		user.FailedLoginAttemps = user.FailedLoginAttemps + 1
 	} else {
-		sqlStatement = `UPDATE "user" SET failed_login_attemps=0 WHERE id=$1`
+		user.FailedLoginAttemps = 0
 	}
 
-	res, err := db.Exec(sqlStatement, u.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
 
-	rows, _ := res.RowsAffected()
-	return rows > 0
+	return true
 }
 
 func setUserDateLastLogin(userId int32) {
-	sqlStatement := `UPDATE public."user" SET date_last_login=CURRENT_TIMESTAMP(3) WHERE id=$1`
-	_, err := db.Exec(sqlStatement, userId)
-	if err != nil {
-		log("DB", err.Error())
+	user := getUserRow(userId)
+
+	user.DateLastLogin = time.Now()
+
+	result := dbOrm.Save(&user)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return
 	}
 }
 
@@ -443,15 +500,12 @@ func evaluatePasswordSecureCloud(enterpriseId int32, password string) SecureClou
 }
 
 func searchPasswordInBlackList(password string) bool {
-	sqlStatement := `SELECT COUNT(pwd) FROM public.pwd_blacklist WHERE pwd=$1`
-	row := db.QueryRow(sqlStatement, password)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var rowsFound int64
+	result := dbOrm.Model(&PwdBlacklist{}).Where("pwd = ?", password).Count(&rowsFound)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
-
-	var rowsFound int32
-	row.Scan(&rowsFound)
 	return rowsFound > 0
 }
 
@@ -462,15 +516,12 @@ func searchPasswordHashInBlackList(password string) bool {
 	hasher.Write(pwd)
 	pwd = hasher.Sum(nil)
 
-	sqlStatement := `SELECT COUNT(hash) FROM public.pwd_sha1_blacklist WHERE hash=$1`
-	row := db.QueryRow(sqlStatement, pwd)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	var rowsFound int64
+	result := dbOrm.Model(&PwdSHA1Blacklist{}).Where("hash = ?", pwd).Count(&rowsFound)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return false
 	}
-
-	var rowsFound int32
-	row.Scan(&rowsFound)
 	return rowsFound > 0
 }
 
@@ -511,6 +562,14 @@ func addPasswordsToBlacklist() {
 	fmt.Println("Option not recognised")
 }
 
+type PwdBlacklist struct {
+	Pwd string `json:"pwd" gorm:"primaryKey;column:pwd;type:character varying(255)"`
+}
+
+func (p *PwdBlacklist) TableName() string {
+	return "pwd_blacklist"
+}
+
 // inserts an entire password dictionary in txt format in the blacklist
 // format is a list of passwords separated by a new line
 // example: "C:\\Users\\Itzan\\Desktop\\rockyou.txt"
@@ -524,13 +583,25 @@ func insertPwdBlacklist(path string) {
 
 	scanner := bufio.NewScanner(file)
 
-	sqlStatement := `INSERT INTO public.pwd_blacklist(pwd) VALUES ($1)`
 	var password string
+	var result *gorm.DB
 	for scanner.Scan() {
 		password = scanner.Text()
 
-		db.Exec(sqlStatement, password)
+		result = dbOrm.Create(&PwdBlacklist{Pwd: password})
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			return
+		}
 	}
+}
+
+type PwdSHA1Blacklist struct {
+	Hash []byte `json:"hash" gorm:"primaryKey;column:hash;type:bytea"`
+}
+
+func (p *PwdSHA1Blacklist) TableName() string {
+	return "pwd_sha1_blacklist"
 }
 
 // inserts a list of SHA-1 hashes in the hashed passwords blacklist
@@ -546,16 +617,15 @@ func insertPwdBlacklistHash(path string) {
 
 	scanner := bufio.NewScanner(file)
 
-	sqlStatement := `INSERT INTO public.pwd_sha1_blacklist(hash) VALUES ($1)`
 	var password string
 	var hash []byte
-	var inserted int32 = 0
+	var result *gorm.DB
 	for scanner.Scan() {
 		password = scanner.Text()[:40]
 		hash, _ = hex.DecodeString(password)
-		db.Exec(sqlStatement, hash)
-		inserted = inserted + 1
-		if inserted >= 100000 {
+		result = dbOrm.Create(&PwdSHA1Blacklist{Hash: hash})
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			return
 		}
 	}
@@ -567,6 +637,9 @@ func insertSinglePwdBlacklistHash(pass string) {
 	hasher.Write([]byte(pass))
 	hash := hasher.Sum(nil)
 
-	sqlStatement := `INSERT INTO public.pwd_sha1_blacklist(hash) VALUES ($1)`
-	db.Exec(sqlStatement, hash)
+	result := dbOrm.Create(&PwdSHA1Blacklist{Hash: hash})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return
+	}
 }

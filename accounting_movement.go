@@ -2,129 +2,107 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"sort"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AccountingMovement struct {
-	Id               int64     `json:"id"`
-	DateCreated      time.Time `json:"dateCreated"`
-	AmountDebit      float64   `json:"amountDebit"`
-	AmountCredit     float64   `json:"amountCredit"`
-	FiscalYear       int16     `json:"fiscalYear"`
-	Type             string    `json:"type"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
-	BillingSerie     string    `json:"billingSerie"`
-	BillingSerieName string    `json:"billingSerieName"`
-	enterprise       int32
+	Id              int64            `json:"id" gorm:"index:accounting_movement_id_enterprise,unique:true,priority:1"`
+	DateCreated     time.Time        `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true;index:accounting_movement_date_created,priority:1,sort:desc"`
+	AmountDebit     float64          `json:"amountDebit" gorm:"type:numeric(14,6);not null:true"`
+	AmountCredit    float64          `json:"amountCredit" gorm:"type:numeric(14,6);not null:true"`
+	FiscalYear      int16            `json:"fiscalYear" gorm:"not null:true"`
+	Type            string           `json:"type" gorm:"type:character(1);not null:true"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
+	BillingSerieId  string           `json:"billingSerieId" gorm:"column:billing_serie;type:character(3);not null:true"`
+	BillingSerie    BillingSerie     `json:"billingSerie" gorm:"foreignkey:BillingSerieId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId    int32            `json:"-" gorm:"column:enterprise;not null:true;index:accounting_movement_id_enterprise,unique:true,priority:2"`
+	Enterprise      Settings         `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	SalesInvoice    *SalesInvoice    `json:"saleInvoice" gorm:"foreignKey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+	PurchaseInvoice *PurchaseInvoice `json:"purchaseInvoice" gorm:"foreignKey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+}
+
+func (am *AccountingMovement) TableName() string {
+	return "accounting_movement"
 }
 
 func getAccountingMovement(enterpriseId int32) []AccountingMovement {
 	accountingMovements := make([]AccountingMovement, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM billing_series WHERE billing_series.id=accounting_movement.billing_serie AND billing_series.enterprise=accounting_movement.enterprise) FROM public.accounting_movement WHERE enterprise=$1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		fmt.Println(err)
-		log("DB", err.Error())
-		return accountingMovements
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := AccountingMovement{}
-		rows.Scan(&a.Id, &a.DateCreated, &a.AmountDebit, &a.AmountCredit, &a.FiscalYear, &a.Type, &a.BillingSerie, &a.enterprise, &a.BillingSerieName)
-		accountingMovements = append(accountingMovements, a)
-	}
-
+	// get all accounting movements from the database for the current enterprise sort by date created descending (newest first) using dbOrm
+	dbOrm.Where("accounting_movement.enterprise = ?", enterpriseId).Order("accounting_movement.date_created DESC").Preload(clause.Associations).Find(&accountingMovements)
 	return accountingMovements
 }
 
 func searchAccountingMovements(search string, enterpriseId int32) []AccountingMovement {
 	accountingMovements := make([]AccountingMovement, 0)
-	sqlStatement := `SELECT DISTINCT accounting_movement.*,(SELECT name FROM billing_series WHERE billing_series.id=accounting_movement.billing_serie AND billing_series.enterprise=accounting_movement.enterprise) FROM accounting_movement INNER JOIN accounting_movement_detail ON accounting_movement_detail.movement=accounting_movement.id LEFT JOIN sales_invoice ON sales_invoice.accounting_movement=accounting_movement.id LEFT JOIN customer ON customer.id=sales_invoice.customer LEFT JOIN purchase_invoice ON purchase_invoice.accounting_movement=accounting_movement.id LEFT JOIN suppliers ON suppliers.id=purchase_invoice.supplier WHERE ((accounting_movement_detail.document_name ILIKE $1) OR (customer.name ILIKE $1) OR (suppliers.name ILIKE $1)) AND (accounting_movement.enterprise=$2) ORDER BY accounting_movement.date_created DESC`
-	rows, err := db.Query(sqlStatement, "%"+search+"%", enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
+	// get all accounting movements from the database for the current enterprise sort by date created descending (newest first) using dbOrm
+	result := dbOrm.Model(&AccountingMovement{}).Where(`(accounting_movement_detail.document_name ILIKE @search) AND (accounting_movement.enterprise = @enterpriseId)`, sql.Named("enterpriseId", enterpriseId), sql.Named("search", "%"+search+"%")).Joins("INNER JOIN accounting_movement_detail ON accounting_movement_detail.movement=accounting_movement.id").Order("accounting_movement.date_created DESC").Preload(clause.Associations).Find(&accountingMovements)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return accountingMovements
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		a := AccountingMovement{}
-		rows.Scan(&a.Id, &a.DateCreated, &a.AmountDebit, &a.AmountCredit, &a.FiscalYear, &a.Type, &a.BillingSerie, &a.enterprise, &a.BillingSerieName)
-		accountingMovements = append(accountingMovements, a)
-	}
-
 	return accountingMovements
 }
 
 func getAccountingMovementRow(accountingMovementId int64) AccountingMovement {
-	sqlStatement := `SELECT * FROM public.accounting_movement WHERE id=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, accountingMovementId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return AccountingMovement{}
-	}
-
+	// get a single accounting movement row by id using dbOrm
 	a := AccountingMovement{}
-	row.Scan(&a.Id, &a.DateCreated, &a.AmountDebit, &a.AmountCredit, &a.FiscalYear, &a.Type, &a.BillingSerie, &a.enterprise)
-
+	dbOrm.Where("id = ?", accountingMovementId).Preload("BillingSerie").First(&a)
 	return a
 }
 
 func (a *AccountingMovement) isValid() bool {
-	return !((a.Type != "O" && a.Type != "N" && a.Type != "V" && a.Type != "R" && a.Type != "C") || len(a.BillingSerie) != 3)
+	return !((a.Type != "O" && a.Type != "N" && a.Type != "V" && a.Type != "R" && a.Type != "C") || len(a.BillingSerieId) != 3)
 }
 
-func (a *AccountingMovement) insertAccountingMovement(userId int32, trans *sql.Tx) bool {
-	if !a.isValid() {
-		return false
-	}
-
-	a.FiscalYear = int16(time.Now().Year())
-
-	sqlStatement := `INSERT INTO public.accounting_movement(fiscal_year, type, billing_serie, enterprise) VALUES ($1, $2, $3, $4) RETURNING id`
-	row := db.QueryRow(sqlStatement, a.FiscalYear, a.Type, a.BillingSerie, a.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return false
-	}
-
-	var movementId int64
-	row.Scan(&movementId)
-	a.Id = movementId
-
-	if movementId > 0 {
-		insertTransactionalLog(a.enterprise, "accounting_movement", int(a.Id), userId, "I")
-	}
-
-	return movementId > 0
+func (a *AccountingMovement) BeforeCreate(tx *gorm.DB) (err error) {
+	var accountingMovement AccountingMovement
+	tx.Model(&AccountingMovement{}).Last(&accountingMovement)
+	a.Id = accountingMovement.Id + 1
+	return nil
 }
 
-func (a *AccountingMovement) deleteAccountingMovement(userId int32, trans *sql.Tx) bool {
-	if a.Id <= 0 {
+func (am *AccountingMovement) insertAccountingMovement(userId int32, trans *gorm.DB) bool {
+	if !am.isValid() {
 		return false
 	}
 
-	accountingMovementInMemory := getAccountingMovementRow(a.Id)
-	settings := getSettingsRecordById(accountingMovementInMemory.enterprise)
-	if accountingMovementInMemory.Id <= 0 || accountingMovementInMemory.enterprise != a.enterprise || (settings.LimitAccountingDate != nil && accountingMovementInMemory.DateCreated.Before(*settings.LimitAccountingDate)) {
+	am.DateCreated = time.Now()
+	am.FiscalYear = int16(time.Now().Year())
+
+	result := dbOrm.Create(&am)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	insertTransactionalLog(am.EnterpriseId, "accounting_movement", int(am.Id), userId, "I")
+
+	return true
+}
+
+func (am *AccountingMovement) deleteAccountingMovement(userId int32, trans *gorm.DB) bool {
+	if am.Id <= 0 {
+		return false
+	}
+
+	accountingMovementInMemory := getAccountingMovementRow(am.Id)
+	settings := getSettingsRecordById(accountingMovementInMemory.EnterpriseId)
+	if accountingMovementInMemory.Id <= 0 || accountingMovementInMemory.EnterpriseId != am.EnterpriseId || (settings.LimitAccountingDate != nil && accountingMovementInMemory.DateCreated.Before(*settings.LimitAccountingDate)) {
 		return false
 	}
 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
-			return false
-		}
+		trans = dbOrm.Begin()
 		///
 	}
 
 	// cascade delete the collection operations
-	c := getColletionOperations(a.Id, a.enterprise)
+	c := getColletionOperations(am.Id, am.EnterpriseId)
 	for i := 0; i < len(c); i++ {
 		ok := c[i].deleteCollectionOperation(userId, trans)
 		if !ok {
@@ -133,7 +111,7 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32, trans *sql.T
 		}
 	}
 	// cascade delete the payment transactions
-	p := getPaymentTransactions(a.Id, a.enterprise)
+	p := getPaymentTransactions(am.Id, am.EnterpriseId)
 	for i := 0; i < len(p); i++ {
 		ok := p[i].deletePaymentTransaction(userId, trans)
 		if !ok {
@@ -142,7 +120,7 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32, trans *sql.T
 		}
 	}
 	// cascade delete the details
-	d := getAccountingMovementDetail(a.Id, a.enterprise)
+	d := getAccountingMovementDetail(am.Id, am.EnterpriseId)
 	for i := 0; i < len(d); i++ {
 		ok := d[i].deleteAccountingMovementDetail(userId, trans)
 		if !ok {
@@ -152,79 +130,60 @@ func (a *AccountingMovement) deleteAccountingMovement(userId int32, trans *sql.T
 	}
 
 	// set the relation null on the sale invoices
-	sqlStatement := `SELECT id FROM sales_invoice WHERE accounting_movement=$1`
-	row := db.QueryRow(sqlStatement, a.Id)
-
 	var salesInvoiceId int32
-	row.Scan(&salesInvoiceId)
-
-	sqlStatement = `UPDATE sales_invoice SET accounting_movement=NULL WHERE accounting_movement=$1`
-	_, err := trans.Exec(sqlStatement, a.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&SalesInvoice{}).Where("accounting_movement = ?", am.Id).Select("id").Pluck("id", &salesInvoiceId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	insertTransactionalLog(a.enterprise, "sales_invoice", int(salesInvoiceId), userId, "U")
+	result = trans.Model(&SalesInvoice{}).Where("accounting_movement = ?", am.Id).Update("accounting_movement", nil)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	insertTransactionalLog(am.EnterpriseId, "sales_invoice", int(salesInvoiceId), userId, "U")
 
 	// set the relation null on the purchase invoices
-	sqlStatement = `SELECT id FROM purchase_invoice WHERE accounting_movement=$1`
-	row = db.QueryRow(sqlStatement, a.Id)
-
 	var purchaseInvoiceId int32
-	row.Scan(&purchaseInvoiceId)
-
-	sqlStatement = `UPDATE purchase_invoice SET accounting_movement=NULL WHERE accounting_movement=$1`
-	_, err = trans.Exec(sqlStatement, a.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result = dbOrm.Model(&PurchaseInvoice{}).Where("accounting_movement = ?", am.Id).Select("id").Pluck("id", &purchaseInvoiceId)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	insertTransactionalLog(a.enterprise, "purchase_invoice", int(purchaseInvoiceId), userId, "U")
+	result = trans.Model(&PurchaseInvoice{}).Where("accounting_movement = ?", am.Id).Update("accounting_movement", nil)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
 
-	insertTransactionalLog(a.enterprise, "accounting_movement", int(a.Id), userId, "D")
+	insertTransactionalLog(am.EnterpriseId, "purchase_invoice", int(purchaseInvoiceId), userId, "U")
+
+	insertTransactionalLog(am.EnterpriseId, "accounting_movement", int(am.Id), userId, "D")
 
 	// delete the movement
-	sqlStatement = `DELETE FROM public.accounting_movement WHERE id=$1`
-	_, err = trans.Exec(sqlStatement, a.Id)
-	if err != nil {
-		log("DB", err.Error())
+	result = trans.Where("id = ? AND enterprise = ?", am.Id, am.EnterpriseId).Delete(&AccountingMovement{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return false
 		}
 		///
 	}
 	return true
-}
-
-// Will add or take out credit and debit (if given a negative amount)
-// THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (a *AccountingMovement) addCreditAndDebit(credit float64, debit float64, userId int32, trans sql.Tx) bool {
-	if a.Id <= 0 {
-		return false
-	}
-
-	sqlStatement := `UPDATE public.accounting_movement SET amount_debit=amount_debit+$2, amount_credit=amount_credit+$3 WHERE id=$1`
-	_, err := trans.Exec(sqlStatement, a.Id, debit, credit)
-	if err != nil {
-		log("DB", err.Error())
-		trans.Rollback()
-		return false
-	}
-
-	insertTransactionalLog(a.enterprise, "accounting_movement", int(a.Id), userId, "U")
-
-	return err == nil
 }
 
 type PostInvoiceResult struct {
@@ -249,36 +208,33 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		}
 	}
 	settings := getSettingsRecordById(enterpriseId)
-	if settings.SalesJournal == nil {
+	if settings.SalesJournalId == nil {
 		return result
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
-		return result
-	}
+	trans := dbOrm.Begin()
 	///
 
 	for i := 0; i < len(invoiceIds); i++ {
 		// get the selected invoice
 		inv := getSalesInvoiceRow(invoiceIds[i])
-		if inv.Id <= 0 || inv.enterprise != enterpriseId {
+		if inv.Id <= 0 || inv.EnterpriseId != enterpriseId {
 			trans.Rollback()
 			return result
 		}
 		// get the invoice customer
-		c := getCustomerRow(inv.Customer)
+		c := getCustomerRow(inv.CustomerId)
 		if c.Id <= 0 {
 			trans.Rollback()
 			return result
 		}
-		if c.Account == nil {
+		if c.AccountId == nil {
 			result[i].Result = 1
 			continue
 		}
 		// get the account row
-		a := getAccountRow(*c.Account)
+		a := getAccountRow(*c.AccountId)
 		if a.Id <= 0 {
 			trans.Rollback()
 			return result
@@ -287,8 +243,8 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		// create the accounting movement
 		m := AccountingMovement{}
 		m.Type = "N"
-		m.BillingSerie = inv.BillingSeries
-		m.enterprise = inv.enterprise
+		m.BillingSerieId = inv.BillingSeriesId
+		m.EnterpriseId = inv.EnterpriseId
 		ok := m.insertAccountingMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
@@ -298,14 +254,14 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		// create the details
 		// 1. detail for the customer
 		dCust := AccountingMovementDetail{}
-		dCust.Movement = m.Id
-		dCust.Journal = a.Journal
+		dCust.MovementId = m.Id
+		dCust.JournalId = a.JournalId
 		dCust.AccountNumber = a.AccountNumber
 		dCust.Debit = inv.TotalAmount
 		dCust.Type = "N"
 		dCust.DocumentName = inv.InvoiceName
-		dCust.PaymentMethod = inv.PaymentMethod
-		dCust.enterprise = enterpriseId
+		dCust.PaymentMethodId = inv.PaymentMethodId
+		dCust.EnterpriseId = enterpriseId
 		ok = dCust.insertAccountingMovementDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
@@ -314,17 +270,17 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 
 		// create the collection operation for this charge
 		if inv.TotalAmount > 0 {
-			p := getPaymentMethodRow(inv.PaymentMethod)
+			p := getPaymentMethodRow(inv.PaymentMethodId)
 
 			co := CollectionOperation{}
-			co.AccountingMovement = m.Id
-			co.AccountingMovementDetail = dCust.Id
-			co.Account = getAccountIdByAccountNumber(a.Journal, a.AccountNumber, a.enterprise)
+			co.AccountingMovementId = m.Id
+			co.AccountingMovementDetailId = dCust.Id
+			co.AccountId = getAccountIdByAccountNumber(a.JournalId, a.AccountNumber, a.EnterpriseId)
 			co.Total = inv.TotalAmount
 			co.DocumentName = inv.InvoiceName
-			co.PaymentMethod = inv.PaymentMethod
-			co.Bank = p.Bank
-			co.enterprise = enterpriseId
+			co.PaymentMethodId = inv.PaymentMethodId
+			co.BankId = p.Bank
+			co.EnterpriseId = enterpriseId
 			ok := co.insertCollectionOperation(userId, trans)
 			if !ok {
 				trans.Rollback()
@@ -334,9 +290,9 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 			// paid in advance
 			if p.PaidInAdvance {
 				ch := Charges{}
-				ch.CollectionOperation = co.Id
+				ch.CollectionOperationId = co.Id
 				ch.Amount = inv.TotalAmount
-				ch.enterprise = enterpriseId
+				ch.EnterpriseId = enterpriseId
 				ok = ch.insertCharges(userId)
 				if !ok {
 					trans.Rollback()
@@ -356,42 +312,68 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		// 700.000002 Wood sales 50€
 		// 700.000003 Shipping 25€
 		// 700.000004 Software sales 25€
-		det := getSalesInvoiceDetail(inv.Id, inv.enterprise)
+		det := getSalesInvoiceDetail(inv.Id, inv.EnterpriseId)
 		var detailIncomeCredit float64 = inv.TotalWithDiscount
 		for i := 0; i < len(det); i++ {
-			if det[i].Product == nil {
+			if det[i].ProductId == nil {
 				continue
 			}
-			customAccount := getProductAccount(*det[i].Product, "S") // Sales
+			customAccount := getProductAccount(*det[i].ProductId, "S") // Sales
 			if customAccount == nil {
 				continue
 			}
 			detailIncomeCredit -= det[i].Price * float64(det[i].Quantity)
-			dInc := AccountingMovementDetail{}
-			dInc.Movement = m.Id
-			dInc.Journal = customAccount.Journal
-			dInc.AccountNumber = customAccount.AccountNumber
-			dInc.Credit = det[i].Price * float64(det[i].Quantity)
-			dInc.Type = "N"
-			dInc.DocumentName = inv.InvoiceName
-			dInc.PaymentMethod = inv.PaymentMethod
-			dInc.enterprise = enterpriseId
-			ok = dInc.insertAccountingMovementDetail(userId, trans)
-			if !ok {
+			var accountingMovementDetailCount int64
+			res := trans.Model(&AccountingMovementDetail{}).Where("movement = ? AND journal = ? AND account = ?", m.Id, customAccount.JournalId, customAccount.Account.Id).Count(&accountingMovementDetailCount)
+			if res.Error != nil {
+				log("DB", res.Error.Error())
 				trans.Rollback()
 				return result
 			}
-		}
+			if accountingMovementDetailCount == 0 {
+				dInc := AccountingMovementDetail{}
+				dInc.MovementId = m.Id
+				dInc.JournalId = customAccount.JournalId
+				dInc.AccountNumber = customAccount.Account.AccountNumber
+				dInc.Credit = det[i].Price * float64(det[i].Quantity)
+				dInc.Type = "N"
+				dInc.DocumentName = inv.InvoiceName
+				dInc.PaymentMethodId = inv.PaymentMethodId
+				dInc.EnterpriseId = enterpriseId
+				ok = dInc.insertAccountingMovementDetail(userId, trans)
+				if !ok {
+					trans.Rollback()
+					return result
+				}
+			} else {
+				var accountingMovementDetailId int64
+				res = trans.Model(&AccountingMovementDetail{}).Where("movement = ? AND journal = ? AND account = ?", m.Id, customAccount.JournalId, customAccount.Account.Id).Select("id").Limit(1).Pluck("id", &accountingMovementDetailId)
+				if res.Error != nil {
+					log("DB", res.Error.Error())
+					trans.Rollback()
+					return result
+				}
+
+				accountingMovementDetail := getAccountingMovementDetailRow(accountingMovementDetailId)
+				accountingMovementDetail.Credit += det[i].Price * float64(det[i].Quantity)
+				res = trans.Model(&AccountingMovementDetail{}).Where("id = ?", accountingMovementDetailId).Update("credit", accountingMovementDetail.Credit)
+				if res.Error != nil {
+					log("DB", res.Error.Error())
+					trans.Rollback()
+					return result
+				}
+			}
+		} // for i := 0; i < len(det); i++ {
 		if detailIncomeCredit != 0 {
 			dInc := AccountingMovementDetail{}
-			dInc.Movement = m.Id
-			dInc.Journal = *settings.SalesJournal
+			dInc.MovementId = m.Id
+			dInc.JournalId = *settings.SalesJournalId
 			dInc.AccountNumber = 1
 			dInc.Credit = detailIncomeCredit
 			dInc.Type = "N"
 			dInc.DocumentName = inv.InvoiceName
-			dInc.PaymentMethod = inv.PaymentMethod
-			dInc.enterprise = enterpriseId
+			dInc.PaymentMethodId = inv.PaymentMethodId
+			dInc.EnterpriseId = enterpriseId
 			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
@@ -402,7 +384,7 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		// 3. details for the VAT
 
 		// get the details and sort
-		det = getSalesInvoiceDetail(inv.Id, inv.enterprise)
+		det = getSalesInvoiceDetail(inv.Id, inv.EnterpriseId)
 		d := make([]SalesInvoiceDetail, 0)
 		for i := 0; i < len(det); i++ {
 			if det[i].VatPercent > 0 {
@@ -435,14 +417,14 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 				}
 
 				dVat := AccountingMovementDetail{}
-				dVat.Movement = m.Id
-				dVat.Journal = journal
+				dVat.MovementId = m.Id
+				dVat.JournalId = journal
 				dVat.AccountNumber = accountNumber
 				dVat.Credit = credit
 				dVat.Type = "N"
 				dVat.DocumentName = inv.InvoiceName
-				dVat.PaymentMethod = inv.PaymentMethod
-				dVat.enterprise = enterpriseId
+				dVat.PaymentMethodId = inv.PaymentMethodId
+				dVat.EnterpriseId = enterpriseId
 				ok := dVat.insertAccountingMovementDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
@@ -455,26 +437,19 @@ func salesPostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) []P
 		}
 
 		// set the accounting movement on the invoice
-		sqlStatement := `UPDATE sales_invoice SET accounting_movement=$2 WHERE id=$1`
-		_, err := trans.Exec(sqlStatement, invoiceIds[i], m.Id)
-		if err != nil {
-			log("DB", err.Error())
+		res := trans.Model(&SalesInvoice{}).Where("id = ?", invoiceIds[i]).Update("accounting_movement", m.Id)
+		if res.Error != nil {
+			log("DB", res.Error.Error())
 			trans.Rollback()
 			return result
 		}
 
-		insertTransactionalLog(a.enterprise, "sales_invoice", int(invoiceIds[i]), userId, "U")
+		insertTransactionalLog(a.EnterpriseId, "sales_invoice", int(invoiceIds[i]), userId, "U")
 		result[i].Ok = true
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		for i := 0; i < len(result); i++ {
-			result[i].Ok = false
-			result[i].Result = 0
-		}
-	}
+	trans.Commit()
 	///
 	return result
 }
@@ -495,36 +470,33 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		}
 	}
 	settings := getSettingsRecordById(enterpriseId)
-	if settings.PurchaseJournal == nil {
+	if settings.PurchaseJournalId == nil {
 		return result
 	}
 
 	///
-	trans, err := db.Begin()
-	if err != nil {
-		return result
-	}
+	trans := dbOrm.Begin()
 	///
 
 	for i := 0; i < len(invoiceIds); i++ {
 		// get the selected invoice
 		inv := getPurchaseInvoiceRow(invoiceIds[i])
-		if inv.Id <= 0 || inv.enterprise != enterpriseId {
+		if inv.Id <= 0 || inv.EnterpriseId != enterpriseId {
 			trans.Rollback()
 			return result
 		}
 		// get the invoice customer
-		s := getSupplierRow(inv.Supplier)
+		s := getSupplierRow(inv.SupplierId)
 		if s.Id <= 0 {
 			trans.Rollback()
 			return result
 		}
-		if s.Account == nil {
+		if s.AccountId == nil {
 			result[i].Result = 1
 			continue
 		}
 		// get the account row
-		a := getAccountRow(*s.Account)
+		a := getAccountRow(*s.AccountId)
 		if a.Id <= 0 {
 			trans.Rollback()
 			return result
@@ -533,8 +505,8 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		// create the accounting movement
 		m := AccountingMovement{}
 		m.Type = "N"
-		m.BillingSerie = inv.BillingSeries
-		m.enterprise = inv.enterprise
+		m.BillingSerieId = inv.BillingSeriesId
+		m.EnterpriseId = inv.EnterpriseId
 		ok := m.insertAccountingMovement(userId, trans)
 		if !ok {
 			trans.Rollback()
@@ -544,14 +516,14 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		// create the details
 		// 1. detail for the supplier
 		dCust := AccountingMovementDetail{}
-		dCust.Movement = m.Id
-		dCust.Journal = a.Journal
+		dCust.MovementId = m.Id
+		dCust.JournalId = a.JournalId
 		dCust.AccountNumber = a.AccountNumber
 		dCust.Credit = inv.TotalAmount
 		dCust.Type = "N"
 		dCust.DocumentName = inv.InvoiceName
-		dCust.PaymentMethod = inv.PaymentMethod
-		dCust.enterprise = enterpriseId
+		dCust.PaymentMethodId = inv.PaymentMethodId
+		dCust.EnterpriseId = enterpriseId
 		ok = dCust.insertAccountingMovementDetail(userId, trans)
 		if !ok {
 			trans.Rollback()
@@ -560,17 +532,17 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 
 		// create the payment transaction for this payment
 		if inv.TotalAmount > 0 {
-			p := getPaymentMethodRow(inv.PaymentMethod)
+			p := getPaymentMethodRow(inv.PaymentMethodId)
 
 			pt := PaymentTransaction{}
-			pt.AccountingMovement = m.Id
-			pt.AccountingMovementDetail = dCust.Id
-			pt.Account = getAccountIdByAccountNumber(a.Journal, a.AccountNumber, a.enterprise)
+			pt.AccountingMovementId = m.Id
+			pt.AccountingMovementDetailId = dCust.Id
+			pt.AccountId = getAccountIdByAccountNumber(a.JournalId, a.AccountNumber, a.EnterpriseId)
 			pt.Total = inv.TotalAmount
 			pt.DocumentName = inv.InvoiceName
-			pt.PaymentMethod = *s.PaymentMethod
-			pt.Bank = p.Bank
-			pt.enterprise = enterpriseId
+			pt.PaymentMethodId = *s.PaymentMethodId
+			pt.BankId = p.Bank
+			pt.EnterpriseId = enterpriseId
 			ok := pt.insertPaymentTransaction(userId, trans)
 			if !ok {
 				trans.Rollback()
@@ -580,9 +552,9 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 			// paid in advance
 			if p.PaidInAdvance {
 				py := Payment{}
-				py.PaymentTransaction = pt.Id
+				py.PaymentTransactionId = pt.Id
 				py.Amount = inv.TotalAmount
-				py.enterprise = enterpriseId
+				py.EnterpriseId = enterpriseId
 				ok = py.insertPayment(userId)
 				if !ok {
 					trans.Rollback()
@@ -602,26 +574,26 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		// 700.000002 Wood purchase 50€
 		// 700.000003 Shipping 25€
 		// 700.000004 Software purchase 25€
-		det := getPurchaseInvoiceDetail(inv.Id, inv.enterprise)
+		det := getPurchaseInvoiceDetail(inv.Id, inv.EnterpriseId)
 		var detailIncomeCredit float64 = inv.TotalWithDiscount
 		for i := 0; i < len(det); i++ {
-			if det[i].Product == nil {
+			if det[i].ProductId == nil {
 				continue
 			}
-			customAccount := getProductAccount(*det[i].Product, "P") // Purchases
+			customAccount := getProductAccount(*det[i].ProductId, "P") // Purchases
 			if customAccount == nil {
 				continue
 			}
 			detailIncomeCredit -= det[i].Price * float64(det[i].Quantity)
 			dInc := AccountingMovementDetail{}
-			dInc.Movement = m.Id
-			dInc.Journal = customAccount.Journal
-			dInc.AccountNumber = customAccount.AccountNumber
+			dInc.MovementId = m.Id
+			dInc.JournalId = customAccount.JournalId
+			dInc.AccountNumber = customAccount.Account.AccountNumber
 			dInc.Credit = det[i].Price * float64(det[i].Quantity)
 			dInc.Type = "N"
 			dInc.DocumentName = inv.InvoiceName
-			dInc.PaymentMethod = inv.PaymentMethod
-			dInc.enterprise = enterpriseId
+			dInc.PaymentMethodId = inv.PaymentMethodId
+			dInc.EnterpriseId = enterpriseId
 			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
@@ -630,14 +602,14 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		}
 		if detailIncomeCredit != 0 {
 			dInc := AccountingMovementDetail{}
-			dInc.Movement = m.Id
-			dInc.Journal = *settings.PurchaseJournal
+			dInc.MovementId = m.Id
+			dInc.JournalId = *settings.PurchaseJournalId
 			dInc.AccountNumber = 1
 			dInc.Debit = detailIncomeCredit
 			dInc.Type = "N"
 			dInc.DocumentName = inv.InvoiceName
-			dInc.PaymentMethod = inv.PaymentMethod
-			dInc.enterprise = enterpriseId
+			dInc.PaymentMethodId = inv.PaymentMethodId
+			dInc.EnterpriseId = enterpriseId
 			ok = dInc.insertAccountingMovementDetail(userId, trans)
 			if !ok {
 				trans.Rollback()
@@ -648,7 +620,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		// 3. details for the VAT
 
 		// get the details and sort
-		det = getPurchaseInvoiceDetail(inv.Id, inv.enterprise)
+		det = getPurchaseInvoiceDetail(inv.Id, inv.EnterpriseId)
 		d := make([]PurchaseInvoiceDetail, 0)
 		for i := 0; i < len(det); i++ {
 			if det[i].VatPercent > 0 {
@@ -681,14 +653,14 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 				}
 
 				dVat := AccountingMovementDetail{}
-				dVat.Movement = m.Id
-				dVat.Journal = journal
+				dVat.MovementId = m.Id
+				dVat.JournalId = journal
 				dVat.AccountNumber = accountNumber
 				dVat.Debit = debit
 				dVat.Type = "N"
 				dVat.DocumentName = inv.InvoiceName
-				dVat.PaymentMethod = inv.PaymentMethod
-				dVat.enterprise = enterpriseId
+				dVat.PaymentMethodId = inv.PaymentMethodId
+				dVat.EnterpriseId = enterpriseId
 				ok := dVat.insertAccountingMovementDetail(userId, trans)
 				if !ok {
 					trans.Rollback()
@@ -701,70 +673,39 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 		}
 
 		// set the accounting movement on the invoice
-		sqlStatement := `UPDATE purchase_invoice SET accounting_movement=$2 WHERE id=$1`
-		_, err := trans.Exec(sqlStatement, invoiceIds[i], m.Id)
-		if err != nil {
-			log("DB", err.Error())
+		res := trans.Model(&PurchaseInvoice{}).Where("id = ?", invoiceIds[i]).Update("accounting_movement", m.Id)
+		if res.Error != nil {
+			log("DB", res.Error.Error())
 			trans.Rollback()
 			return result
 		}
-
-		insertTransactionalLog(a.enterprise, "purchase_invoice", int(invoiceIds[i]), userId, "U")
+		insertTransactionalLog(a.EnterpriseId, "purchase_invoice", int(invoiceIds[i]), userId, "U")
 		result[i].Ok = true
 	}
 
 	///
-	err = trans.Commit()
-	if err != nil {
-		for i := 0; i < len(result); i++ {
-			result[i].Ok = false
-			result[i].Result = 0
-		}
-	}
+	trans.Commit()
 	///
 	return result
 }
 
 func getAccountingMovementSaleInvoices(movementId int64) []SalesInvoice {
 	var invoices []SalesInvoice = make([]SalesInvoice, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM customer WHERE customer.id=sales_invoice.customer) FROM sales_invoice WHERE accounting_movement=$1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, movementId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&SalesInvoice{}).Where("accounting_movement = ?", movementId).Order("date_created DESC").Find(&invoices)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return invoices
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		i := SalesInvoice{}
-		rows.Scan(&i.Id, &i.Customer, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.SimplifiedInvoice, &i.Amending, &i.AmendedInvoice, &i.CustomerName)
-		invoices = append(invoices, i)
-	}
-
 	return invoices
 }
 
 func getAccountingMovementPurchaseInvoices(movementId int64) []PurchaseInvoice {
 	var invoices []PurchaseInvoice = make([]PurchaseInvoice, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM suppliers WHERE suppliers.id=purchase_invoice.supplier) FROM purchase_invoice WHERE accounting_movement=$1 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, movementId)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&PurchaseInvoice{}).Where("accounting_movement = ?", movementId).Order("date_created DESC").Find(&invoices)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return invoices
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		i := PurchaseInvoice{}
-		rows.Scan(&i.Id, &i.Supplier, &i.DateCreated, &i.PaymentMethod, &i.BillingSeries, &i.Currency, &i.CurrencyChange, &i.BillingAddress, &i.TotalProducts,
-			&i.DiscountPercent, &i.FixDiscount, &i.ShippingPrice, &i.ShippingDiscount, &i.TotalWithDiscount, &i.VatAmount, &i.TotalAmount, &i.LinesNumber, &i.InvoiceNumber, &i.InvoiceName,
-			&i.AccountingMovement, &i.enterprise, &i.Amending, &i.AmendedInvoice, &i.IncomeTax, &i.IncomeTaxBase, &i.IncomeTaxPercentage, &i.IncomeTaxValue, &i.Rent, &i.RentBase,
-			&i.RentPercentage, &i.RentValue, &i.SupplierName)
-		invoices = append(invoices, i)
-	}
-
 	return invoices
 }
 
@@ -777,29 +718,24 @@ type TrialBalanceQuery struct {
 }
 
 type TrialBalanceAccount struct {
-	Journal       int32   `json:"journal"`
-	AccountNumber int32   `json:"accountNumber"`
-	Name          string  `json:"name"`
-	Credit        float64 `json:"credit"`
-	Debit         float64 `json:"debit"`
-	Balance       float64 `json:"balance"`
+	JournalId int32   `json:"journalId" gorm:"column:journal"`
+	AccountId int32   `json:"accountId" gorm:"column:account"`
+	Account   Account `json:"account"`
+	Credit    float64 `json:"credit"`
+	Debit     float64 `json:"debit"`
+	Balance   float64 `json:"balance"`
 }
 
 func (q *TrialBalanceQuery) getTrialBalance(enterpriseId int32) []TrialBalanceAccount {
 	balance := make([]TrialBalanceAccount, 0)
-	sqlStatement := `SELECT journal,(SELECT account_number FROM account WHERE account.id=accounting_movement_detail.account),(SELECT name FROM account WHERE account.id=accounting_movement_detail.account),SUM(credit),SUM(debit) FROM public.accounting_movement_detail WHERE journal = $1 AND enterprise = $2 AND date_created >= $3 AND date_created <= $4 GROUP BY journal,account`
-	rows, err := db.Query(sqlStatement, q.Journal, enterpriseId, q.DateStart, q.DateEnd)
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Model(&AccountingMovementDetail{}).Where("accounting_movement_detail.journal = ? AND accounting_movement_detail.enterprise = ? AND accounting_movement_detail.date_created >= ? AND accounting_movement_detail.date_created <= ?", q.Journal, enterpriseId, q.DateStart, q.DateEnd).Select("accounting_movement_detail.journal, accounting_movement_detail.account, SUM(accounting_movement_detail.debit) AS debit, SUM(accounting_movement_detail.credit) AS credit").Group("accounting_movement_detail.journal,accounting_movement_detail.account").Find(&balance)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		return balance
 	}
-
-	for rows.Next() {
-		a := TrialBalanceAccount{}
-		rows.Scan(&a.Journal, &a.AccountNumber, &a.Name, &a.Credit, &a.Debit)
-		a.Balance = a.Credit - a.Debit
-		balance = append(balance, a)
+	for i := 0; i < len(balance); i++ {
+		balance[i].Balance = balance[i].Credit - balance[i].Debit
+		balance[i].Account = getAccountRow(balance[i].AccountId)
 	}
-
 	return balance
 }

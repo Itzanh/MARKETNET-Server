@@ -16,7 +16,7 @@ func sendEmail(destinationAddress string, destinationAddressName string, subject
 	s := getSettingsRecordById(enterpriseId)
 
 	if s.Email != "_" {
-		el := EmailLog{EmailFrom: s.EmailFrom, NameFrom: s.NameFrom, DestinationEmail: destinationAddress, DestinationName: destinationAddressName, Subject: subject, Content: innerText, enterprise: enterpriseId}
+		el := EmailLog{EmailFrom: s.EmailFrom, NameFrom: s.NameFrom, DestinationEmail: destinationAddress, DestinationName: destinationAddressName, Subject: subject, Content: innerText, EnterpriseId: enterpriseId}
 		el.insertEmailLog()
 	}
 

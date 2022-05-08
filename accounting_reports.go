@@ -46,11 +46,6 @@ func (q *Form111Query) execReportForm111(enterpriseId int32) Form111Result {
 
 		i := getPurchaseInvoiceRow(id)
 		a := getAddressRow(address)
-		a.CountryName = getCountryRow(a.Country, enterpriseId).Name
-		if a.State != nil {
-			stateName := getNameState(*a.State, enterpriseId)
-			a.StateName = &stateName
-		}
 
 		r.Elements = append(r.Elements, Form111Element{
 			PurchaseInvoice: i,
@@ -106,11 +101,6 @@ func (q *Form115Query) execReportForm115(enterpriseId int32) Form115Result {
 
 		i := getPurchaseInvoiceRow(id)
 		a := getAddressRow(address)
-		a.CountryName = getCountryRow(a.Country, enterpriseId).Name
-		if a.State != nil {
-			stateName := getNameState(*a.State, enterpriseId)
-			a.StateName = &stateName
-		}
 
 		r.Elements = append(r.Elements, Form115Element{
 			PurchaseInvoice: i,

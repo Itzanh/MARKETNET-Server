@@ -53,13 +53,35 @@ func getWooCommerceJSON(URL string, enterpriseId int32) ([]byte, error) {
 type WcJsonDateTime time.Time
 
 type WCCustomer struct {
-	Id          int32          `json:"id"`
-	DateCreated WcJsonDateTime `json:"date_created"`
-	Email       string         `json:"email"`
-	FirstName   string         `json:"first_name"`
-	LastName    string         `json:"last_name"`
-	Billing     WCAddress      `json:"billing"`
-	Shipping    WCAddress      `json:"shipping"`
+	Id               int32          `json:"id" gorm:"primaryKey"`
+	DateCreated      WcJsonDateTime `json:"date_created" gorm:"column:date_created;type:timestamp(0) with time zone;not null:true"`
+	Email            string         `json:"email" gorm:"column:email;type:character varying(100);not null:true"`
+	FirstName        string         `json:"first_name" gorm:"column:first_name;type:character varying(255);not null:true"`
+	LastName         string         `json:"last_name" gorm:"column:last_name;type:character varying(255);not null:true"`
+	Billing          WCAddress      `json:"billing" gorm:"-"`
+	Shipping         WCAddress      `json:"shipping" gorm:"-"`
+	BillingAddress1  string         `json:"-" gorm:"column:billing_address_1;type:character varying(255);not null:true"`
+	BillingAddress2  string         `json:"-" gorm:"column:billing_address_2;type:character varying(255);not null:true"`
+	BillingCity      string         `json:"-" gorm:"column:billing_city;type:character varying(255);not null:true"`
+	BillingPostcode  string         `json:"-" gorm:"column:billing_postcode;type:character varying(255);not null:true"`
+	BillingCountry   string         `json:"-" gorm:"column:billing_country;type:character varying(255);not null:true"`
+	BillingState     string         `json:"-" gorm:"column:billing_state;type:character varying(255);not null:true"`
+	BillingPhone     string         `json:"-" gorm:"column:billing_phone;type:character varying(255);not null:true"`
+	ShippingAddress1 string         `json:"-" gorm:"column:shipping_address_1;type:character varying(255);not null:true"`
+	ShippingAddress2 string         `json:"-" gorm:"column:shipping_address_2;type:character varying(255);not null:true"`
+	ShippingCity     string         `json:"-" gorm:"column:shipping_city;type:character varying(255);not null:true"`
+	ShippingPostcode string         `json:"-" gorm:"column:shipping_postcode;type:character varying(255);not null:true"`
+	ShippingCountry  string         `json:"-" gorm:"column:shipping_country;type:character varying(255);not null:true"`
+	ShippingState    string         `json:"-" gorm:"column:shipping_state;type:character varying(255);not null:true"`
+	ShippingPhone    string         `json:"-" gorm:"column:shipping_phone;type:character varying(255);not null:true"`
+	WcExists         bool           `json:"-" gorm:"column:wc_exists;type:boolean;not null"`
+	BillingCompany   string         `json:"-" gorm:"column:billing_company;type:character varying(255);not null:true"`
+	EnterpriseId     int32          `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise       Settings       `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (WCCustomer) TableName() string {
+	return "wc_customers"
 }
 
 type WCAddress struct {
@@ -74,17 +96,28 @@ type WCAddress struct {
 }
 
 type WCProduct struct {
-	Id               int32               `json:"id"`
-	Name             string              `json:"name"`
-	DateCreated      WcJsonDateTime      `json:"date_created"`
-	Description      string              `json:"description"`
-	ShortDescription string              `json:"short_description"`
-	Sku              string              `json:"sku"`
-	Price            float64             `json:"price"`
-	Weight           string              `json:"weight"`
-	Dimensions       WCPRoductDimensions `json:"dimensions"`
-	Images           []WCProductImage    `json:"images"`
-	Variations       []int32             `json:"variations"`
+	Id               int32               `json:"id" gorm:"primaryKey"`
+	Name             string              `json:"name" gorm:"column:name;type:character varying(255);not null:true"`
+	DateCreated      WcJsonDateTime      `json:"date_created" gorm:"column:date_created;type:timestamp(0) with time zone;not null:true"`
+	Description      string              `json:"description" gorm:"column:description;type:text;not null:true"`
+	ShortDescription string              `json:"short_description" gorm:"column:short_description;type:character varying(255);not null:true"`
+	Sku              string              `json:"sku" gorm:"column:sku;type:character varying(25);not null:true"`
+	Price            float64             `json:"price" gorm:"column:price;type:numeric(10,6);not null:true"`
+	Weight           string              `json:"weight" gorm:"column:weight;type:character varying(10);not null:true"`
+	Dimensions       WCPRoductDimensions `json:"dimensions" gorm:"-"`
+	DimensionsLength string              `json:"-" gorm:"column:dimensions_length;type:character varying(10);not null:true"`
+	DimensionsWidth  string              `json:"-" gorm:"column:dimensions_width;type:character varying(10);not null:true"`
+	DimensionsHeight string              `json:"-" gorm:"column:dimensions_height;type:character varying(10);not null:true"`
+	Images           []WCProductImage    `json:"images" gorm:"-"`
+	DBIMages         []string            `json:"-" gorm:"column:images;type:character varying(255)[];not null:true"`
+	WcExists         bool                `json:"-" gorm:"column:wc_exists;type:boolean;not null"`
+	Variations       []int32             `json:"variations" gorm:"column:variations;type:integer[];not null:true"`
+	EnterpriseId     int32               `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise       Settings            `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (WCProduct) TableName() string {
+	return "wc_products"
 }
 
 type WCPRoductDimensions struct {
@@ -98,12 +131,23 @@ type WCProductImage struct {
 }
 
 type WCProductVariation struct {
-	Id         int32                         `json:"id"`
-	Sku        string                        `json:"sku"`
-	Price      float64                       `json:"price"`
-	Weight     string                        `json:"weight"`
-	Dimensions WCPRoductDimensions           `json:"dimensions"`
-	Attributes []WCProductVariationAttribute `json:"attributes"`
+	Id               int32                         `json:"id" gorm:"primaryKey"`
+	Sku              string                        `json:"sku" gorm:"column:sku;type:character varying(25);not null:true"`
+	Price            float64                       `json:"price" gorm:"column:price;type:numeric(12,6);not null:true"`
+	Weight           string                        `json:"weight" gorm:"column:weight;type:character varying(10);not null:true"`
+	Dimensions       WCPRoductDimensions           `json:"dimensions" gorm:"-"`
+	DimensionsLength string                        `json:"-" gorm:"column:dimensions_length;type:character varying(10);not null:true"`
+	DimensionsWidth  string                        `json:"-" gorm:"column:dimensions_width;type:character varying(10);not null:true"`
+	DimensionsHeight string                        `json:"-" gorm:"column:dimensions_height;type:character varying(10);not null:true"`
+	Attributes       []WCProductVariationAttribute `json:"attributes" gorm:"-"`
+	DBAttributes     []string                      `json:"-" gorm:"column:attributes;type:character varying(255)[];not null:true"`
+	WcExists         bool                          `json:"-" gorm:"column:wc_exists;type:boolean;not null"`
+	EnterpriseId     int32                         `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise       Settings                      `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (WCProductVariation) TableName() string {
+	return "wc_product_variations"
 }
 
 type WCProductVariationAttribute struct {
@@ -111,29 +155,57 @@ type WCProductVariationAttribute struct {
 }
 
 type WCOrder struct {
-	Id            int32           `json:"id"`
-	Status        string          `json:"status"`
-	Currency      string          `json:"currency"`
-	DateCreated   WcJsonDateTime  `json:"date_created"`
-	DiscountTax   string          `json:"discount_tax"`
-	ShippingTotal string          `json:"shipping_total"`
-	ShippingTax   string          `json:"shipping_tax"`
-	TotalTax      string          `json:"total_tax"`
-	CustomerId    int32           `json:"customer_id"`
-	OrderKey      string          `json:"order_key"`
-	Billing       WCAddress       `json:"billing"`
-	Shipping      WCAddress       `json:"shipping"`
-	PaymentMethod string          `json:"payment_method"`
-	LineItems     []WCOrderDetail `json:"line_items"`
+	Id               int32           `json:"id" gorm:"primaryKey"`
+	Status           string          `json:"status" gorm:"column:status;type:character varying(50);not null:true"`
+	Currency         string          `json:"currency" gorm:"column:currency;type:character varying(3);not null:true"`
+	DateCreated      WcJsonDateTime  `json:"date_created" gorm:"column:date_created;type:timestamp(0) with time zone;not null:true"`
+	DiscountTax      string          `json:"discount_tax" gorm:"column:discount_tax;type:numeric(14,6);not null:true"`
+	ShippingTotal    string          `json:"shipping_total" gorm:"column:shipping_total;type:numeric(14,6);not null:true"`
+	ShippingTax      string          `json:"shipping_tax" gorm:"column:shipping_tax;type:numeric(14,6);not null:true"`
+	TotalTax         string          `json:"total_tax" gorm:"column:total_tax;type:numeric(14,6);not null:true"`
+	CustomerId       int32           `json:"customer_id" gorm:"column:customer_id;type:integer;not null:true"`
+	OrderKey         string          `json:"order_key" gorm:"column:order_key;type:character varying(25);not null:true"`
+	Billing          WCAddress       `json:"billing" gorm:"-"`
+	Shipping         WCAddress       `json:"shipping" gorm:"-"`
+	BillingAddress2  string          `json:"-" gorm:"column:billing_address_2;type:character varying(255);not null:true"`
+	BillingCity      string          `json:"-" gorm:"column:billing_city;type:character varying(255);not null:true"`
+	BillingPostcode  string          `json:"-" gorm:"column:billing_postcode;type:character varying(255);not null:true"`
+	BillingCountry   string          `json:"-" gorm:"column:billing_country;type:character varying(255);not null:true"`
+	BillingState     string          `json:"-" gorm:"column:billing_state;type:character varying(255);not null:true"`
+	BillingPhone     string          `json:"-" gorm:"column:billing_phone;type:character varying(255);not null:true"`
+	ShippingAddress1 string          `json:"-" gorm:"column:shipping_address_1;type:character varying(255);not null:true"`
+	ShippingAddress2 string          `json:"-" gorm:"column:shipping_address_2;type:character varying(255);not null:true"`
+	ShippingCity     string          `json:"-" gorm:"column:shipping_city;type:character varying(255);not null:true"`
+	ShippingPostcode string          `json:"-" gorm:"column:shipping_postcode;type:character varying(255);not null:true"`
+	ShippingCountry  string          `json:"-" gorm:"column:shipping_country;type:character varying(255);not null:true"`
+	ShippingState    string          `json:"-" gorm:"column:shipping_state;type:character varying(255);not null:true"`
+	ShippingPhone    string          `json:"-" gorm:"column:shipping_phone;type:character varying(255);not null:true"`
+	PaymentMethod    string          `json:"payment_method" gorm:"column:payment_method;type:character varying(50);not null:true"`
+	WcExists         bool            `json:"-" gorm:"column:wc_exists;type:boolean;not null"`
+	BillingCompany   string          `json:"-" gorm:"column:billing_company;type:character varying(255);not null:true"`
+	LineItems        []WCOrderDetail `json:"line_items" gorm:"-"`
+	EnterpriseId     int32           `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise       Settings        `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (WCOrder) TableName() string {
+	return "wc_orders"
 }
 
 type WCOrderDetail struct {
-	Id          int32   `json:"id"`
-	ProductId   int32   `json:"product_id"`
-	VariationId int32   `json:"variation_id"`
-	Quantity    int32   `json:"quantity"`
-	TotalTax    string  `json:"total_tax"`
-	Price       float64 `json:"price"`
+	Id           int32    `json:"id" gorm:"primaryKey"`
+	Order        int32    `json:"order" gorm:"column:order;type:integer;not null:true"`
+	ProductId    int32    `json:"product_id" gorm:"column:product_id;type:integer;not null:true"`
+	VariationId  int32    `json:"variation_id" gorm:"column:variation_id;type:integer;not null:true"`
+	Quantity     int32    `json:"quantity" gorm:"column:quantity;type:integer;not null:true"`
+	TotalTax     string   `json:"total_tax" gorm:"column:total_tax;type:numeric(14,6);not null:true"`
+	Price        float64  `json:"price" gorm:"column:price;type:numeric(14,6);not null:true"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
+	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (WCOrderDetail) TableName() string {
+	return "wc_order_details"
 }
 
 func (j *WcJsonDateTime) UnmarshalJSON(b []byte) error {
@@ -469,13 +541,13 @@ func copyWcCustomers(enterpriseId int32) bool {
 			}
 			c.Email = email
 			c.DateCreated = dateCreated
-			c.wooCommerceId = id
+			c.WooCommerceId = id
 			if len(billingPhone) > 0 {
 				c.Phone = billingPhone
 			} else if len(shippingPhone) > 0 {
 				c.Phone = shippingPhone
 			}
-			c.enterprise = enterpriseId
+			c.EnterpriseId = enterpriseId
 			res := c.insertCustomer(0)
 			ok, customerId := res.Id > 0, int32(res.Id)
 			if !ok {
@@ -485,7 +557,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 
 			// create billing address
 			ba := Address{}
-			ba.Customer = &customerId
+			ba.CustomerId = &customerId
 			ba.Address = billingAddress1
 			ba.Address2 = billingAddress2
 			ba.City = billingCity
@@ -497,7 +569,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					ba.Country = countryId
+					ba.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -508,7 +580,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					ba.Country = countryId
+					ba.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -524,7 +596,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 					var stateid int32
 					row.Scan(&stateid)
 					if stateid > 0 {
-						ba.State = &stateid
+						ba.StateId = &stateid
 					}
 				} else {
 					log("WooCommerce", row.Err().Error())
@@ -536,12 +608,12 @@ func copyWcCustomers(enterpriseId int32) bool {
 			} else {
 				ba.PrivateOrBusiness = "B"
 			}
-			ba.enterprise = enterpriseId
+			ba.EnterpriseId = enterpriseId
 			ba.insertAddress(0)
 
 			// create shipping address
 			sa := Address{}
-			sa.Customer = &customerId
+			sa.CustomerId = &customerId
 			sa.Address = shippingAddress1
 			sa.Address2 = shippingAddress2
 			sa.City = shippingCity
@@ -553,7 +625,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					sa.Country = countryId
+					sa.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -564,7 +636,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					sa.Country = countryId
+					sa.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -580,7 +652,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 					var stateid int32
 					row.Scan(&stateid)
 					if stateid > 0 {
-						sa.State = &stateid
+						sa.StateId = &stateid
 					}
 				} else {
 					log("WooCommerce", row.Err().Error())
@@ -592,13 +664,13 @@ func copyWcCustomers(enterpriseId int32) bool {
 			} else {
 				sa.PrivateOrBusiness = "B"
 			}
-			sa.enterprise = enterpriseId
+			sa.EnterpriseId = enterpriseId
 			sa.insertAddress(0)
 
 			// set as the main billing and shipping address
 			customer := getCustomerRow(customerId)
-			customer.MainBillingAddress = &ba.Id
-			customer.MainShippingAddress = &sa.Id
+			customer.MainBillingAddressId = &ba.Id
+			customer.MainShippingAddressId = &sa.Id
 			customer.updateCustomer(0)
 		} else {
 			// update the addresses
@@ -662,7 +734,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 				}
 
 				// are the addresses the same?
-				if addresses[i].Address == billingAddress1 && addresses[i].Address2 == billingAddress2 && addresses[i].City == billingCity && addresses[i].ZipCode == billingPostcode && addresses[i].Country == countryId && addresses[i].State == stateId {
+				if addresses[i].Address == billingAddress1 && addresses[i].Address2 == billingAddress2 && addresses[i].City == billingCity && addresses[i].ZipCode == billingPostcode && addresses[i].CountryId == countryId && addresses[i].StateId == stateId {
 					billingAddressFound = true
 					break
 				} // if
@@ -670,7 +742,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 			if !billingAddressFound {
 				// create billing address
 				ba := Address{}
-				ba.Customer = &customerIdErp
+				ba.CustomerId = &customerIdErp
 				ba.Address = billingAddress1
 				ba.Address2 = billingAddress2
 				ba.City = billingCity
@@ -687,7 +759,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 					if row.Err() == nil {
 						var countryId int32
 						row.Scan(&countryId)
-						ba.Country = countryId
+						ba.CountryId = countryId
 					} else {
 						log("WooCommerce", row.Err().Error())
 						errors = append(errors, row.Err().Error())
@@ -698,7 +770,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 					if row.Err() == nil {
 						var countryId int32
 						row.Scan(&countryId)
-						ba.Country = countryId
+						ba.CountryId = countryId
 					} else {
 						log("WooCommerce", row.Err().Error())
 						errors = append(errors, row.Err().Error())
@@ -714,14 +786,14 @@ func copyWcCustomers(enterpriseId int32) bool {
 						var stateid int32
 						row.Scan(&stateid)
 						if stateid > 0 {
-							ba.State = &stateid
+							ba.StateId = &stateid
 						}
 					} else {
 						log("WooCommerce", row.Err().Error())
 						errors = append(errors, row.Err().Error())
 					}
 				}
-				ba.enterprise = enterpriseId
+				ba.EnterpriseId = enterpriseId
 				ba.insertAddress(0)
 			}
 
@@ -769,7 +841,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 				}
 
 				// are the addresses the same?
-				if addresses[i].Address == shippingAddress1 && addresses[i].Address2 == shippingAddress2 && addresses[i].City == shippingCity && addresses[i].ZipCode == shippingPostcode && addresses[i].Country == countryId && addresses[i].State == stateId {
+				if addresses[i].Address == shippingAddress1 && addresses[i].Address2 == shippingAddress2 && addresses[i].City == shippingCity && addresses[i].ZipCode == shippingPostcode && addresses[i].CountryId == countryId && addresses[i].StateId == stateId {
 					shippingAddressFound = true
 					break
 				} // if
@@ -777,7 +849,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 			if !shippingAddressFound {
 				// create shipping address
 				sa := Address{}
-				sa.Customer = &customerIdErp
+				sa.CustomerId = &customerIdErp
 				sa.Address = shippingAddress1
 				sa.Address2 = shippingAddress2
 				sa.City = shippingCity
@@ -794,7 +866,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 					if row.Err() == nil {
 						var countryId int32
 						row.Scan(&countryId)
-						sa.Country = countryId
+						sa.CountryId = countryId
 					} else {
 						log("WooCommerce", row.Err().Error())
 						errors = append(errors, row.Err().Error())
@@ -805,7 +877,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 					if row.Err() == nil {
 						var countryId int32
 						row.Scan(&countryId)
-						sa.Country = countryId
+						sa.CountryId = countryId
 					} else {
 						log("WooCommerce", row.Err().Error())
 						errors = append(errors, row.Err().Error())
@@ -821,14 +893,14 @@ func copyWcCustomers(enterpriseId int32) bool {
 						var stateid int32
 						row.Scan(&stateid)
 						if stateid > 0 {
-							sa.State = &stateid
+							sa.StateId = &stateid
 						}
 					} else {
 						log("WooCommerce", row.Err().Error())
 						errors = append(errors, row.Err().Error())
 					}
 				}
-				sa.enterprise = enterpriseId
+				sa.EnterpriseId = enterpriseId
 				sa.insertAddress(0)
 			}
 
@@ -927,8 +999,8 @@ func copyWcProducts(enterpriseId int32) bool {
 					p.Height = float64(f_height)
 				}
 				p.VatPercent = s.DefaultVatPercent
-				p.wooCommerceId = id
-				p.enterprise = enterpriseId
+				p.WooCommerceId = id
+				p.EnterpriseId = enterpriseId
 				result := p.insertProduct(0)
 				if !result.Ok {
 					errors = append(errors, "Error inserting a simple product into MARKETNET. Product name "+
@@ -937,8 +1009,8 @@ func copyWcProducts(enterpriseId int32) bool {
 
 				for i := 0; i < len(images); i++ {
 					pi := ProductImage{
-						Product: p.Id,
-						URL:     images[i],
+						ProductId: p.Id,
+						URL:       images[i],
 					}
 					pi.insertProductImage(enterpriseId)
 				}
@@ -992,9 +1064,9 @@ func copyWcProducts(enterpriseId int32) bool {
 						p.Height = float64(f_height)
 					}
 					p.VatPercent = s.DefaultVatPercent
-					p.wooCommerceId = id
-					p.wooCommerceVariationId = v_id
-					p.enterprise = enterpriseId
+					p.WooCommerceId = id
+					p.WooCommerceVariationId = v_id
+					p.EnterpriseId = enterpriseId
 					result := p.insertProduct(0)
 					if !result.Ok {
 						errors = append(errors, "Error inserting a product with combinations into MARKETNET. Product name "+
@@ -1003,8 +1075,8 @@ func copyWcProducts(enterpriseId int32) bool {
 
 					for i := 0; i < len(images); i++ {
 						pi := ProductImage{
-							Product: p.Id,
-							URL:     images[i],
+							ProductId: p.Id,
+							URL:       images[i],
 						}
 						pi.insertProductImage(enterpriseId)
 					}
@@ -1204,11 +1276,11 @@ func copyWcOrders(enterpriseId int32) bool {
 		row.Scan(&erpPaymentMethod, &paidInAdvance)
 
 		if erpPaymentMethod <= 0 { // attempt the default one in the settings (no payment method = likely a manual order)
-			if settings.WooCommerceDefaultPaymentMethod == nil { // don't continue if the payment method doesn't exists
+			if settings.WooCommerceDefaultPaymentMethodId == nil { // don't continue if the payment method doesn't exists
 				errors = append(errors, "Can't import order. The payment method doesn't exists. Order id "+strconv.Itoa(int(id)))
 				continue
 			}
-			erpPaymentMethod = *settings.WooCommerceDefaultPaymentMethod
+			erpPaymentMethod = *settings.WooCommerceDefaultPaymentMethodId
 			paidInAdvance = getPaymentMethodRow(erpPaymentMethod).PaidInAdvance
 		}
 
@@ -1229,7 +1301,7 @@ func copyWcOrders(enterpriseId int32) bool {
 		var billingZone string
 		customerAddresses := getCustomerAddresses(customer, enterpriseId)
 		for i := 0; i < len(customerAddresses); i++ {
-			country := getCountryRow(customerAddresses[i].Country, enterpriseId)
+			country := getCountryRow(customerAddresses[i].CountryId, enterpriseId)
 			if customerAddresses[i].Address == billingAddress1 && customerAddresses[i].Address2 == billingAddress2 && customerAddresses[i].City == billingCity && customerAddresses[i].ZipCode == billingPostcode && (country.Iso2 == billingCountry || country.Iso3 == billingCountry) {
 				billingAddress = customerAddresses[i].Id
 				billingZone = country.Zone
@@ -1239,7 +1311,7 @@ func copyWcOrders(enterpriseId int32) bool {
 		if billingAddress == 0 {
 			// create billing address
 			ba := Address{}
-			ba.Customer = &customer
+			ba.CustomerId = &customer
 			ba.Address = billingAddress1
 			ba.Address2 = billingAddress2
 			ba.City = billingCity
@@ -1256,7 +1328,7 @@ func copyWcOrders(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					ba.Country = countryId
+					ba.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -1267,7 +1339,7 @@ func copyWcOrders(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId, &billingZone)
-					ba.Country = countryId
+					ba.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -1283,14 +1355,14 @@ func copyWcOrders(enterpriseId int32) bool {
 					var stateid int32
 					row.Scan(&stateid)
 					if stateid > 0 {
-						ba.State = &stateid
+						ba.StateId = &stateid
 					}
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
 				}
 			}
-			ba.enterprise = enterpriseId
+			ba.EnterpriseId = enterpriseId
 			ba.insertAddress(0)
 			billingAddress = ba.Id
 		}
@@ -1298,7 +1370,7 @@ func copyWcOrders(enterpriseId int32) bool {
 		// get the shipping address
 		var shippingAddress int32
 		for i := 0; i < len(customerAddresses); i++ {
-			country := getCountryRow(customerAddresses[i].Country, enterpriseId)
+			country := getCountryRow(customerAddresses[i].CountryId, enterpriseId)
 			if customerAddresses[i].Address == shippingAddress1 && customerAddresses[i].Address2 == shippingAddress2 && customerAddresses[i].City == shippingCity && customerAddresses[i].ZipCode == shippingPostcode && (country.Iso2 == shippingCountry || country.Iso3 == shippingCountry) {
 				shippingAddress = customerAddresses[i].Id
 				break
@@ -1307,7 +1379,7 @@ func copyWcOrders(enterpriseId int32) bool {
 		if shippingAddress == 0 {
 			// create shipping address
 			sa := Address{}
-			sa.Customer = &customer
+			sa.CustomerId = &customer
 			sa.Address = shippingAddress1
 			sa.Address2 = shippingAddress2
 			sa.City = shippingCity
@@ -1324,7 +1396,7 @@ func copyWcOrders(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					sa.Country = countryId
+					sa.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -1335,7 +1407,7 @@ func copyWcOrders(enterpriseId int32) bool {
 				if row.Err() == nil {
 					var countryId int32
 					row.Scan(&countryId)
-					sa.Country = countryId
+					sa.CountryId = countryId
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
@@ -1351,39 +1423,39 @@ func copyWcOrders(enterpriseId int32) bool {
 					var stateid int32
 					row.Scan(&stateid)
 					if stateid > 0 {
-						sa.State = &stateid
+						sa.StateId = &stateid
 					}
 				} else {
 					log("WooCommerce", row.Err().Error())
 					errors = append(errors, row.Err().Error())
 				}
 			}
-			sa.enterprise = enterpriseId
+			sa.EnterpriseId = enterpriseId
 			sa.insertAddress(0)
 			shippingAddress = sa.Id
 		}
 
 		s := SaleOrder{}
-		s.Warehouse = settings.DefaultWarehouse
+		s.WarehouseId = settings.DefaultWarehouseId
 		//s.Reference = orderKey
-		s.Customer = customer
-		s.PaymentMethod = erpPaymentMethod
-		s.Currency = erpCurrency
-		s.BillingAddress = billingAddress
-		s.ShippingAddress = shippingAddress
+		s.CustomerId = customer
+		s.PaymentMethodId = erpPaymentMethod
+		s.CurrencyId = erpCurrency
+		s.BillingAddressId = billingAddress
+		s.ShippingAddressId = shippingAddress
 		s.ShippingPrice = shippingTotal
 		s.FixDiscount = discountTax
-		s.wooCommerceId = id
+		s.WooCommerceId = id
 
 		if billingZone == "E" {
-			s.BillingSeries = *settings.WooCommerceExportSerie
+			s.BillingSeriesId = *settings.WooCommerceExportSerieId
 		} else if billingZone == "U" && totalTax == 0 {
-			s.BillingSeries = *settings.WooCommerceIntracommunitySerie
+			s.BillingSeriesId = *settings.WooCommerceIntracommunitySerieId
 		} else {
-			s.BillingSeries = *settings.WooCommerceInteriorSerie
+			s.BillingSeriesId = *settings.WooCommerceInteriorSerieId
 		}
 
-		s.enterprise = enterpriseId
+		s.EnterpriseId = enterpriseId
 		ok, orderId := s.insertSalesOrder(0)
 		if !ok {
 			errors = append(errors, "Can't import order. The order could not be created in MARKETNET. Order id "+strconv.Itoa(int(id)))
@@ -1392,11 +1464,11 @@ func copyWcOrders(enterpriseId int32) bool {
 
 		// set the customer details if are empty
 		c := getCustomerRow(customer)
-		if c.PaymentMethod == nil {
-			c.PaymentMethod = &erpPaymentMethod
+		if c.PaymentMethodId == nil {
+			c.PaymentMethodId = &erpPaymentMethod
 		}
-		if c.BillingSeries == nil || *c.BillingSeries == "" {
-			c.BillingSeries = &s.BillingSeries
+		if c.BillingSeriesId == nil || *c.BillingSeriesId == "" {
+			c.BillingSeriesId = &s.BillingSeriesId
 		}
 		c.updateCustomer(0)
 
@@ -1431,8 +1503,8 @@ func copyWcOrders(enterpriseId int32) bool {
 			}
 
 			d := SalesOrderDetail{}
-			d.Order = orderId
-			d.Product = product
+			d.OrderId = orderId
+			d.ProductId = product
 			d.Quantity = quantity
 			d.Price = price
 
@@ -1442,8 +1514,8 @@ func copyWcOrders(enterpriseId int32) bool {
 				d.VatPercent = vatPercent
 			}
 
-			d.wooCommerceId = id
-			d.enterprise = enterpriseId
+			d.WooCommerceId = id
+			d.EnterpriseId = enterpriseId
 			d.insertSalesOrderDetail(0)
 
 		} // for rows.Next() {
@@ -1487,13 +1559,13 @@ func updateStatusPaymentAcceptedWooCommerce(salesOrderId int64, enterpriseId int
 	}
 
 	s := getSalesOrderRow(salesOrderId)
-	if s.Id <= 0 || s.wooCommerceId <= 0 {
+	if s.Id <= 0 || s.WooCommerceId <= 0 {
 		return false
 	}
 
-	url := settings.WooCommerceUrl + "orders/" + strconv.Itoa(int(s.wooCommerceId))
+	url := settings.WooCommerceUrl + "orders/" + strconv.Itoa(int(s.WooCommerceId))
 
-	update := WooCommerceStatusUpdate{Id: s.wooCommerceId, Status: WOOCOMMERCE_PROCESSING}
+	update := WooCommerceStatusUpdate{Id: s.WooCommerceId, Status: WOOCOMMERCE_PROCESSING}
 	json, _ := json.Marshal(update)
 
 	// OAuth 1.0 request

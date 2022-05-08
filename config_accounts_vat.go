@@ -1,63 +1,41 @@
 package main
 
 type ConfigAccountsVat struct {
-	VatPercent            float64 `json:"vatPercent"`
-	AccountSale           int32   `json:"accountSale"`
-	AccountPurchase       int32   `json:"accountPurchase"`
-	AccountSaleNumber     int32   `json:"accountSaleNumber"`
-	JournalSale           int32   `json:"journalSale"`
-	AccountPurchaseNumber int32   `json:"accountPurchaseNumber"`
-	JournalPurchase       int32   `json:"journalPurchase"`
-	enterprise            int32
+	VatPercent            float64  `json:"vatPercent" gorm:"primaryKey;type:numeric(14,6)"`
+	AccountSaleId         int32    `json:"accountSaleId" gorm:"column:account_sale;not null:true"`
+	AccountSale           Account  `json:"accountSale" gorm:"foreignKey:AccountSaleId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountPurchaseId     int32    `json:"accountPurchaseId" gorm:"column:account_purchase;not null:true"`
+	AccountPurchase       Account  `json:"accountPurchase" gorm:"foreignKey:AccountPurchaseId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountSaleNumber     int32    `json:"accountSaleNumber" gorm:"-"`
+	JournalSale           int32    `json:"journalSale" gorm:"-"`
+	AccountPurchaseNumber int32    `json:"accountPurchaseNumber" gorm:"-"`
+	JournalPurchase       int32    `json:"journalPurchase" gorm:"-"`
+	EnterpriseId          int32    `json:"-" gorm:"primaryKey;column:enterprise"`
+	Enterprise            Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (c *ConfigAccountsVat) TableName() string {
+	return "config_accounts_vat"
 }
 
 func getConfigAccountsVat(enterpriseId int32) []ConfigAccountsVat {
 	configAccountsVat := make([]ConfigAccountsVat, 0)
-	sqlStatement := `SELECT *,(SELECT journal FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT journal FROM account WHERE account.id=config_accounts_vat.account_purchase),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_purchase) FROM public.config_accounts_vat WHERE enterprise=$1 ORDER BY vat_percent ASC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return configAccountsVat
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		c := ConfigAccountsVat{}
-		rows.Scan(&c.VatPercent, &c.AccountSale, &c.AccountPurchase, &c.enterprise, &c.JournalSale, &c.AccountSaleNumber, &c.JournalPurchase, &c.AccountPurchaseNumber)
-		configAccountsVat = append(configAccountsVat, c)
-	}
-
+	dbOrm.Model(&ConfigAccountsVat{}).Where("enterprise = ?", enterpriseId).Preload("AccountSale").Preload("AccountPurchase").Order("vat_percent ASC").Find(&configAccountsVat)
 	return configAccountsVat
 }
 
 // Journal, Account
 func getConfigAccountsVatSaleRow(vatPercent float64, enterpriseId int32) (int32, int32) {
-	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_sale),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_sale) FROM config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, vatPercent, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return 0, 0
-	}
-
-	var journal int32
-	var accountNumber int32
-	row.Scan(&journal, &accountNumber)
-	return journal, accountNumber
+	var configAccountVat ConfigAccountsVat
+	dbOrm.Model(&ConfigAccountsVat{}).Where("vat_percent = ? AND enterprise = ?", vatPercent, enterpriseId).Preload("AccountSale").First(&configAccountVat)
+	return configAccountVat.AccountSale.JournalId, configAccountVat.AccountSale.AccountNumber
 }
 
 // Journal, Account
 func getConfigAccountsVatPurchaseRow(vatPercent float64, enterpriseId int32) (int32, int32) {
-	sqlStatement := `SELECT (SELECT journal FROM account WHERE account.id=config_accounts_vat.account_purchase),(SELECT account_number FROM account WHERE account.id=config_accounts_vat.account_purchase) FROM config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
-	row := db.QueryRow(sqlStatement, vatPercent, enterpriseId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return 0, 0
-	}
-
-	var journal int32
-	var accountNumber int32
-	row.Scan(&journal, &accountNumber)
-	return journal, accountNumber
+	var configAccountVat ConfigAccountsVat
+	dbOrm.Model(&ConfigAccountsVat{}).Where("vat_percent = ? AND enterprise = ?", vatPercent, enterpriseId).Preload("AccountPurchase").First(&configAccountVat)
+	return configAccountVat.AccountPurchase.JournalId, configAccountVat.AccountPurchase.AccountNumber
 }
 
 func (c *ConfigAccountsVat) isValid() bool {
@@ -69,29 +47,27 @@ func (c *ConfigAccountsVat) insertConfigAccountsVat() bool {
 		return false
 	}
 
-	c.AccountSale = getAccountIdByAccountNumber(c.JournalSale, c.AccountSaleNumber, c.enterprise)
-	c.AccountPurchase = getAccountIdByAccountNumber(c.JournalPurchase, c.AccountPurchaseNumber, c.enterprise)
-	if c.AccountSale <= 0 || c.AccountPurchase <= 0 {
+	c.AccountSaleId = getAccountIdByAccountNumber(c.JournalSale, c.AccountSaleNumber, c.EnterpriseId)
+	c.AccountPurchaseId = getAccountIdByAccountNumber(c.JournalPurchase, c.AccountPurchaseNumber, c.EnterpriseId)
+	if c.AccountSaleId <= 0 || c.AccountPurchaseId <= 0 {
 		return false
 	}
 
-	sqlStatement := `INSERT INTO public.config_accounts_vat(vat_percent, account_sale, account_purchase, enterprise) VALUES ($1, $2, $3, $4)`
-	_, err := db.Exec(sqlStatement, c.VatPercent, c.AccountSale, c.AccountPurchase, c.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Create(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }
 
 func (c *ConfigAccountsVat) deleteConfigAccountsVat() bool {
-	sqlStatement := `DELETE FROM public.config_accounts_vat WHERE vat_percent=$1 AND enterprise=$2`
-	_, err := db.Exec(sqlStatement, c.VatPercent, c.enterprise)
-
-	if err != nil {
-		log("DB", err.Error())
+	result := dbOrm.Where("vat_percent = ? AND enterprise = ?", c.VatPercent, c.EnterpriseId).Delete(&ConfigAccountsVat{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
 	}
 
-	return err == nil
+	return true
 }

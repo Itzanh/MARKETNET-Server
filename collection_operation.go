@@ -1,30 +1,37 @@
 package main
 
 import (
-	"database/sql"
-	"strconv"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CollectionOperation struct {
-	Id                       int32     `json:"id"`
-	AccountingMovement       int64     `json:"accountingMovement"`
-	AccountingMovementDetail int64     `json:"accountingMovementDetail"`
-	Account                  int32     `json:"account"`
-	Bank                     *int32    `json:"bank"`
-	Status                   string    `json:"status"` // P = Pending, C = Paid, U = Unpaid
-	DateCreated              time.Time `json:"dateCreated"`
-	DateExpiration           time.Time `json:"dateExpiration"`
-	Total                    float64   `json:"total"`
-	Paid                     float64   `json:"paid"`
-	Pending                  float64   `json:"pending"`
-	DocumentName             string    `json:"documentName"`
-	PaymentMethod            int32     `json:"paymentMethod"`
-	BankName                 string    `json:"bankName"`
-	PaymentMethodName        string    `json:"paymentMethodName"`
-	AccountName              string    `json:"accountName"`
-	CustomerName             *string   `json:"customerName"`
-	enterprise               int32
+	Id                         int32                    `json:"id" gorm:"index:collection_operation_id_enterprise,unique:true,priority:1"`
+	AccountingMovementId       int64                    `json:"accountingMovementId" gorm:"column:accounting_movement;not null:true"`
+	AccountingMovement         AccountingMovement       `json:"accountingMovement" gorm:"foreignkey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountingMovementDetailId int64                    `json:"accountingMovementDetailId" gorm:"column:accounting_movement_detail;not null:true"`
+	AccountingMovementDetail   AccountingMovementDetail `json:"accountingMovementDetail" gorm:"foreignkey:AccountingMovementDetailId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountId                  int32                    `json:"accountId" gorm:"column:account;not null:true"`
+	Account                    Account                  `json:"account" gorm:"foreignkey:AccountId,EnterpriseId;references:Id,EnterpriseId"`
+	BankId                     *int32                   `json:"bankId" gorm:"column:bank"`
+	Bank                       *Account                 `json:"bank" gorm:"foreignkey:BankId,EnterpriseId;references:Id,EnterpriseId"`
+	Status                     string                   `json:"status" gorm:"type:character(1);not null:true;index:collection_operation_status_enterprise,priority:1"` // P = Pending, C = Paid, U = Unpaid
+	DateCreated                time.Time                `json:"dateCreated" gorm:"type:timestamp(3) without time zone;not null:true;index:collection_operation_date_created"`
+	DateExpiration             time.Time                `json:"dateExpiration" gorm:"type:timestamp(3) without time zone;not null:true"`
+	Total                      float64                  `json:"total" gorm:"type:numeric(14,6);not null:true"`
+	Paid                       float64                  `json:"paid" gorm:"type:numeric(14,6);not null:true"`
+	Pending                    float64                  `json:"pending" gorm:"type:numeric(14,6);not null:true"`
+	DocumentName               string                   `json:"documentName" gorm:"type:character(15);not null:true"`
+	PaymentMethodId            int32                    `json:"paymentMethodId" gorm:"column:payment_method;not null:true"`
+	PaymentMethod              PaymentMethod            `json:"paymentMethod" gorm:"foreignkey:PaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId               int32                    `json:"-" gorm:"column:enterprise;not null:true;index:collection_operation_id_enterprise,unique:true,priority:2;index:collection_operation_status_enterprise,priority:2"`
+	Enterprise                 Settings                 `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (co *CollectionOperation) TableName() string {
+	return "collection_operation"
 }
 
 type CollectionOperationPaymentTransactionSearch struct {
@@ -40,20 +47,11 @@ func (search *CollectionOperationPaymentTransactionSearch) isDefault() bool {
 
 func getPendingColletionOperations(enterpriseId int32) []CollectionOperation {
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
-	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account),customer.name FROM public.collection_operation FULL JOIN sales_invoice ON sales_invoice.accounting_movement=collection_operation.accounting_movement FULL JOIN customer ON customer.id=sales_invoice.customer WHERE status='P' AND collection_operation.enterprise=$1 ORDER BY collection_operation.id DESC`
-	rows, err := db.Query(sqlStatement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return collectionOperation
+	// get pending collection operations for the current enterprise where the status is 'P' using dbOrm
+	result := dbOrm.Where("status = 'P' AND enterprise = ?", enterpriseId).Order("collection_operation.id DESC").Preload(clause.Associations).Preload("AccountingMovement.SalesInvoice.Customer").Find(&collectionOperation)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		o := CollectionOperation{}
-		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName, &o.CustomerName)
-		collectionOperation = append(collectionOperation, o)
-	}
-
 	return collectionOperation
 }
 
@@ -63,48 +61,32 @@ func searchCollectionOperations(search CollectionOperationPaymentTransactionSear
 	}
 
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
-	sqlStatement := `SELECT collection_operation.*,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account),customer.name FROM public.collection_operation FULL JOIN sales_invoice ON sales_invoice.accounting_movement=collection_operation.accounting_movement FULL JOIN customer ON customer.id=sales_invoice.customer WHERE collection_operation.enterprise=$1`
-	var interfaces []interface{} = make([]interface{}, 0)
-	interfaces = append(interfaces, enterpriseId)
+
+	cursor := dbOrm.Model(&CollectionOperation{}).Where("collection_operation.enterprise = ?", enterpriseId)
 
 	if search.Mode != 0 {
-		sqlStatement += ` AND collection_operation.status=$2`
+		var status string
 		if search.Mode == 1 {
-			interfaces = append(interfaces, "P") // Pending
+			status = "P" // Pending
 		} else if search.Mode == 2 {
-			interfaces = append(interfaces, "C") // Paid
+			status = "C" // Paid
 		} else if search.Mode == 3 {
-			interfaces = append(interfaces, "U") // Unpaid
+			status = "U" // Unpaid
 		}
+		cursor.Where("collection_operation.status = ?", status)
 	}
 
 	if search.StartDate != nil {
-		sqlStatement += ` AND collection_operation.date_created >= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, search.StartDate)
+		cursor.Where("collection_operation.date_created >= ?", search.StartDate)
 	}
 
 	if search.EndDate != nil {
-		sqlStatement += ` AND collection_operation.date_created <= $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, search.EndDate)
+		cursor.Where("collection_operation.date_created <= ?", search.EndDate)
 	}
 
-	if len(search.Search) > 0 {
-		sqlStatement += ` AND customer.name ILIKE $` + strconv.Itoa(len(interfaces)+1)
-		interfaces = append(interfaces, "%"+search.Search+"%")
-	}
-
-	sqlStatement += ` ORDER BY collection_operation.id DESC`
-	rows, err := db.Query(sqlStatement, interfaces...)
-	if err != nil {
-		log("DB", err.Error())
-		return collectionOperation
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		o := CollectionOperation{}
-		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName, &o.CustomerName)
-		collectionOperation = append(collectionOperation, o)
+	result := cursor.Order("collection_operation.id DESC").Preload(clause.Associations).Preload("AccountingMovement.SalesInvoice.Customer").Find(&collectionOperation)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
 
 	return collectionOperation
@@ -112,105 +94,109 @@ func searchCollectionOperations(search CollectionOperationPaymentTransactionSear
 
 func getColletionOperations(accountingMovement int64, enterpriseId int32) []CollectionOperation {
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
-	sqlStatement := `SELECT *,(SELECT name FROM account WHERE account.id=collection_operation.bank),(SELECT name FROM payment_method WHERE payment_method.id=collection_operation.payment_method),(SELECT name FROM account WHERE account.id=collection_operation.account) FROM public.collection_operation WHERE accounting_movement=$1 AND enterprise=$2 ORDER BY id ASC`
-	rows, err := db.Query(sqlStatement, accountingMovement, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return collectionOperation
+	// get collection operations for the current enterprise where the accounting_movement_id is equal to the accounting_movement_id using dbOrm
+	result := dbOrm.Where("accounting_movement = ? AND enterprise = ?", accountingMovement, enterpriseId).Order("collection_operation.id DESC").Preload(clause.Associations).Find(&collectionOperation)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		o := CollectionOperation{}
-		rows.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise, &o.BankName, &o.PaymentMethodName, &o.AccountName)
-		collectionOperation = append(collectionOperation, o)
-	}
-
 	return collectionOperation
 }
 
 func getColletionOperationRow(collectionOperationId int32) CollectionOperation {
-	sqlStatement := `SELECT * FROM public.collection_operation WHERE id=$1 LIMIT 1`
-	row := db.QueryRow(sqlStatement, collectionOperationId)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
-		return CollectionOperation{}
-	}
-
 	o := CollectionOperation{}
-	row.Scan(&o.Id, &o.AccountingMovement, &o.AccountingMovementDetail, &o.Account, &o.Bank, &o.Status, &o.DateCreated, &o.DateExpiration, &o.Total, &o.Paid, &o.Pending, &o.DocumentName, &o.PaymentMethod, &o.enterprise)
-
+	// get a single collection operation using dbOrm
+	result := dbOrm.Where("id = ?", collectionOperationId).Preload(clause.Associations).First(&o)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
 	return o
 }
 
-func (c *CollectionOperation) insertCollectionOperation(userId int32, trans *sql.Tx) bool {
+func (c *CollectionOperation) BeforeCreate(tx *gorm.DB) (err error) {
+	var collectionOperation CollectionOperation
+	tx.Model(&CollectionOperation{}).Last(&collectionOperation)
+	c.Id = collectionOperation.Id + 1
+	return nil
+}
+
+func (c *CollectionOperation) insertCollectionOperation(userId int32, trans *gorm.DB) bool {
 	if c.Total <= 0 {
 		return false
 	}
 
 	c.Pending = c.Total
 	c.Paid = 0
+	c.Status = "P"
 
-	p := getPaymentMethodRow(c.PaymentMethod)
+	p := getPaymentMethodRow(c.PaymentMethodId)
+	c.DateCreated = time.Now()
 	c.DateExpiration = time.Now().AddDate(0, 0, int(p.DaysExpiration))
 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
-			return false
-		}
+		trans = dbOrm.Begin()
 		///
 	}
 
-	sqlStatement := `INSERT INTO public.collection_operation(accounting_movement, accounting_movement_detail, account, bank, date_expiration, total, paid, pending, document_name, payment_method, enterprise) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`
-	row := trans.QueryRow(sqlStatement, c.AccountingMovement, c.AccountingMovementDetail, c.Account, c.Bank, c.DateExpiration, c.Total, c.Paid, c.Pending, c.DocumentName, c.PaymentMethod, c.enterprise)
-	if row.Err() != nil {
-		log("DB", row.Err().Error())
+	result := trans.Create(&c)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
-	var collectionOperationId int32
-	row.Scan(&collectionOperationId)
-	c.Id = collectionOperationId
-
-	if collectionOperationId > 0 {
-		insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "I")
+	if c.Id > 0 {
+		insertTransactionalLog(c.EnterpriseId, "collection_operation", int(c.Id), userId, "I")
+	} else {
+		trans.Rollback()
+		return false
 	}
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return false
 		}
 		///
 	}
 
-	return collectionOperationId > 0
+	return true
 }
 
 // Adds or substracts the paid quantity on the collection operation
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION.
-func (c *CollectionOperation) addQuantityCharges(charges float64, userId int32, trans sql.Tx) bool {
-	sqlStatement := `UPDATE public.collection_operation SET paid=paid+$2, pending=pending-$2, status=(CASE WHEN pending-$2=0 THEN 'C' ELSE 'P' END) WHERE id=$1`
-	res, err := db.Exec(sqlStatement, c.Id, charges)
-	if err != nil {
-		log("DB", err.Error())
+func (c *CollectionOperation) addQuantityCharges(charges float64, userId int32, trans gorm.DB) bool {
+	var collectionOperation CollectionOperation
+	result := dbOrm.Model(&CollectionOperation{}).Where("id = ?", c.Id).First(&collectionOperation)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
-	rows, _ := res.RowsAffected()
 
-	insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "U")
+	collectionOperation.Paid += charges
+	collectionOperation.Pending -= charges
+	if collectionOperation.Pending <= 0 {
+		collectionOperation.Status = "C" // Paid
+	} else {
+		collectionOperation.Status = "P" // Pending
+	}
 
-	return err == nil && rows > 0
+	result = dbOrm.Save(&collectionOperation)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	insertTransactionalLog(c.EnterpriseId, "collection_operation", int(c.Id), userId, "U")
+
+	return true
 }
 
-func (c *CollectionOperation) deleteCollectionOperation(userId int32, trans *sql.Tx) bool {
+func (c *CollectionOperation) deleteCollectionOperation(userId int32, trans *gorm.DB) bool {
 	if c.Id <= 0 {
 		return false
 	}
@@ -218,28 +204,23 @@ func (c *CollectionOperation) deleteCollectionOperation(userId int32, trans *sql
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
 		///
-		var transErr error
-		trans, transErr = db.Begin()
-		if transErr != nil {
-			return false
-		}
+		trans = dbOrm.Begin()
 		///
 	}
 
-	insertTransactionalLog(c.enterprise, "collection_operation", int(c.Id), userId, "D")
+	insertTransactionalLog(c.EnterpriseId, "collection_operation", int(c.Id), userId, "D")
 
-	sqlStatement := `DELETE FROM public.collection_operation WHERE id=$1 AND enterprise=$2`
-	_, err := trans.Exec(sqlStatement, c.Id, c.enterprise)
-	if err != nil {
-		log("DB", err.Error())
+	result := trans.Where("id = ? AND enterprise = ?", c.Id, c.EnterpriseId).Delete(&CollectionOperation{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
 		trans.Rollback()
 		return false
 	}
 
 	if beginTransaction {
 		///
-		err := trans.Commit()
-		if err != nil {
+		result = trans.Commit()
+		if result.Error != nil {
 			return false
 		}
 		///

@@ -65,12 +65,12 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	p.RequestLabel = true
 
 	// get the order
-	o := getSalesOrderRow(s.Order)
+	o := getSalesOrderRow(s.OrderId)
 	if o.Id <= 0 {
 		return false, nil
 	}
 
-	carrier := getCarierRow(s.Carrier)
+	carrier := getCarierRow(s.CarrierId)
 	if carrier.Id <= 0 {
 		s := getSettingsRecordById(enterpriseId)
 		if len(s.EmailSendErrorSendCloud) > 0 {
@@ -81,7 +81,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	}
 
 	// customer name
-	c := getCustomerRow(o.Customer)
+	c := getCustomerRow(o.CustomerId)
 	if c.Id <= 0 {
 		return false, nil
 	}
@@ -92,7 +92,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	p.CompanyName = settings.EnterpriseName
 
 	// address
-	a := getAddressRow(o.ShippingAddress)
+	a := getAddressRow(o.ShippingAddressId)
 	p.Address = strings.TrimSpace(a.Address)
 	if len(p.Address) > SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT {
 		p.Address = p.Address[0:SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT]
@@ -108,9 +108,9 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	}
 	p.City = a.City
 	p.PostalCode = a.ZipCode
-	p.Country = getCountryRow(a.Country, enterpriseId).Iso2 // country must have a ISO2 code!
-	if a.State != nil {
-		stateIsoCode := getStateRow(*a.State).IsoCode
+	p.Country = getCountryRow(a.CountryId, enterpriseId).Iso2 // country must have a ISO2 code!
+	if a.StateId != nil {
+		stateIsoCode := getStateRow(*a.StateId).IsoCode
 		p.CountryState = &stateIsoCode
 	}
 
@@ -135,22 +135,22 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	// parcel items
 	var weight float64 = 0
 	p.ParcelItems = make([]ParcelItem, 0)
-	details := getSalesOrderDetail(s.Order, enterpriseId)
+	details := getSalesOrderDetail(s.OrderId, enterpriseId)
 	for i := 0; i < len(details); i++ {
-		product := getProductRow(details[i].Product)
+		product := getProductRow(details[i].ProductId)
 
 		pi := ParcelItem{}
-		pi.Description = details[i].ProductName
+		pi.Description = details[i].Product.Name
 		pi.Quantity = details[i].Quantity
 		pi.Weight = toFixed(math.Max(product.Weight*float64(details[i].Quantity), SENDCLOUD_MIN_WEIGHT_PARCEL_ITEMS), 3)
 		weight += pi.Weight
 		pi.Value = toFixed(details[i].TotalAmount, 2)
-		if product.HSCode != nil {
-			pi.HSCode = *product.HSCode
+		if product.HSCodeId != nil {
+			pi.HSCode = *product.HSCodeId
 		}
 		pi.OriginCountry = &product.OriginCountry
 		pi.SKU = &product.BarCode
-		pi.ProductId = strconv.Itoa(int(details[i].Product))
+		pi.ProductId = strconv.Itoa(int(details[i].ProductId))
 
 		p.ParcelItems = append(p.ParcelItems, pi)
 	}
@@ -165,7 +165,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	p.SenderAddress = carrier.SendcloudSenderAddress
 
 	// commercial invoice
-	invoices := getSalesOrderInvoices(s.Order, enterpriseId)
+	invoices := getSalesOrderInvoices(s.OrderId, enterpriseId)
 	if len(invoices) > 0 {
 		p.CustomsInvoiceNr = invoices[0].InvoiceName
 		commercialGoods := SENDCLOUD_COMMERCIAL_GOODS
@@ -177,7 +177,7 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 
 func (p *Parcel) send(s *Shipping) (bool, *string) {
 	// get the carrier
-	c := getCarierRow(s.Carrier)
+	c := getCarierRow(s.CarrierId)
 	if c.Id <= 0 {
 		return false, nil
 	}
@@ -188,7 +188,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	jsonRequest, _ := json.Marshal(parcelObject)
 	req, err := http.NewRequest("POST", c.SendcloudUrl, bytes.NewBuffer(jsonRequest))
 	if err != nil {
-		s := getSettingsRecordById(s.enterprise)
+		s := getSettingsRecordById(s.EnterpriseId)
 		if len(s.EmailSendErrorSendCloud) > 0 {
 			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", s.Id)
@@ -201,7 +201,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		s := getSettingsRecordById(s.enterprise)
+		s := getSettingsRecordById(s.EnterpriseId)
 		if len(s.EmailSendErrorSendCloud) > 0 {
 			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", s.Id)
@@ -211,7 +211,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	// get the response
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		s := getSettingsRecordById(s.enterprise)
+		s := getSettingsRecordById(s.EnterpriseId)
 		if len(s.EmailSendErrorSendCloud) > 0 {
 			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", s.Id)
@@ -221,7 +221,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	var response ParcelResponseBody
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		s := getSettingsRecordById(s.enterprise)
+		s := getSettingsRecordById(s.EnterpriseId)
 		if len(s.EmailSendErrorSendCloud) > 0 {
 			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p><p>"+string(body)+"</p>", s.Id)
@@ -234,7 +234,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 		}
 		parcelError := *response.Error
 		log("SendCloud", string(jsonRequest)+parcelError.Message)
-		s := getSettingsRecordById(s.enterprise)
+		s := getSettingsRecordById(s.EnterpriseId)
 		if len(s.EmailSendErrorSendCloud) > 0 {
 			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+string(jsonRequest)+"</p><p>"+parcelError.Message+"</p>", s.Id)
@@ -259,7 +259,7 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	}
 
 	// save the label
-	return parcelResponse.saveLabel(c, s.Id, s.enterprise), nil
+	return parcelResponse.saveLabel(c, s.Id, s.EnterpriseId), nil
 }
 
 func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64, enterpriseId int32) bool {
@@ -300,9 +300,9 @@ func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64, enterpriseId int
 	}
 
 	t := ShippingTag{}
-	t.Shipping = shippingId
+	t.ShippingId = shippingId
 	t.Label = body
-	t.enterprise = enterpriseId
+	t.EnterpriseId = enterpriseId
 	return t.insertShippingTag()
 }
 
