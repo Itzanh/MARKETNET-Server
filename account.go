@@ -15,6 +15,7 @@ type Account struct {
 	Debit         float64  `json:"debit" gorm:"type:numeric(14,6);not null:true"`
 	Balance       float64  `json:"balance" gorm:"type:numeric(14,6);not null:true"`
 	AccountNumber int32    `json:"accountNumber" gorm:"not null:true;index:account_account_number_journal,unique:true,priority:2"`
+	AccountName   string   `json:"accountName" gorm:"not null:true;type:character(10);default:''"`
 	EnterpriseId  int32    `json:"-" gorm:"column:enterprise;not null:true;index:account_id_enterprise,unique:true,priority:2;index:account_account_number_journal,unique:true,priority:1"`
 	Enterprise    Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
@@ -69,6 +70,10 @@ func (a *Account) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
+func (a *Account) setAccountName() {
+	a.AccountName = fmt.Sprintf("%03d", a.JournalId) + "." + fmt.Sprintf("%06d", a.AccountNumber)
+}
+
 func (a *Account) insertAccount() bool {
 	if !a.isValid() {
 		return false
@@ -84,6 +89,7 @@ func (a *Account) insertAccount() bool {
 	a.Credit = 0
 	a.Debit = 0
 	a.Balance = 0
+	a.setAccountName()
 
 	result := dbOrm.Create(&a)
 	if result.Error != nil {
@@ -124,6 +130,7 @@ func (a *Account) updateAccount() bool {
 	account.JournalId = a.JournalId
 	account.Name = a.Name
 	account.AccountNumber = a.AccountNumber
+	account.setAccountName()
 
 	result = dbOrm.Save(&account)
 	if result.Error != nil {
