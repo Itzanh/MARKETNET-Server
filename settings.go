@@ -706,7 +706,7 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 			MaxStorage:   int64(documentSpace) * 1000000000, // Gb to bytes
 			EnterpriseId: enterpriseId,
 		}
-		if !dc.insertDocumentContainer() {
+		if !dc.insertDocumentContainer(true) {
 			fmt.Println("Could not create document container")
 			return false
 		}

@@ -47,12 +47,14 @@ func (d *DocumentContainer) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-func (d *DocumentContainer) insertDocumentContainer() bool {
+// forceInsertDocumentContainer force inserts a document container and will only be used for forcing the creation
+// of a document container in the enterprise creation in the SaaS
+func (d *DocumentContainer) insertDocumentContainer(forceInsertDocumentContainer bool) bool {
 	if !d.isValid() {
 		return false
 	}
 
-	if isParameterPresent("--saas") {
+	if isParameterPresent("--saas") && !forceInsertDocumentContainer {
 		return false
 	}
 

@@ -1217,7 +1217,7 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 			var documentContainer DocumentContainer
 			json.Unmarshal(message, &documentContainer)
 			documentContainer.EnterpriseId = enterpriseId
-			ok = documentContainer.insertDocumentContainer()
+			ok = documentContainer.insertDocumentContainer(false)
 		case "PRODUCT_IMAGE":
 			var productImage ProductImage
 			json.Unmarshal(message, &productImage)

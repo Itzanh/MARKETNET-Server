@@ -2576,7 +2576,7 @@ func TestDocumentContainerInsertUpdateDelete(t *testing.T) {
 		EnterpriseId: 1,
 	}
 
-	ok := p.insertDocumentContainer()
+	ok := p.insertDocumentContainer(true)
 	if !ok {
 		t.Error("Insert error, can't insert document container")
 		return
