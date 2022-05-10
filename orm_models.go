@@ -8,6 +8,15 @@ func addORMModels() bool {
 
 	dbOrm.Exec("ALTER TABLE public.sales_order_detail_digital_product_data DROP CONSTRAINT IF EXISTS fk_sales_order_detail_digital_product_data_detail")
 
+	dbOrm.Exec("UPDATE connection_filter SET ip_address = '::1' WHERE ip_address = '['")
+	dbOrm.Exec("ALTER TABLE connection_filter ALTER COLUMN ip_address type inet USING CAST(ip_address AS inet)")
+
+	dbOrm.Exec("UPDATE connection_log SET ip_address = '::1' WHERE ip_address = '['")
+	dbOrm.Exec("ALTER TABLE connection_log ALTER COLUMN ip_address type inet USING CAST(ip_address AS inet)")
+
+	dbOrm.Exec("UPDATE login_tokens SET ip_address = '::1' WHERE ip_address = '['")
+	dbOrm.Exec("ALTER TABLE login_tokens ALTER COLUMN ip_address type inet USING CAST(ip_address AS inet)")
+
 	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
 		&User{}, &Group{}, &UserGroup{}, &PermissionDictionary{}, &PermissionDictionaryGroup{}, &DocumentContainer{}, &Document{}, &ProductFamily{}, &ProductAccount{},
 		&Carrier{}, &State{}, &Color{}, &Packages{}, &Incoterm{}, &Product{}, &ConfigAccountsVat{}, &ManufacturingOrderType{}, &ManufacturingOrderTypeComponents{},

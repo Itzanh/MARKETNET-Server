@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	gorm_log "log"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -250,6 +251,10 @@ func reverse(w http.ResponseWriter, r *http.Request) {
 func authentication(ws *websocket.Conn, remoteAddr string) (bool, int32, *Permissions, int32) {
 	var userId int32
 	var enterpriseId int32
+
+	// Remote the port from the address
+	remoteAddr, _, _ = net.SplitHostPort(remoteAddr)
+
 	// AUTHENTICATION
 	var i int16 = 0
 	for ; i < settings.Server.MaxLoginAttemps; i++ {
@@ -257,11 +262,6 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int32, *Permis
 		mt, message, err := ws.ReadMessage()
 		if err != nil {
 			return false, 0, nil, 0
-		}
-
-		// Remote the port from the address
-		if strings.Contains(remoteAddr, ":") {
-			remoteAddr = remoteAddr[:strings.Index(remoteAddr, ":")]
 		}
 
 		// Attempt login in DB

@@ -15,7 +15,7 @@ type LoginToken struct {
 	DateLastUsed time.Time `json:"dateLastUsed" gorm:"type:timestamp(3) with time zone;not null:true"`
 	UserId       int32     `json:"user" gorm:"column:user;type:integer;not null:true"`
 	User         User      `json:"-" gorm:"foreignKey:UserId;references:Id"`
-	IpAddress    string    `json:"ipAddress" gorm:"type:character varying(15);not null:true;index:login_tokens_name_ip_address,unique:true"`
+	IpAddress    string    `json:"ipAddress" gorm:"type:inet;not null:true;index:login_tokens_name_ip_address,unique:true"`
 }
 
 func (l *LoginToken) TableName() string {

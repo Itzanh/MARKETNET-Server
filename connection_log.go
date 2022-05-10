@@ -14,7 +14,7 @@ type ConnectionLog struct {
 	UserId           int32      `json:"userId" gorm:"column:user;not null:true;index:connection_log_user_date_connected,priority:1,where:date_disconnected IS NULL"`
 	User             User       `json:"user" gorm:"foreignkey:UserId,EnterpriseId;references:Id,EnterpriseId"`
 	Ok               bool       `json:"ok" gorm:"not null:true"`
-	IpAddress        string     `json:"ipAddress" gorm:"not null:true;type:character varying(15)"`
+	IpAddress        string     `json:"ipAddress" gorm:"not null:true;type:inet"`
 	EnterpriseId     int32      `json:"-" gorm:"column:enterprise;not null:true"`
 	Enterprise       Settings   `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
@@ -133,7 +133,7 @@ type ConnectionFilter struct {
 	Id           int32      `json:"id"`
 	Name         string     `json:"name" gorm:"not null:true;type:character varying(100)"`
 	Type         string     `json:"type" gorm:"type:character(1);not null:true"` // I = IP, S = Schedule
-	IpAddress    *string    `json:"ipAddress" gorm:"type:character varying(15)"`
+	IpAddress    *string    `json:"ipAddress" gorm:"type:inet"`
 	TimeStart    *time.Time `json:"timeStart" gorm:"column:time_start;type:timestamp(0) with time zone"`
 	TimeEnd      *time.Time `json:"timeEnd" gorm:"column:time_end;type:timestamp(0) with time zone"`
 	EnterpriseId int32      `json:"-" gorm:"column:enterprise;not null:true"`
