@@ -34,5 +34,14 @@ func addORMModels() bool {
 		}
 	}
 
+	// add enterprise in shipping status history
+	shippingStatusHistoryRecords := make([]ShippingStatusHistory, 0)
+	dbOrm.Model(&ShippingStatusHistory{}).Preload("Shipping").Find(&shippingStatusHistoryRecords)
+	for i := 0; i < len(shippingStatusHistoryRecords); i++ {
+		shippingStatusHistory := shippingStatusHistoryRecords[i]
+		shippingStatusHistory.EnterpriseId = shippingStatusHistory.Shipping.EnterpriseId
+		dbOrm.Save(&shippingStatusHistory)
+	}
+
 	return true
 }

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const SENDCLOUD_MAX_ADDRESS_CHARACTER_LIMIT = 75
@@ -336,9 +337,8 @@ func getShippingTrackingSendCloud(enterpriseId int32) {
 	}
 	///
 
-	// webservice SendCloud, shipped, collected, but not delivered by the carrier yet
-	sqlStatement := `SELECT id,shipping_number,carrier FROM shipping WHERE enterprise=$1 AND (SELECT webservice FROM carrier WHERE carrier.id=shipping.carrier) = 'S' AND sent = true AND collected = true AND delivered = false`
-	rows, err := db.Query(sqlStatement, enterpriseId)
+	// webservice SendCloud, shipped, collected, but not delivered by the carrier yet using dbOrm
+	rows, err := dbOrm.Model(&Shipping{}).Where("enterprise = ? AND (SELECT webservice FROM carrier WHERE carrier.id=shipping.carrier) = 'S' AND sent = true AND collected = true AND delivered = false", enterpriseId).Select("id,shipping_number,carrier").Rows()
 	if err != nil {
 		log("DB", err.Error())
 		return
@@ -382,30 +382,34 @@ func getShippingTrackingSendCloud(enterpriseId int32) {
 
 		var delivered bool = (parcel.Parcel.Status.Id == 11 && parcel.Parcel.Status.Message == "Delivered")
 
-		sqlStatement := `SELECT message FROM public.shipping_status_history WHERE shipping = $1 ORDER BY date_created DESC LIMIT 1`
-		row := db.QueryRow(sqlStatement, shippingId)
-		if row.Err() != nil {
-			log("DB", row.Err().Error())
+		var lastMessageInDb string
+		result := dbOrm.Model(&ShippingStatusHistory{}).Where("shipping = ?", shippingId).Select("message").Limit(1).Order("date_created DESC").First(&lastMessageInDb)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
 			continue
 		}
 
-		var lastMessageInDb string
-		row.Scan(&lastMessageInDb)
-
 		if parcel.Parcel.Status.Message != lastMessageInDb {
-			sqlStatement := `INSERT INTO public.shipping_status_history(shipping, status_id, message, delivered) VALUES ($1, $2, $3, $4)`
-			_, err := db.Exec(sqlStatement, shippingId, parcel.Parcel.Status.Id, parcel.Parcel.Status.Message, delivered)
-			if err != nil {
-				log("DB", err.Error())
+			var shippingStatusHistory ShippingStatusHistory = ShippingStatusHistory{
+				ShippingId:   shippingId,
+				StatusId:     parcel.Parcel.Status.Id,
+				Message:      parcel.Parcel.Status.Message,
+				DateCreated:  time.Now(),
+				Delivered:    delivered,
+				EnterpriseId: enterpriseId,
+			}
+			result := dbOrm.Create(&shippingStatusHistory)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
 				continue
 			}
 		}
 
 		if delivered {
-			sqlStatement := `UPDATE public.shipping SET delivered=true WHERE id=$1`
-			_, err := db.Exec(sqlStatement, shippingId)
-			if err != nil {
-				log("DB", err.Error())
+			// update the shipping status to delivered
+			result := dbOrm.Model(&Shipping{}).Where("id = ?", shippingId).Update("delivered", true)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
 				continue
 			}
 
