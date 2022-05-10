@@ -1149,11 +1149,12 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 
 	// CRUD digital product data
 	dpd := SalesOrderDetailDigitalProductData{
-		DetailId: d.Id,
-		Key:      "test",
-		Value:    "1234-5678-90",
+		DetailId:     d.Id,
+		Key:          "test",
+		Value:        "1234-5678-90",
+		EnterpriseId: 1,
 	}
-	dpd.insertSalesOrderDetailDigitalProductData(1)
+	dpd.insertSalesOrderDetailDigitalProductData()
 
 	dgDatas := getSalesOrderDetailDigitalProductData(d.Id, 1)
 	if len(dgDatas) == 0 || dgDatas[0].Id <= 0 {
@@ -1162,7 +1163,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	}
 
 	dgDatas[0].Key = "license_code"
-	dgDatas[0].updateSalesOrderDetailDigitalProductData(1)
+	dgDatas[0].updateSalesOrderDetailDigitalProductData()
 
 	dgDatas = getSalesOrderDetailDigitalProductData(d.Id, 1)
 	if dgDatas[0].Key != "license_code" {
@@ -1194,7 +1195,7 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 		log("DB", err.Error())
 	}
 
-	dgDatas[0].deleteSalesOrderDetailDigitalProductData(1)
+	dgDatas[0].deleteSalesOrderDetailDigitalProductData()
 	dgDatas = getSalesOrderDetailDigitalProductData(d.Id, 1)
 	if len(dgDatas) != 0 {
 		t.Error("Can't delete digital product data")

@@ -6,6 +6,8 @@ func addORMModels() bool {
 	// GORM does not do this automatically
 	dbOrm.Exec("UPDATE pg_opclass SET opcdefault = true WHERE opcname='gin_trgm_ops'")
 
+	dbOrm.Exec("ALTER TABLE public.sales_order_detail_digital_product_data DROP CONSTRAINT IF EXISTS fk_sales_order_detail_digital_product_data_detail")
+
 	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
 		&User{}, &Group{}, &UserGroup{}, &PermissionDictionary{}, &PermissionDictionaryGroup{}, &DocumentContainer{}, &Document{}, &ProductFamily{}, &ProductAccount{},
 		&Carrier{}, &State{}, &Color{}, &Packages{}, &Incoterm{}, &Product{}, &ConfigAccountsVat{}, &ManufacturingOrderType{}, &ManufacturingOrderTypeComponents{},
@@ -41,6 +43,16 @@ func addORMModels() bool {
 		shippingStatusHistory := shippingStatusHistoryRecords[i]
 		shippingStatusHistory.EnterpriseId = shippingStatusHistory.Shipping.EnterpriseId
 		dbOrm.Save(&shippingStatusHistory)
+	}
+
+	// add enterprise in sales order detail digital product data
+	salesOrderDetailDigitalProductDataRecords := make([]SalesOrderDetailDigitalProductData, 0)
+	dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Preload("Detail").Find(&salesOrderDetailDigitalProductDataRecords)
+	for i := 0; i < len(salesOrderDetailDigitalProductDataRecords); i++ {
+		salesOrderDetailDigitalProductData := salesOrderDetailDigitalProductDataRecords[i]
+		salesOrderDetail := getSalesOrderDetailRow(salesOrderDetailDigitalProductData.DetailId)
+		salesOrderDetailDigitalProductData.EnterpriseId = salesOrderDetail.EnterpriseId
+		dbOrm.Save(&salesOrderDetailDigitalProductData)
 	}
 
 	return true

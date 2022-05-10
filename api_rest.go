@@ -314,12 +314,14 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 		if string(body[0]) == "{" {
 			var d SalesOrderDetailDigitalProductData
 			json.Unmarshal(body, &d)
-			ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
+			d.EnterpriseId = enterpriseId
+			ok = d.insertSalesOrderDetailDigitalProductData()
 		} else if string(body[0]) == "[" {
 			var d []SalesOrderDetailDigitalProductData
 			json.Unmarshal(body, &d)
 			for i := 0; i < len(d); i++ {
-				ok = d[i].insertSalesOrderDetailDigitalProductData(enterpriseId)
+				d[i].EnterpriseId = enterpriseId
+				ok = d[i].insertSalesOrderDetailDigitalProductData()
 				if !ok {
 					break
 				}
@@ -334,7 +336,8 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 		}
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(body, &d)
-		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
+		d.EnterpriseId = enterpriseId
+		ok = d.updateSalesOrderDetailDigitalProductData()
 	case "DELETE":
 		if !permission.SaleOrderDetailsDigitalProductData.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -346,8 +349,9 @@ func apiSaleOrderDetailsDigitalProductData(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		var d SalesOrderDetailDigitalProductData
-		d.Id = enterpriseId
-		ok = d.deleteSalesOrderDetailDigitalProductData(enterpriseId)
+		d.Id = int32(id)
+		d.EnterpriseId = enterpriseId
+		ok = d.deleteSalesOrderDetailDigitalProductData()
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

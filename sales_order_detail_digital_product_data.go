@@ -3,11 +3,13 @@ package main
 import "gorm.io/gorm"
 
 type SalesOrderDetailDigitalProductData struct {
-	Id       int32            `json:"id"`
-	DetailId int64            `json:"detailId" gorm:"column:detail;not null:true"`
-	Detail   SalesOrderDetail `json:"detail" gorm:"foreignKey:DetailId;reference:Id"`
-	Key      string           `json:"key" gorm:"column:key;not null:true;type:character varying(50)"`
-	Value    string           `json:"value" gorm:"column:value;not null:true;type:character varying(250)"`
+	Id           int32            `json:"id"`
+	DetailId     int64            `json:"detailId" gorm:"column:detail;not null:true"`
+	Detail       SalesOrderDetail `json:"detail" gorm:"foreignKey:DetailId,EnterpriseId;references:Id,EnterpriseId"`
+	Key          string           `json:"key" gorm:"column:key;not null:true;type:character varying(50)"`
+	Value        string           `json:"value" gorm:"column:value;not null:true;type:character varying(250)"`
+	EnterpriseId int32            `json:"-" gorm:"column:enterprise"`
+	Enterprise   Settings         `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
 
 func (s *SalesOrderDetailDigitalProductData) TableName() string {
@@ -41,15 +43,12 @@ func (d *SalesOrderDetailDigitalProductData) BeforeCreate(tx *gorm.DB) (err erro
 	return nil
 }
 
-func (d *SalesOrderDetailDigitalProductData) insertSalesOrderDetailDigitalProductData(enterpriseId int32) bool {
+func (d *SalesOrderDetailDigitalProductData) insertSalesOrderDetailDigitalProductData() bool {
 	if !d.isValid() {
 		return false
 	}
 
 	detailRow := getSalesOrderDetailRow(d.DetailId)
-	if detailRow.EnterpriseId != enterpriseId || detailRow.Status != "E" {
-		return false
-	}
 	productRow := getProductRow(detailRow.ProductId)
 	if !productRow.DigitalProduct {
 		return false
@@ -64,17 +63,12 @@ func (d *SalesOrderDetailDigitalProductData) insertSalesOrderDetailDigitalProduc
 	return true
 }
 
-func (d *SalesOrderDetailDigitalProductData) updateSalesOrderDetailDigitalProductData(enterpriseId int32) bool {
+func (d *SalesOrderDetailDigitalProductData) updateSalesOrderDetailDigitalProductData() bool {
 	if !d.isValid() || d.Id <= 0 {
 		return false
 	}
 
-	detailRow := getSalesOrderDetailRow(d.DetailId)
-	if detailRow.EnterpriseId != enterpriseId || detailRow.Status != "E" {
-		return false
-	}
-
-	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ?", d.Id).Updates(map[string]interface{}{
+	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ? AND enterprise = ?", d.Id, d.EnterpriseId).Updates(map[string]interface{}{
 		"key":   d.Key,
 		"value": d.Value,
 	})
@@ -86,23 +80,12 @@ func (d *SalesOrderDetailDigitalProductData) updateSalesOrderDetailDigitalProduc
 	return true
 }
 
-func (d *SalesOrderDetailDigitalProductData) deleteSalesOrderDetailDigitalProductData(enterpriseId int32) bool {
+func (d *SalesOrderDetailDigitalProductData) deleteSalesOrderDetailDigitalProductData() bool {
 	if d.Id <= 0 {
 		return false
 	}
 
-	var digitalData SalesOrderDetailDigitalProductData
-	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ?", d.Id).First(&digitalData)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return false
-	}
-	detailRow := getSalesOrderDetailRow(digitalData.DetailId)
-	if detailRow.EnterpriseId != enterpriseId || detailRow.Status != "E" {
-		return false
-	}
-
-	result = dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ?", d.Id).Delete(&SalesOrderDetailDigitalProductData{})
+	result := dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Where("id = ? AND enterprise = ?", d.Id, d.EnterpriseId).Delete(&SalesOrderDetailDigitalProductData{})
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return false

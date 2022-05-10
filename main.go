@@ -1585,7 +1585,8 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		}
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
-		ok = d.insertSalesOrderDetailDigitalProductData(enterpriseId)
+		d.EnterpriseId = enterpriseId
+		ok = d.insertSalesOrderDetailDigitalProductData()
 	case "PERMISSION_DICTIONARY_GROUP":
 		if !permissions.Admin {
 			return
@@ -1904,7 +1905,8 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		}
 		var d SalesOrderDetailDigitalProductData
 		json.Unmarshal(message, &d)
-		ok = d.updateSalesOrderDetailDigitalProductData(enterpriseId)
+		d.EnterpriseId = enterpriseId
+		ok = d.updateSalesOrderDetailDigitalProductData()
 	case "POS_TERMINAL":
 		if !permissions.Admin {
 			return
@@ -2391,7 +2393,8 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		}
 		d := SalesOrderDetailDigitalProductData{}
 		d.Id = int32(id)
-		ok = d.deleteSalesOrderDetailDigitalProductData(enterpriseId)
+		d.EnterpriseId = enterpriseId
+		ok = d.deleteSalesOrderDetailDigitalProductData()
 	case "MANUFACTURING_ORDER_TYPE_COMPONENTS":
 		if !permissions.Manufacturing {
 			return
