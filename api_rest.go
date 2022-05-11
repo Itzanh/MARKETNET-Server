@@ -47,6 +47,7 @@ func addHttpHandlerFuncions() {
 	http.HandleFunc("/api/languages", apiLanguages)
 	http.HandleFunc("/api/packages", apiPackages)
 	http.HandleFunc("/api/incoterms", apiIncoterms)
+	http.HandleFunc("/api/custom_fields", apiCustomFields)
 	// warehouse
 	http.HandleFunc("/api/warehouses", apiWarehouses)
 	http.HandleFunc("/api/warehouse_movements", apiWarehouseMovements)
@@ -2286,6 +2287,69 @@ func apiIncoterms(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
+func apiCustomFields(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId, _ := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	switch r.Method {
+	case "GET":
+		var query CustomFields
+		json.Unmarshal(body, &query)
+		query.EnterpriseId = enterpriseId
+		data, _ := json.Marshal(query.getCustomFields())
+		w.Write(data)
+		return
+	case "POST":
+		var customField CustomFields
+		json.Unmarshal(body, &customField)
+		customField.EnterpriseId = enterpriseId
+		ok = customField.insertCustomFields()
+	case "PUT":
+		var customField CustomFields
+		json.Unmarshal(body, &customField)
+		customField.EnterpriseId = enterpriseId
+		ok = customField.updateCustomFields()
+	case "DELETE":
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var customField CustomFields
+		customField.Id = int64(id)
+		customField.EnterpriseId = enterpriseId
+		ok = customField.deleteCustomFields()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
 func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 	// headers
 	w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -2341,11 +2405,6 @@ func apiWarehouses(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		if !permission.Warehouses.Delete {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		id, err := strconv.Atoi(string(body))
-		if err != nil || id <= 0 {
-			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		var warehouse Warehouse

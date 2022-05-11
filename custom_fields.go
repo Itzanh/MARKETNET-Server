@@ -70,6 +70,20 @@ func (f *CustomFields) isValid() bool {
 		f.ImageMimeType = &mimeType
 	}
 
+	var relationsCount uint8
+	if f.ProductId != nil {
+		relationsCount++
+	}
+	if f.CustomerId != nil {
+		relationsCount++
+	}
+	if f.SupplierId != nil {
+		relationsCount++
+	}
+	if relationsCount != 1 {
+		return false
+	}
+
 	return !((f.ProductId == nil && f.CustomerId == nil && f.SupplierId == nil) || len(f.Name) == 0 || len(f.Name) > 255 || f.FieldType < 1 || f.FieldType > 6 || (f.FileName != nil && len(*f.FileName) > 255) || ((f.FieldType == 5 || f.FieldType == 6) && (f.FileName == nil || len(*f.FileName) == 0)) || (f.ValueString != nil && len(*f.ValueString) > 80000) || ((f.FieldType == 1 || f.FieldType == 2) && (f.ValueString == nil || len(*f.ValueString) == 0)))
 }
 
