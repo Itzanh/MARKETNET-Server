@@ -35,6 +35,7 @@ func addHttpHandlerFuncions() {
 	http.HandleFunc("/api/customers", apiCustomers)
 	http.HandleFunc("/api/suppliers", apiSuppliers)
 	http.HandleFunc("/api/products", apiProducts)
+	http.HandleFunc("/api/product_images", apiProductImages)
 	http.HandleFunc("/api/countries", apiCountries)
 	http.HandleFunc("/api/states", apiStates)
 	http.HandleFunc("/api/colors", apiColors)
@@ -1337,6 +1338,85 @@ func apiProducts(w http.ResponseWriter, r *http.Request) {
 		product.Id = int32(id)
 		product.EnterpriseId = enterpriseId
 		ok = product.deleteProduct(userId).Ok
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiProductImages(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId, permission := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		if !permission.Products.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getProductImages(int32(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if !permission.Suppliers.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var productImage ProductImage
+		json.Unmarshal(body, &productImage)
+		ok = productImage.insertProductImage(enterpriseId)
+	case "PUT":
+		if !permission.Suppliers.Put {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var productImage ProductImage
+		json.Unmarshal(body, &productImage)
+		ok = productImage.updateProductImage(enterpriseId)
+	case "DELETE":
+		if !permission.Suppliers.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var productImage ProductImage
+		productImage.Id = int32(id)
+		ok = productImage.deleteProductImage(enterpriseId)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
