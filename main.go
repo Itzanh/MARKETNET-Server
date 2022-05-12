@@ -805,6 +805,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		json.Unmarshal([]byte(message), &field)
 		field.EnterpriseId = enterpriseId
 		data, _ = json.Marshal(field.getCustomFields())
+	case "LABEL_PRINTER_PROFILES":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getLabelPrinterProfiles(enterpriseId))
 	default:
 		found = false
 	}
@@ -1649,6 +1654,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &field)
 		field.EnterpriseId = enterpriseId
 		ok = field.insertCustomFields()
+	case "LABEL_PRINTER_PROFILE":
+		if !permissions.Masters {
+			return
+		}
+		var labelPrinterProfile LabelPrinterProfile
+		json.Unmarshal([]byte(message), &labelPrinterProfile)
+		labelPrinterProfile.EnterpriseId = enterpriseId
+		ok = labelPrinterProfile.insertLabelPrinterProfile()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1954,6 +1967,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &field)
 		field.EnterpriseId = enterpriseId
 		ok = field.updateCustomFields()
+	case "LABEL_PRINTER_PROFILE":
+		if !permissions.Masters {
+			return
+		}
+		var labelPrinterProfile LabelPrinterProfile
+		json.Unmarshal([]byte(message), &labelPrinterProfile)
+		labelPrinterProfile.EnterpriseId = enterpriseId
+		ok = labelPrinterProfile.updateLabelPrinterProfile()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2442,6 +2463,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		field.Id = int64(id)
 		field.EnterpriseId = enterpriseId
 		ok = field.deleteCustomFields()
+	case "LABEL_PRINTER_PROFILE":
+		if !permissions.Masters {
+			return
+		}
+		var labelPrinterProfile LabelPrinterProfile
+		labelPrinterProfile.Id = int32(id)
+		labelPrinterProfile.EnterpriseId = enterpriseId
+		ok = labelPrinterProfile.deleteLabelPrinterProfile()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)

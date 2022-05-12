@@ -235,13 +235,6 @@ type Settings struct {
 	SMTPReplyTo                       string         `json:"SMTPReplyTo" gorm:"type:character varying(50);not null:true"`
 	EmailSendErrorEcommerce           string         `json:"emailSendErrorEcommerce" gorm:"type:character varying(150);not null:true"`
 	EmailSendErrorSendCloud           string         `json:"emailSendErrorSendCloud" gorm:"column:email_send_error_sendcloud;type:character varying(150);not null:true"`
-	ProductBarCodeLabelWidth          int16          `json:"productBarCodeLabelWidth" gorm:"column:product_barcode_label_width;not null:true"`
-	ProductBarCodeLabelHeight         int16          `json:"productBarCodeLabelHeight" gorm:"column:product_barcode_label_height;not null:true"`
-	ProductBarCodeLabelSize           int16          `json:"productBarCodeLabelSize" gorm:"column:product_barcode_label_size;not null:true"`
-	ProductBarCodeLabelMarginTop      int16          `json:"productBarCodeLabelMarginTop" gorm:"column:product_barcode_label_margin_top;not null:true"`
-	ProductBarCodeLabelMarginBottom   int16          `json:"productBarCodeLabelMarginBottom" gorm:"column:product_barcode_label_margin_bottom;not null:true"`
-	ProductBarCodeLabelMarginLeft     int16          `json:"productBarCodeLabelMarginLeft" gorm:"column:product_barcode_label_margin_left;not null:true"`
-	ProductBarCodeLabelMarginRight    int16          `json:"productBarCodeLabelMarginRight" gorm:"column:product_barcode_label_margin_right;not null:true"`
 }
 
 func (s *Settings) TableName() string {
@@ -276,7 +269,7 @@ func getSettingsRecordByEnterprise(enterpriseKey string) Settings {
 }
 
 func (s *Settings) isValid() bool {
-	return !(s.DefaultVatPercent < 0 || len(s.DefaultWarehouseId) != 2 || len(s.DateFormat) == 0 || len(s.DateFormat) > 25 || len(s.EnterpriseName) == 0 || len(s.EnterpriseName) > 50 || len(s.EnterpriseDescription) > 250 || (s.Ecommerce != "_" && s.Ecommerce != "P" && s.Ecommerce != "M" && s.Ecommerce != "W" && s.Ecommerce != "S") || (s.Email != "_" && s.Email != "S" && s.Email != "T") || (s.Currency != "_" && s.Currency != "E") || len(s.CurrencyECBurl) > 100 || len(s.BarcodePrefix) > 4 || len(s.PrestaShopUrl) > 100 || len(s.PrestaShopApiKey) > 32 || s.PrestaShopLanguageId < 0 || len(s.CronCurrency) > 25 || len(s.CronPrestaShop) > 25 || len(s.SendGridKey) > 75 || len(s.EmailFrom) > 50 || len(s.NameFrom) > 50 || s.PalletWeight < 0 || s.PalletWidth < 0 || s.PalletHeight < 0 || s.PalletDepth < 0 || s.MaxConnections < 0 || s.PrestaShopStatusPaymentAccepted < 0 || s.PrestaShopStatusShipped < 0 || s.MinimumStockSalesPeriods < 0 || s.MinimumStockSalesDays < 0 || (s.Ecommerce == "P" && (s.PrestaShopLanguageId == 0 || s.PrestaShopExportSerieId == nil || s.PrestaShopIntracommunitySerieId == nil || s.PrestaShopInteriorSerieId == nil || s.PrestaShopStatusPaymentAccepted == 0 || s.PrestaShopStatusShipped == 0)) || (s.Ecommerce == "W" && (s.WooCommerceDefaultPaymentMethodId == nil || s.WooCommerceExportSerieId == nil || s.WooCommerceInteriorSerieId == nil || s.WooCommerceIntracommunitySerieId == nil)) || (s.Ecommerce == "S" && (s.ShopifyDefaultPaymentMethodId == nil || s.ShopifyExportSerieId == nil || s.ShopifyInteriorSerieId == nil || s.ShopifyIntracommunitySerieId == nil)) || s.PasswordMinimumLength < 6 || (s.PasswordMinumumComplexity != "A" && s.PasswordMinumumComplexity != "B" && s.PasswordMinumumComplexity != "C" && s.PasswordMinumumComplexity != "D") || s.InvoiceDeletePolicy < 0 || s.InvoiceDeletePolicy > 2 || s.UndoManufacturingOrderSeconds < 0 || len(s.CronSendCloudTracking) > 25 || (s.Email == "S" && (len(s.SendGridKey) == 0 || len(s.EmailFrom) == 0 || len(s.NameFrom) == 0 || !emailIsValid(s.EmailFrom))) || (s.Email == "T" && (len(s.SMTPUsername) == 0 || len(s.SMTPPassword) == 0 || len(s.SMTPHostname) == 0 || !emailIsValid(s.SMTPUsername) || !hostnameWithPortValid(s.SMTPHostname))) || s.ProductBarCodeLabelWidth < 0 || s.ProductBarCodeLabelHeight < 0 || s.ProductBarCodeLabelSize < 0 || s.ProductBarCodeLabelMarginTop < 0 || s.ProductBarCodeLabelMarginBottom < 0 || s.ProductBarCodeLabelMarginLeft < 0 || s.ProductBarCodeLabelMarginRight < 0)
+	return !(s.DefaultVatPercent < 0 || len(s.DefaultWarehouseId) != 2 || len(s.DateFormat) == 0 || len(s.DateFormat) > 25 || len(s.EnterpriseName) == 0 || len(s.EnterpriseName) > 50 || len(s.EnterpriseDescription) > 250 || (s.Ecommerce != "_" && s.Ecommerce != "P" && s.Ecommerce != "M" && s.Ecommerce != "W" && s.Ecommerce != "S") || (s.Email != "_" && s.Email != "S" && s.Email != "T") || (s.Currency != "_" && s.Currency != "E") || len(s.CurrencyECBurl) > 100 || len(s.BarcodePrefix) > 4 || len(s.PrestaShopUrl) > 100 || len(s.PrestaShopApiKey) > 32 || s.PrestaShopLanguageId < 0 || len(s.CronCurrency) > 25 || len(s.CronPrestaShop) > 25 || len(s.SendGridKey) > 75 || len(s.EmailFrom) > 50 || len(s.NameFrom) > 50 || s.PalletWeight < 0 || s.PalletWidth < 0 || s.PalletHeight < 0 || s.PalletDepth < 0 || s.MaxConnections < 0 || s.PrestaShopStatusPaymentAccepted < 0 || s.PrestaShopStatusShipped < 0 || s.MinimumStockSalesPeriods < 0 || s.MinimumStockSalesDays < 0 || (s.Ecommerce == "P" && (s.PrestaShopLanguageId == 0 || s.PrestaShopExportSerieId == nil || s.PrestaShopIntracommunitySerieId == nil || s.PrestaShopInteriorSerieId == nil || s.PrestaShopStatusPaymentAccepted == 0 || s.PrestaShopStatusShipped == 0)) || (s.Ecommerce == "W" && (s.WooCommerceDefaultPaymentMethodId == nil || s.WooCommerceExportSerieId == nil || s.WooCommerceInteriorSerieId == nil || s.WooCommerceIntracommunitySerieId == nil)) || (s.Ecommerce == "S" && (s.ShopifyDefaultPaymentMethodId == nil || s.ShopifyExportSerieId == nil || s.ShopifyInteriorSerieId == nil || s.ShopifyIntracommunitySerieId == nil)) || s.PasswordMinimumLength < 6 || (s.PasswordMinumumComplexity != "A" && s.PasswordMinumumComplexity != "B" && s.PasswordMinumumComplexity != "C" && s.PasswordMinumumComplexity != "D") || s.InvoiceDeletePolicy < 0 || s.InvoiceDeletePolicy > 2 || s.UndoManufacturingOrderSeconds < 0 || len(s.CronSendCloudTracking) > 25 || (s.Email == "S" && (len(s.SendGridKey) == 0 || len(s.EmailFrom) == 0 || len(s.NameFrom) == 0 || !emailIsValid(s.EmailFrom))) || (s.Email == "T" && (len(s.SMTPUsername) == 0 || len(s.SMTPPassword) == 0 || len(s.SMTPHostname) == 0 || !emailIsValid(s.SMTPUsername) || !hostnameWithPortValid(s.SMTPHostname))))
 }
 
 func (s *Settings) updateSettingsRecord() bool {
@@ -426,13 +419,6 @@ func (s *Settings) updateSettingsRecord() bool {
 	settingsInDisk.CronSendCloudTracking = s.CronSendCloudTracking
 	settingsInDisk.EmailSendErrorEcommerce = s.EmailSendErrorEcommerce
 	settingsInDisk.EmailSendErrorSendCloud = s.EmailSendErrorSendCloud
-	settingsInDisk.ProductBarCodeLabelWidth = s.ProductBarCodeLabelWidth
-	settingsInDisk.ProductBarCodeLabelHeight = s.ProductBarCodeLabelHeight
-	settingsInDisk.ProductBarCodeLabelSize = s.ProductBarCodeLabelSize
-	settingsInDisk.ProductBarCodeLabelMarginTop = s.ProductBarCodeLabelMarginTop
-	settingsInDisk.ProductBarCodeLabelMarginBottom = s.ProductBarCodeLabelMarginBottom
-	settingsInDisk.ProductBarCodeLabelMarginLeft = s.ProductBarCodeLabelMarginLeft
-	settingsInDisk.ProductBarCodeLabelMarginRight = s.ProductBarCodeLabelMarginRight
 
 	result := dbOrm.Save(&settingsInDisk)
 	if result.Error != nil {
@@ -447,19 +433,15 @@ func (s *Settings) updateSettingsRecord() bool {
 // Don't allow every client to get the secret data, like API keys.
 // This object holds the config that every client has to know, and the "Settings" object contains admin information.
 type ClientSettings struct {
-	DefaultVatPercent               float64 `json:"defaultVatPercent"`
-	DefaultWarehouse                string  `json:"defaultWarehouse"`
-	DefaultWarehouseName            string  `json:"defaultWarehouseName"`
-	DateFormat                      string  `json:"dateFormat"`
-	Ecommerce                       string  `json:"ecommerce"`           // "_" = None, "P" = PrestaShop, "M" = Magento
-	InvoiceDeletePolicy             int16   `json:"invoiceDeletePolicy"` // 0 = Allow invoice deletion, 1 = Only allow the deletion of the latest invoice in the billing serie, 2 = Never allow invoice deletion
-	ProductBarCodeLabelWidth        int16   `json:"productBarCodeLabelWidth"`
-	ProductBarCodeLabelHeight       int16   `json:"productBarCodeLabelHeight"`
-	ProductBarCodeLabelSize         int16   `json:"productBarCodeLabelSize"`
-	ProductBarCodeLabelMarginTop    int16   `json:"productBarCodeLabelMarginTop"`
-	ProductBarCodeLabelMarginBottom int16   `json:"productBarCodeLabelMarginBottom"`
-	ProductBarCodeLabelMarginLeft   int16   `json:"productBarCodeLabelMarginLeft"`
-	ProductBarCodeLabelMarginRight  int16   `json:"productBarCodeLabelMarginRight"`
+	DefaultVatPercent             float64              `json:"defaultVatPercent"`
+	DefaultWarehouse              string               `json:"defaultWarehouse"`
+	DefaultWarehouseName          string               `json:"defaultWarehouseName"`
+	DateFormat                    string               `json:"dateFormat"`
+	Ecommerce                     string               `json:"ecommerce"`           // "_" = None, "P" = PrestaShop, "M" = Magento
+	InvoiceDeletePolicy           int16                `json:"invoiceDeletePolicy"` // 0 = Allow invoice deletion, 1 = Only allow the deletion of the latest invoice in the billing serie, 2 = Never allow invoice deletion
+	LabelPrinterProfileEAN13      *LabelPrinterProfile `json:"labelPrinterProfileEAN13"`
+	LabelPrinterProfileCode128    *LabelPrinterProfile `json:"labelPrinterProfileCode128"`
+	LabelPrinterProfileDataMatrix *LabelPrinterProfile `json:"labelPrinterProfileDataMatrix"`
 }
 
 func (s Settings) censorSettings() ClientSettings {
@@ -472,13 +454,11 @@ func (s Settings) censorSettings() ClientSettings {
 	c.DateFormat = s.DateFormat
 	c.Ecommerce = s.Ecommerce
 	c.InvoiceDeletePolicy = s.InvoiceDeletePolicy
-	c.ProductBarCodeLabelWidth = s.ProductBarCodeLabelWidth
-	c.ProductBarCodeLabelHeight = s.ProductBarCodeLabelHeight
-	c.ProductBarCodeLabelSize = s.ProductBarCodeLabelSize
-	c.ProductBarCodeLabelMarginTop = s.ProductBarCodeLabelMarginTop
-	c.ProductBarCodeLabelMarginBottom = s.ProductBarCodeLabelMarginBottom
-	c.ProductBarCodeLabelMarginLeft = s.ProductBarCodeLabelMarginLeft
-	c.ProductBarCodeLabelMarginRight = s.ProductBarCodeLabelMarginRight
+
+	c.LabelPrinterProfileEAN13 = getLabelPrinterProfileByEnterpriseTypeAndActive(s.Id, "E")
+	c.LabelPrinterProfileCode128 = getLabelPrinterProfileByEnterpriseTypeAndActive(s.Id, "C")
+	c.LabelPrinterProfileDataMatrix = getLabelPrinterProfileByEnterpriseTypeAndActive(s.Id, "D")
+
 	return c
 }
 
