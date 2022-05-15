@@ -51,10 +51,11 @@ type ManufacturingPaginationQuery struct {
 	DateStart   *time.Time `json:"dateStart"`
 	DateEnd     *time.Time `json:"dateEnd"`
 	Status      string     `json:"status"` // "" = All, "M" = Manufactured, "N" = Not manufactured
+	Uuid        string     `json:"uuid"`
 }
 
 func (q *ManufacturingPaginationQuery) isDefault() bool {
-	return q.OrderTypeId == 0 && q.DateStart == nil && q.DateEnd == nil && q.Status == ""
+	return q.OrderTypeId == 0 && q.DateStart == nil && q.DateEnd == nil && q.Status == "" && q.Uuid == ""
 }
 
 type ManufacturingOrders struct {
@@ -90,6 +91,15 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 	mo := ManufacturingOrders{}
 	mo.ManufacturingOrders = make([]ManufacturingOrder, 0)
 
+	if len(q.Uuid) == 36 && checkUUID(q.Uuid) {
+		manufacturingOrder := getManufacturingOrderByUUID(q.Uuid, enterpriseId)
+		if manufacturingOrder.Id > 0 {
+			mo.ManufacturingOrders = append(mo.ManufacturingOrders, manufacturingOrder)
+			mo.Rows = 1
+		}
+		return mo
+	}
+
 	cursor := dbOrm.Model(&ManufacturingOrder{}).Where("enterprise = ?", enterpriseId)
 	if q.OrderTypeId != 0 {
 		cursor = cursor.Where("type = ?", q.OrderTypeId)
@@ -117,6 +127,16 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 func getManufacturingOrderRow(manufacturingOrderId int64) ManufacturingOrder {
 	o := ManufacturingOrder{}
 	result := dbOrm.Model(&ManufacturingOrder{}).Where("id = ?", manufacturingOrderId).Preload(clause.Associations).First(&o)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return o
+	}
+	return o
+}
+
+func getManufacturingOrderByUUID(manufacturingOrderUUID string, enterpriseId int32) ManufacturingOrder {
+	o := ManufacturingOrder{}
+	result := dbOrm.Model(&ManufacturingOrder{}).Where("uuid = ? AND enterprise = ?", manufacturingOrderUUID, enterpriseId).Preload(clause.Associations).First(&o)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return o

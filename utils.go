@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 func emailIsValid(email string) bool {
@@ -135,6 +137,11 @@ func Reverse(s string) string {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
+}
+
+func checkUUID(Uuid string) bool {
+	_, err := uuid.Parse(Uuid)
+	return err == nil
 }
 
 type OkAndErrorCodeReturn struct {
