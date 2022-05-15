@@ -54,7 +54,7 @@ func (c *Carrier) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 func (c *Carrier) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 50 || c.MaxWeight < 0 || c.MaxWidth < 0 || c.MaxHeight < 0 || c.MaxDepth < 0 || c.MaxPackages < 0 || len(c.Phone) > 15 || len(c.Email) > 100 || len(c.Web) > 100 || len(c.Webservice) != 1 || (c.Webservice != "_" && c.Webservice != "S") || len(c.SendcloudUrl) > 75 || (len(c.SendcloudKey) != 0 && len(c.SendcloudKey) != 32) || (len(c.SendcloudSecret) != 0 && len(c.SendcloudSecret) != 32) || c.SendcloudShippingMethod < 0 || c.SendcloudSenderAddress < 0)
+	return !(len(c.Name) == 0 || len(c.Name) > 50 || c.MaxWeight < 0 || c.MaxWidth < 0 || c.MaxHeight < 0 || c.MaxDepth < 0 || c.MaxPackages < 0 || len(c.Phone) > 15 || len(c.Email) > 100 || len(c.Web) > 100 || len(c.Webservice) != 1 || (c.Webservice != "_" && c.Webservice != "S") || (c.Webservice == "S" && (len(c.SendcloudUrl) > 75 || len(c.SendcloudKey) != 32 || len(c.SendcloudSecret) != 32 || c.SendcloudShippingMethod < 0 || c.SendcloudSenderAddress < 0)))
 }
 
 func (c *Carrier) insertCarrier() bool {
