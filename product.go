@@ -75,6 +75,18 @@ type ProductSearch struct {
 
 func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 	var products []Product = make([]Product, 0)
+
+	// Check that the format for EAN13 barcodes is correct
+	if len(search.Search) == 13 {
+		if checkEan13(search.Search) {
+			product := getProductByBarcode(search.Search, enterpriseId)
+			if product.Id > 0 {
+				products = append(products, product)
+			}
+			return products
+		}
+	}
+
 	var query string
 	if search.TrackMinimumStock {
 		query = `(((product.name ILIKE @search) OR (product.barcode = @text)) AND product.track_minimum_stock=true) AND (product.enterprise = @enterpriseId)`
