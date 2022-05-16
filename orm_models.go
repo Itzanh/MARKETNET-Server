@@ -29,56 +29,44 @@ func addORMModels() bool {
 	if err != nil {
 		fmt.Println("AutoMigrate", err)
 		log("AutoMigrate", err.Error())
-		//return false
+		return false
 	}
 
-	/*settingsRecords := getSettingsRecords()
-	for i := 0; i < len(settingsRecords); i++ {
-		settings := settingsRecords[i]
-		/*ecommerceConfig := SettingsEcommerce{
-			EnterpriseId:                      settings.Id,
-			Ecommerce:                         settings.Ecommerce,
-			PrestaShopUrl:                     settings.PrestaShopUrl,
-			PrestaShopApiKey:                  settings.PrestaShopApiKey,
-			PrestaShopLanguageId:              settings.PrestaShopLanguageId,
-			PrestaShopExportSerieId:           settings.PrestaShopExportSerieId,
-			PrestaShopIntracommunitySerieId:   settings.PrestaShopIntracommunitySerieId,
-			PrestaShopInteriorSerieId:         settings.PrestaShopInteriorSerieId,
-			PrestaShopStatusPaymentAccepted:   settings.PrestaShopStatusPaymentAccepted,
-			PrestaShopStatusShipped:           settings.PrestaShopStatusShipped,
-			WooCommerceUrl:                    settings.WooCommerceUrl,
-			WooCommerceConsumerKey:            settings.WooCommerceConsumerKey,
-			WooCommerceConsumerSecret:         settings.WooCommerceConsumerSecret,
-			WooCommerceExportSerieId:          settings.WooCommerceExportSerieId,
-			WooCommerceIntracommunitySerieId:  settings.WooCommerceIntracommunitySerieId,
-			WooCommerceInteriorSerieId:        settings.WooCommerceInteriorSerieId,
-			WooCommerceDefaultPaymentMethodId: settings.WooCommerceDefaultPaymentMethodId,
-			ShopifyUrl:                        settings.ShopifyUrl,
-			ShopifyToken:                      settings.ShopifyToken,
-			ShopifyExportSerieId:              settings.ShopifyExportSerieId,
-			ShopifyIntracommunitySerieId:      settings.ShopifyIntracommunitySerieId,
-			ShopifyInteriorSerieId:            settings.ShopifyInteriorSerieId,
-			ShopifyDefaultPaymentMethodId:     settings.ShopifyDefaultPaymentMethodId,
-			ShopifyShopLocationId:             settings.ShopifyShopLocationId,
-		}
-		dbOrm.Save(&ecommerceConfig)*/
-	/*emailConfig := SettingsEmail{
-		EnterpriseId:            settings.Id,
-		Email:                   settings.Email,
-		SendGridKey:             settings.SendGridKey,
-		EmailFrom:               settings.EmailFrom,
-		NameFrom:                settings.NameFrom,
-		SMTPIdentity:            settings.SMTPIdentity,
-		SMTPUsername:            settings.SMTPUsername,
-		SMTPPassword:            settings.SMTPPassword,
-		SMTPHostname:            settings.SMTPHostname,
-		SMTPSTARTTLS:            settings.SMTPSTARTTLS,
-		SMTPReplyTo:             settings.SMTPReplyTo,
-		EmailSendErrorEcommerce: settings.EmailSendErrorEcommerce,
-		EmailSendErrorSendCloud: settings.EmailSendErrorSendCloud,
-	}
-	dbOrm.Save(&emailConfig)*/
-	//}
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN ecommerce")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN email")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_url")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_api_key")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_language_id")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_export_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_intracommunity_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_interior_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN sendgrid_key")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN email_from")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN name_from")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_status_payment_accepted")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN prestashop_status_shipped")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_url")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_consumer_key")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_consumer_secret")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_export_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_intracommunity_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_interior_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN woocommerce_default_payment_method")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_url")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_token")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_export_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_intracommunity_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_interior_serie")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_default_payment_method")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN shopify_shop_location_id")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN smtp_identity")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN smtp_username")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN smtp_password")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN smtp_hostname")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN smtp_starttls")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN smtp_reply_to")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN email_send_error_ecommerce")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN email_send_error_sendcloud")
 
 	return true
 }

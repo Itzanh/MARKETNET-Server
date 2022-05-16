@@ -147,97 +147,51 @@ func (s *BackendSettings) upgradeConfig() bool {
 
 // Advanced settings stored in the database. Configurable by final users.
 type Settings struct {
-	Id                                int32              `json:"id" gorm:"primaryKey"`
-	DefaultVatPercent                 float64            `json:"defaultVatPercent" gorm:"type:numeric(14,6);not null:true"`
-	DefaultWarehouseId                string             `json:"defaultWarehouseId" gorm:"column:default_warehouse;type:character(2)"`
-	DefaultWarehouse                  *Warehouse         `json:"defaultWarehouse" gorm:"foreignKey:DefaultWarehouseId,Id;references:Id,EnterpriseId"`
-	DateFormat                        string             `json:"dateFormat" gorm:"type:character varying(25);not null:true"`
-	EnterpriseName                    string             `json:"enterpriseName" gorm:"type:character varying(50);not null:true"`
-	EnterpriseDescription             string             `json:"enterpriseDescription" gorm:"type:character varying(250);not null:true"`
-	Ecommerce                         string             `json:"ecommerce" gorm:"type:character(1);not null:true"` // "_" = None, "P" = PrestaShop, "M" = Magento, "W" = WooCommerce, "S" = Shopify
-	Email                             string             `json:"email" gorm:"type:character(1);not null:true"`     // "_" = None, "S" = SendGrid, "T" = SMTP
-	Currency                          string             `json:"currency" gorm:"type:character(1);not null:true"`  // "_" = None, "E" = European Central Bank
-	CurrencyECBurl                    string             `json:"currencyECBurl" gorm:"column:currency_ecb_url;type:character varying(100);not null:true"`
-	BarcodePrefix                     string             `json:"barcodePrefix" gorm:"type:character varying(4);not null:true"`
-	PrestaShopUrl                     string             `json:"prestaShopUrl" gorm:"column:prestashop_url;type:character varying(100);not null:true"`
-	PrestaShopApiKey                  string             `json:"prestaShopApiKey" gorm:"column:prestashop_api_key;type:character varying(32);not null:true"`
-	PrestaShopLanguageId              int32              `json:"prestaShopLanguageId" gorm:"column:prestashop_language_id;not null:true"`
-	PrestaShopExportSerieId           *string            `json:"prestaShopExportSerieId" gorm:"column:prestashop_export_serie;type:character(3)"`
-	PrestaShopExportSerie             *BillingSerie      `json:"prestaShopExportSerie"  gorm:"foreignKey:PrestaShopExportSerieId,Id;references:Id,EnterpriseId"`
-	PrestaShopIntracommunitySerieId   *string            `json:"prestaShopIntracommunitySerieId" gorm:"column:prestashop_intracommunity_serie;type:character(3)"`
-	PrestaShopIntracommunitySerie     *BillingSerie      `json:"prestaShopIntracommunitySerie"  gorm:"foreignKey:PrestaShopIntracommunitySerieId,Id;references:Id,EnterpriseId"`
-	PrestaShopInteriorSerieId         *string            `json:"prestaShopInteriorSerieId" gorm:"column:prestashop_interior_serie;type:character(3)"`
-	PrestaShopInteriorSerie           *BillingSerie      `json:"prestaShopInteriorSerie" gorm:"foreignKey:PrestaShopInteriorSerieId,Id;references:Id,EnterpriseId"`
-	SettingsEcommerce                 *SettingsEcommerce `json:"settingsEcommerce" gorm:"foreignKey:Id;references:EnterpriseId"`
-	CronCurrency                      string             `json:"cronCurrency" gorm:"type:character varying(25);not null:true"`
-	CronPrestaShop                    string             `json:"cronPrestaShop" gorm:"column:cron_prestashop;type:character varying(25);not null:true"`
-	SendGridKey                       string             `json:"sendGridKey" gorm:"column:sendgrid_key;type:character varying(75);not null:true"`
-	EmailFrom                         string             `json:"emailFrom" gorm:"type:character varying(50);not null:true"`
-	NameFrom                          string             `json:"nameFrom" gorm:"type:character varying(50);not null:true"`
-	PalletWeight                      float64            `json:"palletWeight" gorm:"type:numeric(14,6);not null:true"`
-	PalletWidth                       float64            `json:"palletWidth" gorm:"type:numeric(14,6);not null:true"`
-	PalletHeight                      float64            `json:"palletHeight" gorm:"type:numeric(14,6);not null:true"`
-	PalletDepth                       float64            `json:"palletDepth" gorm:"type:numeric(14,6);not null:true"`
-	MaxConnections                    int32              `json:"maxConnections" gorm:"not null:true"`
-	PrestaShopStatusPaymentAccepted   int32              `json:"prestashopStatusPaymentAccepted" gorm:"column:prestashop_status_payment_accepted;not null:true"`
-	PrestaShopStatusShipped           int32              `json:"prestashopStatusShipped" gorm:"column:prestashop_status_shipped;not null:true"`
-	MinimumStockSalesPeriods          int16              `json:"minimumStockSalesPeriods" gorm:"not null:true"`
-	MinimumStockSalesDays             int16              `json:"minimumStockSalesDays" gorm:"not null:true"`
-	CustomerJournalId                 *int32             `json:"customerJournalId" gorm:"column:customer_journal"`
-	CustomerJournal                   *Journal           `json:"customerJournal" gorm:"foreignKey:CustomerJournalId,Id;references:Id,EnterpriseId"`
-	SalesJournalId                    *int32             `json:"salesJournalId" gorm:"column:sales_journal"`
-	SalesJournal                      *Journal           `json:"salesJournal" gorm:"foreignKey:SalesJournalId,Id;references:Id,EnterpriseId"`
-	SalesAccountId                    *int32             `json:"salesAccountId" gorm:"column:sales_account"`
-	SalesAccount                      *Account           `json:"salesAccount" gorm:"foreignKey:SalesAccountId,Id;references:Id,EnterpriseId"`
-	SupplierJournalId                 *int32             `json:"supplierJournalId" gorm:"column:supplier_journal"`
-	SupplierJournal                   *Journal           `json:"supplierJournal" gorm:"foreignKey:SupplierJournalId,Id;references:Id,EnterpriseId"`
-	PurchaseJournalId                 *int32             `json:"purchaseJournalId" gorm:"column:purchase_journal"`
-	PurchaseJournal                   *Journal           `json:"purchaseJournal" gorm:"foreignKey:PurchaseJournalId,Id;references:Id,EnterpriseId"`
-	PurchaseAccountId                 *int32             `json:"purchaseAccountId" gorm:"column:purchase_account"`
-	PurchaseAccount                   *Account           `json:"purchaseAccount" gorm:"foreignKey:PurchaseAccountId,Id;references:Id,EnterpriseId"`
-	EnableApiKey                      bool               `json:"enableApiKey" gorm:"not null:true"`
-	CronClearLabels                   string             `json:"cronClearLabels" gorm:"type:character varying(25);not null:true"`
-	LimitAccountingDate               *time.Time         `json:"limitAccountingDate" gorm:"type:timestamp(0) with time zone"`
-	WooCommerceUrl                    string             `json:"woocommerceUrl" gorm:"column:woocommerce_url;type:character varying(100);not null:true"`
-	WooCommerceConsumerKey            string             `json:"woocommerceConsumerKey" gorm:"column:woocommerce_consumer_key;type:character varying(50);not null:true"`
-	WooCommerceConsumerSecret         string             `json:"woocommerceConsumerSecret" gorm:"column:woocommerce_consumer_secret;type:character varying(50);not null:true"`
-	WooCommerceExportSerieId          *string            `json:"wooCommerceExportSerieId" gorm:"column:woocommerce_export_serie;type:character(3)"`
-	WooCommerceExportSerie            *BillingSerie      `json:"wooCommerceExportSerie" gorm:"foreignKey:WooCommerceExportSerieId,Id;references:Id,EnterpriseId"`
-	WooCommerceIntracommunitySerieId  *string            `json:"wooCommerceIntracommunitySerieId" gorm:"column:woocommerce_intracommunity_serie;type:character(3)"`
-	WooCommerceIntracommunitySerie    *BillingSerie      `json:"wooCommerceIntracommunitySerie" gorm:"foreignKey:WooCommerceIntracommunitySerieId,Id;references:Id,EnterpriseId"`
-	WooCommerceInteriorSerieId        *string            `json:"wooCommerceInteriorSerieId" gorm:"column:woocommerce_interior_serie;type:character(3)"`
-	WooCommerceInteriorSerie          *BillingSerie      `json:"wooCommerceInteriorSerie" gorm:"foreignKey:WooCommerceInteriorSerieId,Id;references:Id,EnterpriseId"`
-	WooCommerceDefaultPaymentMethodId *int32             `json:"wooCommerceDefaultPaymentMethodId" gorm:"column:woocommerce_default_payment_method"`
-	WooCommerceDefaultPaymentMethod   *PaymentMethod     `json:"wooCommerceDefaultPaymentMethod" gorm:"foreignKey:WooCommerceDefaultPaymentMethodId,Id;references:Id,EnterpriseId"`
-	ConnectionLog                     bool               `json:"connectionLog" gorm:"not null:true"`
-	FilterConnections                 bool               `json:"filterConnections" gorm:"not null:true"`
-	ShopifyUrl                        string             `json:"shopifyUrl" gorm:"type:character varying(100);not null:true"`
-	ShopifyToken                      string             `json:"shopifyToken" gorm:"type:character varying(50);not null:true"`
-	ShopifyExportSerieId              *string            `json:"shopifyExportSerieId" gorm:"type:character(3);column:shopify_export_serie"`
-	ShopifyExportSerie                *BillingSerie      `json:"shopifyExportSerie" gorm:"foreignKey:ShopifyExportSerieId,Id;references:Id,EnterpriseId"`
-	ShopifyIntracommunitySerieId      *string            `json:"shopifyIntracommunitySerieId" gorm:"type:character(3);column:shopify_intracommunity_serie"`
-	ShopifyIntracommunitySerie        *BillingSerie      `json:"shopifyIntracommunitySerie" gorm:"foreignKey:ShopifyIntracommunitySerieId,Id;references:Id,EnterpriseId"`
-	ShopifyInteriorSerieId            *string            `json:"shopifyInteriorSerieId" gorm:"type:character(3);column:shopify_interior_serie"`
-	ShopifyInteriorSerie              *BillingSerie      `json:"shopifyInteriorSerie" gorm:"foreignKey:ShopifyInteriorSerieId,Id;references:Id,EnterpriseId"`
-	ShopifyDefaultPaymentMethodId     *int32             `json:"shopifyDefaultPaymentMethodId" gorm:"column:shopify_default_payment_method"`
-	ShopifyDefaultPaymentMethod       *PaymentMethod     `json:"shopifyDefaultPaymentMethod" gorm:"foreignKey:ShopifyDefaultPaymentMethodId,Id;references:Id,EnterpriseId"`
-	ShopifyShopLocationId             int64              `json:"shopifyShopLocationId" gorm:"not null:true"`
-	EnterpriseKey                     string             `json:"enterpriseKey" gorm:"type:character varying(25);not null:true;index:config_enterprise_key,unique:true,priority:1"`
-	PasswordMinimumLength             int16              `json:"passwordMinimumLength" gorm:"not null:true"`
-	PasswordMinumumComplexity         string             `json:"passwordMinumumComplexity" gorm:"type:character(1);not null:true"` // "A": Alphabetical, "B": Alphabetical + numbers, "C": Uppercase + lowercase + numbers, "D": Uppercase + lowercase + numbers + symbols
-	InvoiceDeletePolicy               int16              `json:"invoiceDeletePolicy" gorm:"not null:true"`                         // 0 = Allow invoice deletion, 1 = Only allow the deletion of the latest invoice in the billing serie, 2 = Never allow invoice deletion
-	TransactionLog                    bool               `json:"transactionLog" gorm:"not null:true"`
-	UndoManufacturingOrderSeconds     int16              `json:"undoManufacturingOrderSeconds" gorm:"not null:true"`
-	CronSendCloudTracking             string             `json:"cronSendCloudTracking" gorm:"column:cron_sendcloud_tracking;type:character varying(25);not null:true"`
-	SMTPIdentity                      string             `json:"SMTPIdentity" gorm:"type:character varying(50);not null:true"`
-	SMTPUsername                      string             `json:"SMTPUsername" gorm:"type:character varying(50);not null:true"`
-	SMTPPassword                      string             `json:"SMTPPassword" gorm:"type:character varying(50);not null:true"`
-	SMTPHostname                      string             `json:"SMTPHostname" gorm:"type:character varying(50);not null:true"`
-	SMTPSTARTTLS                      bool               `json:"SMTPSTARTTLS" gorm:"column:smtp_starttls;not null:true"`
-	SMTPReplyTo                       string             `json:"SMTPReplyTo" gorm:"type:character varying(50);not null:true"`
-	EmailSendErrorEcommerce           string             `json:"emailSendErrorEcommerce" gorm:"type:character varying(150);not null:true"`
-	EmailSendErrorSendCloud           string             `json:"emailSendErrorSendCloud" gorm:"column:email_send_error_sendcloud;type:character varying(150);not null:true"`
-	SettingsEmail                     *SettingsEmail     `json:"settingsEmail" gorm:"foreignKey:Id;references:EnterpriseId"`
+	Id                            int32              `json:"id" gorm:"primaryKey"`
+	DefaultVatPercent             float64            `json:"defaultVatPercent" gorm:"type:numeric(14,6);not null:true"`
+	DefaultWarehouseId            string             `json:"defaultWarehouseId" gorm:"column:default_warehouse;type:character(2)"`
+	DefaultWarehouse              *Warehouse         `json:"defaultWarehouse" gorm:"foreignKey:DefaultWarehouseId,Id;references:Id,EnterpriseId"`
+	DateFormat                    string             `json:"dateFormat" gorm:"type:character varying(25);not null:true"`
+	EnterpriseName                string             `json:"enterpriseName" gorm:"type:character varying(50);not null:true"`
+	EnterpriseDescription         string             `json:"enterpriseDescription" gorm:"type:character varying(250);not null:true"`
+	Currency                      string             `json:"currency" gorm:"type:character(1);not null:true"` // "_" = None, "E" = European Central Bank
+	CurrencyECBurl                string             `json:"currencyECBurl" gorm:"column:currency_ecb_url;type:character varying(100);not null:true"`
+	BarcodePrefix                 string             `json:"barcodePrefix" gorm:"type:character varying(4);not null:true"`
+	SettingsEcommerce             *SettingsEcommerce `json:"settingsEcommerce" gorm:"foreignKey:Id;references:EnterpriseId"`
+	CronCurrency                  string             `json:"cronCurrency" gorm:"type:character varying(25);not null:true"`
+	CronPrestaShop                string             `json:"cronPrestaShop" gorm:"column:cron_prestashop;type:character varying(25);not null:true"`
+	PalletWeight                  float64            `json:"palletWeight" gorm:"type:numeric(14,6);not null:true"`
+	PalletWidth                   float64            `json:"palletWidth" gorm:"type:numeric(14,6);not null:true"`
+	PalletHeight                  float64            `json:"palletHeight" gorm:"type:numeric(14,6);not null:true"`
+	PalletDepth                   float64            `json:"palletDepth" gorm:"type:numeric(14,6);not null:true"`
+	MaxConnections                int32              `json:"maxConnections" gorm:"not null:true"`
+	MinimumStockSalesPeriods      int16              `json:"minimumStockSalesPeriods" gorm:"not null:true"`
+	MinimumStockSalesDays         int16              `json:"minimumStockSalesDays" gorm:"not null:true"`
+	CustomerJournalId             *int32             `json:"customerJournalId" gorm:"column:customer_journal"`
+	CustomerJournal               *Journal           `json:"customerJournal" gorm:"foreignKey:CustomerJournalId,Id;references:Id,EnterpriseId"`
+	SalesJournalId                *int32             `json:"salesJournalId" gorm:"column:sales_journal"`
+	SalesJournal                  *Journal           `json:"salesJournal" gorm:"foreignKey:SalesJournalId,Id;references:Id,EnterpriseId"`
+	SalesAccountId                *int32             `json:"salesAccountId" gorm:"column:sales_account"`
+	SalesAccount                  *Account           `json:"salesAccount" gorm:"foreignKey:SalesAccountId,Id;references:Id,EnterpriseId"`
+	SupplierJournalId             *int32             `json:"supplierJournalId" gorm:"column:supplier_journal"`
+	SupplierJournal               *Journal           `json:"supplierJournal" gorm:"foreignKey:SupplierJournalId,Id;references:Id,EnterpriseId"`
+	PurchaseJournalId             *int32             `json:"purchaseJournalId" gorm:"column:purchase_journal"`
+	PurchaseJournal               *Journal           `json:"purchaseJournal" gorm:"foreignKey:PurchaseJournalId,Id;references:Id,EnterpriseId"`
+	PurchaseAccountId             *int32             `json:"purchaseAccountId" gorm:"column:purchase_account"`
+	PurchaseAccount               *Account           `json:"purchaseAccount" gorm:"foreignKey:PurchaseAccountId,Id;references:Id,EnterpriseId"`
+	EnableApiKey                  bool               `json:"enableApiKey" gorm:"not null:true"`
+	CronClearLabels               string             `json:"cronClearLabels" gorm:"type:character varying(25);not null:true"`
+	LimitAccountingDate           *time.Time         `json:"limitAccountingDate" gorm:"type:timestamp(0) with time zone"`
+	ConnectionLog                 bool               `json:"connectionLog" gorm:"not null:true"`
+	FilterConnections             bool               `json:"filterConnections" gorm:"not null:true"`
+	EnterpriseKey                 string             `json:"enterpriseKey" gorm:"type:character varying(25);not null:true;index:config_enterprise_key,unique:true,priority:1"`
+	PasswordMinimumLength         int16              `json:"passwordMinimumLength" gorm:"not null:true"`
+	PasswordMinumumComplexity     string             `json:"passwordMinumumComplexity" gorm:"type:character(1);not null:true"` // "A": Alphabetical, "B": Alphabetical + numbers, "C": Uppercase + lowercase + numbers, "D": Uppercase + lowercase + numbers + symbols
+	InvoiceDeletePolicy           int16              `json:"invoiceDeletePolicy" gorm:"not null:true"`                         // 0 = Allow invoice deletion, 1 = Only allow the deletion of the latest invoice in the billing serie, 2 = Never allow invoice deletion
+	TransactionLog                bool               `json:"transactionLog" gorm:"not null:true"`
+	UndoManufacturingOrderSeconds int16              `json:"undoManufacturingOrderSeconds" gorm:"not null:true"`
+	CronSendCloudTracking         string             `json:"cronSendCloudTracking" gorm:"column:cron_sendcloud_tracking;type:character varying(25);not null:true"`
+	SettingsEmail                 *SettingsEmail     `json:"settingsEmail" gorm:"foreignKey:Id;references:EnterpriseId"`
 }
 
 func (s *Settings) TableName() string {
@@ -350,47 +304,6 @@ func (s *Settings) updateSettingsRecord() bool {
 	settingsInDisk.DateFormat = s.DateFormat
 	settingsInDisk.EnterpriseName = s.EnterpriseName
 	settingsInDisk.EnterpriseDescription = s.EnterpriseDescription
-	/*settingsInDisk.Ecommerce = s.Ecommerce*/
-	//settingsInDisk.SettingsEcommerce = s.SettingsEcommerce
-	/*if s.Ecommerce == "P" {
-		settingsInDisk.PrestaShopUrl = s.PrestaShopUrl
-		settingsInDisk.PrestaShopApiKey = s.PrestaShopApiKey
-		settingsInDisk.PrestaShopLanguageId = s.PrestaShopLanguageId
-		settingsInDisk.PrestaShopExportSerieId = s.PrestaShopExportSerieId
-		settingsInDisk.PrestaShopIntracommunitySerieId = s.PrestaShopIntracommunitySerieId
-		settingsInDisk.PrestaShopInteriorSerieId = s.PrestaShopInteriorSerieId
-		settingsInDisk.PrestaShopStatusPaymentAccepted = s.PrestaShopStatusPaymentAccepted
-		settingsInDisk.PrestaShopStatusShipped = s.PrestaShopStatusShipped
-	} else if s.Ecommerce == "W" {
-		settingsInDisk.WooCommerceUrl = s.WooCommerceUrl
-		settingsInDisk.WooCommerceConsumerKey = s.WooCommerceConsumerKey
-		settingsInDisk.WooCommerceConsumerSecret = s.WooCommerceConsumerSecret
-		settingsInDisk.WooCommerceExportSerieId = s.WooCommerceExportSerieId
-		settingsInDisk.WooCommerceIntracommunitySerieId = s.WooCommerceIntracommunitySerieId
-		settingsInDisk.WooCommerceInteriorSerieId = s.WooCommerceInteriorSerieId
-		settingsInDisk.WooCommerceDefaultPaymentMethodId = s.WooCommerceDefaultPaymentMethodId
-	} else if s.Ecommerce == "S" {
-		settingsInDisk.ShopifyUrl = s.ShopifyUrl
-		settingsInDisk.ShopifyToken = s.ShopifyToken
-		settingsInDisk.ShopifyExportSerieId = s.ShopifyExportSerieId
-		settingsInDisk.ShopifyIntracommunitySerieId = s.ShopifyIntracommunitySerieId
-		settingsInDisk.ShopifyInteriorSerieId = s.ShopifyInteriorSerieId
-		settingsInDisk.ShopifyDefaultPaymentMethodId = s.ShopifyDefaultPaymentMethodId
-		settingsInDisk.ShopifyShopLocationId = s.ShopifyShopLocationId
-	}*/
-	/*settingsInDisk.Email = s.Email
-	if s.Email == "S" {
-		settingsInDisk.SendGridKey = s.SendGridKey
-		settingsInDisk.EmailFrom = s.EmailFrom
-		settingsInDisk.NameFrom = s.NameFrom
-	} else if s.Email == "T" {
-		settingsInDisk.SMTPIdentity = s.SMTPIdentity
-		settingsInDisk.SMTPUsername = s.SMTPUsername
-		settingsInDisk.SMTPPassword = s.SMTPPassword
-		settingsInDisk.SMTPHostname = s.SMTPHostname
-		settingsInDisk.SMTPSTARTTLS = s.SMTPSTARTTLS
-		settingsInDisk.SMTPReplyTo = s.SMTPReplyTo
-	}*/
 	settingsInDisk.Currency = s.Currency
 	if s.Currency == "E" {
 		settingsInDisk.CurrencyECBurl = s.CurrencyECBurl
@@ -421,8 +334,6 @@ func (s *Settings) updateSettingsRecord() bool {
 	settingsInDisk.TransactionLog = s.TransactionLog
 	settingsInDisk.UndoManufacturingOrderSeconds = s.UndoManufacturingOrderSeconds
 	settingsInDisk.CronSendCloudTracking = s.CronSendCloudTracking
-	/*settingsInDisk.EmailSendErrorEcommerce = s.EmailSendErrorEcommerce
-	settingsInDisk.EmailSendErrorSendCloud = s.EmailSendErrorSendCloud*/
 
 	trans := dbOrm.Begin()
 
