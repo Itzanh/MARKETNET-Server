@@ -6,18 +6,15 @@ func addORMModels() bool {
 	// GORM does not do this automatically
 	dbOrm.Exec("UPDATE pg_opclass SET opcdefault = true WHERE opcname='gin_trgm_ops'")
 
-	dbOrm.Exec("ALTER TABLE public.sales_order_detail_digital_product_data DROP CONSTRAINT IF EXISTS fk_sales_order_detail_digital_product_data_detail")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_width")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_height")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_size")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_margin_top")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_margin_bottom")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_margin_left")
+	dbOrm.Exec("ALTER TABLE public.config DROP COLUMN IF EXISTS product_barcode_label_margin_right")
 
-	dbOrm.Exec("UPDATE connection_filter SET ip_address = '::1' WHERE ip_address = '['")
-	dbOrm.Exec("ALTER TABLE connection_filter ALTER COLUMN ip_address type inet USING CAST(ip_address AS inet)")
-
-	dbOrm.Exec("UPDATE connection_log SET ip_address = '::1' WHERE ip_address = '['")
-	dbOrm.Exec("ALTER TABLE connection_log ALTER COLUMN ip_address type inet USING CAST(ip_address AS inet)")
-
-	dbOrm.Exec("UPDATE login_tokens SET ip_address = '::1' WHERE ip_address = '['")
-	dbOrm.Exec("ALTER TABLE login_tokens ALTER COLUMN ip_address type inet USING CAST(ip_address AS inet)")
-
-	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
+	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &SettingsEcommerce{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
 		&User{}, &Group{}, &UserGroup{}, &PermissionDictionary{}, &PermissionDictionaryGroup{}, &DocumentContainer{}, &Document{}, &ProductFamily{}, &ProductAccount{},
 		&Carrier{}, &State{}, &Color{}, &Packages{}, &Incoterm{}, &Product{}, &ConfigAccountsVat{}, &ManufacturingOrderType{}, &ManufacturingOrderTypeComponents{},
 		&Supplier{}, &Address{}, &Customer{}, &AccountingMovement{}, &AccountingMovementDetail{}, &CollectionOperation{}, &PaymentTransaction{}, &Charges{}, &Payment{},
@@ -28,41 +25,60 @@ func addORMModels() bool {
 		&ComplexManufacturingOrderManufacturingOrder{}, &EnterpriseLogo{}, &Pallet{}, &Packaging{}, &SalesOrderDetailPackaged{}, &SalesOrderDetailDigitalProductData{}, &SalesOrderDiscount{},
 		&ShippingStatusHistory{}, &ShippingTag{}, &ProductImage{}, &PwdBlacklist{}, &PwdSHA1Blacklist{}, &PSAddress{}, &PSCarrier{}, &PSCountry{}, &PSCurrency{}, &PSCustomer{}, &PSLanguage{},
 		&PSOrder{}, &PSOrderDetail{}, &PSProduct{}, &PSProductCombination{}, &PSProductOptionValue{}, &PSState{}, &PSZone{}, &SYAddress{}, &SYCustomer{}, &SYDraftOrderLineItem{}, &SYDraftOrder{},
-		&SYOrderLineItem{}, &SYOrder{}, &SYProduct{}, &SYVariant{}, &WCCustomer{}, &WCOrderDetail{}, &WCOrder{}, &WCProductVariation{}, &WCProduct{}, &LabelPrinterProfile{}) // 110
+		&SYOrderLineItem{}, &SYOrder{}, &SYProduct{}, &SYVariant{}, &WCCustomer{}, &WCOrderDetail{}, &WCOrder{}, &WCProductVariation{}, &WCProduct{}, &LabelPrinterProfile{}) // 111
 	if err != nil {
 		fmt.Println("AutoMigrate", err)
 		log("AutoMigrate", err.Error())
-		return false
+		//return false
 	}
 
-	// add account name field
-	settingsRecords := getSettingsRecords()
+	/*settingsRecords := getSettingsRecords()
 	for i := 0; i < len(settingsRecords); i++ {
-		accounts := getAccounts(settingsRecords[i].Id)
-		for j := 0; j < len(accounts); j++ {
-			account := accounts[j]
-			account.updateAccount()
+		settings := settingsRecords[i]
+		/*ecommerceConfig := SettingsEcommerce{
+			EnterpriseId:                      settings.Id,
+			Ecommerce:                         settings.Ecommerce,
+			PrestaShopUrl:                     settings.PrestaShopUrl,
+			PrestaShopApiKey:                  settings.PrestaShopApiKey,
+			PrestaShopLanguageId:              settings.PrestaShopLanguageId,
+			PrestaShopExportSerieId:           settings.PrestaShopExportSerieId,
+			PrestaShopIntracommunitySerieId:   settings.PrestaShopIntracommunitySerieId,
+			PrestaShopInteriorSerieId:         settings.PrestaShopInteriorSerieId,
+			PrestaShopStatusPaymentAccepted:   settings.PrestaShopStatusPaymentAccepted,
+			PrestaShopStatusShipped:           settings.PrestaShopStatusShipped,
+			WooCommerceUrl:                    settings.WooCommerceUrl,
+			WooCommerceConsumerKey:            settings.WooCommerceConsumerKey,
+			WooCommerceConsumerSecret:         settings.WooCommerceConsumerSecret,
+			WooCommerceExportSerieId:          settings.WooCommerceExportSerieId,
+			WooCommerceIntracommunitySerieId:  settings.WooCommerceIntracommunitySerieId,
+			WooCommerceInteriorSerieId:        settings.WooCommerceInteriorSerieId,
+			WooCommerceDefaultPaymentMethodId: settings.WooCommerceDefaultPaymentMethodId,
+			ShopifyUrl:                        settings.ShopifyUrl,
+			ShopifyToken:                      settings.ShopifyToken,
+			ShopifyExportSerieId:              settings.ShopifyExportSerieId,
+			ShopifyIntracommunitySerieId:      settings.ShopifyIntracommunitySerieId,
+			ShopifyInteriorSerieId:            settings.ShopifyInteriorSerieId,
+			ShopifyDefaultPaymentMethodId:     settings.ShopifyDefaultPaymentMethodId,
+			ShopifyShopLocationId:             settings.ShopifyShopLocationId,
 		}
+		dbOrm.Save(&ecommerceConfig)*/
+	/*emailConfig := SettingsEmail{
+		EnterpriseId:            settings.Id,
+		Email:                   settings.Email,
+		SendGridKey:             settings.SendGridKey,
+		EmailFrom:               settings.EmailFrom,
+		NameFrom:                settings.NameFrom,
+		SMTPIdentity:            settings.SMTPIdentity,
+		SMTPUsername:            settings.SMTPUsername,
+		SMTPPassword:            settings.SMTPPassword,
+		SMTPHostname:            settings.SMTPHostname,
+		SMTPSTARTTLS:            settings.SMTPSTARTTLS,
+		SMTPReplyTo:             settings.SMTPReplyTo,
+		EmailSendErrorEcommerce: settings.EmailSendErrorEcommerce,
+		EmailSendErrorSendCloud: settings.EmailSendErrorSendCloud,
 	}
-
-	// add enterprise in shipping status history
-	shippingStatusHistoryRecords := make([]ShippingStatusHistory, 0)
-	dbOrm.Model(&ShippingStatusHistory{}).Preload("Shipping").Find(&shippingStatusHistoryRecords)
-	for i := 0; i < len(shippingStatusHistoryRecords); i++ {
-		shippingStatusHistory := shippingStatusHistoryRecords[i]
-		shippingStatusHistory.EnterpriseId = shippingStatusHistory.Shipping.EnterpriseId
-		dbOrm.Save(&shippingStatusHistory)
-	}
-
-	// add enterprise in sales order detail digital product data
-	salesOrderDetailDigitalProductDataRecords := make([]SalesOrderDetailDigitalProductData, 0)
-	dbOrm.Model(&SalesOrderDetailDigitalProductData{}).Preload("Detail").Find(&salesOrderDetailDigitalProductDataRecords)
-	for i := 0; i < len(salesOrderDetailDigitalProductDataRecords); i++ {
-		salesOrderDetailDigitalProductData := salesOrderDetailDigitalProductDataRecords[i]
-		salesOrderDetail := getSalesOrderDetailRow(salesOrderDetailDigitalProductData.DetailId)
-		salesOrderDetailDigitalProductData.EnterpriseId = salesOrderDetail.EnterpriseId
-		dbOrm.Save(&salesOrderDetailDigitalProductData)
-	}
+	dbOrm.Save(&emailConfig)*/
+	//}
 
 	return true
 }

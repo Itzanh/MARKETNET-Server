@@ -20,7 +20,7 @@ import (
 func getPrestaShopAPI_URL(resourceName string, enterpriseId int32) string {
 	s := getSettingsRecordById(enterpriseId)
 
-	return s.PrestaShopUrl + resourceName + "?ws_key=" + s.PrestaShopApiKey + "&output_format=JSON&language=" + strconv.Itoa(int(s.PrestaShopLanguageId))
+	return s.SettingsEcommerce.PrestaShopUrl + resourceName + "?ws_key=" + s.SettingsEcommerce.PrestaShopApiKey + "&output_format=JSON&language=" + strconv.Itoa(int(s.SettingsEcommerce.PrestaShopLanguageId))
 }
 
 func getPrestaShopJSON(URL string) ([]byte, error) {
@@ -345,7 +345,7 @@ func (PSOrderDetail) TableName() string {
 // main import function
 func importFromPrestaShop(enterpriseId int32) {
 	s := getSettingsRecordById(enterpriseId)
-	if s.Ecommerce != "P" {
+	if s.SettingsEcommerce.Ecommerce != "P" {
 		return
 	}
 
@@ -432,8 +432,8 @@ func importPsZones(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Zones</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Zones</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -472,8 +472,8 @@ func importPsCurrencies(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -515,8 +515,8 @@ func importPsCountries(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -555,8 +555,8 @@ func importPsStates(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -595,8 +595,8 @@ func importPsCustomers(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -635,8 +635,8 @@ func importPsAddresses(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Addresses</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Addresses</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -678,8 +678,8 @@ func importPsProducts(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -718,8 +718,8 @@ func importPsProductCombinations(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Product combinations</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Product combinations</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -765,8 +765,8 @@ func importPsProductOptionValues(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Product option values</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Product option values</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -805,8 +805,8 @@ func importPsLanguage(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Language</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Language</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -845,8 +845,8 @@ func importPsCarriers(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Zones</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Zones</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -885,8 +885,8 @@ func importPsOrders(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -927,8 +927,8 @@ func importPsOrderDetails(enterpriseId int32) bool {
 	jsonPS, err := getPrestaShopJSON(url)
 	if err != nil {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Order details</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Order details</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -972,8 +972,8 @@ func copyPsCurrencies(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -995,8 +995,8 @@ func copyPsCurrencies(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("PrestaShop", row.Err().Error())
 				s := getSettingsRecordById(enterpriseId)
-				if len(s.EmailSendErrorEcommerce) > 0 {
-					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Currencies</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
 				}
 				return false
 			}
@@ -1027,8 +1027,8 @@ func copyPsCountries(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1050,8 +1050,8 @@ func copyPsCountries(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("PrestaShop", row.Err().Error())
 				s := getSettingsRecordById(enterpriseId)
-				if len(s.EmailSendErrorEcommerce) > 0 {
-					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Countries</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
 				}
 				return false
 			}
@@ -1066,8 +1066,8 @@ func copyPsCountries(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("PrestaShop", row.Err().Error())
 				s := getSettingsRecordById(enterpriseId)
-				if len(s.EmailSendErrorEcommerce) > 0 {
-					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Contries</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Contries</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
 				}
 				return false
 			}
@@ -1093,8 +1093,8 @@ func copyPsStates(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1116,8 +1116,8 @@ func copyPsStates(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("PrestaShop", row.Err().Error())
 				s := getSettingsRecordById(enterpriseId)
-				if len(s.EmailSendErrorEcommerce) > 0 {
-					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
 				}
 				return false
 			}
@@ -1132,8 +1132,8 @@ func copyPsStates(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("PrestaShop", row.Err().Error())
 				s := getSettingsRecordById(enterpriseId)
-				if len(s.EmailSendErrorEcommerce) > 0 {
-					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
 				}
 				return false
 			}
@@ -1146,8 +1146,8 @@ func copyPsStates(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("PrestaShop", row.Err().Error())
 				s := getSettingsRecordById(enterpriseId)
-				if len(s.EmailSendErrorEcommerce) > 0 {
-					sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
+				if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+					sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: States</p><p>Error data: "+row.Err().Error()+"</p>", enterpriseId)
 				}
 				return false
 			}
@@ -1172,8 +1172,8 @@ func copyPsCustomers(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1283,8 +1283,8 @@ func copyPsCustomers(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
 		}
 	}
 
@@ -1297,8 +1297,8 @@ func copyPsAddresses(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Addresses</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Addresses</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1440,8 +1440,8 @@ func copyPsAddresses(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
 		}
 	}
 
@@ -1454,8 +1454,8 @@ func copyPsLanguages(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Languages</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Languages</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1489,8 +1489,8 @@ func copyPsCarriers(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Carriers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Carriers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1534,8 +1534,8 @@ func copyPsProducts(enterpriseId int32) bool {
 	if err != nil {
 		log("PrestaShop", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Prodocuts</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Prodocuts</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1680,8 +1680,8 @@ func copyPsProducts(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
 		}
 	}
 
@@ -1835,11 +1835,11 @@ func copyPsOrders(enterpriseId int32) bool {
 		s.PrestaShopId = orderId
 
 		if billingZone == "E" {
-			s.BillingSeriesId = *settings.PrestaShopExportSerieId
+			s.BillingSeriesId = *settings.SettingsEcommerce.PrestaShopExportSerieId
 		} else if billingZone == "U" && !taxIncluded {
-			s.BillingSeriesId = *settings.PrestaShopIntracommunitySerieId
+			s.BillingSeriesId = *settings.SettingsEcommerce.PrestaShopIntracommunitySerieId
 		} else {
-			s.BillingSeriesId = *settings.PrestaShopInteriorSerieId
+			s.BillingSeriesId = *settings.SettingsEcommerce.PrestaShopInteriorSerieId
 		}
 
 		s.EnterpriseId = enterpriseId
@@ -1867,8 +1867,8 @@ func copyPsOrders(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
 		}
 	}
 	return true
@@ -1983,8 +1983,8 @@ func copyPsOrderDetails(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "PrestaShop import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
 		}
 	}
 
@@ -2041,7 +2041,7 @@ func (z *PSZoneWeb) updatePSZoneWeb() bool {
 
 func updateTrackingNumberPrestaShopOrder(salesOrderId int64, trackingNumber string, enterpriseId int32) bool {
 	settings := getSettingsRecordById(enterpriseId)
-	if settings.Ecommerce != "P" {
+	if settings.SettingsEcommerce.Ecommerce != "P" {
 		return false
 	}
 
@@ -2050,7 +2050,7 @@ func updateTrackingNumberPrestaShopOrder(salesOrderId int64, trackingNumber stri
 		return false
 	}
 
-	url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+	url := settings.SettingsEcommerce.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.SettingsEcommerce.PrestaShopApiKey
 
 	xmlPs, err := getPrestaShopJSON(url)
 	if err != nil {
@@ -2076,7 +2076,7 @@ func updateTrackingNumberPrestaShopOrder(salesOrderId int64, trackingNumber stri
 	xml = append(xml[:index], "<![CDATA["+trackingNumber+"]]>"...)
 	xml = append(xml, xmlPs[indexEnd:]...)
 
-	xmlSend := setStatusXmlOrderPrestaShop(xml, strconv.Itoa(int(settings.PrestaShopStatusShipped)))
+	xmlSend := setStatusXmlOrderPrestaShop(xml, strconv.Itoa(int(settings.SettingsEcommerce.PrestaShopStatusShipped)))
 	if xmlSend == nil {
 		return false
 	}
@@ -2114,7 +2114,7 @@ func setStatusXmlOrderPrestaShop(xmlPs []byte, status string) []byte {
 
 func updateStatusPaymentAcceptedPrestaShop(orderId int64, enterpriseId int32) bool {
 	settings := getSettingsRecordById(enterpriseId)
-	if settings.Ecommerce != "P" {
+	if settings.SettingsEcommerce.Ecommerce != "P" {
 		return false
 	}
 
@@ -2130,14 +2130,14 @@ func updateStatusPaymentAcceptedPrestaShop(orderId int64, enterpriseId int32) bo
 	row.Scan(&paidInAdvance)
 
 	if !paidInAdvance { // this is not an automatically generated invoice, someone accepted the payment, notify PrestaShop
-		url := settings.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.PrestaShopApiKey
+		url := settings.SettingsEcommerce.PrestaShopUrl + "orders/" + strconv.Itoa(int(s.PrestaShopId)) + "/?ws_key=" + settings.SettingsEcommerce.PrestaShopApiKey
 
 		xmlPs, err := getPrestaShopJSON(url)
 		if err != nil {
 			return false
 		}
 
-		xml := setStatusXmlOrderPrestaShop(xmlPs, strconv.Itoa(int(settings.PrestaShopStatusPaymentAccepted)))
+		xml := setStatusXmlOrderPrestaShop(xmlPs, strconv.Itoa(int(settings.SettingsEcommerce.PrestaShopStatusPaymentAccepted)))
 		if xml == nil {
 			return false
 		}

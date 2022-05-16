@@ -74,8 +74,8 @@ func (s *Shipping) generateSendCloudParcel(enterpriseId int32) (bool, *Parcel) {
 	carrier := getCarierRow(s.CarrierId)
 	if carrier.Id <= 0 {
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. The order doesn't have a shipping. "+o.OrderName+"</p>", enterpriseId)
 		}
 		return false, nil
@@ -190,8 +190,8 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	req, err := http.NewRequest("POST", c.SendcloudUrl, bytes.NewBuffer(jsonRequest))
 	if err != nil {
 		s := getSettingsRecordById(s.EnterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", s.Id)
 		}
 		return false, nil
@@ -203,8 +203,8 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	resp, err := client.Do(req)
 	if err != nil {
 		s := getSettingsRecordById(s.EnterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", s.Id)
 		}
 		return false, nil
@@ -213,8 +213,8 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		s := getSettingsRecordById(s.EnterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", s.Id)
 		}
 		return false, nil
@@ -223,8 +223,8 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 	err = json.Unmarshal(body, &response)
 	if err != nil {
 		s := getSettingsRecordById(s.EnterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p><p>"+string(body)+"</p>", s.Id)
 		}
 		return false, nil
@@ -236,8 +236,8 @@ func (p *Parcel) send(s *Shipping) (bool, *string) {
 		parcelError := *response.Error
 		log("SendCloud", string(jsonRequest)+parcelError.Message)
 		s := getSettingsRecordById(s.EnterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order. There was an error connecting with SendCloud.</p><p>"+string(jsonRequest)+"</p><p>"+parcelError.Message+"</p>", s.Id)
 		}
 		return false, &parcelError.Message
@@ -268,8 +268,8 @@ func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64, enterpriseId int
 	if err != nil {
 		log("SendCloud", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order and saving the label. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", enterpriseId)
 		}
 		return false
@@ -282,8 +282,8 @@ func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64, enterpriseId int
 	if err != nil {
 		log("SendCloud", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order and saving the label. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", enterpriseId)
 		}
 		return false
@@ -293,8 +293,8 @@ func (p *ParcelResponse) saveLabel(c Carrier, shippingId int64, enterpriseId int
 	if err != nil {
 		log("SendCloud", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorSendCloud) > 0 {
-			sendEmail(s.EmailSendErrorSendCloud, s.EmailSendErrorSendCloud, "SendCloud shipping error",
+		if len(s.SettingsEmail.EmailSendErrorSendCloud) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorSendCloud, s.SettingsEmail.EmailSendErrorSendCloud, "SendCloud shipping error",
 				"<p>Error when trying to ship the order and saving the label. There was an error connecting with SendCloud.</p><p>"+err.Error()+"</p>", enterpriseId)
 		}
 		return false

@@ -19,7 +19,7 @@ const SHOPIFY_TRANSACTION_ACCEPT_PAYMENT_KIND = "sale"
 func getShopifyAPI_URL(resourceName string, enterpriseId int32) string {
 	s := getSettingsRecordById(enterpriseId)
 
-	return s.ShopifyUrl + resourceName + ".json"
+	return s.SettingsEcommerce.ShopifyUrl + resourceName + ".json"
 }
 
 func getShopifyJSON(URL string, enterpriseId int32) ([]byte, error) {
@@ -27,7 +27,7 @@ func getShopifyJSON(URL string, enterpriseId int32) ([]byte, error) {
 
 	client := &http.Client{}
 	req, _ := http.NewRequest(http.MethodGet, URL, nil)
-	req.Header.Set("X-Shopify-Access-Token", s.ShopifyToken)
+	req.Header.Set("X-Shopify-Access-Token", s.SettingsEcommerce.ShopifyToken)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func postShopifyJSON(URL string, data []byte, enterpriseId int32) ([]byte, error
 
 	client := &http.Client{}
 	req, _ := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(data))
-	req.Header.Set("X-Shopify-Access-Token", s.ShopifyToken)
+	req.Header.Set("X-Shopify-Access-Token", s.SettingsEcommerce.ShopifyToken)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -66,7 +66,7 @@ func putShopifyJSON(URL string, data []byte, enterpriseId int32) ([]byte, error)
 
 	client := &http.Client{}
 	req, _ := http.NewRequest(http.MethodPut, URL, bytes.NewBuffer(data))
-	req.Header.Set("X-Shopify-Access-Token", s.ShopifyToken)
+	req.Header.Set("X-Shopify-Access-Token", s.SettingsEcommerce.ShopifyToken)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -300,7 +300,7 @@ func (SYOrderLineItem) TableName() string {
 // main import function
 func importFromShopify(enterpriseId int32) {
 	s := getSettingsRecordById(enterpriseId)
-	if s.Ecommerce != "S" {
+	if s.SettingsEcommerce.Ecommerce != "S" {
 		return
 	}
 
@@ -343,8 +343,8 @@ func importSyCustomers(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -406,8 +406,8 @@ func importSyProducts(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -469,8 +469,8 @@ func importSyDraftOrders(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -531,8 +531,8 @@ func importSyOrders(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -597,8 +597,8 @@ func copySyCustomers(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -869,7 +869,7 @@ func copySyCustomers(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -883,8 +883,8 @@ func copySyProducts(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1110,7 +1110,7 @@ func copySyProducts(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -1124,8 +1124,8 @@ func copySyDraftOrders(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1241,14 +1241,14 @@ func copySyDraftOrders(enterpriseId int32) bool {
 			o.Reference = name
 			o.CurrencyId = currencyId
 			o.WarehouseId = s.DefaultWarehouseId
-			o.PaymentMethodId = *s.ShopifyDefaultPaymentMethodId
+			o.PaymentMethodId = *s.SettingsEcommerce.ShopifyDefaultPaymentMethodId
 
 			if billingZone == "E" {
-				o.BillingSeriesId = *s.ShopifyExportSerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyExportSerieId
 			} else if billingZone == "U" && totalTax == 0 {
-				o.BillingSeriesId = *s.ShopifyIntracommunitySerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyIntracommunitySerieId
 			} else {
-				o.BillingSeriesId = *s.ShopifyInteriorSerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyInteriorSerieId
 			}
 
 			o.ShopifyDraftId = id
@@ -1337,14 +1337,14 @@ func copySyDraftOrders(enterpriseId int32) bool {
 			o.Reference = name
 			o.CurrencyId = currencyId
 			o.WarehouseId = s.DefaultWarehouseId
-			o.PaymentMethodId = *s.ShopifyDefaultPaymentMethodId
+			o.PaymentMethodId = *s.SettingsEcommerce.ShopifyDefaultPaymentMethodId
 
 			if billingZone == "E" {
-				o.BillingSeriesId = *s.ShopifyExportSerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyExportSerieId
 			} else if billingZone == "U" && totalTax == 0 {
-				o.BillingSeriesId = *s.ShopifyIntracommunitySerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyIntracommunitySerieId
 			} else {
-				o.BillingSeriesId = *s.ShopifyInteriorSerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyInteriorSerieId
 			}
 
 			o.EnterpriseId = enterpriseId
@@ -1445,7 +1445,7 @@ func copySyDraftOrders(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Draft orders</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -1459,8 +1459,8 @@ func copySyOrders(enterpriseId int32) bool {
 	if err != nil {
 		log("Shopify", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1613,11 +1613,11 @@ func copySyOrders(enterpriseId int32) bool {
 			if row.Err() != nil {
 				log("Shopify", row.Err().Error())
 				errors = append(errors, row.Err().Error())
-				paymentMethod = *s.ShopifyDefaultPaymentMethodId
+				paymentMethod = *s.SettingsEcommerce.ShopifyDefaultPaymentMethodId
 			} else {
 				row.Scan(&paymentMethod)
 				if paymentMethod <= 0 {
-					paymentMethod = *s.ShopifyDefaultPaymentMethodId
+					paymentMethod = *s.SettingsEcommerce.ShopifyDefaultPaymentMethodId
 				}
 			}
 
@@ -1632,11 +1632,11 @@ func copySyOrders(enterpriseId int32) bool {
 			o.PaymentMethodId = paymentMethod
 
 			if billingZone == "E" {
-				o.BillingSeriesId = *s.ShopifyExportSerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyExportSerieId
 			} else if billingZone == "U" && totalTax == 0 {
-				o.BillingSeriesId = *s.ShopifyIntracommunitySerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyIntracommunitySerieId
 			} else {
-				o.BillingSeriesId = *s.ShopifyInteriorSerieId
+				o.BillingSeriesId = *s.SettingsEcommerce.ShopifyInteriorSerieId
 			}
 
 			o.ShopifyId = id
@@ -1727,7 +1727,7 @@ func copySyOrders(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "Shopify import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -1763,7 +1763,7 @@ func updateTrackingNumberShopifyOrder(salesOrderId int64, trackingNumber string,
 	order := getSalesOrderRow(salesOrderId)
 	settings := getSettingsRecordById(enterpriseId)
 	// we need to obtain the location_id for the fulfillment
-	if settings.ShopifyShopLocationId <= 0 {
+	if settings.SettingsEcommerce.ShopifyShopLocationId <= 0 {
 		url := getShopifyAPI_URL("locations", enterpriseId)
 		jsonSY, err := getShopifyJSON(url, enterpriseId)
 		if err != nil {
@@ -1779,7 +1779,7 @@ func updateTrackingNumberShopifyOrder(salesOrderId int64, trackingNumber string,
 			return false
 		}
 	} else {
-		fulfillment.Fulfillment.LocationId = settings.ShopifyShopLocationId
+		fulfillment.Fulfillment.LocationId = settings.SettingsEcommerce.ShopifyShopLocationId
 	}
 
 	// get the name of the carrier

@@ -22,14 +22,14 @@ const WOOCOMMERCE_PROCESSING = "processing"
 func getWooCommerceAPI_URL(resourceName string, enterpriseId int32) string {
 	s := getSettingsRecordById(enterpriseId)
 
-	return s.WooCommerceUrl + resourceName
+	return s.SettingsEcommerce.WooCommerceUrl + resourceName
 }
 
 func getWooCommerceJSON(URL string, enterpriseId int32) ([]byte, error) {
 	s := getSettingsRecordById(enterpriseId)
 
 	// OAuth 1.0 request
-	config := oauth1.NewConfig(s.WooCommerceConsumerKey, s.WooCommerceConsumerSecret)
+	config := oauth1.NewConfig(s.SettingsEcommerce.WooCommerceConsumerKey, s.SettingsEcommerce.WooCommerceConsumerSecret)
 	token := oauth1.NewToken("", "")
 	httpClient := config.Client(oauth1.NoContext, token)
 
@@ -225,7 +225,7 @@ func (j *WcJsonDateTime) ToTime() time.Time {
 // main import function
 func importFromWooCommerce(enterpriseId int32) {
 	s := getSettingsRecordById(enterpriseId)
-	if s.Ecommerce != "W" {
+	if s.SettingsEcommerce.Ecommerce != "W" {
 		return
 	}
 
@@ -250,8 +250,8 @@ func importWcCustomers(enterpriseId int32) bool {
 	if err != nil {
 		log("WooCommerce", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -291,8 +291,8 @@ func importWcProducts(enterpriseId int32) bool {
 	if err != nil {
 		log("WooCommerce", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -375,7 +375,7 @@ func importWcProducts(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCOmmerce import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCOmmerce import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -387,8 +387,8 @@ func importWcOrders(enterpriseId int32) bool {
 	if err != nil {
 		log("WooCommerce", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -464,7 +464,7 @@ func importWcOrders(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -480,8 +480,8 @@ func copyWcCustomers(enterpriseId int32) bool {
 	if err != nil {
 		log("WooCommerce", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -914,7 +914,7 @@ func copyWcCustomers(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Customers</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -928,8 +928,8 @@ func copyWcProducts(enterpriseId int32) bool {
 	if err != nil {
 		log("WooCommerce", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1195,7 +1195,7 @@ func copyWcProducts(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Products</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -1209,8 +1209,8 @@ func copyWcOrders(enterpriseId int32) bool {
 	if err != nil {
 		log("WooCommerce", err.Error())
 		s := getSettingsRecordById(enterpriseId)
-		if len(s.EmailSendErrorEcommerce) > 0 {
-			sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
+		if len(s.SettingsEmail.EmailSendErrorEcommerce) > 0 {
+			sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p><p>Error data: "+err.Error()+"</p>", enterpriseId)
 		}
 		return false
 	}
@@ -1276,11 +1276,11 @@ func copyWcOrders(enterpriseId int32) bool {
 		row.Scan(&erpPaymentMethod, &paidInAdvance)
 
 		if erpPaymentMethod <= 0 { // attempt the default one in the settings (no payment method = likely a manual order)
-			if settings.WooCommerceDefaultPaymentMethodId == nil { // don't continue if the payment method doesn't exists
+			if settings.SettingsEcommerce.WooCommerceDefaultPaymentMethodId == nil { // don't continue if the payment method doesn't exists
 				errors = append(errors, "Can't import order. The payment method doesn't exists. Order id "+strconv.Itoa(int(id)))
 				continue
 			}
-			erpPaymentMethod = *settings.WooCommerceDefaultPaymentMethodId
+			erpPaymentMethod = *settings.SettingsEcommerce.WooCommerceDefaultPaymentMethodId
 			paidInAdvance = getPaymentMethodRow(erpPaymentMethod).PaidInAdvance
 		}
 
@@ -1448,11 +1448,11 @@ func copyWcOrders(enterpriseId int32) bool {
 		s.WooCommerceId = id
 
 		if billingZone == "E" {
-			s.BillingSeriesId = *settings.WooCommerceExportSerieId
+			s.BillingSeriesId = *settings.SettingsEcommerce.WooCommerceExportSerieId
 		} else if billingZone == "U" && totalTax == 0 {
-			s.BillingSeriesId = *settings.WooCommerceIntracommunitySerieId
+			s.BillingSeriesId = *settings.SettingsEcommerce.WooCommerceIntracommunitySerieId
 		} else {
-			s.BillingSeriesId = *settings.WooCommerceInteriorSerieId
+			s.BillingSeriesId = *settings.SettingsEcommerce.WooCommerceInteriorSerieId
 		}
 
 		s.EnterpriseId = enterpriseId
@@ -1536,7 +1536,7 @@ func copyWcOrders(enterpriseId int32) bool {
 		}
 
 		s := getSettingsRecordById(enterpriseId)
-		sendEmail(s.EmailSendErrorEcommerce, s.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
+		sendEmail(s.SettingsEmail.EmailSendErrorEcommerce, s.SettingsEmail.EmailSendErrorEcommerce, "WooCommerce import error", "<p>Error at: Orders</p>"+errorHtml, enterpriseId)
 	}
 
 	return true
@@ -1554,7 +1554,7 @@ func updateTrackingNumberWooCommerceOrder(salesOrderId int64, trackingNumber str
 
 func updateStatusPaymentAcceptedWooCommerce(salesOrderId int64, enterpriseId int32) bool {
 	settings := getSettingsRecordById(enterpriseId)
-	if settings.Ecommerce != "W" {
+	if settings.SettingsEcommerce.Ecommerce != "W" {
 		return false
 	}
 
@@ -1563,13 +1563,13 @@ func updateStatusPaymentAcceptedWooCommerce(salesOrderId int64, enterpriseId int
 		return false
 	}
 
-	url := settings.WooCommerceUrl + "orders/" + strconv.Itoa(int(s.WooCommerceId))
+	url := settings.SettingsEcommerce.WooCommerceUrl + "orders/" + strconv.Itoa(int(s.WooCommerceId))
 
 	update := WooCommerceStatusUpdate{Id: s.WooCommerceId, Status: WOOCOMMERCE_PROCESSING}
 	json, _ := json.Marshal(update)
 
 	// OAuth 1.0 request
-	config := oauth1.NewConfig(settings.WooCommerceConsumerKey, settings.WooCommerceConsumerSecret)
+	config := oauth1.NewConfig(settings.SettingsEcommerce.WooCommerceConsumerKey, settings.SettingsEcommerce.WooCommerceConsumerSecret)
 	token := oauth1.NewToken("", "")
 	httpClient := config.Client(oauth1.NoContext, token)
 

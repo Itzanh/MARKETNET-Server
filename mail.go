@@ -15,20 +15,20 @@ import (
 func sendEmail(destinationAddress string, destinationAddressName string, subject string, innerText string, enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
-	if s.Email != "_" {
-		el := EmailLog{EmailFrom: s.EmailFrom, NameFrom: s.NameFrom, DestinationEmail: destinationAddress, DestinationName: destinationAddressName, Subject: subject, Content: innerText, EnterpriseId: enterpriseId}
+	if s.SettingsEmail.Email != "_" {
+		el := EmailLog{EmailFrom: s.SettingsEmail.EmailFrom, NameFrom: s.SettingsEmail.NameFrom, DestinationEmail: destinationAddress, DestinationName: destinationAddressName, Subject: subject, Content: innerText, EnterpriseId: enterpriseId}
 		el.insertEmailLog()
 	}
 
-	if s.Email == "_" {
+	if s.SettingsEmail.Email == "_" {
 		return false
-	} else if s.Email == "S" {
-		sendEmailSendgrid(s.SendGridKey, s.EmailFrom, s.NameFrom, destinationAddress, destinationAddressName, subject, innerText)
-	} else if s.Email == "T" {
-		if s.SMTPSTARTTLS {
-			sendEmailSMTPwithSTARTTLS(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText, s.SMTPReplyTo)
+	} else if s.SettingsEmail.Email == "S" {
+		sendEmailSendgrid(s.SettingsEmail.SendGridKey, s.SettingsEmail.EmailFrom, s.SettingsEmail.NameFrom, destinationAddress, destinationAddressName, subject, innerText)
+	} else if s.SettingsEmail.Email == "T" {
+		if s.SettingsEmail.SMTPSTARTTLS {
+			sendEmailSMTPwithSTARTTLS(s.SettingsEmail.SMTPIdentity, s.SettingsEmail.SMTPUsername, s.SettingsEmail.SMTPPassword, s.SettingsEmail.SMTPHostname, destinationAddress, subject, innerText, s.SettingsEmail.SMTPReplyTo)
 		} else {
-			sendEmailSMTPPlainAuth(s.SMTPIdentity, s.SMTPUsername, s.SMTPPassword, s.SMTPHostname, destinationAddress, subject, innerText, s.SMTPReplyTo)
+			sendEmailSMTPPlainAuth(s.SettingsEmail.SMTPIdentity, s.SettingsEmail.SMTPUsername, s.SettingsEmail.SMTPPassword, s.SettingsEmail.SMTPHostname, destinationAddress, subject, innerText, s.SettingsEmail.SMTPReplyTo)
 		}
 	}
 	return false

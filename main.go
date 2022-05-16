@@ -70,6 +70,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	/*dbOrm, err = gorm.Open(postgres.Open(psqlInfo))*/
 	dbOrm, err = gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
 		Logger: logger.New(
 			gorm_log.New(os.Stdout, "\r\n", gorm_log.LstdFlags), // io writer
@@ -90,6 +91,11 @@ func main() {
 			os.Exit(4)
 		}
 	}
+
+	/*enterprise := getSettingsRecordById(1)
+	fmt.Println(enterprise.SettingsEcommerce)
+	enterprise.SettingsEcommerce.PrestaShopUrl += "test1234"
+	enterprise.updateSettingsRecord()*/
 
 	// initial data
 	settingsRecords := getSettingsRecords()
@@ -161,7 +167,7 @@ func main() {
 				enterpriseCronInfo.CronCurrency = &cronId
 			}
 		}
-		if settingsRecords[i].Ecommerce != "_" {
+		if settingsRecords[i].SettingsEcommerce.Ecommerce != "_" {
 			e := ECommerce{Enterprise: settingsRecords[i].Id}
 			cronId, err := c.AddFunc(settingsRecords[i].CronPrestaShop, e.ecommerceControllerImportFromEcommerce)
 			if err != nil {

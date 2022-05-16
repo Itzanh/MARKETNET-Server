@@ -11,7 +11,7 @@ type ECommerce struct {
 func (e *ECommerce) ecommerceControllerImportFromEcommerce() {
 	s := getSettingsRecordById(e.Enterprise)
 
-	switch s.Ecommerce {
+	switch s.SettingsEcommerce.Ecommerce {
 	case "P":
 		importFromPrestaShop(e.Enterprise)
 	case "W":
@@ -24,7 +24,7 @@ func (e *ECommerce) ecommerceControllerImportFromEcommerce() {
 func ecommerceControllerUpdateTrackingNumber(salesOrderId int64, trackingNumber string, enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
-	switch s.Ecommerce {
+	switch s.SettingsEcommerce.Ecommerce {
 	case "P":
 		return updateTrackingNumberPrestaShopOrder(salesOrderId, trackingNumber, enterpriseId)
 	case "W":
@@ -39,7 +39,7 @@ func ecommerceControllerUpdateTrackingNumber(salesOrderId int64, trackingNumber 
 func ecommerceControllerupdateStatusPaymentAccepted(salesOrderId int64, enterpriseId int32) bool {
 	s := getSettingsRecordById(enterpriseId)
 
-	switch s.Ecommerce {
+	switch s.SettingsEcommerce.Ecommerce {
 	case "P":
 		return updateStatusPaymentAcceptedPrestaShop(salesOrderId, enterpriseId)
 	case "W":

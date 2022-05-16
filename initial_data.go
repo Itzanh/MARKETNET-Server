@@ -18,10 +18,6 @@ func initialData(enterpriseId int32) {
 	initiaBillingSeriesData(enterpriseId)
 	initialJournals(enterpriseId)
 	initialAccount(enterpriseId)
-	initialConfig(enterpriseId)
-	/*initialUser(enterpriseId)
-	initialGroup(enterpriseId)
-	initialUserGroup()*/
 	initialReportTemplate(enterpriseId)
 	initialPermissionDictionary(enterpriseId)
 	initialHSCodes()
@@ -326,46 +322,6 @@ func initialAccount(enterpriseId int32) {
 	}
 }
 
-func initialConfig(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM config WHERE id=$1`
-	row := db.QueryRow(sqlStatement, enterpriseId)
-	var rows int32
-	row.Scan(&rows)
-
-	if rows == 0 {
-		content, err := ioutil.ReadFile("./initial_data/config.json")
-		if err != nil {
-			return
-		}
-
-		var config Settings
-		json.Unmarshal(content, &config)
-
-		var salesAccount *int32
-		if config.SalesJournalId != nil && *config.SalesJournalId > 0 {
-			acc := getAccountIdByAccountNumber(*config.SalesJournalId, 1, enterpriseId)
-			if acc > 0 {
-				salesAccount = &acc
-			}
-		}
-		var purchaseAccount *int32
-		if config.PurchaseJournalId != nil && *config.PurchaseJournalId > 0 {
-			acc := getAccountIdByAccountNumber(*config.PurchaseJournalId, 1, enterpriseId)
-			if acc > 0 {
-				purchaseAccount = &acc
-			}
-		}
-
-		sqlStatement := `INSERT INTO public.config(id, default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account, enterprise_key) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)`
-		_, err = db.Exec(sqlStatement, config.DefaultVatPercent, config.DefaultWarehouseId, config.DateFormat, config.EnterpriseName, config.EnterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, config.PrestaShopExportSerieId, config.PrestaShopIntracommunitySerieId, config.PrestaShopInteriorSerieId, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, config.CustomerJournalId, config.SalesJournalId, salesAccount, config.SupplierJournalId, config.PurchaseJournalId, purchaseAccount, config.EnterpriseKey)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		fmt.Println("INITIAL DATA: Generated config data")
-	}
-}
-
 func initialConfigCreateEnterprise(enterpriseName string, enterpriseDescription string, enterpriseKey string) (bool, int32) {
 	content, err := ioutil.ReadFile("./initial_data/config.json")
 	if err != nil {
@@ -376,75 +332,14 @@ func initialConfigCreateEnterprise(enterpriseName string, enterpriseDescription 
 	var config Settings
 	json.Unmarshal(content, &config)
 
-	var salesAccount *int32
-	var purchaseAccount *int32
+	config.EnterpriseName = enterpriseName
+	config.EnterpriseDescription = enterpriseDescription
+	config.EnterpriseKey = enterpriseKey
 
-	sqlStatement := `INSERT INTO public.config(default_vat_percent, default_warehouse, date_format, enterprise_name, enterprise_description, ecommerce, email, currency, currency_ecb_url, barcode_prefix, prestashop_url, prestashop_api_key, prestashop_language_id, prestashop_export_serie, prestashop_intracommunity_serie, prestashop_interior_serie, cron_currency, cron_prestashop, sendgrid_key, email_from, name_from, pallet_weight, pallet_width, pallet_height, pallet_depth, max_connections, customer_journal, sales_journal, sales_account, supplier_journal, purchase_journal, purchase_account, enterprise_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33) RETURNING id`
-	row := db.QueryRow(sqlStatement, config.DefaultVatPercent, nil, config.DateFormat, enterpriseName, enterpriseDescription, config.Ecommerce, config.Email, config.Currency, config.CurrencyECBurl, config.BarcodePrefix, config.PrestaShopUrl, config.PrestaShopApiKey, config.PrestaShopLanguageId, nil, nil, nil, config.CronCurrency, config.CronPrestaShop, config.SendGridKey, config.EmailFrom, config.NameFrom, config.PalletWeight, config.PalletWidth, config.PalletHeight, config.PalletDepth, config.MaxConnections, nil, nil, salesAccount, nil, nil, purchaseAccount, enterpriseKey)
-	if row.Err() != nil {
-		fmt.Println(row.Err())
-		return false, 0
-	}
+	dbOrm.Create(&config)
 
-	var enterpriseId int32
-	row.Scan(&enterpriseId)
-	return true, enterpriseId
+	return true, config.Id
 }
-
-/*func initialUser(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM "user" WHERE username='marketnet'`
-	row := db.QueryRow(sqlStatement)
-	var rows int32
-	row.Scan(&rows)
-
-	if rows == 0 {
-		u := UserInsert{Username: "marketnet", FullName: "MARKETNET ADMINISTRATOR", Password: "admin1234", Language: "en"} // INITIAL PASSWORD, USER MUST CHANGE THIS!!!
-		u.insertUser(enterpriseId)
-
-		fmt.Println("INITIAL DATA: Generated admin user")
-	}
-}
-
-func initialGroup(enterpriseId int32) {
-	sqlStatement := `SELECT COUNT(*) FROM "group" WHERE name='Administrators'`
-	row := db.QueryRow(sqlStatement)
-	var rows int32
-	row.Scan(&rows)
-
-	if rows == 0 {
-		g := Group{Name: "Administrators", Sales: true, Purchases: true, Masters: true, Warehouse: true, Manufacturing: true, Preparation: true, Admin: true, PrestaShop: true, Accounting: true, enterprise: enterpriseId, PointOfSale: true}
-		g.insertGroup()
-
-		fmt.Println("INITIAL DATA: Generated admin group")
-	}
-}
-
-func initialUserGroup() {
-	sqlStatement := `SELECT COUNT(*) FROM user_group INNER JOIN "user" ON "user".id=user_group."user" INNER JOIN "group" ON "group".id=user_group."group" WHERE "user".username = 'marketnet' AND "group".name = 'Administrators'`
-	row := db.QueryRow(sqlStatement)
-	var rows int32
-	row.Scan(&rows)
-
-	if rows == 0 {
-
-		sqlStatement := `SELECT id FROM "user" WHERE username='marketnet'`
-		row := db.QueryRow(sqlStatement)
-		var userId int32
-		row.Scan(&userId)
-
-		sqlStatement = `SELECT id FROM "group" WHERE name='Administrators'`
-		row = db.QueryRow(sqlStatement)
-		var groupId int32
-		row.Scan(&groupId)
-
-		ug := UserGroup{}
-		ug.User = userId
-		ug.Group = groupId
-		ug.insertUserGroup()
-
-		fmt.Println("INITIAL DATA: Added the admin user to the admin group")
-	}
-}*/
 
 func initialReportTemplate(enterpriseId int32) {
 	content, err := ioutil.ReadFile("./reports/sales_order.html")
