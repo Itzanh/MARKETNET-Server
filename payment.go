@@ -4,23 +4,24 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Payment struct {
 	Id                               int32                    `json:"id"`
 	AccountingMovementId             int64                    `json:"accountingMovementId" gorm:"column:accounting_movement;not null:true"`
-	AccountingMovement               AccountingMovement       `json:"accountingMovement" gorm:"foreignkey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountingMovement               AccountingMovement       `json:"-" gorm:"foreignkey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
 	AccountingMovementDetailDebitId  int64                    `json:"accountingMovementDetailDebitId" gorm:"column:accounting_movement_detail_debit;not null:true"`
-	AccountingMovementDetailDebit    AccountingMovementDetail `json:"accountingMovementDetailDebit" gorm:"foreignkey:AccountingMovementDetailDebitId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountingMovementDetailDebit    AccountingMovementDetail `json:"-" gorm:"foreignkey:AccountingMovementDetailDebitId,EnterpriseId;references:Id,EnterpriseId"`
 	AccountingMovementDetailCreditId int64                    `json:"accountingMovementDetailCreditId" gorm:"column:accounting_movement_detail_credit;not null:true"`
-	AccountingMovementDetailCredit   AccountingMovementDetail `json:"accountingMovementDetailCredit" gorm:"foreignkey:AccountingMovementDetailCreditId,EnterpriseId;references:Id,EnterpriseId"`
+	AccountingMovementDetailCredit   AccountingMovementDetail `json:"-" gorm:"foreignkey:AccountingMovementDetailCreditId,EnterpriseId;references:Id,EnterpriseId"`
 	AccountId                        int32                    `json:"accountId" gorm:"column:account;not null:true"`
 	Account                          Account                  `json:"account" gorm:"foreignkey:AccountId,EnterpriseId;references:Id,EnterpriseId"`
 	DateCreated                      time.Time                `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true"`
 	Amount                           float64                  `json:"amount" gorm:"type:numeric(14,6);not null:true"`
 	Concept                          string                   `json:"concept" gorm:"type:character varying(140);not null:true"`
 	PaymentTransactionId             int32                    `json:"paymentTransactionId" gorm:"column:payment_transaction;not null:true"`
-	PaymentTransaction               PaymentTransaction       `json:"paymentTransaction" gorm:"foreignkey:PaymentTransactionId,EnterpriseId;references:Id,EnterpriseId"`
+	PaymentTransaction               PaymentTransaction       `json:"-" gorm:"foreignkey:PaymentTransactionId,EnterpriseId;references:Id,EnterpriseId"`
 	EnterpriseId                     int32                    `json:"-" gorm:"column:enterprise;not null"`
 	Enterprise                       Settings                 `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
@@ -32,7 +33,7 @@ func (p *Payment) TableName() string {
 func getPayments(paymentTransaction int32, enterpriseId int32) []Payment {
 	payments := make([]Payment, 0)
 	// get payments for this enterprise and payment transacion
-	dbOrm.Model(&Payment{}).Where("payment_transaction = ? AND enterprise = ?", paymentTransaction, enterpriseId).Order("id ASC").Find(&payments)
+	dbOrm.Model(&Payment{}).Where("payment_transaction = ? AND enterprise = ?", paymentTransaction, enterpriseId).Order("id ASC").Preload(clause.Associations).Find(&payments)
 	return payments
 }
 

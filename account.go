@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Account struct {
@@ -26,7 +27,7 @@ func (a *Account) TableName() string {
 
 func getAccounts(enterpriseId int32) []Account {
 	accounts := make([]Account, 0)
-	dbOrm.Model(&Account{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&accounts)
+	dbOrm.Model(&Account{}).Where("account.enterprise = ?", enterpriseId).Order("account.id ASC").Preload(clause.Associations).Find(&accounts)
 	return accounts
 }
 

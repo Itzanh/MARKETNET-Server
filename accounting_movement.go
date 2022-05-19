@@ -10,18 +10,16 @@ import (
 )
 
 type AccountingMovement struct {
-	Id              int64            `json:"id" gorm:"index:accounting_movement_id_enterprise,unique:true,priority:1"`
-	DateCreated     time.Time        `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true;index:accounting_movement_date_created,priority:1,sort:desc"`
-	AmountDebit     float64          `json:"amountDebit" gorm:"type:numeric(14,6);not null:true"`
-	AmountCredit    float64          `json:"amountCredit" gorm:"type:numeric(14,6);not null:true"`
-	FiscalYear      int16            `json:"fiscalYear" gorm:"not null:true"`
-	Type            string           `json:"type" gorm:"type:character(1);not null:true"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
-	BillingSerieId  string           `json:"billingSerieId" gorm:"column:billing_serie;type:character(3);not null:true"`
-	BillingSerie    BillingSerie     `json:"billingSerie" gorm:"foreignkey:BillingSerieId,EnterpriseId;references:Id,EnterpriseId"`
-	EnterpriseId    int32            `json:"-" gorm:"column:enterprise;not null:true;index:accounting_movement_id_enterprise,unique:true,priority:2"`
-	Enterprise      Settings         `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
-	SalesInvoice    *SalesInvoice    `json:"saleInvoice" gorm:"foreignKey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
-	PurchaseInvoice *PurchaseInvoice `json:"purchaseInvoice" gorm:"foreignKey:AccountingMovementId,EnterpriseId;references:Id,EnterpriseId"`
+	Id             int64        `json:"id" gorm:"index:accounting_movement_id_enterprise,unique:true,priority:1"`
+	DateCreated    time.Time    `json:"dateCreated" gorm:"type:timestamp(3) with time zone;not null:true;index:accounting_movement_date_created,priority:1,sort:desc"`
+	AmountDebit    float64      `json:"amountDebit" gorm:"type:numeric(14,6);not null:true"`
+	AmountCredit   float64      `json:"amountCredit" gorm:"type:numeric(14,6);not null:true"`
+	FiscalYear     int16        `json:"fiscalYear" gorm:"not null:true"`
+	Type           string       `json:"type" gorm:"type:character(1);not null:true"` // O: Opening, N: Normal, V: Variation of existences, R: Regularisation, C: Closing
+	BillingSerieId string       `json:"billingSerieId" gorm:"column:billing_serie;type:character(3);not null:true"`
+	BillingSerie   BillingSerie `json:"billingSerie" gorm:"foreignkey:BillingSerieId,EnterpriseId;references:Id,EnterpriseId"`
+	EnterpriseId   int32        `json:"-" gorm:"column:enterprise;not null:true;index:accounting_movement_id_enterprise,unique:true,priority:2"`
+	Enterprise     Settings     `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
 
 func (am *AccountingMovement) TableName() string {

@@ -10,7 +10,7 @@ import (
 type SalesInvoiceDetail struct {
 	Id            int64             `json:"id" gorm:"index:sales_invoice_detail_id_enterprise,unique:true,priority:1"`
 	InvoiceId     int64             `json:"invoiceId" gorm:"column:invoice;not null:true;index:sales_invoice_detail_invoice_product,unique:true,priority:1"`
-	Invoice       SalesInvoice      `json:"invoice" gorm:"foreignKey:InvoiceId,EnterpriseId;references:Id,EnterpriseId"`
+	Invoice       SalesInvoice      `json:"-" gorm:"foreignKey:InvoiceId,EnterpriseId;references:Id,EnterpriseId"`
 	ProductId     *int32            `json:"productId" gorm:"column:product;index:sales_invoice_detail_invoice_product,unique:true,priority:2"`
 	Product       *Product          `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
 	Price         float64           `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`

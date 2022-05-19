@@ -9,7 +9,7 @@ import (
 type ShippingStatusHistory struct {
 	Id           int64     `json:"id" gorm:"primaryKey"`
 	ShippingId   int64     `json:"shippingId" gorm:"column:shipping;not null:true"`
-	Shipping     Shipping  `json:"shipping" gorm:"foreignKey:ShippingId;references:Id"`
+	Shipping     Shipping  `json:"-" gorm:"foreignKey:ShippingId;references:Id"`
 	StatusId     int16     `json:"statusId" gorm:"column:status_id;not null:true"`
 	Message      string    `json:"message" gorm:"column:message;not null:true;type:text"`
 	Delivered    bool      `json:"delivered" gorm:"column:delivered;not null:true"`

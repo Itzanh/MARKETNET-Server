@@ -1,11 +1,13 @@
 package main
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 type SalesOrderDetailDigitalProductData struct {
 	Id           int32            `json:"id"`
 	DetailId     int64            `json:"detailId" gorm:"column:detail;not null:true"`
-	Detail       SalesOrderDetail `json:"detail" gorm:"foreignKey:DetailId,EnterpriseId;references:Id,EnterpriseId"`
+	Detail       SalesOrderDetail `json:"-" gorm:"foreignKey:DetailId,EnterpriseId;references:Id,EnterpriseId"`
 	Key          string           `json:"key" gorm:"column:key;not null:true;type:character varying(50)"`
 	Value        string           `json:"value" gorm:"column:value;not null:true;type:character varying(250)"`
 	EnterpriseId int32            `json:"-" gorm:"column:enterprise"`
