@@ -689,7 +689,7 @@ func purchasePostInvoices(invoiceIds []int64, enterpriseId int32, userId int32) 
 
 func getAccountingMovementSaleInvoices(movementId int64) []SalesInvoice {
 	var invoices []SalesInvoice = make([]SalesInvoice, 0)
-	result := dbOrm.Model(&SalesInvoice{}).Where("accounting_movement = ?", movementId).Order("date_created DESC").Find(&invoices)
+	result := dbOrm.Model(&SalesInvoice{}).Where("accounting_movement = ?", movementId).Order("date_created DESC").Preload(clause.Associations).Find(&invoices)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return invoices
@@ -699,7 +699,7 @@ func getAccountingMovementSaleInvoices(movementId int64) []SalesInvoice {
 
 func getAccountingMovementPurchaseInvoices(movementId int64) []PurchaseInvoice {
 	var invoices []PurchaseInvoice = make([]PurchaseInvoice, 0)
-	result := dbOrm.Model(&PurchaseInvoice{}).Where("accounting_movement = ?", movementId).Order("date_created DESC").Find(&invoices)
+	result := dbOrm.Model(&PurchaseInvoice{}).Where("accounting_movement = ?", movementId).Order("date_created DESC").Preload(clause.Associations).Find(&invoices)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return invoices
