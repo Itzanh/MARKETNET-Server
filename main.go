@@ -883,6 +883,8 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		data, _ = json.Marshal(getPackagingByShipping(int64(id), enterpriseId))
 	case "GET_USER_GROUPS":
 		data, _ = json.Marshal(getUserGroups(int32(id), enterpriseId))
+	case "GET_GROUP_USERS":
+		data, _ = json.Marshal(getGroupUsers(int32(id), enterpriseId))
 	case "PURCHASE_ORDER_DETAIL":
 		if !permissions.Purchases {
 			return

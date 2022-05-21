@@ -26,6 +26,33 @@ func getUserGroups(userId int32, enterpriseId int32) UserGroups {
 	}
 }
 
+func getGroupUsers(groupId int32, enterpriseId int32) []User {
+	// get group row
+	var group Group
+	result := dbOrm.Where("\"id\" = ?", groupId).First(&group)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
+	}
+	if group.EnterpriseId != enterpriseId {
+		return nil
+	}
+
+	var users []User = make([]User, 0)
+	var userGroups []UserGroup = make([]UserGroup, 0)
+	result = dbOrm.Model(&UserGroup{}).Where("\"group\" = ?", groupId).Order("\"user\" ASC").Preload(clause.Associations).Find(&userGroups)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return users
+	}
+
+	for i := 0; i < len(userGroups); i++ {
+		users = append(users, userGroups[i].User)
+	}
+
+	return users
+}
+
 func getUserGroupsIn(userId int32) []Group {
 	var userGroups []UserGroup = make([]UserGroup, 0)
 	var groups []Group = make([]Group, 0)
