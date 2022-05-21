@@ -1035,6 +1035,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getConnectionFilterUser(int32(id), enterpriseId))
+	case "CONNECTION_FILTER_USERS_BY_USER":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(getConnectionFilterUserByUser(int32(id), enterpriseId))
 	case "ADDRESS_ROW":
 		if !permissions.Masters {
 			return

@@ -294,6 +294,23 @@ func getConnectionFilterUser(filterId int32, enterpriseId int32) []ConnectionFil
 	return connectionFilterUsers
 }
 
+func getConnectionFilterUserByUser(userId int32, enterpriseId int32) []ConnectionFilterUser {
+	// get a single connection filter row by id using dbOrm
+	user := getUserRow(userId)
+	if user.EnterpriseId != enterpriseId {
+		return nil
+	}
+
+	// get all connection filter users for the current filter using dbOrm sorted by id ascending
+	var connectionFilterUsers []ConnectionFilterUser
+	result := dbOrm.Where(`connection_filter_user."user" = ?`, userId).Order(`connection_filter_user.connection_filter,connection_filter_user."user" ASC`).Preload("ConnectionFilter").Find(&connectionFilterUsers)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
+	}
+	return connectionFilterUsers
+}
+
 func (f *ConnectionFilterUser) insertConnectionFilterUser(enterpriseId int32) bool {
 	filterInMemory := getConnectionFilterRow(f.ConnectionFilterId)
 	if filterInMemory.EnterpriseId != enterpriseId {
