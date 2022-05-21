@@ -44,11 +44,9 @@ type SaleOrder struct {
 	TotalAmount         float64       `json:"totalAmount" gorm:"not null:true;type:numeric(14,6)"`
 	Description         string        `json:"description" gorm:"type:text;not null:true;column:dsc"`
 	Notes               string        `json:"notes" gorm:"type:character varying(250);not null:true;column:notes"`
-	Off                 bool          `json:"off" gorm:"not null:true"`
 	Cancelled           bool          `json:"cancelled" gorm:"not null:true"`
 	Status              string        `json:"status" gorm:"type:character(1);not null:true;column:status"` // _ = Waiting for payment, A = Waiting for purchase order, B = Purchase order pending, C = Waiting for manufacturing orders, D = Manufacturing orders pending, E = Sent to preparation, F = Awaiting for shipping, G = Shipped, H = Receiced by the customer, Z = Cancelled
 	OrderNumber         int32         `json:"orderNumber" gorm:"not null:true;column:order_number;index:sales_order_order_number,unique:true,priority:3,sort:desc"`
-	BillingStatus       string        `json:"billingStatus" gorm:"type:character(1);not null:true"`
 	OrderName           string        `json:"orderName" gorm:"type:character(15);not null:true"`
 	CarrierId           *int32        `json:"carrierId" gorm:"column:carrier"`
 	Carrier             *Carrier      `json:"carrier" gorm:"foreignKey:CarrierId,EnterpriseId;references:Id,EnterpriseId"`
@@ -221,7 +219,6 @@ func (s *SaleOrder) insertSalesOrder(userId int32) (bool, int64) {
 	s.TotalWithDiscount = s.ShippingPrice - s.ShippingDiscount - s.FixDiscount
 	s.VatAmount = 0
 	s.TotalAmount = s.TotalWithDiscount + s.VatAmount
-	s.Off = false
 	s.Cancelled = false
 	s.Status = "_"
 	s.LinesNumber = 0

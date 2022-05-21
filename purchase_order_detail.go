@@ -9,22 +9,21 @@ import (
 )
 
 type PurchaseOrderDetail struct {
-	Id                       int64         `json:"id" gorm:"index:purchase_order_detail_id_enterprise,unique:true,priority:1"`
-	OrderId                  int64         `json:"orderId" gorm:"column:order;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:1"`
-	Order                    PurchaseOrder `json:"-" gorm:"foreignKey:OrderId,EnterpriseId;references:Id,EnterpriseId"`
-	ProductId                int32         `json:"productId" gorm:"column:product;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:2"`
-	Product                  Product       `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
-	Price                    float64       `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`
-	Quantity                 int32         `json:"quantity" gorm:"column:quantity;not null:true"`
-	VatPercent               float64       `json:"vatPercent" gorm:"column:vat_percent;not null:true;type:numeric(14,6)"`
-	TotalAmount              float64       `json:"totalAmount" gorm:"column:total_amount;not null:true;type:numeric(14,6)"`
-	QuantityInvoiced         int32         `json:"quantityInvoiced" gorm:"column:quantity_invoiced;not null:true"`
-	QuantityDeliveryNote     int32         `json:"quantityDeliveryNote" gorm:"column:quantity_delivery_note;not null:true"`
-	QuantityPendingPackaging int32         `json:"quantityPendingPackaging" gorm:"column:quantity_pending_packaging;not null:true"`
-	QuantityAssignedSale     int32         `json:"quantityAssignedSale" gorm:"column:quantity_assigned_sale;not null:true"`
-	EnterpriseId             int32         `json:"-" gorm:"column:enterprise;not null:true;index:purchase_order_detail_id_enterprise,unique:true,priority:2"`
-	Enterprise               Settings      `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
-	Cancelled                bool          `json:"cancelled" gorm:"column:cancelled;not null:true"`
+	Id                   int64         `json:"id" gorm:"index:purchase_order_detail_id_enterprise,unique:true,priority:1"`
+	OrderId              int64         `json:"orderId" gorm:"column:order;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:1"`
+	Order                PurchaseOrder `json:"-" gorm:"foreignKey:OrderId,EnterpriseId;references:Id,EnterpriseId"`
+	ProductId            int32         `json:"productId" gorm:"column:product;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:2"`
+	Product              Product       `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
+	Price                float64       `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`
+	Quantity             int32         `json:"quantity" gorm:"column:quantity;not null:true"`
+	VatPercent           float64       `json:"vatPercent" gorm:"column:vat_percent;not null:true;type:numeric(14,6)"`
+	TotalAmount          float64       `json:"totalAmount" gorm:"column:total_amount;not null:true;type:numeric(14,6)"`
+	QuantityInvoiced     int32         `json:"quantityInvoiced" gorm:"column:quantity_invoiced;not null:true"`
+	QuantityDeliveryNote int32         `json:"quantityDeliveryNote" gorm:"column:quantity_delivery_note;not null:true"`
+	QuantityAssignedSale int32         `json:"quantityAssignedSale" gorm:"column:quantity_assigned_sale;not null:true"`
+	EnterpriseId         int32         `json:"-" gorm:"column:enterprise;not null:true;index:purchase_order_detail_id_enterprise,unique:true,priority:2"`
+	Enterprise           Settings      `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Cancelled            bool          `json:"cancelled" gorm:"column:cancelled;not null:true"`
 }
 
 func (pod *PurchaseOrderDetail) TableName() string {
@@ -112,7 +111,6 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *gor
 
 	s.QuantityInvoiced = 0
 	s.QuantityDeliveryNote = 0
-	s.QuantityPendingPackaging = s.Quantity
 	s.QuantityAssignedSale = 0
 	s.Cancelled = false
 

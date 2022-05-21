@@ -6,6 +6,14 @@ func addORMModels() bool {
 	// GORM does not do this automatically
 	dbOrm.Exec("UPDATE pg_opclass SET opcdefault = true WHERE opcname='gin_trgm_ops'")
 
+	dbOrm.Exec("ALTER TABLE public.sales_order DROP COLUMN IF EXISTS off")
+	dbOrm.Exec("ALTER TABLE public.sales_order DROP COLUMN IF EXISTS billing_status")
+
+	dbOrm.Exec("ALTER TABLE public.purchase_order DROP COLUMN IF EXISTS off")
+	dbOrm.Exec("ALTER TABLE public.purchase_order DROP COLUMN IF EXISTS billing_status")
+
+	dbOrm.Exec("ALTER TABLE public.purchase_order_detail DROP COLUMN IF EXISTS quantity_pending_packaging")
+
 	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &SettingsEcommerce{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
 		&User{}, &Group{}, &UserGroup{}, &PermissionDictionary{}, &PermissionDictionaryGroup{}, &DocumentContainer{}, &Document{}, &ProductFamily{}, &ProductAccount{},
 		&Carrier{}, &State{}, &Color{}, &Packages{}, &Incoterm{}, &Product{}, &ConfigAccountsVat{}, &ManufacturingOrderType{}, &ManufacturingOrderTypeComponents{},

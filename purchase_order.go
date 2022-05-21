@@ -44,10 +44,8 @@ type PurchaseOrder struct {
 	TotalAmount       float64       `json:"totalAmount" gorm:"column:total_amount;type:numeric(14,6);not null:true"`
 	Description       string        `json:"description" gorm:"column:dsc;type:text;not null:true"`
 	Notes             string        `json:"notes" gorm:"column:notes;type:character varying(250);not null:true"`
-	Off               bool          `json:"off" gorm:"column:off;type:boolean;not null:true"`
 	Cancelled         bool          `json:"cancelled" gorm:"column:cancelled;type:boolean;not null:true"`
 	OrderNumber       int32         `json:"orderNumber" gorm:"column:order_number;type:integer;not null:true;index:purchase_order_order_number,unique:true,priority:3"`
-	BillingStatus     string        `json:"billingStatus" gorm:"column:billing_status;type:character(1);not null:true"`
 	OrderName         string        `json:"orderName" gorm:"column:order_name;type:character(15);not null:true"`
 	EnterpriseId      int32         `json:"-" gorm:"column:enterprise;not null:true;index:purchase_order_id_enterprise,unique:true,priority:2;index:purchase_order_order_number,unique:true,priority:1"`
 	Enterprise        Settings      `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
@@ -181,7 +179,6 @@ func (p *PurchaseOrder) insertPurchaseOrder(userId int32, trans *gorm.DB) (bool,
 	p.TotalProducts = 0
 	p.TotalWithDiscount = p.ShippingPrice - p.ShippingDiscount - p.FixDiscount
 	p.VatAmount = 0
-	p.Off = false
 	p.Cancelled = false
 
 	result := trans.Create(&p)
