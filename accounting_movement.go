@@ -33,10 +33,31 @@ func getAccountingMovement(enterpriseId int32) []AccountingMovement {
 	return accountingMovements
 }
 
-func searchAccountingMovements(search string, enterpriseId int32) []AccountingMovement {
+type AccountingMovementSearch struct {
+	Search         string     `json:"search"`
+	Type           *string    `json:"type"`
+	BillingSerieId *string    `json:"billingSerieId"`
+	DateStart      *time.Time `json:"dateStart"`
+	DateEnd        *time.Time `json:"dateEnd"`
+}
+
+func (query *AccountingMovementSearch) searchAccountingMovements(enterpriseId int32) []AccountingMovement {
 	accountingMovements := make([]AccountingMovement, 0)
 	// get all accounting movements from the database for the current enterprise sort by date created descending (newest first) using dbOrm
-	result := dbOrm.Model(&AccountingMovement{}).Where(`(accounting_movement_detail.document_name ILIKE @search) AND (accounting_movement.enterprise = @enterpriseId)`, sql.Named("enterpriseId", enterpriseId), sql.Named("search", "%"+search+"%")).Joins("INNER JOIN accounting_movement_detail ON accounting_movement_detail.movement=accounting_movement.id").Order("accounting_movement.date_created DESC").Preload(clause.Associations).Find(&accountingMovements)
+	cursor := dbOrm.Model(&AccountingMovement{}).Where(`(accounting_movement_detail.document_name ILIKE @search) AND (accounting_movement.enterprise = @enterpriseId)`, sql.Named("enterpriseId", enterpriseId), sql.Named("search", "%"+query.Search+"%"))
+	if query.Type != nil {
+		cursor = cursor.Where("accounting_movement.type = ?", *query.Type)
+	}
+	if query.BillingSerieId != nil {
+		cursor = cursor.Where("accounting_movement.billing_serie = ?", *query.BillingSerieId)
+	}
+	if query.DateStart != nil {
+		cursor = cursor.Where("accounting_movement.date_created >= ?", *query.DateStart)
+	}
+	if query.DateEnd != nil {
+		cursor = cursor.Where("accounting_movement.date_created <= ?", *query.DateEnd)
+	}
+	result := cursor.Joins("INNER JOIN accounting_movement_detail ON accounting_movement_detail.movement=accounting_movement.id").Order("accounting_movement.date_created DESC").Preload(clause.Associations).Find(&accountingMovements)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return accountingMovements

@@ -3447,7 +3447,9 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Accounting {
 			return
 		}
-		data, _ = json.Marshal(searchAccountingMovements(message, enterpriseId))
+		var query AccountingMovementSearch
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.searchAccountingMovements(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }

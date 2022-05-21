@@ -212,7 +212,8 @@ func TestSearchAccountingMovements(t *testing.T) {
 		ConnectTestWithDB(t)
 	}
 
-	m := searchAccountingMovements("", 1)
+	query := AccountingMovementSearch{}
+	m := query.searchAccountingMovements(1)
 
 	for i := 0; i < len(m); i++ {
 		if m[i].Id <= 0 {
