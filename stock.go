@@ -8,7 +8,7 @@ type Stock struct {
 	ProductId                  int32     `json:"productId" gorm:"primaryKey;column:product;not null:true"`
 	Product                    Product   `json:"-" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
 	WarehouseId                string    `json:"warehouseId" gorm:"primaryKey;column:warehouse;not null:true;type:character(2)"`
-	Warehouse                  Warehouse `json:"-" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
+	Warehouse                  Warehouse `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	Quantity                   int32     `json:"quantity" gorm:"column:quantity;not null:true"`
 	QuantityPendingReceived    int32     `json:"quantityPendingReceived" gorm:"column:quantity_pending_received;not null:true"`
 	QuantityPendingServed      int32     `json:"quantityPendingServed" gorm:"column:quantity_pending_served;not null:true"`
