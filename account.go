@@ -27,7 +27,12 @@ func (a *Account) TableName() string {
 
 func getAccounts(enterpriseId int32) []Account {
 	accounts := make([]Account, 0)
-	dbOrm.Model(&Account{}).Where("account.enterprise = ?", enterpriseId).Order("account.id ASC").Preload(clause.Associations).Find(&accounts)
+	result := dbOrm.Model(&Account{}).Where("account.enterprise = ?", enterpriseId).Order("account.account_name ASC").Preload(clause.Associations).Find(&accounts)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		log("DB", result.Error.Error())
+		return nil
+	}
 	return accounts
 }
 
@@ -50,7 +55,12 @@ func (s *AccountSearch) searchAccounts(enterpriseId int32) []Account {
 		interfaces = append(interfaces, enterpriseId)
 	}
 
-	dbOrm.Model(&Account{}).Where(query, interfaces...).Order("id ASC").Find(&accounts)
+	result := dbOrm.Model(&Account{}).Where(query, interfaces...).Order("account.account_name ASC").Find(&accounts)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		log("DB", result.Error.Error())
+		return nil
+	}
 	return accounts
 }
 
