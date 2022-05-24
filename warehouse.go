@@ -7,7 +7,7 @@ import (
 type Warehouse struct {
 	Id           string   `json:"id" gorm:"primaryKey;type:character(2)"`
 	Name         string   `json:"name" gorm:"column:name;type:character varying(50);not null:true"`
-	EnterpriseId int32    `gorm:"primaryKey;column:enterprise;not null:true"`
+	EnterpriseId int32    `json:"-" gorm:"primaryKey;column:enterprise;not null:true"`
 	Enterprise   Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
 

@@ -22,7 +22,7 @@ type TransferBetweenWarehouses struct {
 	Finished               bool       `json:"finished" gorm:"column:finished;type:boolean;not null;index:transfer_between_warehouses_enterprise_finished_date_created,priority:2"`
 	LinesTransfered        int32      `json:"linesTransfered" gorm:"column:lines_transfered;type:integer;not null"`
 	LinesTotal             int32      `json:"linesTotal" gorm:"column:lines_total;type:integer;not null"`
-	Name                   string     `json:"name" gorm:"column:name;type:character varying(100);not null"`
+	Name                   string     `json:"name" gorm:"column:name;type:character varying(100);not null;index:transfer_between_warehouses_name,type:gin"`
 }
 
 func (t *TransferBetweenWarehouses) TableName() string {
@@ -30,6 +30,7 @@ func (t *TransferBetweenWarehouses) TableName() string {
 }
 
 type TransferBetweenWarehousesQuery struct {
+	Search     string     `json:"search"`
 	DateStart  *time.Time `json:"dateStart"`
 	DateEnd    *time.Time `json:"dateEnd"`
 	Finished   bool       `json:"finished"`
@@ -45,6 +46,10 @@ func (q *TransferBetweenWarehousesQuery) searchTransferBetweenWarehouses() []Tra
 	}
 	if q.DateEnd != nil {
 		cursor.Where("transfer_between_warehouses.date_created <= ?", q.DateEnd)
+	}
+	cursor.Where("transfer_between_warehouses.finished = ?", q.Finished)
+	if len(q.Search) > 0 {
+		cursor.Where("transfer_between_warehouses.name LIKE ?", "%"+q.Search+"%")
 	}
 
 	result := cursor.Order("transfer_between_warehouses.date_created DESC").Preload(clause.Associations).Find(&transfers)
@@ -136,7 +141,7 @@ type TransferBetweenWarehousesDetail struct {
 	Id                          int64                     `json:"id"`
 	TransferBetweenWarehousesId int64                     `json:"transferBetweenWarehousesId" gorm:"column:transfer_between_warehouses;type:bigint;not null;index:transfer_between_warehouses_detail_barcode,priority:2,where:quantity_transferred < quantity"`
 	TransferBetweenWarehouses   TransferBetweenWarehouses `json:"transferBetweenWarehouses" gorm:"foreignKey:TransferBetweenWarehousesId,EnterpriseId;references:Id,EnterpriseId"`
-	EnterpriseId                int32                     `json:"enterprise" gorm:"column:enterprise;type:integer;not null;index:transfer_between_warehouses_detail_barcode,priority:1,where:quantity_transferred < quantity"`
+	EnterpriseId                int32                     `json:"-" gorm:"column:enterprise;type:integer;not null;index:transfer_between_warehouses_detail_barcode,priority:1,where:quantity_transferred < quantity"`
 	Enterprise                  Settings                  `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 	ProductId                   int32                     `json:"productId" gorm:"column:product;type:integer;not null;index:transfer_between_warehouses_detail_barcode,priority:3,where:quantity_transferred < quantity"`
 	Product                     Product                   `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
@@ -237,7 +242,10 @@ func (d *TransferBetweenWarehousesDetail) deleteTransferBetweenWarehousesDetail(
 		return false
 	}
 
-	transfer := getTransferBetweenWarehousesRow(d.TransferBetweenWarehousesId)
+	transfer := getTransferBetweenWarehousesRow(detailInMemory.TransferBetweenWarehousesId)
+	if transfer.Id <= 0 || transfer.EnterpriseId != d.EnterpriseId || transfer.Finished {
+		return false
+	}
 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
@@ -249,7 +257,7 @@ func (d *TransferBetweenWarehousesDetail) deleteTransferBetweenWarehousesDetail(
 		///
 	}
 
-	result := trans.Delete(&TransferBetweenWarehousesDetail{}, "id = ? AND enterprise = ?", d.Id, d.EnterpriseId)
+	result := trans.Model(&TransferBetweenWarehousesDetail{}).Where("id = ? AND enterprise = ?", d.Id, d.EnterpriseId).Delete(&TransferBetweenWarehousesDetail{})
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		trans.Rollback()
@@ -262,6 +270,7 @@ func (d *TransferBetweenWarehousesDetail) deleteTransferBetweenWarehousesDetail(
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		trans.Rollback()
+		fmt.Println(result.Error)
 		return false
 	}
 
@@ -358,6 +367,13 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 			trans.Rollback()
 			return false
 		}
+
+		result = trans.Model(&TransferBetweenWarehouses{}).Where("id = ?", transfer.Id).Updates(&transfer)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
 	} else {
 		result := trans.Model(&TransferBetweenWarehousesDetail{}).Where("id = ?", detail.Id).Update("quantity_transferred", detail.QuantityTransferred)
 		if result.Error != nil {
@@ -442,6 +458,13 @@ func (q *TransferBetweenWarehousesDetailQuantityQuery) transferBetweenWarehouses
 		detail.WarehouseMovementInId = &wmIn.Id
 
 		result := trans.Updates(&detail)
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
+
+		result = trans.Model(&TransferBetweenWarehouses{}).Where("id = ?", transfer.Id).Updates(&transfer)
 		if result.Error != nil {
 			log("DB", result.Error.Error())
 			trans.Rollback()
