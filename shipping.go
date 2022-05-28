@@ -103,7 +103,7 @@ func getShippingsPendingCollected(enterpriseId int32) []Shipping {
 }
 
 func (s *Shipping) isValid() bool {
-	return !(s.OrderId <= 0 || s.DeliveryAddressId <= 0 || s.CarrierId <= 0 || len(s.Description) > 3000)
+	return !(s.OrderId <= 0 || s.DeliveryAddressId <= 0 || s.CarrierId <= 0 || len(s.CarrierNotes) > 250 || len(s.Description) > 3000)
 }
 
 func (s *Shipping) BeforeCreate(tx *gorm.DB) (err error) {

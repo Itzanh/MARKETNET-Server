@@ -27,7 +27,7 @@ type User struct {
 	Pwd                       []byte    `json:"-" gorm:"column:pwd;type:bytea;not null:true"`
 	Salt                      string    `json:"-" gorm:"column:salt;type:character(30);not null:true"`
 	Iterations                int32     `json:"iterations" gorm:"column:iterations;not null:true"`
-	Description               string    `json:"description" gorm:"column:dsc;not null:true"`
+	Description               string    `json:"description" gorm:"column:dsc;not null:true;type:text"`
 	DateLastLogin             time.Time `json:"dateLastLogin" gorm:"type:timestamp(3) with time zone;not null:true"`
 	FailedLoginAttemps        int16     `json:"-" gorm:"not null:true"`
 	Language                  string    `json:"language" gorm:"column:lang;type:character(2);not null:true"`

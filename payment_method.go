@@ -36,7 +36,7 @@ func getPaymentMethodRow(paymentMethodId int32) PaymentMethod {
 }
 
 func (p *PaymentMethod) isValid() bool {
-	return !(len(p.Name) == 0 || len(p.Name) > 100 || p.DaysExpiration < 0)
+	return !(len(p.Name) == 0 || len(p.Name) > 100 || p.DaysExpiration < 0 || len(p.PrestashopModuleName) > 100 || len(p.WooCommerceModuleName) > 100 || len(p.ShopifyModuleName) > 100)
 }
 
 func (p *PaymentMethod) BeforeCreate(tx *gorm.DB) (err error) {
