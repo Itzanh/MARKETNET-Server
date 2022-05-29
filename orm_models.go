@@ -6,6 +6,11 @@ func addORMModels() bool {
 	// GORM does not do this automatically
 	dbOrm.Exec("UPDATE pg_opclass SET opcdefault = true WHERE opcname='gin_trgm_ops'")
 
+	dbOrm.Exec("ALTER TABLE public.sales_order DROP COLUMN IF EXISTS warehouse")
+	dbOrm.Exec("ALTER TABLE public.sales_delivery_note DROP COLUMN IF EXISTS warehouse")
+	dbOrm.Exec("ALTER TABLE public.purchase_order DROP COLUMN IF EXISTS warehouse")
+	dbOrm.Exec("ALTER TABLE public.purchase_delivery_note DROP COLUMN IF EXISTS warehouse")
+
 	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &SettingsEcommerce{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
 		&User{}, &Group{}, &UserGroup{}, &PermissionDictionary{}, &PermissionDictionaryGroup{}, &DocumentContainer{}, &Document{}, &ProductFamily{}, &ProductAccount{},
 		&Carrier{}, &State{}, &Color{}, &Packages{}, &Incoterm{}, &Product{}, &ConfigAccountsVat{}, &ManufacturingOrderType{}, &ManufacturingOrderTypeComponents{},
@@ -23,28 +28,6 @@ func addORMModels() bool {
 		fmt.Println("AutoMigrate", err)
 		log("AutoMigrate", err.Error())
 		return false
-	}
-
-	sqlStatement := `SELECT id,warehouse FROM public.sales_order ORDER BY id ASC`
-	rows, _ := dbOrm.Raw(sqlStatement).Rows()
-	for rows.Next() {
-		var id int
-		var warehouseId string
-		rows.Scan(&id, &warehouseId)
-
-		sqlStatement = `UPDATE public.sales_order_detail SET warehouse = $2 WHERE "order" = $1 AND warehouse IS NULL`
-		db.Exec(sqlStatement, id, warehouseId)
-	}
-
-	sqlStatement = `SELECT id,warehouse FROM public.purchase_order ORDER BY id ASC`
-	rows, _ = dbOrm.Raw(sqlStatement).Rows()
-	for rows.Next() {
-		var id int
-		var warehouseId string
-		rows.Scan(&id, &warehouseId)
-
-		sqlStatement = `UPDATE public.purchase_order_detail SET warehouse = $2 WHERE "order" = $1 AND warehouse IS NULL`
-		db.Exec(sqlStatement, id, warehouseId)
 	}
 
 	return true

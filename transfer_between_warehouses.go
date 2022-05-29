@@ -153,7 +153,7 @@ type TransferBetweenWarehousesDetail struct {
 	WarehouseMovementInId       *int64                    `json:"warehouseMovementInId" gorm:"column:warehouse_movement_in;type:bigint"`
 	WarehouseMovementIn         *WarehouseMovement        `json:"warehouseMovementIn" gorm:"foreignKey:WarehouseMovementInId,EnterpriseId;references:Id,EnterpriseId"`
 	SalesOrderDetailId          *int64                    `json:"salesOrderDetailId" gorm:"column:sales_order_detail;type:bigint"`
-	SalesOrderDetail            *SalesOrderDetail         `json:"salesOrderDetail" gorm:"foreignKey:SalesOrderDetailId,EnterpriseId;references:Id,EnterpriseId"`
+	SalesOrderDetail            *SalesOrderDetail         `json:"-" gorm:"foreignKey:SalesOrderDetailId,EnterpriseId;references:Id,EnterpriseId"`
 }
 
 func (t *TransferBetweenWarehousesDetail) TableName() string {
