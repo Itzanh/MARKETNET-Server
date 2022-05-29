@@ -85,7 +85,8 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 		return false, 1
 	}
 	if len(n.Warehouse) == 0 {
-		n.Warehouse = getPurchaseOrderDefaults(enterpriseId).Warehouse
+		config := getSettingsRecordById(enterpriseId)
+		n.Warehouse = config.DefaultWarehouseId
 	}
 
 	///

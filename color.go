@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"gorm.io/gorm"
 )
 
@@ -85,23 +83,6 @@ func (c *Color) deleteColor() bool {
 	}
 
 	return true
-}
-
-func findColorByName(colorName string, enterpriseId int32) []NameInt32 {
-	var colors []NameInt32 = make([]NameInt32, 0)
-	dbOrm.Model(&Color{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(colorName), enterpriseId).Order("id ASC").Limit(10).Find(&colors)
-	return colors
-}
-
-func getNameColor(id int32, enterpriseId int32) string {
-	var color Color
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&color)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return color.Name
 }
 
 func locateColor(enterpriseId int32) []NameInt32 {

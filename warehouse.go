@@ -92,17 +92,6 @@ func findWarehouseByName(warehouseName string, enterpriseId int32) []NameString 
 	return warehouses
 }
 
-func getNameWarehouse(id string, enterpriseId int32) string {
-	var warehouse Warehouse
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&warehouse)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return warehouse.Name
-}
-
 // Regenerates the stock of the product for all the products in the database.
 // This "stock" field is the sum of the stock in all the warehouses.
 func regenerateProductStock(enterpriseId int32) bool {

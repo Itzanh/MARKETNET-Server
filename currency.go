@@ -128,17 +128,6 @@ func findCurrencyByName(currencyName string, enterpriseId int32) []NameInt32 {
 	return currencies
 }
 
-func getNameCurrency(id int32, enterpriseId int32) string {
-	var currency Currency
-	result := dbOrm.Where("id = ? AND enterprise = ?", currency, enterpriseId).First(&currency)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return currency.Name
-}
-
 func locateCurrency(enterpriseId int32) []NameInt32 {
 	var currencies []NameInt32 = make([]NameInt32, 0)
 	result := dbOrm.Model(&Currency{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Limit(10).Find(&currencies)

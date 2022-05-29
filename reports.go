@@ -74,14 +74,11 @@ func getEnterpriseLogoBase64(enterpriseId int32) string {
 func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethodId, enterpriseId)
-	customer := getNameCustomer(s.CustomerId, enterpriseId)
 	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesOrderDetail(s.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_ORDER")
@@ -92,14 +89,14 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32)
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$order_reference$$", s.Reference, 1)
-	html = strings.Replace(html, "$$order_payment_method_name$$", paymentMethod, 1)
-	html = strings.Replace(html, "$$order_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$order_payment_method_name$$", s.PaymentMethod.Name, 1)
+	html = strings.Replace(html, "$$order_customer_name$$", s.Customer.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Country.Name, 1)
 	html = strings.Replace(html, "$$order_notes$$", s.Notes, 1)
 	html = strings.Replace(html, "$$order_total_products$$", fmt.Sprintf("%.2f", s.TotalProducts), 1)
 	html = strings.Replace(html, "$$order_vat_amount$$", fmt.Sprintf("%.2f", s.VatAmount), 1)
@@ -121,9 +118,7 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32)
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].ProductId, enterpriseId)
-
-		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", details[i].Product.Name, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_unit_price$$", fmt.Sprintf("%.2f", details[i].Price), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_vat$$", fmt.Sprintf("%.2f", details[i].VatPercent), 1)
@@ -144,14 +139,11 @@ func reportSalesOrder(id int, forcePrint bool, enterpriseId int32, idLang int32)
 func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	i := getSalesInvoiceRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(i.PaymentMethodId, enterpriseId)
-	customer := getNameCustomer(i.CustomerId, enterpriseId)
 	address := getAddressRow(i.BillingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_INVOICE")
@@ -161,14 +153,14 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$invoice_number$$", i.InvoiceName, 1)
 	html = strings.Replace(html, "$$invoice_date$$", i.DateCreated.Format("2006-01-02 15:04:05"), 1)
-	html = strings.Replace(html, "$$invoice_payment_method_name$$", paymentMethod, 1)
-	html = strings.Replace(html, "$$invoice_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$invoice_payment_method_name$$", i.PaymentMethod.Name, 1)
+	html = strings.Replace(html, "$$invoice_customer_name$$", i.Customer.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Customer.Name, 1)
 	html = strings.Replace(html, "$$invoice_total_products$$", fmt.Sprintf("%.2f", i.TotalProducts), 1)
 	html = strings.Replace(html, "$$invoice_vat_amount$$", fmt.Sprintf("%.2f", i.VatAmount), 1)
 	html = strings.Replace(html, "$$invoice_discount_percent$$", fmt.Sprintf("%.2f", i.DiscountPercent), 1)
@@ -189,9 +181,7 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(*details[i].ProductId, enterpriseId)
-
-		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", details[i].Product.Name, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_unit_price$$", fmt.Sprintf("%.2f", details[i].Price), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_vat$$", fmt.Sprintf("%.2f", details[i].VatPercent), 1)
@@ -208,14 +198,11 @@ func reportSalesInvoice(id int, forcePrint bool, enterpriseId int32) []byte {
 func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byte {
 	i := getSalesInvoiceRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(i.PaymentMethodId, enterpriseId)
-	customer := getNameCustomer(i.CustomerId, enterpriseId)
 	address := getAddressRow(i.BillingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesInvoiceDetail(i.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_INVOICE_TICKET")
@@ -225,14 +212,14 @@ func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byt
 	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$invoice_number$$", i.InvoiceName, 1)
 	html = strings.Replace(html, "$$invoice_date$$", i.DateCreated.Format("2006-01-02 15:04:05"), 1)
-	html = strings.Replace(html, "$$invoice_payment_method_name$$", paymentMethod, 1)
-	html = strings.Replace(html, "$$invoice_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$invoice_payment_method_name$$", i.PaymentMethod.Name, 1)
+	html = strings.Replace(html, "$$invoice_customer_name$$", i.Customer.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Country.Name, 1)
 	html = strings.Replace(html, "$$invoice_total_products$$", fmt.Sprintf("%.2f", i.TotalProducts), 1)
 	html = strings.Replace(html, "$$invoice_vat_amount$$", fmt.Sprintf("%.2f", i.VatAmount), 1)
 	html = strings.Replace(html, "$$invoice_discount_percent$$", fmt.Sprintf("%.2f", i.DiscountPercent), 1)
@@ -253,9 +240,7 @@ func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byt
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(*details[i].ProductId, enterpriseId)
-
-		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", details[i].Product.Name, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_unit_price$$", fmt.Sprintf("%.2f", details[i].Price), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_vat$$", fmt.Sprintf("%.2f", details[i].VatPercent), 1)
@@ -272,14 +257,11 @@ func reportSalesInvoiceTicket(id int, forcePrint bool, enterpriseId int32) []byt
 func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte {
 	n := getSalesDeliveryNoteRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(n.PaymentMethodId, enterpriseId)
-	customer := getNameCustomer(n.CustomerId, enterpriseId)
 	address := getAddressRow(n.ShippingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getWarehouseMovementBySalesDeliveryNote(n.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_DELIVERY_NOTE")
@@ -289,14 +271,14 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
 	html = strings.Replace(html, "$$note_number$$", n.DeliveryNoteName, 1)
 	html = strings.Replace(html, "$$note_date$$", n.DateCreated.Format("2006-01-02 15:04:05"), 1)
-	html = strings.Replace(html, "$$note_payment_method_name$$", paymentMethod, 1)
-	html = strings.Replace(html, "$$note_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$note_payment_method_name$$", n.PaymentMethod.Name, 1)
+	html = strings.Replace(html, "$$note_customer_name$$", n.Customer.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Country.Name, 1)
 	html = strings.Replace(html, "$$note_total_products$$", fmt.Sprintf("%.2f", n.TotalProducts), 1)
 	html = strings.Replace(html, "$$note_vat_amount$$", fmt.Sprintf("%.2f", n.VatAmount), 1)
 	html = strings.Replace(html, "$$note_discount_percent$$", fmt.Sprintf("%.2f", n.DiscountPercent), 1)
@@ -317,9 +299,7 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].ProductId, enterpriseId)
-
-		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", details[i].Product.Name, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_unit_price$$", fmt.Sprintf("%.2f", details[i].Price), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_vat$$", fmt.Sprintf("%.2f", details[i].VatPercent), 1)
@@ -336,14 +316,11 @@ func reportSalesDeliveryNote(id int, forcePrint bool, enterpriseId int32) []byte
 func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	s := getPurchaseOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethodId, enterpriseId)
-	supplier := getNameSupplier(s.SupplierId, enterpriseId)
 	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getPurchaseOrderDetail(s.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "PURCHASE_ORDER")
@@ -354,14 +331,14 @@ func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$order_reference$$", s.SupplierReference, 1)
-	html = strings.Replace(html, "$$order_payment_method_name$$", paymentMethod, 1)
-	html = strings.Replace(html, "$$order_customer_name$$", supplier, 1)
+	html = strings.Replace(html, "$$order_payment_method_name$$", s.PaymentMethod.Name, 1)
+	html = strings.Replace(html, "$$order_customer_name$$", s.Supplier.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Country.Name, 1)
 	html = strings.Replace(html, "$$order_notes$$", s.Notes, 1)
 	html = strings.Replace(html, "$$order_total_products$$", fmt.Sprintf("%.2f", s.TotalProducts), 1)
 	html = strings.Replace(html, "$$order_vat_amount$$", fmt.Sprintf("%.2f", s.VatAmount), 1)
@@ -383,9 +360,7 @@ func reportPurchaseOrder(id int, forcePrint bool, enterpriseId int32) []byte {
 	for i := 0; i < len(details); i++ {
 		detailHtml := detailHtmlTemplate
 
-		product := getNameProduct(details[i].ProductId, enterpriseId)
-
-		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+		detailHtml = strings.Replace(detailHtml, "$$detail_product$$", details[i].Product.Name, 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_quantity$$", strconv.Itoa(int(details[i].Quantity)), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_unit_price$$", fmt.Sprintf("%.2f", details[i].Price), 1)
 		detailHtml = strings.Replace(detailHtml, "$$detail_vat$$", fmt.Sprintf("%.2f", details[i].VatPercent), 1)
@@ -494,13 +469,11 @@ func reportPalletContent(id int, forcePrint bool, enterpriseId int32) []byte {
 func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
-	customer := getNameCustomer(s.CustomerId, enterpriseId)
 	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	pallets := getSalesOrderPallets(s.Id, enterpriseId).Pallets
 
 	template := getReportTemplate(enterpriseId, "CARRIER_PALLET")
@@ -508,13 +481,13 @@ func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 	html := template.Html
 
 	html = strings.Replace(html, "$$img_base64$$", getEnterpriseLogoBase64(enterpriseId), 1)
-	html = strings.Replace(html, "$$order_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$order_customer_name$$", s.Customer.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Country.Name, 1)
 	if forcePrint {
 		html = strings.Replace(html, "$$script$$", "window.print()", 1)
 	} else {
@@ -543,14 +516,11 @@ func reportCarrierPallet(id int, forcePrint bool, enterpriseId int32) []byte {
 func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId int32) []byte {
 	s := getSalesOrderRow(int64(id))
 
-	paymentMethod := getNamePaymentMethod(s.PaymentMethodId, enterpriseId)
-	customer := getNameCustomer(s.CustomerId, enterpriseId)
 	address := getAddressRow(s.BillingAddressId)
 	stateName := ""
 	if address.StateId != nil {
-		stateName = getNameState(*address.StateId, enterpriseId)
+		stateName = address.State.Name
 	}
-	countryName := getNameCountry(address.CountryId, enterpriseId)
 	details := getSalesOrderDetail(s.Id, enterpriseId)
 
 	template := getReportTemplate(enterpriseId, "SALES_ORDER_DIGITAL_PRODUCT_DATA")
@@ -561,14 +531,14 @@ func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId
 	html = strings.Replace(html, "$$order_number$$", s.OrderName, 1)
 	html = strings.Replace(html, "$$order_date$$", s.DateCreated.Format("2006-01-02 15:04:05"), 1)
 	html = strings.Replace(html, "$$order_reference$$", s.Reference, 1)
-	html = strings.Replace(html, "$$order_payment_method_name$$", paymentMethod, 1)
-	html = strings.Replace(html, "$$order_customer_name$$", customer, 1)
+	html = strings.Replace(html, "$$order_payment_method_name$$", s.PaymentMethod.Name, 1)
+	html = strings.Replace(html, "$$order_customer_name$$", s.Customer.Name, 1)
 	html = strings.Replace(html, "$$address_address$$", address.Address, 1)
 	html = strings.Replace(html, "$$address_address2$$", address.Address2, 1)
 	html = strings.Replace(html, "$$address_city$$", address.City, 1)
 	html = strings.Replace(html, "$$address_postcode$$", address.ZipCode, 1)
 	html = strings.Replace(html, "$$address_state$$", stateName, 1)
-	html = strings.Replace(html, "$$address_country$$", countryName, 1)
+	html = strings.Replace(html, "$$address_country$$", address.Country.Name, 1)
 	html = strings.Replace(html, "$$order_notes$$", s.Notes, 1)
 	html = strings.Replace(html, "$$order_total_products$$", fmt.Sprintf("%.2f", s.TotalProducts), 1)
 	html = strings.Replace(html, "$$order_vat_amount$$", fmt.Sprintf("%.2f", s.VatAmount), 1)
@@ -593,12 +563,10 @@ func reportSalesOrderDigitalProductDetails(id int, forcePrint bool, enterpriseId
 			continue
 		}
 
-		product := getNameProduct(details[i].ProductId, enterpriseId)
-
 		for j := 0; j < len(digitalProductDetails); j++ {
 			detailHtml := detailHtmlTemplate
 
-			detailHtml = strings.Replace(detailHtml, "$$detail_product$$", product, 1)
+			detailHtml = strings.Replace(detailHtml, "$$detail_product$$", details[i].Product.Name, 1)
 			detailHtml = strings.Replace(detailHtml, "$$detail_key$$", digitalProductDetails[j].Key, 1)
 			detailHtml = strings.Replace(detailHtml, "$$detail_value$$", digitalProductDetails[j].Key, 1)
 

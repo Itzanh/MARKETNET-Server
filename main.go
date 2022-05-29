@@ -2496,8 +2496,6 @@ type NameString struct {
 func instructionName(command string, message string, mt int, ws *websocket.Conn, enterpriseId int32) {
 	var data []byte
 	switch command {
-	case "LANGUAGE":
-		data, _ = json.Marshal(findLanguageByName(message, enterpriseId))
 	case "CURRENCY":
 		data, _ = json.Marshal(findCurrencyByName(message, enterpriseId))
 	case "CUSTOMER":
@@ -2512,10 +2510,6 @@ func instructionName(command string, message string, mt int, ws *websocket.Conn,
 		data, _ = json.Marshal(findPaymentMethodByName(message, enterpriseId))
 	case "BILLING_SERIE":
 		data, _ = json.Marshal(findBillingSerieByName(message, enterpriseId))
-	case "PRODUCT_FAMILY":
-		data, _ = json.Marshal(findProductFamilyByName(message, enterpriseId))
-	case "COLOR":
-		data, _ = json.Marshal(findColorByName(message, enterpriseId))
 	case "PRODUCT":
 		data, _ = json.Marshal(findProductByName(message, enterpriseId))
 	case "WAREHOUSE":
@@ -2529,16 +2523,12 @@ func instructionName(command string, message string, mt int, ws *websocket.Conn,
 }
 
 func instructionGetName(command string, message string, mt int, ws *websocket.Conn, enterpriseId int32) {
-	// attempt to get the name from resources with alpha key, if the resource if not found,
+	/*// attempt to get the name from resources with alpha key, if the resource if not found,
 	// parse the input as number and attemp to get the name resource with numeric key
 	var found bool = true
 	var name string
 	// ALPHA
 	switch command {
-	case "BILLING_SERIE":
-		name = getNameBillingSerie(message, enterpriseId)
-	case "WAREHOUSE":
-		name = getNameWarehouse(message, enterpriseId)
 	default:
 		found = false
 	}
@@ -2554,34 +2544,8 @@ func instructionGetName(command string, message string, mt int, ws *websocket.Co
 		return
 	}
 	switch command {
-	case "LANGUAGE":
-		name = getNameLanguage(int32(id), enterpriseId)
-	case "CURRENCY":
-		name = getNameCurrency(int32(id), enterpriseId)
-	case "CUSTOMER":
-		name = getNameCustomer(int32(id), enterpriseId)
-	case "COUNTRY":
-		name = getNameCountry(int32(id), enterpriseId)
-	case "STATE":
-		name = getNameState(int32(id), enterpriseId)
-	case "PAYMENT_METHOD":
-		name = getNamePaymentMethod(int32(id), enterpriseId)
-	case "PRODUCT_FAMILY":
-		name = getNameProductFamily(int32(id), enterpriseId)
-	case "COLOR":
-		name = getNameColor(int32(id), enterpriseId)
-	case "ADDRESS":
-		name = getAddressName(int32(id), enterpriseId)
-	case "PRODUCT":
-		name = getNameProduct(int32(id), enterpriseId)
-	case "CARRIER":
-		name = getNameCarrier(int32(id), enterpriseId)
-	case "SALE_DELIERY_NOTE":
-		name = getNameSalesDeliveryNote(int64(id), enterpriseId)
-	case "SUPPLIER":
-		name = getNameSupplier(int32(id), enterpriseId)
 	}
-	ws.WriteMessage(mt, []byte(name))
+	ws.WriteMessage(mt, []byte(name))*/
 }
 
 func instructionDefaults(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32) {
@@ -2592,16 +2556,6 @@ func instructionDefaults(command string, message string, mt int, ws *websocket.C
 	var data []byte
 	// ALPHA
 	switch command {
-	case "SALES_ORDER":
-		if !permissions.Sales {
-			return
-		}
-		data, _ = json.Marshal(getSaleOrderDefaults(enterpriseId))
-	case "PURCHASE_ORDER":
-		if !permissions.Purchases {
-			return
-		}
-		data, _ = json.Marshal(getPurchaseOrderDefaults(enterpriseId))
 	default:
 		found = false
 	}

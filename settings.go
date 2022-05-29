@@ -537,12 +537,10 @@ type ClientSettings struct {
 }
 
 func (s Settings) censorSettings() ClientSettings {
-	warehouse_name := getNameWarehouse(s.DefaultWarehouseId, s.Id)
-
 	c := ClientSettings{}
 	c.DefaultVatPercent = s.DefaultVatPercent
 	c.DefaultWarehouse = s.DefaultWarehouseId
-	c.DefaultWarehouseName = warehouse_name
+	c.DefaultWarehouseName = s.DefaultWarehouse.Name
 	c.DateFormat = s.DateFormat
 	c.Ecommerce = s.SettingsEcommerce.Ecommerce
 	c.InvoiceDeletePolicy = s.InvoiceDeletePolicy

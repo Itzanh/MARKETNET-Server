@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"gorm.io/gorm"
 )
 
@@ -85,23 +83,6 @@ func (f *ProductFamily) deleteProductFamily() bool {
 	}
 
 	return true
-}
-
-func findProductFamilyByName(productFamilyName string, enterpriseId int32) []NameInt32 {
-	var productFamily []NameInt32 = make([]NameInt32, 0)
-	dbOrm.Model(&ProductFamily{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(productFamilyName), enterpriseId).Order("id ASC").Limit(10).Find(&productFamily)
-	return productFamily
-}
-
-func getNameProductFamily(id int32, enterpriseId int32) string {
-	var productFamily ProductFamily
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&productFamily)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return productFamily.Name
 }
 
 func locateProductFamilies(enterpriseId int32) []NameInt32 {

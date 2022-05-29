@@ -180,17 +180,6 @@ func findBillingSerieByName(billingSerieName string, enterpriseId int32) []NameS
 	return billingSeries
 }
 
-func getNameBillingSerie(id string, enterpriseId int32) string {
-	var serie BillingSerie
-	result := dbOrm.Where("id = ? AND enterprise = ?", serie, enterpriseId).First(&serie)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return serie.Name
-}
-
 type LocateBillingSerie struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`

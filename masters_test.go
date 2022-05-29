@@ -74,17 +74,6 @@ func TestFindCustomerByName(t *testing.T) {
 	}
 }
 
-func TestGetNameCustomer(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	customerName := getNameCustomer(1, 1)
-	if customerName == "" {
-		t.Error("Can't get the name of the customers")
-	}
-}
-
 /* INSERT - UPDATE - DELETE */
 
 func TestCustomerInsertUpdateDelete(t *testing.T) {
@@ -357,17 +346,6 @@ func TestFindSupplierByName(t *testing.T) {
 	}
 }
 
-func TestGetNameSupplier(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	supplierName := getNameSupplier(1, 1)
-	if supplierName == "" {
-		t.Error("Can't get the name of the suppliers")
-	}
-}
-
 /* INSERT - UPDATE - DELETE */
 
 func TestSupplierInsertUpdateDelete(t *testing.T) {
@@ -629,18 +607,6 @@ func TestGetProductRow(t *testing.T) {
 		return
 	}
 
-}
-
-func TestGetNameProduct(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	productName := getNameProduct(1, 1)
-	if productName == "" {
-		t.Error("Could not get the name of the product")
-		return
-	}
 }
 
 func TestGetProductsByManufacturingOrderType(t *testing.T) {
@@ -1411,17 +1377,6 @@ func TestFindCountryByName(t *testing.T) {
 	}
 }
 
-func TestGetNameCountry(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	countryName := getNameCountry(1, 1)
-	if countryName == "" {
-		t.Error("Can't scan state name")
-	}
-}
-
 // ===== STATE
 
 /* GET */
@@ -1519,17 +1474,6 @@ func TestFindStateByName(t *testing.T) {
 	}
 }
 
-func TestGetNameState(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	stateName := getNameState(1, 1)
-	if stateName == "" {
-		t.Error("Can't scan state name")
-	}
-}
-
 // ===== COLOR
 
 /* GET */
@@ -1592,29 +1536,6 @@ func TestColorInsertUpdateDelete(t *testing.T) {
 
 /* FUNCTIONALITY */
 
-func TestFindColorByName(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	colors := findColorByName("", 1)
-	if len(colors) == 0 || colors[0].Id <= 0 {
-		t.Error("Can't scan colors")
-		return
-	}
-}
-
-func TestGetNameColor(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	color := getNameColor(1, 1)
-	if color == "" {
-		t.Error("Can't scan color name")
-	}
-}
-
 // ===== PRODUCT FAMILY
 
 /* GET */
@@ -1676,29 +1597,6 @@ func TestProductFamilyInsertUpdateDelete(t *testing.T) {
 }
 
 /* FUNCTIONALITY */
-
-func TestFindProductFamilyByName(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	pf := findProductFamilyByName("", 1)
-	if len(pf) == 0 || pf[0].Id <= 0 {
-		t.Error("Can't scan product families")
-		return
-	}
-}
-
-func TestGetNameProductFamily(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	color := getNameProductFamily(1, 1)
-	if color == "" {
-		t.Error("Can't scan product family name")
-	}
-}
 
 // ===== ADDRESS
 
@@ -1818,17 +1716,6 @@ func TestLocateAddressBySupplier(t *testing.T) {
 	}
 }
 
-func TestGetAddressName(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	addressName := getAddressName(1, 1)
-	if addressName == "" {
-		t.Error("Can't scan address name")
-	}
-}
-
 // ===== CARRIER
 
 /* GET */
@@ -1932,17 +1819,6 @@ func TestFindCarrierByName(t *testing.T) {
 	}
 }
 
-func TestGetNameCarrier(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	carrierName := getNameCarrier(1, 1)
-	if carrierName == "" {
-		t.Error("Can't scan carrier name")
-	}
-}
-
 // ===== BILLING SERIE
 
 /* GET */
@@ -2038,17 +1914,6 @@ func TestFindBillingSerieByName(t *testing.T) {
 	if len(billingSeries) == 0 || len(billingSeries[0].Id) == 0 {
 		t.Error("Can't scan billing series")
 		return
-	}
-}
-
-func TestGetNameBillingSerie(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	billingSeries := getNameBillingSerie("INT", 1)
-	if billingSeries == "" {
-		t.Error("Can't scan billing series name")
 	}
 }
 
@@ -2178,17 +2043,6 @@ func TestFindCurrencyByName(t *testing.T) {
 	}
 }
 
-func TestGetNameCurrency(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	currencyName := getNameCurrency(1, 1)
-	if currencyName == "" {
-		t.Error("Can't scan currency name")
-	}
-}
-
 func TestGetCurrencyExchange(t *testing.T) {
 	if db == nil {
 		ConnectTestWithDB(t)
@@ -2300,17 +2154,6 @@ func TestFindPaymentMethodByName(t *testing.T) {
 	}
 }
 
-func TestGetNamePaymentMethod(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	paymentMethodName := getNamePaymentMethod(1, 1)
-	if paymentMethodName == "" {
-		t.Error("Can't scan payment method name")
-	}
-}
-
 // ===== LANGUAGE
 
 /* GET */
@@ -2373,29 +2216,6 @@ func TestLanguageInsertUpdateDelete(t *testing.T) {
 }
 
 /* FUNCTIONALITY */
-
-func TestFindLanguageByName(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	language := findLanguageByName("", 1)
-	if len(language) == 0 || language[0].Id <= 0 {
-		t.Error("Can't scan language")
-		return
-	}
-}
-
-func TestGetNameLanguage(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	language := getNameLanguage(1, 1)
-	if language == "" {
-		t.Error("Can't scan language name")
-	}
-}
 
 // ===== PACKAGES
 

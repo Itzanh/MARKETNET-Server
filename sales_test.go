@@ -257,17 +257,6 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 
 /* FUNCTIONALITY */
 
-func TestGetSaleOrderDefaults(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	d := getSaleOrderDefaults(1)
-	if len(d.Warehouse) == 0 || len(d.WarehouseName) == 0 {
-		t.Error("Can't get sales order defaults, empty defaults.")
-	}
-}
-
 func TestGetSalesOrderRelations(t *testing.T) {
 	if db == nil {
 		ConnectTestWithDB(t)
@@ -1644,18 +1633,6 @@ func TestLocateSalesDeliveryNotesBySalesOrder(t *testing.T) {
 				return
 			}
 		}
-	}
-}
-
-func TestGetNameSalesDeliveryNote(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	name := getNameSalesDeliveryNote(1, 1)
-	if name == "" {
-		t.Error("Can't get the name of the sale delivery note")
-		return
 	}
 }
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"strings"
 
 	"gorm.io/gorm"
 )
@@ -105,26 +104,4 @@ func (l *Language) deleteLanguage() bool {
 	}
 
 	return true
-}
-
-func findLanguageByName(languageName string, enterpriseId int32) []NameInt32 {
-	var languages []NameInt32 = make([]NameInt32, 0)
-	result := dbOrm.Model(&Language{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(languageName), enterpriseId).Limit(10).Find(&languages)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return languages
-	}
-
-	return languages
-}
-
-func getNameLanguage(id int32, enterpriseId int32) string {
-	var language Language
-	result := dbOrm.Where("id = ? AND enterprise = ?", language, enterpriseId).First(&language)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return language.Name
 }

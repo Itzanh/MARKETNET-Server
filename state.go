@@ -134,14 +134,3 @@ func findStateByName(cityName StateNameQuery, enterpriseId int32) []NameInt32 {
 
 	return states
 }
-
-func getNameState(id int32, enterpriseId int32) string {
-	var state State
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&state)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return state.Name
-}

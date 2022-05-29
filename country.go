@@ -143,14 +143,3 @@ func findCountryByName(countryName string, enterpriseId int32) []NameInt32 {
 
 	return countries
 }
-
-func getNameCountry(id int32, enterpriseId int32) string {
-	var country Country
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&country)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return country.Name
-}

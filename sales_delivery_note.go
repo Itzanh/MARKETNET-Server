@@ -438,16 +438,6 @@ func locateSalesDeliveryNotesBySalesOrder(orderId int64, enterpriseId int32) []S
 	return deliveryNotes
 }
 
-func getNameSalesDeliveryNote(id int64, enterpriseId int32) string {
-	var deliveryNote SalesDeliveryNote
-	result := dbOrm.Model(&SalesDeliveryNote{}).Where("id = ? AND enterprise = ?", id, enterpriseId).First(&deliveryNote)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-	return deliveryNote.DeliveryNoteName
-}
-
 type SalesDeliveryNoteRelation struct {
 	Orders    []SaleOrder `json:"orders"`
 	Shippings []Shipping  `json:"shippings"`

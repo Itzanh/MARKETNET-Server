@@ -238,17 +238,6 @@ func findCustomerByName(customerName string, enterpriseId int32) []NameInt32 {
 	return customers
 }
 
-func getNameCustomer(id int32, enterpriseId int32) string {
-	// get a single customer from the database where id and enterprise are id and enterpriseId and return the name
-	var customer Customer
-	result := dbOrm.Model(&Customer{}).Where("id = ? AND enterprise = ?", id, enterpriseId).First(&customer)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-	return customer.Name
-}
-
 // Used both in customers and suppliers
 type ContactDefauls struct {
 	MainShippingAddress     *int32  `json:"mainShippingAddress"`

@@ -93,18 +93,6 @@ func TestFindWarehouseByName(t *testing.T) {
 	}
 }
 
-func TestGetNameWarehouse(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	warehouseName := getNameWarehouse("W1", 1)
-	if warehouseName == "" {
-		t.Error("Can't get the name of the warehouse")
-		return
-	}
-}
-
 func TestRegenerateProductStock(t *testing.T) {
 	if db == nil {
 		ConnectTestWithDB(t)

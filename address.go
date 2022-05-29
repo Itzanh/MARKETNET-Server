@@ -58,7 +58,7 @@ func (q *PaginationQuery) getAddresses() Addresses {
 
 func getAddressRow(addressId int32) Address {
 	a := Address{}
-	result := dbOrm.Model(&Address{}).Where("id = ?", addressId).First(&a)
+	result := dbOrm.Model(&Address{}).Where("id = ?", addressId).Preload(clause.Associations).First(&a)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return Address{}
@@ -232,14 +232,4 @@ func locateAddressBySupplier(supplierId int32, enterpriseId int32) []AddressLoca
 		log("DB", result.Error.Error())
 	}
 	return addresses
-}
-
-func getAddressName(addressId int32, enterpriseId int32) string {
-	var address Address
-	result := dbOrm.Model(&Address{}).Where("id = ? AND enterprise = ?", addressId, enterpriseId).First(&address)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-	return address.Address
 }

@@ -431,18 +431,6 @@ func calcTotalsPurchaseOrder(orderId int64, enterpriseId int32, userId int32, tr
 	return true
 }
 
-type PurchaseOrderDefaults struct {
-	Warehouse     string `json:"warehouse"`
-	WarehouseName string `json:"warehouseName"`
-}
-
-func getPurchaseOrderDefaults(enterpriseId int32) PurchaseOrderDefaults {
-	s := getSettingsRecordById(enterpriseId)
-	warehouseName := getNameWarehouse(s.DefaultWarehouseId, s.Id)
-
-	return PurchaseOrderDefaults{Warehouse: s.DefaultWarehouseId, WarehouseName: warehouseName}
-}
-
 type PurchaseOrderRelations struct {
 	Invoices      []PurchaseInvoice      `json:"invoices"`
 	DeliveryNotes []PurchaseDeliveryNote `json:"deliveryNotes"`

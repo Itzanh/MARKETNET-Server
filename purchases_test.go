@@ -122,18 +122,6 @@ func TestPurchaseOrderInsertUpdateDelete(t *testing.T) {
 
 /* FUNCTIONALITY */
 
-func TestGetPurchaseOrderDefaults(t *testing.T) {
-	if db == nil {
-		ConnectTestWithDB(t)
-	}
-
-	d := getPurchaseOrderDefaults(1)
-	if len(d.Warehouse) == 0 || len(d.WarehouseName) == 0 {
-		t.Error("Purchase order defaults not loaded")
-		return
-	}
-}
-
 func TestGetPurchaseOrderRelations(t *testing.T) {
 	if db == nil {
 		ConnectTestWithDB(t)

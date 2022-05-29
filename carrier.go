@@ -135,17 +135,6 @@ func findCarrierByName(carrierName string, enterpriseId int32) []NameInt32 {
 	return carriers
 }
 
-func getNameCarrier(id int32, enterpriseId int32) string {
-	var carrier Carrier
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&carrier)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return carrier.Name
-}
-
 func locateCarriers(enterpriseId int32) []NameInt32 {
 	var carriers []NameInt32 = make([]NameInt32, 0)
 	result := dbOrm.Model(&Carrier{}).Where("enterprise = ?", enterpriseId).Find(&carriers)

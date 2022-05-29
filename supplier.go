@@ -202,12 +202,6 @@ func findSupplierByName(languageName string, enterpriseId int32) []NameInt32 {
 	return suppliers
 }
 
-func getNameSupplier(id int32, enterpriseId int32) string {
-	var supplier Supplier
-	dbOrm.Model(&Supplier{}).Where("id = $1 AND enterprise=$2", id, enterpriseId).First(&supplier)
-	return supplier.Name
-}
-
 func getSupplierDefaults(customerId int32, enterpriseId int32) ContactDefauls {
 	// get a single supplier from the database where id and enterprise are customerId and enterpriseId
 	var supplier Supplier

@@ -114,17 +114,6 @@ func findPaymentMethodByName(paymentMethodName string, enterpriseId int32) []Nam
 	return paymentMethod
 }
 
-func getNamePaymentMethod(id int32, enterpriseId int32) string {
-	var paymentMethod PaymentMethod
-	result := dbOrm.Where("id = ? AND enterprise = ?", id, enterpriseId).First(&paymentMethod)
-	if result.Error != nil {
-		log("DB", result.Error.Error())
-		return ""
-	}
-
-	return paymentMethod.Name
-}
-
 func locatePaymentMethods(enterpriseId int32) []NameInt32 {
 	var paymentMethod []NameInt32 = make([]NameInt32, 0)
 	result := dbOrm.Model(&PaymentMethod{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&paymentMethod)

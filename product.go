@@ -34,8 +34,8 @@ type Product struct {
 	Manufacturing            bool                    `json:"manufacturing" gorm:"not null:true"`
 	ManufacturingOrderTypeId *int32                  `json:"manufacturingOrderTypeId" gorm:"column:manufacturing_order_type"`
 	ManufacturingOrderType   *ManufacturingOrderType `json:"-" gorm:"foreignKey:ManufacturingOrderTypeId,EnterpriseId;references:Id,EnterpriseId"`
-	SupplierId               *int32                  `json:"supplier" gorm:"column:supplier"`
-	Supplier                 *Supplier               `json:"-" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
+	SupplierId               *int32                  `json:"supplierId" gorm:"column:supplier"`
+	Supplier                 *Supplier               `json:"supplier" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
 	PrestaShopId             int32                   `json:"-" gorm:"column:ps_id;not null:true;index:product_ps_id,unique:true,priority:2,where:ps_id <> 0"`
 	PrestaShopCombinationId  int32                   `json:"-" gorm:"column:ps_combination_id;not null:true;index:product_ps_id,unique:true,priority:3,where:ps_id <> 0"`
 	MinimumStock             int32                   `json:"minimumStock" gorm:"not null:true"`
@@ -384,12 +384,6 @@ func findProductByName(productName string, enterpriseId int32) []NameInt32 {
 	var products []NameInt32 = make([]NameInt32, 0)
 	dbOrm.Model(&Product{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise=? AND off=false", strings.ToUpper(productName), enterpriseId).Order("id ASC").Limit(10).Find(&products)
 	return products
-}
-
-func getNameProduct(id int32, enterpriseId int32) string {
-	var product Product
-	dbOrm.Model(&Product{}).Where("id = ? AND enterprise = ?", id, enterpriseId).First(&product)
-	return product.Name
 }
 
 type OrderDetailDefaults struct {
