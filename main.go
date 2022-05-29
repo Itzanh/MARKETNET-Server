@@ -1125,6 +1125,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getTransferBetweenWarehousesWarehouseMovements(int64(id), enterpriseId))
+	case "TRANSFER_BETWEEN_WAREHOUSES_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(getTransferBetweenWarehousesMinimumStock(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1669,6 +1674,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &labelPrinterProfile)
 		labelPrinterProfile.EnterpriseId = enterpriseId
 		ok = labelPrinterProfile.insertLabelPrinterProfile()
+	case "TRANSFER_BETWEEN_WAREHOUSES_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
+		var transferBetweenWarehousesMinimumStock TransferBetweenWarehousesMinimumStock
+		json.Unmarshal([]byte(message), &transferBetweenWarehousesMinimumStock)
+		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesMinimumStock.insertTransferBetweenWarehousesMinimumStock()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -1982,6 +1995,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &labelPrinterProfile)
 		labelPrinterProfile.EnterpriseId = enterpriseId
 		ok = labelPrinterProfile.updateLabelPrinterProfile()
+	case "TRANSFER_BETWEEN_WAREHOUSES_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
+		var transferBetweenWarehousesMinimumStock TransferBetweenWarehousesMinimumStock
+		json.Unmarshal([]byte(message), &transferBetweenWarehousesMinimumStock)
+		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesMinimumStock.updateTransferBetweenWarehousesMinimumStock()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2478,6 +2499,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		labelPrinterProfile.Id = int32(id)
 		labelPrinterProfile.EnterpriseId = enterpriseId
 		ok = labelPrinterProfile.deleteLabelPrinterProfile()
+	case "TRANSFER_BETWEEN_WAREHOUSES_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
+		var transferBetweenWarehousesMinimumStock TransferBetweenWarehousesMinimumStock
+		transferBetweenWarehousesMinimumStock.Id = int64(id)
+		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesMinimumStock.deleteTransferBetweenWarehousesMinimumStock()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -3285,6 +3314,11 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		var query TransferBetweenWarehousesToSentToPreparationOrders
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.doTransfer(enterpriseId))
+	case "TRANSFER_BETWEEN_WAREHOUSES_MINIMUM_STOCK":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(generateTransferBetweenWarehousesForMinimumStock(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 
