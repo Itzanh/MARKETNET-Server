@@ -35,6 +35,7 @@ type WarehouseMovement struct {
 	TotalAmount            float64               `json:"totalAmount" gorm:"column:total_amount;not null:true;type:numeric(14,6)"`
 	EnterpriseId           int32                 `json:"-" gorm:"column:enterprise;not null:true;index:warehouse_movement_id_enterprise,unique:true,priority:2"`
 	Enterprise             Settings              `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	Manual                 bool                  `json:"manual" gorm:"column:manual;not null:true;type:boolean;default:false"`
 }
 
 func (w *WarehouseMovement) TableName() string {
