@@ -117,8 +117,8 @@ func (p *Packaging) insertPackaging() bool {
 		return false
 	}
 
-	s := getSalesOrderRow(p.SalesOrderId)
-	addQuantityStock(_package.ProductId, s.WarehouseId, -1, p.EnterpriseId, *trans)
+	config := getSettingsRecordById(p.EnterpriseId)
+	addQuantityStock(_package.ProductId, config.DefaultWarehouseId, -1, p.EnterpriseId, *trans)
 
 	///
 	result = trans.Commit()
@@ -160,10 +160,6 @@ func (p *Packaging) deletePackaging(enterpriseId int32, userId int32) bool {
 		trans.Rollback()
 		return false
 	}
-
-	_package := getPackagesRow(inMemoryPackaging.PackageId)
-	s := getSalesOrderRow(inMemoryPackaging.SalesOrderId)
-	addQuantityStock(_package.ProductId, s.WarehouseId, 1, p.EnterpriseId, *trans)
 
 	///
 	result = trans.Commit()

@@ -106,7 +106,6 @@ func TestManufacturingOrderAllSaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -173,7 +172,6 @@ func TestManufacturingOrderPartiallySaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -273,7 +271,6 @@ func TestManufacturingOrderQuantity(t *testing.T) {
 	p = products[len(products)-1]
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -457,7 +454,6 @@ func TestAsignSaleOrderToManufacturingOrderForStock(t *testing.T) {
 
 	// create sale order
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",

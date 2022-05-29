@@ -13,8 +13,6 @@ import (
 
 type SaleOrder struct {
 	Id                  int64         `json:"id" gorm:"index:sales_order_id_enterprise,unique:true,priority:1"`
-	WarehouseId         string        `json:"warehouseId" gorm:"column:warehouse;type:character(2);not null:true"`
-	Warehouse           Warehouse     `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	Reference           string        `json:"reference" gorm:"type:character varying(15);not null:true;index:sales_order_reference,type:gin"`
 	CustomerId          int32         `json:"customerId" gorm:"type:integer;not null:true;column:customer"`
 	Customer            Customer      `json:"customer" gorm:"foreignKey:CustomerId,EnterpriseId;references:Id,EnterpriseId"`
@@ -191,7 +189,7 @@ func getSalesOrderRowTransaction(id int64, trans gorm.DB) SaleOrder {
 }
 
 func (s *SaleOrder) isValid() bool {
-	return !(len(s.WarehouseId) == 0 || len(s.Reference) > 15 || s.CustomerId <= 0 || s.PaymentMethodId <= 0 || len(s.BillingSeriesId) == 0 || s.CurrencyId <= 0 || s.BillingAddressId <= 0 || s.ShippingAddressId <= 0 || len(s.Notes) > 250 || len(s.Description) > 3000)
+	return !(len(s.Reference) > 15 || s.CustomerId <= 0 || s.PaymentMethodId <= 0 || len(s.BillingSeriesId) == 0 || s.CurrencyId <= 0 || s.BillingAddressId <= 0 || s.ShippingAddressId <= 0 || len(s.Notes) > 250 || len(s.Description) > 3000)
 }
 
 func (s *SaleOrder) BeforeCreate(tx *gorm.DB) (err error) {

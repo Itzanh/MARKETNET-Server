@@ -204,7 +204,6 @@ func generateSaleOrders(enterpriseId int32) {
 		ordersGenerate := rand.Intn(10) + 1
 		for l := 0; l < ordersGenerate; l++ {
 			o := SaleOrder{}
-			o.WarehouseId = "W1"
 			o.CustomerId = customer.Id
 			o.PaymentMethodId = *customer.PaymentMethodId
 			o.BillingSeriesId = *customer.BillingSeriesId

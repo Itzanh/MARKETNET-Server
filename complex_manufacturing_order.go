@@ -214,12 +214,11 @@ func complexManufacturingOrerGeneration(userId int32, enterpriseId int32, detail
 			return false
 		}
 
-		saleOrder := getSalesOrderRow(orderDetail.OrderId)
 		for j := 0; j < int(orderDetail.Quantity); j += int(component.Quantity) {
 			cmo := ComplexManufacturingOrder{
 				TypeId:       manufacturingOrderType.Id,
 				EnterpriseId: enterpriseId,
-				WarehouseId:  saleOrder.WarehouseId,
+				WarehouseId:  orderDetail.WarehouseId,
 			}
 			ok, _ := cmo.insertComplexManufacturingOrder(1, trans)
 			if !ok {

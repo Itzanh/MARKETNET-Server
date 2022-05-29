@@ -13,8 +13,6 @@ import (
 
 type PurchaseOrder struct {
 	Id                int64         `json:"id" gorm:"index:purchase_order_id_enterprise,unique:true,priority:1"`
-	WarehouseId       string        `json:"warehouseId" gorm:"column:warehouse;type:character(2);not null:true"`
-	Warehouse         Warehouse     `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	SupplierReference string        `json:"supplierReference " gorm:"column:supplier_reference;type:character varying(40);not null:true;index:purchase_order_supplier_reference,type:gin"`
 	SupplierId        int32         `json:"supplierId" gorm:"column:supplier;type:integer;not null:true"`
 	Supplier          Supplier      `json:"supplier" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
@@ -138,7 +136,7 @@ func getPurchaseOrderRow(orderId int64) PurchaseOrder {
 }
 
 func (p *PurchaseOrder) isValid() bool {
-	return !(len(p.WarehouseId) == 0 || len(p.SupplierReference) > 40 || p.SupplierId <= 0 || p.PaymentMethodId <= 0 || len(p.BillingSeriesId) == 0 || p.CurrencyId <= 0 || p.BillingAddressId <= 0 || p.ShippingAddressId <= 0 || len(p.Notes) > 250 || len(p.Description) > 3000)
+	return !(len(p.SupplierReference) > 40 || p.SupplierId <= 0 || p.PaymentMethodId <= 0 || len(p.BillingSeriesId) == 0 || p.CurrencyId <= 0 || p.BillingAddressId <= 0 || p.ShippingAddressId <= 0 || len(p.Notes) > 250 || len(p.Description) > 3000)
 }
 
 func (o *PurchaseOrder) BeforeCreate(tx *gorm.DB) (err error) {

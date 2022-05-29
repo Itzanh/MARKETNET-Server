@@ -12,6 +12,8 @@ type PurchaseOrderDetail struct {
 	Id                   int64         `json:"id" gorm:"index:purchase_order_detail_id_enterprise,unique:true,priority:1"`
 	OrderId              int64         `json:"orderId" gorm:"column:order;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:1"`
 	Order                PurchaseOrder `json:"-" gorm:"foreignKey:OrderId,EnterpriseId;references:Id,EnterpriseId"`
+	WarehouseId          string        `json:"warehouseId" gorm:"column:warehouse;type:character(2)"`
+	Warehouse            Warehouse     `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	ProductId            int32         `json:"productId" gorm:"column:product;not null:true;index:purchase_order_detail_purchase_order_product,unique:true,priority:2"`
 	Product              Product       `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
 	Price                float64       `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`
@@ -61,7 +63,7 @@ func getPurchaseOrderDetailRowTransaction(detailId int64, trans gorm.DB) Purchas
 }
 
 func (d *PurchaseOrderDetail) isValid() bool {
-	return !(d.OrderId <= 0 || d.ProductId <= 0 || d.Quantity <= 0 || d.VatPercent < 0)
+	return !(d.OrderId <= 0 || d.ProductId <= 0 || len(d.WarehouseId) == 0 || d.Quantity <= 0 || d.VatPercent < 0)
 }
 
 func (d *PurchaseOrderDetail) BeforeCreate(tx *gorm.DB) (err error) {
@@ -154,8 +156,7 @@ func (s *PurchaseOrderDetail) insertPurchaseOrderDetail(userId int32, trans *gor
 	go fireWebHook(s.EnterpriseId, "purchase_order_detail", "POST", string(jsn))
 
 	// add quantity pending receiving
-	purchaseOrder := getPurchaseOrderRow(s.OrderId)
-	ok = addQuantityPendingReveiving(s.ProductId, purchaseOrder.WarehouseId, s.Quantity, s.EnterpriseId, *trans)
+	ok = addQuantityPendingReveiving(s.ProductId, s.WarehouseId, s.Quantity, s.EnterpriseId, *trans)
 	if !ok {
 		if beginTrans {
 			trans.Rollback()
@@ -406,8 +407,7 @@ func (s *PurchaseOrderDetail) deletePurchaseOrderDetail(userId int32, trans *gor
 	}
 
 	// substract quantity pending receiving
-	purchaseOrder := getPurchaseOrderRow(detailInMemory.OrderId)
-	ok = addQuantityPendingReveiving(detailInMemory.ProductId, purchaseOrder.WarehouseId, -detailInMemory.Quantity, s.EnterpriseId, *trans)
+	ok = addQuantityPendingReveiving(detailInMemory.ProductId, detailInMemory.WarehouseId, -detailInMemory.Quantity, s.EnterpriseId, *trans)
 	if !ok {
 		trans.Rollback()
 		return OkAndErrorCodeReturn{Ok: false}

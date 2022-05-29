@@ -545,7 +545,7 @@ func manufacturingOrderAllSaleOrder(saleOrderId int64, userId int32, enterpriseI
 				o.OrderId = &saleOrder.Id
 				o.UserCreatedId = userId
 				o.EnterpriseId = enterpriseId
-				o.WarehouseId = saleOrder.WarehouseId
+				o.WarehouseId = orderDetail.WarehouseId
 				ok := o.insertManufacturingOrder(userId, trans).Ok
 				if !ok {
 					trans.Rollback()
@@ -601,7 +601,7 @@ func (orderInfo *ManufacturingOrderGenerate) manufacturingOrderPartiallySaleOrde
 			o.OrderId = &orderDetail.OrderId
 			o.UserCreatedId = userId
 			o.EnterpriseId = enterpriseId
-			o.WarehouseId = saleOrder.WarehouseId
+			o.WarehouseId = orderDetail.WarehouseId
 			ok := o.insertManufacturingOrder(userId, trans).Ok
 			if !ok {
 				trans.Rollback()

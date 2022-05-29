@@ -156,7 +156,6 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 			o.ShippingAddressId = *supplierNeeds[0].supplier.MainShippingAddressId
 			o.PaymentMethodId = *supplierNeeds[0].supplier.PaymentMethodId
 			o.BillingSeriesId = *supplierNeeds[0].supplier.BillingSeriesId
-			o.WarehouseId = n.Warehouse
 			o.CurrencyId = *getSupplierDefaults(supplierNeeds[0].supplier.Id, enterpriseId).Currency
 			o.EnterpriseId = enterpriseId
 			ok, orderId := o.insertPurchaseOrder(userId, trans)
@@ -172,6 +171,7 @@ func (n *PurchaseNeedsData) generatePurchaseOrdersFromNeeds(enterpriseId int32, 
 				d.Price = supplierNeeds[j].product.Price
 				d.Quantity = supplierNeeds[j].Quantity
 				d.VatPercent = supplierNeeds[j].product.VatPercent
+				d.WarehouseId = n.Warehouse
 				d.EnterpriseId = enterpriseId
 				ok, detailId := d.insertPurchaseOrderDetail(userId, trans)
 				if !ok.Ok {

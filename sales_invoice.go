@@ -157,6 +157,13 @@ func (i *SalesInvoice) isValid() bool {
 	return !(i.CustomerId <= 0 || i.PaymentMethodId <= 0 || len(i.BillingSeriesId) == 0 || i.CurrencyId <= 0 || i.BillingAddressId <= 0)
 }
 
+func (c *SalesInvoice) BeforeCreate(tx *gorm.DB) (err error) {
+	var salesInvoice SalesInvoice
+	tx.Model(&SalesInvoice{}).Last(&salesInvoice)
+	c.Id = salesInvoice.Id + 1
+	return nil
+}
+
 func (i *SalesInvoice) insertSalesInvoice(userId int32, trans *gorm.DB) (bool, int64) {
 	if !i.isValid() {
 		return false, 0
@@ -697,18 +704,11 @@ func getSalesInvoiceOrders(invoiceId int64, enterpriseId int32) []SaleOrder {
 
 func getSalesInvoiceDeliveryNotes(invoiceId int64, enterpriseId int32) []SalesDeliveryNote {
 	var notes []SalesDeliveryNote = make([]SalesDeliveryNote, 0)
-	sqlStatement := `SELECT DISTINCT sales_delivery_note.* FROM sales_invoice INNER JOIN sales_invoice_detail ON sales_invoice.id = sales_invoice_detail.invoice INNER JOIN sales_order_detail ON sales_invoice_detail.order_detail = sales_order_detail.id INNER JOIN warehouse_movement ON warehouse_movement.sales_order_detail=sales_order_detail.id INNER JOIN sales_delivery_note ON sales_delivery_note.id=warehouse_movement.sales_delivery_note WHERE sales_invoice.id=$1 AND sales_delivery_note.enterprise=$2 ORDER BY date_created DESC`
-	rows, err := db.Query(sqlStatement, invoiceId, enterpriseId)
-	if err != nil {
-		log("DB", err.Error())
-		return notes
-	}
-	defer rows.Close()
 
-	for rows.Next() {
-		n := SalesDeliveryNote{}
-		rows.Scan(&n.Id, &n.WarehouseId, &n.CustomerId, &n.DateCreated, &n.PaymentMethodId, &n.BillingSeriesId, &n.ShippingAddressId, &n.TotalProducts, &n.DiscountPercent, &n.FixDiscount, &n.ShippingPrice, &n.ShippingDiscount, &n.TotalWithDiscount, &n.VatAmount, &n.TotalAmount, &n.LinesNumber, &n.DeliveryNoteName, &n.DeliveryNoteNumber, &n.CurrencyId, &n.CurrencyChange, &n.EnterpriseId)
-		notes = append(notes, n)
+	orders := getSalesInvoiceOrders(invoiceId, enterpriseId)
+	for i := 0; i < len(orders); i++ {
+		relations := getSalesOrderDeliveryNotes(orders[i].Id, enterpriseId)
+		notes = append(notes, relations...)
 	}
 
 	return notes

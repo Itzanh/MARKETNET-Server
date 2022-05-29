@@ -1825,7 +1825,6 @@ func copyPsOrders(enterpriseId int32) bool {
 		}
 
 		s := SaleOrder{}
-		s.WarehouseId = settings.DefaultWarehouseId
 		s.Reference = reference
 		s.CustomerId = customer
 		s.PaymentMethodId = paymentMethod

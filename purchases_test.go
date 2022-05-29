@@ -97,7 +97,6 @@ func TestPurchaseOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -214,7 +213,6 @@ func TestPurchaseOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -334,7 +332,6 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW PURCHASE ORDER
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        supplier,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -370,7 +367,6 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW SALE ORDER 1
 
 	saleOrder1 := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -406,7 +402,6 @@ func TestServePurchaseOrderDetailsWithMultipleDeliveryNotes(t *testing.T) {
 	// NEW SALE ORDER 2
 
 	saleOrder2 := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -796,7 +791,6 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 	// NEW PURCHASE ORDER
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        supplier,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -832,7 +826,6 @@ func TestChangePurchaseOrderDetailQuantityWithSaleOrders(t *testing.T) {
 	// NEW SALE ORDER 1
 
 	saleOrder1 := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -1097,7 +1090,6 @@ func TestInvoiceAllPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -1173,7 +1165,6 @@ func TestIInvoicePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -1469,7 +1460,6 @@ func TestPurchaseDeliveryNoteInsertUpdateDelete(t *testing.T) {
 	}
 
 	i := PurchaseDeliveryNote{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -1500,7 +1490,6 @@ func TestDeliveryNoteAllPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",
@@ -1576,7 +1565,6 @@ func TestDeliveryNotePartiallyPurchaseOrder(t *testing.T) {
 	}
 
 	o := PurchaseOrder{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",

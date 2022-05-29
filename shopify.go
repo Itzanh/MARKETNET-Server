@@ -1240,7 +1240,6 @@ func copySyDraftOrders(enterpriseId int32) bool {
 			o.CustomerId = customerIdErp
 			o.Reference = name
 			o.CurrencyId = currencyId
-			o.WarehouseId = s.DefaultWarehouseId
 			o.PaymentMethodId = *s.SettingsEcommerce.ShopifyDefaultPaymentMethodId
 
 			if billingZone == "E" {
@@ -1336,7 +1335,6 @@ func copySyDraftOrders(enterpriseId int32) bool {
 			o.CustomerId = customerIdErp
 			o.Reference = name
 			o.CurrencyId = currencyId
-			o.WarehouseId = s.DefaultWarehouseId
 			o.PaymentMethodId = *s.SettingsEcommerce.ShopifyDefaultPaymentMethodId
 
 			if billingZone == "E" {
@@ -1628,7 +1626,6 @@ func copySyOrders(enterpriseId int32) bool {
 			o.CustomerId = customerIdErp
 			o.Reference = name
 			o.CurrencyId = currencyId
-			o.WarehouseId = s.DefaultWarehouseId
 			o.PaymentMethodId = paymentMethod
 
 			if billingZone == "E" {

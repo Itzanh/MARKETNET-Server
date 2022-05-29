@@ -26,7 +26,6 @@ func TestPackaging(t *testing.T) {
 	carriers := getCariers(1)
 	carrierId := carriers[len(carriers)-1].Id
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -293,7 +292,6 @@ func TestPackagingWithPallets(t *testing.T) {
 	carriers := getCariers(1)
 	carrierId := carriers[len(carriers)-1].Id
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -572,7 +570,6 @@ func TestPackWithjEAN13(t *testing.T) {
 
 	// create a sale order and two details
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",

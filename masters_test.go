@@ -995,7 +995,6 @@ func TestProductOffSaleOrderDetailInsert(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -1084,7 +1083,6 @@ func TestSaleOrderDetailNoStock(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",

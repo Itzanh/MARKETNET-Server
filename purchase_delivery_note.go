@@ -13,8 +13,6 @@ import (
 
 type PurchaseDeliveryNote struct {
 	Id                 int64         `json:"id" gorm:"index:purchase_delivery_note_id_enterprise,unique:true,priority:1"`
-	WarehouseId        string        `json:"warehouseId" gorm:"column:warehouse;type:character(2);not null:true"`
-	Warehouse          Warehouse     `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	SupplierId         int32         `json:"supplierId" gorm:"column:supplier;not null:true"`
 	Supplier           Supplier      `json:"supplier" gorm:"foreignKey:SupplierId,EnterpriseId;references:Id,EnterpriseId"`
 	DateCreated        time.Time     `json:"dateCreated" gorm:"column:date_created;not null:true;type:timestamp(3) with time zone;index:purchase_delivery_note_date_created,sort:desc"`
@@ -127,7 +125,7 @@ func getPurchaseDeliveryNoteRow(deliveryNoteId int64) PurchaseDeliveryNote {
 }
 
 func (n *PurchaseDeliveryNote) isValid() bool {
-	return !(len(n.WarehouseId) == 0 || len(n.WarehouseId) > 2 || n.SupplierId <= 0 || n.PaymentMethodId <= 0 || len(n.BillingSeriesId) == 0 || len(n.BillingSeriesId) > 3 || n.ShippingAddressId <= 0)
+	return !(n.SupplierId <= 0 || n.PaymentMethodId <= 0 || len(n.BillingSeriesId) == 0 || len(n.BillingSeriesId) > 3 || n.ShippingAddressId <= 0)
 }
 
 func (c *PurchaseDeliveryNote) BeforeCreate(tx *gorm.DB) (err error) {
@@ -268,7 +266,6 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 	n.CurrencyId = purchaseOrder.CurrencyId
 	n.PaymentMethodId = purchaseOrder.PaymentMethodId
 	n.BillingSeriesId = purchaseOrder.BillingSeriesId
-	n.WarehouseId = purchaseOrder.WarehouseId
 
 	///
 	trans := dbOrm.Begin()
@@ -287,7 +284,7 @@ func deliveryNoteAllPurchaseOrder(purchaseOrderId int64, enterpriseId int32, use
 		orderDetail := orderDetails[i]
 		movement := WarehouseMovement{}
 		movement.Type = "I"
-		movement.WarehouseId = purchaseOrder.WarehouseId
+		movement.WarehouseId = orderDetail.WarehouseId
 		movement.ProductId = orderDetail.ProductId
 		movement.Quantity = orderDetail.Quantity
 		movement.PurchaseDeliveryNoteId = &deliveryNoteId
@@ -352,7 +349,6 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 	n.CurrencyId = purchaseOrder.CurrencyId
 	n.PaymentMethodId = purchaseOrder.PaymentMethodId
 	n.BillingSeriesId = purchaseOrder.BillingSeriesId
-	n.WarehouseId = purchaseOrder.WarehouseId
 
 	///
 	trans := dbOrm.Begin()
@@ -371,7 +367,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallyPurchaseOrder(enterpri
 		orderDetail := purchaseOrderDetails[i]
 		movement := WarehouseMovement{}
 		movement.Type = "I"
-		movement.WarehouseId = purchaseOrder.WarehouseId
+		movement.WarehouseId = orderDetail.WarehouseId
 		movement.ProductId = orderDetail.ProductId
 		movement.Quantity = noteInfo.Selection[i].Quantity
 		movement.PurchaseDeliveryNoteId = &deliveryNoteId

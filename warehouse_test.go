@@ -760,7 +760,6 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	// test sales delivery note generation
 	sn := SalesDeliveryNote{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -818,7 +817,6 @@ func TestWarehouseMovementInsertDelete(t *testing.T) {
 
 	// test purchase delivery note generation
 	pn := PurchaseDeliveryNote{
-		WarehouseId:       "W1",
 		SupplierId:        1,
 		PaymentMethodId:   1,
 		BillingSeriesId:   "INT",

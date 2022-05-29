@@ -191,7 +191,6 @@ func TestIsValidSalesOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -214,7 +213,6 @@ func TestSalesOrderInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -431,7 +429,6 @@ func TestSaleOrderDetailInsertUpdateDelete(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -696,7 +693,6 @@ func TestInvoiceAllSaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -776,7 +772,6 @@ func TestIInvoicePartiallySaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -1672,7 +1667,6 @@ func TestSalesDeliveryNoteInsertUpdateDelete(t *testing.T) {
 	}
 
 	n := SalesDeliveryNote{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -1703,7 +1697,6 @@ func TestDeliveryNoteAllSaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -1783,7 +1776,6 @@ func TestDeliveryNotePartiallySaleOrder(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",
@@ -1915,7 +1907,6 @@ func TestSaleOrderDiscount(t *testing.T) {
 	}
 
 	o := SaleOrder{
-		WarehouseId:       "W1",
 		CustomerId:        1,
 		PaymentMethodId:   3,
 		BillingSeriesId:   "EXP",

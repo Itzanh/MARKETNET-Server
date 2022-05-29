@@ -818,7 +818,6 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 					continue
 				}
 				p := PurchaseOrder{}
-				p.WarehouseId = g.Warehouse
 				p.SupplierId = *supplier
 				p.BillingSeriesId = *d.BillingSeries
 				p.CurrencyId = *d.Currency
@@ -837,7 +836,15 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 
 				// generate the needs as a detail
 				product := getProductRow(productId)
-				det := PurchaseOrderDetail{OrderId: p.Id, ProductId: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, EnterpriseId: enterpriseId}
+				det := PurchaseOrderDetail{
+					OrderId:      p.Id,
+					ProductId:    productId,
+					Quantity:     (minimumStock * 2) - quantityAvailable,
+					Price:        product.Price,
+					VatPercent:   product.VatPercent,
+					EnterpriseId: enterpriseId,
+					WarehouseId:  g.Warehouse,
+				}
 				okAndErr, _ := det.insertPurchaseOrderDetail(userId, trans)
 				if !okAndErr.Ok {
 					trans.Rollback()
@@ -846,7 +853,15 @@ func (g *GenerateManufacturingOrPurchaseOrdersMinimumStock) generateManufacturin
 			} else { // it already exists a purchase order for this supplier, add the needs as details
 				// generate the needs as a detail
 				product := getProductRow(productId)
-				det := PurchaseOrderDetail{OrderId: o.Id, ProductId: productId, Quantity: (minimumStock * 2) - quantityAvailable, Price: product.Price, VatPercent: product.VatPercent, EnterpriseId: enterpriseId}
+				det := PurchaseOrderDetail{
+					OrderId:      o.Id,
+					ProductId:    productId,
+					Quantity:     (minimumStock * 2) - quantityAvailable,
+					Price:        product.Price,
+					VatPercent:   product.VatPercent,
+					EnterpriseId: enterpriseId,
+					WarehouseId:  g.Warehouse,
+				}
 				okAndErr, _ := det.insertPurchaseOrderDetail(userId, trans)
 				if !okAndErr.Ok {
 					trans.Rollback()

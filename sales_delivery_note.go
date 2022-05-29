@@ -13,8 +13,6 @@ import (
 
 type SalesDeliveryNote struct {
 	Id                 int64         `json:"id" gorm:"index:sales_delivery_note_id_enterprise,unique:true,priority:1"`
-	WarehouseId        string        `json:"warehouseId" gorm:"column:warehouse;type:character(2);not null"`
-	Warehouse          Warehouse     `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	CustomerId         int32         `json:"customerId" gorm:"column:customer;not null"`
 	Customer           Customer      `json:"customer" gorm:"foreignKey:CustomerId,EnterpriseId;references:Id,EnterpriseId"`
 	DateCreated        time.Time     `json:"dateCreated" gorm:"column:date_created;not null;type:timestamp(3) with time zone;index:sales_delivery_note_date_created,sort:desc"`
@@ -136,7 +134,7 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 }
 
 func (n *SalesDeliveryNote) isValid() bool {
-	return !(len(n.WarehouseId) == 0 || len(n.WarehouseId) > 2 || n.CustomerId <= 0 || n.PaymentMethodId <= 0 || len(n.BillingSeriesId) == 0 || len(n.BillingSeriesId) > 3 || n.ShippingAddressId <= 0)
+	return !(n.CustomerId <= 0 || n.PaymentMethodId <= 0 || len(n.BillingSeriesId) == 0 || len(n.BillingSeriesId) > 3 || n.ShippingAddressId <= 0)
 }
 
 func (s *SalesDeliveryNote) BeforeCreate(tx *gorm.DB) (err error) {
@@ -286,7 +284,6 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 	n.CurrencyId = saleOrder.CurrencyId
 	n.PaymentMethodId = saleOrder.PaymentMethodId
 	n.BillingSeriesId = saleOrder.BillingSeriesId
-	n.WarehouseId = saleOrder.WarehouseId
 
 	var beginTransaction bool = (trans == nil)
 	if trans == nil {
@@ -308,7 +305,7 @@ func deliveryNoteAllSaleOrder(saleOrderId int64, enterpriseId int32, userId int3
 		orderDetail := orderDetails[i]
 		movement := WarehouseMovement{}
 		movement.Type = "O"
-		movement.WarehouseId = saleOrder.WarehouseId
+		movement.WarehouseId = orderDetail.WarehouseId
 		movement.ProductId = orderDetail.ProductId
 		movement.Quantity = -(orderDetail.Quantity - orderDetail.QuantityDeliveryNote)
 		movement.SalesDeliveryNoteId = &deliveryNoteId
@@ -378,7 +375,6 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 	n.CurrencyId = saleOrder.CurrencyId
 	n.PaymentMethodId = saleOrder.PaymentMethodId
 	n.BillingSeriesId = saleOrder.BillingSeriesId
-	n.WarehouseId = saleOrder.WarehouseId
 
 	///
 	trans := dbOrm.Begin()
@@ -397,7 +393,7 @@ func (noteInfo *OrderDetailGenerate) deliveryNotePartiallySaleOrder(enterpriseId
 		orderDetail := saleOrderDetails[i]
 		movement := WarehouseMovement{}
 		movement.Type = "O"
-		movement.WarehouseId = saleOrder.WarehouseId
+		movement.WarehouseId = orderDetail.WarehouseId
 		movement.ProductId = orderDetail.ProductId
 		movement.Quantity = -noteInfo.Selection[i].Quantity
 		movement.SalesDeliveryNoteId = &deliveryNoteId

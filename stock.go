@@ -42,6 +42,16 @@ func getStockRow(productId int32, warehouseId string, enterpriseId int32) Stock 
 	return s
 }
 
+func getStockRowAvailable(productId int32, enterpriseId int32) Stock {
+	s := Stock{}
+	result := dbOrm.Model(&Stock{}).Where("stock.product = ? AND stock.enterprise = ?", productId, enterpriseId).Joins("Warehouse").Order("quantity_available DESC").Limit(1).First(&s)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return Stock{}
+	}
+	return s
+}
+
 // Inserts a row with 0 stock in all columns
 // THIS FUNCTION DOES NOT OPEN A TRANSACTION
 func createStockRow(productId int32, warehouseId string, enterpriseId int32, trans gorm.DB) bool {

@@ -3324,6 +3324,13 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 		query.enterpriseId = enterpriseId
 		json.Unmarshal([]byte(message), &query)
 		data, _ = json.Marshal(query.intrastatReport())
+	case "TRANSFER_BETWEEN_WAREHOUSES_DETAIL_SENT_TO_PREPARATION":
+		if !permissions.Preparation {
+			return
+		}
+		var query TransferBetweenWarehousesToSentToPreparationOrders
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.doTransfer(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 

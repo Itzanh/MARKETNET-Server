@@ -20,8 +20,6 @@ type POSTerminal struct {
 	OrdersPaymentMethod     *PaymentMethod `json:"ordersPaymentMethod" gorm:"foreignKey:OrdersPaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
 	OrdersBillingSeriesId   *string        `json:"ordersBillingSeriesId" gorm:"column:orders_billing_series"`
 	OrdersBillingSeries     *BillingSerie  `json:"ordersBillingSeries" gorm:"foreignKey:OrdersBillingSeriesId,EnterpriseId;references:Id,EnterpriseId"`
-	OrdersWarehouseId       *string        `json:"ordersWarehouseId" gorm:"column:orders_warehouse"`
-	OrdersWarehouse         *Warehouse     `json:"ordersWarehouse" gorm:"foreignKey:OrdersWarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	OrdersCurrencyId        *int32         `json:"ordersCurrencyId" gorm:"column:orders_currency"`
 	OrdersCurrency          *Currency      `json:"ordersCurrency" gorm:"foreignKey:OrdersCurrencyId,EnterpriseId;references:Id,EnterpriseId"`
 	EnterpriseId            int32          `json:"-" gorm:"column:enterprise;not null:true"`
@@ -53,7 +51,7 @@ func (t *POSTerminal) isValid() bool {
 }
 
 func (t *POSTerminal) isReady() bool {
-	return t.Id > 0 && t.isValid() && !(t.OrdersCustomerId == nil || t.OrdersInvoiceAddressId == nil || t.OrdersDeliveryAddressId == nil || t.OrdersPaymentMethodId == nil || t.OrdersBillingSeriesId == nil || t.OrdersWarehouseId == nil || t.OrdersCurrencyId == nil)
+	return t.Id > 0 && t.isValid() && !(t.OrdersCustomerId == nil || t.OrdersInvoiceAddressId == nil || t.OrdersDeliveryAddressId == nil || t.OrdersPaymentMethodId == nil || t.OrdersBillingSeriesId == nil || t.OrdersCurrencyId == nil)
 }
 
 type TerminalRegisterResult struct {
@@ -139,7 +137,6 @@ func (t *POSTerminal) updatePOSTerminal() bool {
 	terminal.OrdersDeliveryAddressId = t.OrdersDeliveryAddressId
 	terminal.OrdersPaymentMethodId = t.OrdersPaymentMethodId
 	terminal.OrdersBillingSeriesId = t.OrdersBillingSeriesId
-	terminal.OrdersWarehouseId = t.OrdersWarehouseId
 	terminal.OrdersCurrencyId = t.OrdersCurrencyId
 
 	result = dbOrm.Save(&terminal)
@@ -158,7 +155,6 @@ func posInsertNewSaleOrder(terminal string, enterpriseId int32, userId int32) Sa
 	}
 
 	o := SaleOrder{
-		WarehouseId:       *posTerminal.OrdersWarehouseId,
 		CustomerId:        *posTerminal.OrdersCustomerId,
 		PaymentMethodId:   *posTerminal.OrdersPaymentMethodId,
 		BillingSeriesId:   *posTerminal.OrdersBillingSeriesId,

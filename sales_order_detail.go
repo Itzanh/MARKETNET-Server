@@ -11,6 +11,8 @@ type SalesOrderDetail struct {
 	Id                       int64                `json:"id" gorm:"index:sales_order_detail_id_enterprise,unique:true,priority:1"`
 	OrderId                  int64                `json:"orderId" gorm:"column:order;not null:true;index:sales_order_detail_sales_order_product,unique:true,priority:1"`
 	Order                    SaleOrder            `json:"-" gorm:"foreignKey:OrderId,EnterpriseId;references:Id,EnterpriseId"`
+	WarehouseId              string               `json:"warehouseId" gorm:"column:warehouse;type:character(2)"`
+	Warehouse                Warehouse            `json:"warehouse" gorm:"foreignKey:WarehouseId,EnterpriseId;references:Id,EnterpriseId"`
 	ProductId                int32                `json:"productId" gorm:"column:product;not null:true;index:sales_order_detail_sales_order_product,unique:true,priority:2"`
 	Product                  Product              `json:"product" gorm:"foreignKey:ProductId,EnterpriseId;references:Id,EnterpriseId"`
 	Price                    float64              `json:"price" gorm:"column:price;not null:true;type:numeric(14,6)"`
@@ -140,6 +142,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	if p.Off {
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
 	}
+	config := getSettingsRecordById(s.EnterpriseId)
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
 	s.Status = "_"
@@ -167,6 +170,7 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	s.QuantityPendingPackaging = s.Quantity
 	s.PurchaseOrderDetail = nil
 	s.Cancelled = false
+	s.WarehouseId = config.DefaultWarehouseId
 
 	result = trans.Create(&s)
 	if result.Error != nil {
@@ -458,15 +462,20 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 
 	var ok bool
 	if detailBefore.QuantityInvoiced != detailBefore.Quantity && detailAfter.QuantityInvoiced == detailAfter.Quantity { // set as invoced
-		ok = addQuantityPendingServing(detailBefore.ProductId, salesOrder.WarehouseId, detailBefore.Quantity, detailBefore.EnterpriseId, trans)
+		ok = addQuantityPendingServing(detailBefore.ProductId, detailBefore.WarehouseId, detailBefore.Quantity, detailBefore.EnterpriseId, trans)
 		// set the order detail state applying the workflow logic
 		if ok {
-			status, purchaseOrderDetail := detailBefore.computeStatus(userId, trans)
+			status, purchaseOrderDetail, warehouseId := detailBefore.computeStatus(userId, trans)
 			detailAfter.Status = status
 			detailAfter.PurchaseOrderDetailId = purchaseOrderDetail
+			if len(warehouseId) == 0 {
+				config := getSettingsRecordById(detailBefore.EnterpriseId)
+				warehouseId = config.DefaultWarehouseId
+			}
 			result = trans.Model(&SalesOrderDetail{}).Where("id = ?", detailId).Updates(map[string]interface{}{
 				"status":                detailAfter.Status,
 				"purchase_order_detail": detailAfter.PurchaseOrderDetailId,
+				"warehouse":             warehouseId,
 			})
 			if result.Error != nil {
 				log("DB", result.Error.Error())
@@ -482,7 +491,7 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 			return false
 		}
 	} else if detailBefore.QuantityInvoiced == detailBefore.Quantity && detailAfter.QuantityInvoiced != detailAfter.Quantity { // undo invoiced
-		ok = addQuantityPendingServing(detailBefore.ProductId, salesOrder.WarehouseId, -detailBefore.Quantity, detailBefore.EnterpriseId, trans)
+		ok = addQuantityPendingServing(detailBefore.ProductId, detailBefore.WarehouseId, -detailBefore.Quantity, detailBefore.EnterpriseId, trans)
 		// reset order detail state to "Waiting for Payment"
 		if ok {
 			detailAfter.Status = "_"
@@ -545,40 +554,41 @@ func addQuantityInvociedSalesOrderDetail(detailId int64, quantity int32, userId 
 	return true
 }
 
-// returns: status, purchase order detail id
-func (s *SalesOrderDetail) computeStatus(userId int32, trans gorm.DB) (string, *int64) {
+// returns: status, purchase order detail id, warehouse id
+func (s *SalesOrderDetail) computeStatus(userId int32, trans gorm.DB) (string, *int64, string) {
 	product := getProductRow(s.ProductId)
 	if product.Id <= 0 {
-		return "", nil
+		return "", nil, ""
 	}
 
 	order := getSalesOrderRow(s.OrderId)
-	stock := getStockRow(s.ProductId, order.WarehouseId, s.EnterpriseId)
+	stock := getStockRowAvailable(s.ProductId, s.EnterpriseId)
 	if !product.ControlStock {
-		return "E", nil
-	} else if stock.Quantity > 0 { // the product is in stock, send to preparation
-		return "E", nil
+		return "E", nil, ""
+	} else if stock.QuantityAvaiable > 0 { // the product is in stock, send to preparation
+		return "E", nil, stock.WarehouseId
 	} else { // the product is not in stock, purchase or manufacture
 		if product.Manufacturing {
 			// search for pending manufacturing order for stock
 			manufacturingOrderType := getManufacturingOrderTypeRow(*product.ManufacturingOrderTypeId)
 			if manufacturingOrderType.Complex {
-				rows, err := dbOrm.Model(&ComplexManufacturingOrderManufacturingOrder{}).Where("product = ? AND type = 'O' AND manufactured = false AND sale_order_detail IS NULL", s.ProductId).Order("id ASC").Select(" id, manufacturing_order_type_component").Rows()
+				rows, err := dbOrm.Model(&ComplexManufacturingOrderManufacturingOrder{}).Where("product = ? AND type = 'O' AND manufactured = false AND sale_order_detail IS NULL", s.ProductId).Order("id ASC").Select(" id, manufacturing_order_type_component, warehouse").Rows()
 				if err != nil {
 					log("DB", err.Error())
 					// fallback
-					return "C", nil
+					return "C", nil, ""
 				}
 				defer rows.Close()
 
 				var orders []int64 = make([]int64, 0)
 				var quantities []int32 = make([]int32, 0)
 				var totalQuantityManufactured int32 = 0
+				var warehouseId string
 
 				for rows.Next() {
 					var complexManufacturingOrderForStockId int64
 					var manufacturingOrderTypeComponentId int32
-					rows.Scan(&complexManufacturingOrderForStockId, &manufacturingOrderTypeComponentId)
+					rows.Scan(&complexManufacturingOrderForStockId, &manufacturingOrderTypeComponentId, &warehouseId)
 					orders = append(orders, complexManufacturingOrderForStockId)
 
 					com := getManufacturingOrderTypeComponentRow(manufacturingOrderTypeComponentId)
@@ -593,7 +603,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32, trans gorm.DB) (string, *
 						if result.Error != nil {
 							log("DB", result.Error.Error())
 							// fallback
-							return "C", nil
+							return "C", nil, ""
 						}
 
 						quantityAssigned += quantities[i]
@@ -602,33 +612,34 @@ func (s *SalesOrderDetail) computeStatus(userId int32, trans gorm.DB) (string, *
 						}
 					}
 
-					return "D", nil
+					return "D", nil, warehouseId
 				} else {
-					return "C", nil
+					return "C", nil, ""
 				}
-			} else {
-				rows, err := dbOrm.Model(&ManufacturingOrder{}).Where("manufactured = false AND product = $1 AND complex = false", product.Id).Order("date_created ASC").Select("id, quantity_manufactured").Rows()
+			} else { // if manufacturingOrderType.Complex {
+				rows, err := dbOrm.Model(&ManufacturingOrder{}).Where("manufactured = false AND product = $1 AND complex = false", product.Id).Order("date_created ASC").Select("id, quantity_manufactured, warehouse").Rows()
 				if err != nil {
 					log("DB", err.Error())
 					// fallback
-					return "C", nil
+					return "C", nil, ""
 				}
 				defer rows.Close()
 				var totalQuantityManufactured int32 = 0
 				var orders []int64 = make([]int64, 0)
 				var quantities []int32 = make([]int32, 0)
+				var warehouseId string
 
 				for rows.Next() {
 					var manufacturingOrderForStockId int64
 					var quantityManufactured int32
-					rows.Scan(&manufacturingOrderForStockId, &quantityManufactured)
+					rows.Scan(&manufacturingOrderForStockId, &quantityManufactured, &warehouseId)
 					totalQuantityManufactured += quantityManufactured
 					orders = append(orders, manufacturingOrderForStockId)
 					quantities = append(quantities, quantityManufactured)
 				}
 
 				if totalQuantityManufactured < s.Quantity {
-					return "C", nil
+					return "C", nil, ""
 				} else {
 					var quantityAssigned int32 = 0
 					for i := 0; i < len(orders); i++ {
@@ -639,7 +650,7 @@ func (s *SalesOrderDetail) computeStatus(userId int32, trans gorm.DB) (string, *
 						if result.Error != nil {
 							log("DB", result.Error.Error())
 							// fallback
-							return "C", nil
+							return "C", nil, ""
 						}
 
 						quantityAssigned += quantities[i]
@@ -647,31 +658,31 @@ func (s *SalesOrderDetail) computeStatus(userId int32, trans gorm.DB) (string, *
 							break
 						}
 					}
-					return "D", nil
+					return "D", nil, warehouseId
 				}
 			}
 		} else {
 			// search for pending purchases using dbOrm
-			var purchaseDetailId int64
-			result := dbOrm.Model(&PurchaseOrderDetail{}).Where("product = ? AND quantity_delivery_note = 0 AND quantity - quantity_assigned_sale >= ?", s.ProductId, s.Quantity).Order(`(SELECT date_created FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order") ASC`).Limit(1).Select("id").Pluck("id", &purchaseDetailId)
+			var purchaseDetail PurchaseOrderDetail
+			result := dbOrm.Model(&PurchaseOrderDetail{}).Where("product = ? AND quantity_delivery_note = 0 AND quantity - quantity_assigned_sale >= ?", s.ProductId, s.Quantity).Order(`(SELECT date_created FROM purchase_order WHERE purchase_order.id=purchase_order_detail."order") ASC`).Limit(1).First(&purchaseDetail)
 			if result.Error != nil {
 				log("DB", result.Error.Error())
 				// fallback
-				return "A", nil
+				return "A", nil, ""
 			}
 
-			if purchaseDetailId <= 0 {
-				return "A", nil
+			if purchaseDetail.Id <= 0 {
+				return "A", nil, ""
 			}
 
 			// add quantity assigned to sale orders
-			ok := addQuantityAssignedSalePurchaseOrder(purchaseDetailId, s.Quantity, order.EnterpriseId, userId, trans)
+			ok := addQuantityAssignedSalePurchaseOrder(purchaseDetail.Id, s.Quantity, order.EnterpriseId, userId, trans)
 			if !ok {
-				return "A", nil
+				return "A", nil, ""
 			}
 
 			// set the purchase order detail
-			return "B", &purchaseDetailId
+			return "B", &purchaseDetail.Id, purchaseDetail.WarehouseId
 		}
 	}
 }
@@ -826,7 +837,11 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 			return false
 		}
 
-		status, purchaseOrderDetail := detail.computeStatus(userId, *trans)
+		status, purchaseOrderDetail, warehouseId := detail.computeStatus(userId, *trans)
+		if len(warehouseId) == 0 {
+			config := getSettingsRecordById(detail.EnterpriseId)
+			warehouseId = config.DefaultWarehouseId
+		}
 
 		detail.Status = status
 		detail.PurchaseOrderDetailId = purchaseOrderDetail
@@ -834,6 +849,7 @@ func cancelSalesOrderDetail(detailId int64, enterpriseId int32, userId int32) bo
 		result = trans.Model(&SalesOrderDetail{}).Where("id = ?", detail.Id).Updates(map[string]interface{}{
 			"status":                detail.Status,
 			"purchase_order_detail": detail.PurchaseOrderDetailId,
+			"warehouse":             warehouseId,
 		})
 		if result.Error != nil {
 			log("DB", result.Error.Error())

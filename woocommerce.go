@@ -1436,7 +1436,6 @@ func copyWcOrders(enterpriseId int32) bool {
 		}
 
 		s := SaleOrder{}
-		s.WarehouseId = settings.DefaultWarehouseId
 		//s.Reference = orderKey
 		s.CustomerId = customer
 		s.PaymentMethodId = erpPaymentMethod

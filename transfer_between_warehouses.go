@@ -69,7 +69,7 @@ func getTransferBetweenWarehousesRow(transferBetweenWarehousesId int64) Transfer
 }
 
 func (t *TransferBetweenWarehouses) isValid() bool {
-	return !(len(t.WarehouseOriginId) == 0 || len(t.WarehouseDestinationId) == 0 || t.WarehouseOriginId == t.WarehouseDestinationId || len(t.Name) == 0 || len(t.Name) > 100)
+	return !(len(t.WarehouseOriginId) != 2 || len(t.WarehouseDestinationId) != 2 || t.WarehouseOriginId == t.WarehouseDestinationId || len(t.Name) == 0 || len(t.Name) > 100)
 }
 
 func (t *TransferBetweenWarehouses) BeforeCreate(tx *gorm.DB) (err error) {
@@ -152,6 +152,8 @@ type TransferBetweenWarehousesDetail struct {
 	WarehouseMovementOut        *WarehouseMovement        `json:"warehouseMovementOut" gorm:"foreignKey:WarehouseMovementOutId,EnterpriseId;references:Id,EnterpriseId"`
 	WarehouseMovementInId       *int64                    `json:"warehouseMovementInId" gorm:"column:warehouse_movement_in;type:bigint"`
 	WarehouseMovementIn         *WarehouseMovement        `json:"warehouseMovementIn" gorm:"foreignKey:WarehouseMovementInId,EnterpriseId;references:Id,EnterpriseId"`
+	SalesOrderDetailId          *int64                    `json:"salesOrderDetailId" gorm:"column:sales_order_detail;type:bigint"`
+	SalesOrderDetail            *SalesOrderDetail         `json:"salesOrderDetail" gorm:"foreignKey:SalesOrderDetailId,EnterpriseId;references:Id,EnterpriseId"`
 }
 
 func (t *TransferBetweenWarehousesDetail) TableName() string {
@@ -270,7 +272,6 @@ func (d *TransferBetweenWarehousesDetail) deleteTransferBetweenWarehousesDetail(
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		trans.Rollback()
-		fmt.Println(result.Error)
 		return false
 	}
 
@@ -289,6 +290,79 @@ type TransferBetweenWarehousesDetailBarCodeQuery struct {
 
 func (q *TransferBetweenWarehousesDetailBarCodeQuery) isValid() bool {
 	return !(q.TransferBetweenWarehousesId <= 0 || len(q.BarCode) == 0 || len(q.BarCode) > 13)
+}
+
+func (detail *TransferBetweenWarehousesDetail) finishDetail(trans *gorm.DB, userId int32) bool {
+	transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehousesId)
+
+	// add 1 line transfered, set as finished
+	transfer.LinesTransfered += 1
+	transfer.Finished = transfer.LinesTransfered == transfer.LinesTotal
+	if transfer.Finished {
+		now := time.Now()
+		transfer.DateFinished = &now
+	} else {
+		transfer.DateFinished = nil
+	}
+
+	// make an output warehouse movement from the origin warehouse
+	wmOut := WarehouseMovement{
+		WarehouseId:  transfer.WarehouseOriginId,
+		ProductId:    detail.ProductId,
+		Quantity:     detail.Quantity,
+		Type:         "O",
+		EnterpriseId: detail.EnterpriseId,
+	}
+	if !wmOut.insertWarehouseMovement(userId, trans) {
+		trans.Rollback()
+		return false
+	}
+
+	// make an input warehouse movement to the destination warehouse
+	wmIn := WarehouseMovement{
+		WarehouseId:  transfer.WarehouseDestinationId,
+		ProductId:    detail.ProductId,
+		Quantity:     detail.Quantity,
+		Type:         "I",
+		EnterpriseId: detail.EnterpriseId,
+	}
+	if !wmIn.insertWarehouseMovement(userId, trans) {
+		trans.Rollback()
+		return false
+	}
+
+	// save the transfer detail
+	detail.WarehouseMovementOutId = &wmOut.Id
+	detail.WarehouseMovementInId = &wmIn.Id
+
+	result := trans.Updates(&detail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	// save the transfer
+	result = trans.Model(&TransferBetweenWarehouses{}).Where("id = ?", transfer.Id).Updates(&transfer)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return false
+	}
+
+	// if a sale order detail is attached, move the sale order detail to the destinarion warehouse
+	if detail.SalesOrderDetailId != nil {
+		result = dbOrm.Model(&SalesOrderDetail{}).Where("id = ?", detail.SalesOrderDetailId).Updates(map[string]interface{}{
+			"warehouse": transfer.WarehouseDestinationId,
+		})
+		if result.Error != nil {
+			log("DB", result.Error.Error())
+			trans.Rollback()
+			return false
+		}
+	}
+
+	return true
 }
 
 func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesDetailBarCode(enterpriseId int32, userId int32) bool {
@@ -323,54 +397,8 @@ func (q *TransferBetweenWarehousesDetailBarCodeQuery) transferBetweenWarehousesD
 	detail.Finished = detail.QuantityTransferred == detail.Quantity
 
 	if detail.Finished {
-		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehousesId)
-
-		transfer.LinesTransfered += 1
-		transfer.Finished = transfer.LinesTransfered == transfer.LinesTotal
-		if transfer.Finished {
-			now := time.Now()
-			transfer.DateFinished = &now
-		} else {
-			transfer.DateFinished = nil
-		}
-
-		wmOut := WarehouseMovement{
-			WarehouseId:  transfer.WarehouseOriginId,
-			ProductId:    detail.ProductId,
-			Quantity:     detail.Quantity,
-			Type:         "O",
-			EnterpriseId: detail.EnterpriseId,
-		}
-		if !wmOut.insertWarehouseMovement(userId, trans) {
-			trans.Rollback()
-			return false
-		}
-
-		wmIn := WarehouseMovement{
-			WarehouseId:  transfer.WarehouseDestinationId,
-			ProductId:    detail.ProductId,
-			Quantity:     detail.Quantity,
-			Type:         "I",
-			EnterpriseId: detail.EnterpriseId,
-		}
-		if !wmIn.insertWarehouseMovement(userId, trans) {
-			trans.Rollback()
-			return false
-		}
-
-		detail.WarehouseMovementOutId = &wmOut.Id
-		detail.WarehouseMovementInId = &wmIn.Id
-
-		result = trans.Updates(&detail)
-		if result.Error != nil {
-			log("DB", result.Error.Error())
-			trans.Rollback()
-			return false
-		}
-
-		result = trans.Model(&TransferBetweenWarehouses{}).Where("id = ?", transfer.Id).Updates(&transfer)
-		if result.Error != nil {
-			log("DB", result.Error.Error())
+		ok := detail.finishDetail(trans, userId)
+		if !ok {
 			trans.Rollback()
 			return false
 		}
@@ -419,54 +447,8 @@ func (q *TransferBetweenWarehousesDetailQuantityQuery) transferBetweenWarehouses
 	detail.Finished = detail.QuantityTransferred == detail.Quantity
 
 	if detail.Finished {
-		transfer := getTransferBetweenWarehousesRow(detail.TransferBetweenWarehousesId)
-
-		transfer.LinesTransfered += 1
-		transfer.Finished = transfer.LinesTransfered == transfer.LinesTotal
-		if transfer.Finished {
-			now := time.Now()
-			transfer.DateFinished = &now
-		} else {
-			transfer.DateFinished = nil
-		}
-
-		wmOut := WarehouseMovement{
-			WarehouseId:  transfer.WarehouseOriginId,
-			ProductId:    detail.ProductId,
-			Quantity:     detail.Quantity,
-			Type:         "O",
-			EnterpriseId: detail.EnterpriseId,
-		}
-		if !wmOut.insertWarehouseMovement(userId, trans) {
-			trans.Rollback()
-			return false
-		}
-
-		wmIn := WarehouseMovement{
-			WarehouseId:  transfer.WarehouseDestinationId,
-			ProductId:    detail.ProductId,
-			Quantity:     detail.Quantity,
-			Type:         "I",
-			EnterpriseId: detail.EnterpriseId,
-		}
-		if !wmIn.insertWarehouseMovement(userId, trans) {
-			trans.Rollback()
-			return false
-		}
-
-		detail.WarehouseMovementOutId = &wmOut.Id
-		detail.WarehouseMovementInId = &wmIn.Id
-
-		result := trans.Updates(&detail)
-		if result.Error != nil {
-			log("DB", result.Error.Error())
-			trans.Rollback()
-			return false
-		}
-
-		result = trans.Model(&TransferBetweenWarehouses{}).Where("id = ?", transfer.Id).Updates(&transfer)
-		if result.Error != nil {
-			log("DB", result.Error.Error())
+		ok := detail.finishDetail(trans, userId)
+		if !ok {
 			trans.Rollback()
 			return false
 		}
@@ -509,4 +491,96 @@ func getTransferBetweenWarehousesWarehouseMovements(transferBetweenWarehousesId 
 	}
 
 	return movements
+}
+
+type TransferBetweenWarehousesToSentToPreparationOrders struct {
+	WarehouseOriginId      *string `json:"warehouseOriginId"` // nil = All other warehouses
+	WarehouseDestinationId string  `json:"warehouseDestinationId"`
+	Name                   string  `json:"name"`
+}
+
+func (t *TransferBetweenWarehousesToSentToPreparationOrders) isValid() bool {
+	return !((t.WarehouseOriginId != nil && len(*t.WarehouseOriginId) != 2) || len(t.WarehouseDestinationId) == 0 || (t.WarehouseOriginId != nil && *t.WarehouseOriginId == t.WarehouseDestinationId) || len(t.Name) == 0 || len(t.Name) > 100)
+}
+
+func (t *TransferBetweenWarehousesToSentToPreparationOrders) doTransfer(enterpriseId int32) bool {
+	if !t.isValid() {
+		return false
+	}
+
+	var details []SalesOrderDetail = make([]SalesOrderDetail, 0)
+	cursor := dbOrm.Model(&SalesOrderDetail{}).Where(`(SELECT status FROM sales_order WHERE sales_order.id=sales_order_detail."order") = 'E'`)
+	if t.WarehouseOriginId == nil {
+		cursor = cursor.Where("warehouse != ?", t.WarehouseDestinationId)
+	} else {
+		cursor = cursor.Where("warehouse = ?", *t.WarehouseOriginId)
+	}
+	result := cursor.Order("id ASC").Find(&details)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	///
+	trans := dbOrm.Begin()
+	///
+
+	var transfers map[string]TransferBetweenWarehouses = make(map[string]TransferBetweenWarehouses)
+	if t.WarehouseOriginId != nil {
+		transferBetweenWarehouses := TransferBetweenWarehouses{
+			WarehouseOriginId:      *t.WarehouseOriginId,
+			WarehouseDestinationId: t.WarehouseDestinationId,
+			Name:                   t.Name,
+			EnterpriseId:           enterpriseId,
+		}
+
+		result = trans.Create(&transferBetweenWarehouses)
+		if result.Error != nil {
+			trans.Rollback()
+			log("DB", result.Error.Error())
+			return false
+		}
+		transfers[*t.WarehouseOriginId] = transferBetweenWarehouses
+	}
+
+	for i := 0; i < len(details); i++ {
+		var detail = details[i]
+
+		_, ok := transfers[detail.WarehouseId]
+		if !ok {
+			transferBetweenWarehouses := TransferBetweenWarehouses{
+				WarehouseOriginId:      detail.WarehouseId,
+				WarehouseDestinationId: t.WarehouseDestinationId,
+				Name:                   t.Name,
+				EnterpriseId:           enterpriseId,
+			}
+
+			result = trans.Create(&transferBetweenWarehouses)
+			if result.Error != nil {
+				trans.Rollback()
+				log("DB", result.Error.Error())
+				return false
+			}
+			transfers[detail.WarehouseId] = transferBetweenWarehouses
+		}
+
+		var transferDetail = TransferBetweenWarehousesDetail{
+			TransferBetweenWarehousesId: transfers[detail.WarehouseId].Id,
+			ProductId:                   detail.ProductId,
+			Quantity:                    detail.Quantity,
+			EnterpriseId:                enterpriseId,
+			SalesOrderDetailId:          &detail.Id,
+		}
+		result = trans.Create(&transferDetail)
+		if result.Error != nil {
+			trans.Rollback()
+			log("DB", result.Error.Error())
+			return false
+		}
+	}
+
+	///
+	trans.Commit()
+	///
+	return true
 }
