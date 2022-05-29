@@ -52,6 +52,9 @@ func addHttpHandlerFuncions() {
 	// warehouse
 	http.HandleFunc("/api/warehouses", apiWarehouses)
 	http.HandleFunc("/api/warehouse_movements", apiWarehouseMovements)
+	http.HandleFunc("/api/transfer_between_warehouses", apiTransferBetweenWarehouses)
+	http.HandleFunc("/api/transfer_between_warehouses_details", apiTransferBetweenWarehousesDetails)
+	http.HandleFunc("/api/product_minimum_stock", apiTransferBetweenWarehousesMinimumStock)
 	// manufacturing
 	http.HandleFunc("/api/manufacturing_orders", apiManufacturingOrders)
 	http.HandleFunc("/api/manufacturing_order_types", apiManufacturingOrderTypes)
@@ -2580,6 +2583,238 @@ func apiWarehouseMovements(w http.ResponseWriter, r *http.Request) {
 		warehouseMovement.Id = int64(id)
 		warehouseMovement.EnterpriseId = enterpriseId
 		ok = warehouseMovement.deleteWarehouseMovement(userId, nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiTransferBetweenWarehouses(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId, permission := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		if !permission.TransferBetweenWarehouses.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var query TransferBetweenWarehousesQuery
+		json.Unmarshal(body, &query)
+		query.enterprise = enterpriseId
+		data, _ := json.Marshal(query.searchTransferBetweenWarehouses())
+		w.Write(data)
+		return
+	case "POST":
+		if !permission.TransferBetweenWarehouses.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var transferBetweenWarehouses TransferBetweenWarehouses
+		json.Unmarshal(body, &transferBetweenWarehouses)
+		transferBetweenWarehouses.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehouses.insertTransferBetweenWarehouses()
+	case "DELETE":
+		if !permission.TransferBetweenWarehouses.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var transferBetweenWarehouses TransferBetweenWarehouses
+		transferBetweenWarehouses.Id = int64(id)
+		transferBetweenWarehouses.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehouses.deleteTransferBetweenWarehouses()
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiTransferBetweenWarehousesDetails(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId, permission := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		if !permission.TransferBetweenWarehousesDetail.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getTransferBetweenWarehousesDetails(int64(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if !permission.TransferBetweenWarehousesDetail.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var transferBetweenWarehousesesDetail TransferBetweenWarehousesDetail
+		json.Unmarshal(body, &transferBetweenWarehousesesDetail)
+		transferBetweenWarehousesesDetail.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesesDetail.insertTransferBetweenWarehousesDetail()
+	case "DELETE":
+		if !permission.TransferBetweenWarehousesDetail.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var transferBetweenWarehousesDetail TransferBetweenWarehousesDetail
+		transferBetweenWarehousesDetail.Id = int64(id)
+		transferBetweenWarehousesDetail.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesDetail.deleteTransferBetweenWarehousesDetail(nil)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, _ := json.Marshal(ok)
+	if !ok {
+		w.WriteHeader(http.StatusNotAcceptable)
+	}
+	w.Write(resp)
+}
+
+func apiTransferBetweenWarehousesMinimumStock(w http.ResponseWriter, r *http.Request) {
+	// headers
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Headers", "content-type")
+	w.Header().Add("Content-type", "application/json")
+	// auth
+	ok, _, enterpriseId, permission := checkApiKey(r)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// check body length
+	if r.ContentLength > settings.Server.WebSecurity.MaxRequestBodyLength {
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, settings.Server.WebSecurity.MaxRequestBodyLength)
+	// read body
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	// methods
+	ok = false
+	switch r.Method {
+	case "GET":
+		if !permission.ManufacturingOrders.Get {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		data, _ := json.Marshal(getTransferBetweenWarehousesMinimumStock(int32(id), enterpriseId))
+		w.Write(data)
+		return
+	case "POST":
+		if !permission.TransferBetweenWarehousesMinimumStock.Post {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var transferBetweenWarehousesMinimumStock TransferBetweenWarehousesMinimumStock
+		json.Unmarshal(body, &transferBetweenWarehousesMinimumStock)
+		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesMinimumStock.insertTransferBetweenWarehousesMinimumStock()
+	case "PUT":
+		if !permission.TransferBetweenWarehousesMinimumStock.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var transferBetweenWarehousesMinimumStock TransferBetweenWarehousesMinimumStock
+		json.Unmarshal(body, &transferBetweenWarehousesMinimumStock)
+		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesMinimumStock.updateTransferBetweenWarehousesMinimumStock()
+	case "DELETE":
+		if !permission.TransferBetweenWarehousesMinimumStock.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		id, err := strconv.Atoi(string(body))
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var transferBetweenWarehousesMinimumStock TransferBetweenWarehousesMinimumStock
+		transferBetweenWarehousesMinimumStock.Id = int64(id)
+		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
+		ok = transferBetweenWarehousesMinimumStock.deleteTransferBetweenWarehousesMinimumStock()
+	case "LINK":
+		if !permission.TransferBetweenWarehousesMinimumStock.Delete {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		ok = generateTransferBetweenWarehousesForMinimumStock(enterpriseId)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

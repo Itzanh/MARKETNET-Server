@@ -151,14 +151,9 @@ func generateTransferBetweenWarehousesForMinimumStock(enterpriseId int32) bool {
 
 	var transfersBetweenWarehouses map[string]TransferBetweenWarehouses = make(map[string]TransferBetweenWarehouses)
 
-	///
-	trans := dbOrm.Begin()
-	///
-
 	for _, transferBetweenWarehousesMinimumStock := range transferBetweenWarehousesMinimumStock {
 		warehouse := transferBetweenWarehousesMinimumStock.getTransferBetweenWarehousesMinimumStockWarehouse(enterpriseId)
 		if warehouse == "" {
-			trans.Rollback()
 			return false
 		}
 
@@ -172,7 +167,6 @@ func generateTransferBetweenWarehousesForMinimumStock(enterpriseId int32) bool {
 			}
 			ok = transferBetweenWarehouses.insertTransferBetweenWarehouses()
 			if !ok {
-				trans.Rollback()
 				return false
 			}
 			transfersBetweenWarehouses[transferBetweenWarehousesMinimumStock.WarehouseDestinationId] = transferBetweenWarehouses
@@ -187,14 +181,9 @@ func generateTransferBetweenWarehousesForMinimumStock(enterpriseId int32) bool {
 
 		ok = transferBetweenWarehousesDetail.insertTransferBetweenWarehousesDetail()
 		if !ok {
-			trans.Rollback()
 			return false
 		}
 	}
-
-	///
-	trans.Commit()
-	///
 
 	return true
 }
