@@ -90,3 +90,19 @@ func (t *LoginToken) checkLoginToken() (bool, *Permissions, int32, int32) {
 		return true, &perm, tok.UserId, tok.User.EnterpriseId
 	}
 }
+
+func deleteLoginTokensFromUser(userId int32, enterpriseId int32) bool {
+	// get user row
+	user := getUserRow(userId)
+	// check the user's enterprise
+	if user.EnterpriseId != enterpriseId {
+		return false
+	}
+
+	result := dbOrm.Model(&LoginToken{}).Where(`"user" = ?`, userId).Delete(&LoginToken{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
+}

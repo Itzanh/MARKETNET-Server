@@ -3319,6 +3319,15 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(generateTransferBetweenWarehousesForMinimumStock(enterpriseId))
+	case "DELETE_LOGIN_TOKENS_FROM_USER":
+		if !permissions.Admin {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(deleteLoginTokensFromUser(int32(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 
