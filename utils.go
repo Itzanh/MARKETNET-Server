@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"math"
 	"net/mail"
@@ -200,4 +201,21 @@ func minInt32(a, b int32) int32 {
 		return a
 	}
 	return b
+}
+
+func checkBase64(base64String string) bool {
+	_, err := base64.StdEncoding.DecodeString(base64String)
+	return err == nil
+}
+
+func base64ToUuid(base64String string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(base64String)
+	if err != nil {
+		return "", err
+	}
+	uuid, err := uuid.FromBytes(decoded)
+	if err != nil {
+		return "", err
+	}
+	return uuid.String(), nil
 }

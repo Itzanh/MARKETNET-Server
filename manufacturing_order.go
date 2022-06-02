@@ -98,6 +98,16 @@ func (q *ManufacturingPaginationQuery) getManufacturingOrdersByType(enterpriseId
 			mo.Rows = 1
 		}
 		return mo
+	} else if checkBase64(q.Uuid) {
+		decodedUuid, err := base64ToUuid(q.Uuid)
+		if err == nil {
+			manufacturingOrder := getManufacturingOrderByUUID(decodedUuid, enterpriseId)
+			if manufacturingOrder.Id > 0 {
+				mo.ManufacturingOrders = append(mo.ManufacturingOrders, manufacturingOrder)
+				mo.Rows = 1
+			}
+			return mo
+		}
 	}
 
 	cursor := dbOrm.Model(&ManufacturingOrder{}).Where("enterprise = ?", enterpriseId)
