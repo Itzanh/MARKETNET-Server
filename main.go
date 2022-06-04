@@ -3328,6 +3328,31 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(deleteLoginTokensFromUser(int32(id), enterpriseId))
+	case "DELETE_ALL_LOGIN_TOKENS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(deleteAllLoginTokens(enterpriseId))
+	case "DISCONNECT_EVERYBODY":
+		if !permissions.Admin {
+			return
+		}
+		disconnectAllConnections(enterpriseId)
+	case "FORCE_ALL_USERS_TO_CHANGE_PASSWORDS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(forceAllUsersToChangePassowrds(enterpriseId))
+	case "REGENERATE_DRAGGED_STOCK_ALL_WAREHOUSES":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(regenerateDraggedStockAllWarehouses(enterpriseId))
+	case "REGENERATE_STOCK_RECORDS":
+		if !permissions.Admin {
+			return
+		}
+		data, _ = json.Marshal(regenerateStockRecords(enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 

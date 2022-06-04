@@ -106,3 +106,12 @@ func deleteLoginTokensFromUser(userId int32, enterpriseId int32) bool {
 	}
 	return true
 }
+
+func deleteAllLoginTokens(enterpriseId int32) bool {
+	result := dbOrm.Model(&LoginToken{}).Where(`"user" IN (SELECT id FROM "user" WHERE config = ?)`, enterpriseId).Delete(&LoginToken{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
+}

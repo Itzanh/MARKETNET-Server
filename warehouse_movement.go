@@ -462,6 +462,16 @@ func regenerateDraggedStock(warehouseId string, enterpriseId int32) bool {
 	///
 }
 
+func regenerateDraggedStockAllWarehouses(enterpriseId int32) bool {
+	warehouses := getWarehouses(enterpriseId)
+	for i := 0; i < len(warehouses); i++ {
+		if !regenerateDraggedStock(warehouses[i].Id, enterpriseId) {
+			return false
+		}
+	}
+	return true
+}
+
 type WarehouseMovementRelations struct {
 	PurchaseDeliveryNoteName   *string                     `json:"purchaseDeliveryNoteName"`
 	PurchaseOrderName          *string                     `json:"purchaseOrderName"`

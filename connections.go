@@ -49,6 +49,16 @@ func disconnectConnection(id string, enterpriseId int32) bool {
 	return false
 }
 
+func disconnectAllConnections(enterpriseId int32) {
+	connectionsMutex.Lock()
+	for i := 0; i < len(connections); i++ {
+		if connections[i].enterprise == enterpriseId {
+			connections[i].ws.Close()
+		}
+	}
+	connectionsMutex.Unlock()
+}
+
 type ConnectionWeb struct {
 	Id            string    `json:"id"`
 	Address       string    `json:"address"`

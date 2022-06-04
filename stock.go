@@ -299,3 +299,69 @@ func setProductStockAllWarehouses(productId int32, trans gorm.DB) bool {
 
 	return true
 }
+
+func regenerateStockRecords(enterpriseId int32) bool {
+	warehouses := getWarehouses(enterpriseId)
+	products := getProduct(enterpriseId)
+
+	for _, product := range products {
+		for _, warehouse := range warehouses {
+			// if the stock row does not exist, we ignore it
+			stock := getStockRow(product.Id, warehouse.Id, enterpriseId)
+			if stock.WarehouseId == "" {
+				continue
+			}
+
+			// set the physical stock
+			var warehouseMovement WarehouseMovement
+			result := dbOrm.Model(&WarehouseMovement{}).Where("product = ? AND warehouse = ? AND enterprise = ?", product.Id, warehouse.Id, enterpriseId).Find(&warehouseMovement)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
+				return false
+			}
+
+			if warehouseMovement.Type != "R" {
+				stock.Quantity = warehouseMovement.DraggedStock + warehouseMovement.Quantity
+			} else { // Inventory regularization
+				stock.Quantity = warehouseMovement.DraggedStock
+			}
+
+			// set the quantity pending serving
+			result = dbOrm.Model(&SalesOrderDetail{}).Where("product = ? AND warehouse = ? AND enterprise = ? AND quantity != quantity_delivery_note", product.Id, warehouse.Id, enterpriseId).Select("SUM(quantity) as quantity").Scan(&stock.QuantityPendingServed)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
+				return false
+			}
+
+			// set the quantity pending receiving
+			result = dbOrm.Model(&PurchaseOrderDetail{}).Where("product = ? AND warehouse = ? AND enterprise = ? AND quantity != quantity_delivery_note", product.Id, warehouse.Id, enterpriseId).Select("SUM(quantity) as quantity").Scan(&stock.QuantityPendingReceived)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
+				return false
+			}
+
+			// set the quantity pending manufacture
+			var quantityPendingManufacture int64
+			result = dbOrm.Model(&ManufacturingOrder{}).Where("product = ? AND warehouse = ? AND enterprise = ? AND NOT manufactured", product.Id, warehouse.Id, enterpriseId).Count(&quantityPendingManufacture)
+			if result.Error != nil {
+				log("DB", result.Error.Error())
+				return false
+			}
+			stock.QuantityPendingManufacture = int32(quantityPendingManufacture)
+
+			// set the quantity available
+			trans := dbOrm.Begin()
+			setQuantityAvailable(product.Id, warehouse.Id, enterpriseId, *trans)
+			trans.Commit()
+
+		} // for warehouse, _ := range warehouses {
+
+		// set the quantities in the product
+		trans := dbOrm.Begin()
+		setProductStockAllWarehouses(product.Id, *trans)
+		trans.Commit()
+
+	} // for product, _ := range products {
+
+	return true
+}

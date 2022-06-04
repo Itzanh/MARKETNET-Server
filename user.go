@@ -201,6 +201,15 @@ func (u *User) deleteUser() bool {
 	return true
 }
 
+func forceAllUsersToChangePassowrds(enterpsieId int32) bool {
+	result := dbOrm.Model(&User{}).Where("config = ?", enterpsieId).Update("pwd_next_login", true)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return false
+	}
+	return true
+}
+
 type UserPassword struct {
 	Id           int32  `json:"id"`
 	Password     string `json:"password"`
