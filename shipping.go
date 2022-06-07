@@ -271,27 +271,32 @@ func (s *Shipping) deleteShipping(userId int32) bool {
 	///
 }
 
+type OkAndErrorGenerateShipping struct {
+	OkAndErrorCodeReturn
+	Shipping Shipping `json:"shipping"`
+}
+
 // ERROR CODES:
 // 1. No carrier selected in the order
 // 2. A detail has not been completely packaged
 // 3. Can't generate delivery note
-func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int32) OkAndErrorCodeReturn {
+func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int32) OkAndErrorGenerateShipping {
 	saleOrder := getSalesOrderRow(orderId)
 	if saleOrder.EnterpriseId != enterpriseId {
-		return OkAndErrorCodeReturn{Ok: false}
+		return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 	}
 	packaging := getPackaging(orderId, enterpriseId)
 	if saleOrder.Id <= 0 || len(packaging) == 0 {
-		return OkAndErrorCodeReturn{Ok: false}
+		return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 	}
 	if saleOrder.CarrierId == nil || *saleOrder.CarrierId <= 0 {
-		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}
+		return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false, ErrorCode: 1}}
 	}
 
 	details := getSalesOrderDetail(orderId, enterpriseId)
 	for i := 0; i < len(details); i++ {
 		if details[i].QuantityPendingPackaging > 0 {
-			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{details[i].Product.Name}}
+			return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false, ErrorCode: 2, ExtraData: []string{details[i].Product.Name}}}
 		}
 	}
 
@@ -303,7 +308,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 	///
 	trans := dbOrm.Begin()
 	if trans.Error != nil {
-		return OkAndErrorCodeReturn{Ok: false}
+		return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 	}
 	///
 
@@ -314,7 +319,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 		ok, noteId := deliveryNoteAllSaleOrder(orderId, enterpriseId, userId, trans)
 		if !ok.Ok || noteId <= 0 {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}
+			return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false, ErrorCode: 3}}
 		}
 		s.DeliveryNoteId = noteId
 	}
@@ -323,13 +328,13 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 	ok, shippingId := s.insertShipping(userId, trans)
 	if !ok {
 		trans.Rollback()
-		return OkAndErrorCodeReturn{Ok: false}
+		return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 	}
 	for i := 0; i < len(packaging); i++ {
 		ok := associatePackagingToShipping(packaging[i].Id, shippingId, enterpriseId, userId, *trans)
 		if !ok {
 			trans.Rollback()
-			return OkAndErrorCodeReturn{Ok: false}
+			return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 		}
 	}
 	for i := 0; i < len(packaging); i++ {
@@ -339,7 +344,7 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 			if result.Error != nil {
 				log("DB", result.Error.Error())
 				trans.Rollback()
-				return OkAndErrorCodeReturn{Ok: false}
+				return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 			}
 
 			insertTransactionalLog(enterpriseId, "sales_order_detail", int(detailsPackaged[j].OrderDetailId), userId, "U")
@@ -348,14 +353,18 @@ func generateShippingFromSaleOrder(orderId int64, enterpriseId int32, userId int
 			ok := setSalesOrderState(enterpriseId, saleOrderDetail.OrderId, userId, *trans)
 			if !ok {
 				trans.Rollback()
-				return OkAndErrorCodeReturn{Ok: false}
+				return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
 			}
 		}
 	}
 
 	///
 	result := trans.Commit()
-	return OkAndErrorCodeReturn{Ok: result.Error == nil}
+	if result.Error != nil {
+		return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: false}}
+	}
+
+	return OkAndErrorGenerateShipping{OkAndErrorCodeReturn: OkAndErrorCodeReturn{Ok: true}, Shipping: getShippingRow(shippingId)}
 	///
 }
 
