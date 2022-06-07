@@ -54,10 +54,20 @@ func (t *LoginToken) generateRandomToken() {
 	}
 }
 
-// Ok, user permissions, user id, enterprise id
-func (t *LoginToken) checkLoginToken() (bool, *Permissions, int32, int32) {
+// The token has been used, and is not rolled to a different security token
+func (t *LoginToken) rollToken() string {
+	t.generateRandomToken()
+	result := dbOrm.Model(&LoginToken{}).Where("id = ?", t.Id).Update("name", t.Name)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
+	return t.Name
+}
+
+// Ok, user permissions, user id, enterprise id, rolled token
+func (t *LoginToken) checkLoginToken() (bool, *Permissions, int32, int32, string) {
 	if len(t.Name) != LOGIN_TOKEN_LENGTH {
-		return false, nil, 0, 0
+		return false, nil, 0, 0, ""
 	}
 
 	// get a single login token from the database there the name and ip address are the same as the ones passed using dbOrm
@@ -65,29 +75,29 @@ func (t *LoginToken) checkLoginToken() (bool, *Permissions, int32, int32) {
 	result := dbOrm.Where("name = ? AND ip_address = ?", t.Name, t.IpAddress).Preload("User").First(&tok)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
-		return false, nil, 0, 0
+		return false, nil, 0, 0, ""
 	}
 
 	if tok.Id <= 0 {
-		return false, nil, 0, 0
+		return false, nil, 0, 0, ""
 	}
 
 	if time.Until(tok.DateLastUsed).Hours() > float64(settings.Server.TokenExpirationHours) { // the token has expired, delete it and return an error
 		result = dbOrm.Delete(&tok)
 		if result.Error != nil {
 			log("DB", result.Error.Error())
-			return false, nil, 0, 0
+			return false, nil, 0, 0, ""
 		}
-		return false, nil, 0, 0
+		return false, nil, 0, 0, ""
 	} else { // the token is still valid, renew the token and return OK
 		tok.DateLastUsed = time.Now()
 		result := dbOrm.Model(&LoginToken{}).Where("id = ?", tok.Id).Update("date_last_used", tok.DateLastUsed)
 		if result.Error != nil {
 			log("DB", result.Error.Error())
-			return false, nil, 0, 0
+			return false, nil, 0, 0, ""
 		}
 		perm := getUserPermissions(tok.UserId, tok.User.EnterpriseId)
-		return true, &perm, tok.UserId, tok.User.EnterpriseId
+		return true, &perm, tok.UserId, tok.User.EnterpriseId, tok.rollToken()
 	}
 }
 

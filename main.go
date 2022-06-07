@@ -270,7 +270,7 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int32, *Permis
 		result := UserLoginResult{}
 		if len(userLogin.Token) > 0 {
 			t := LoginToken{Name: userLogin.Token, IpAddress: remoteAddr}
-			result.Ok, result.Permissions, userId, enterpriseId = t.checkLoginToken()
+			result.Ok, result.Permissions, userId, enterpriseId, result.Token = t.checkLoginToken()
 			if result.Ok && userId >= 0 {
 				result.Language = getUserRow(userId).Language
 			}
