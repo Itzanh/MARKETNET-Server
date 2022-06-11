@@ -30,6 +30,7 @@ type SalesOrderDetail struct {
 	WooCommerceId            int32                `json:"-" gorm:"column:wc_id;not null:true;index:sales_order_detail_wc_id,unique:true,priority:2,where:wc_id <> 0"`
 	ShopifyId                int64                `json:"-" gorm:"column:sy_id;not null:true;index:sales_order_detail_sy_id,unique:true,priority:2,where:sy_id <> 0"`
 	ShopifyDraftId           int64                `json:"-" gorm:"column:sy_draft_id;not null:true;index:sales_order_detail_sy_draft_id,unique:true,priority:2,where:sy_draft_id <> 0"`
+	IncludedProducts         bool                 `json:"includedProducts" gorm:"column:included_products;type:boolean;not null:true;default:false"`
 	EnterpriseId             int32                `json:"-" gorm:"column:enterprise;not null:true;index:sales_order_detail_id_enterprise,unique:true,priority:2;index:sales_order_detail_ps_id,unique:true,priority:1,where:ps_id <> 0;index:sales_order_detail_sy_draft_id,unique:true,priority:1,where:sy_draft_id <> 0;;index:sales_order_detail_sy_id,unique:true,priority:1,where:sy_id <> 0;index:sales_order_detail_wc_id,unique:true,priority:1,where:wc_id <> 0"`
 	Enterprise               Settings             `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
 }
@@ -86,6 +87,18 @@ func getSalesOrderDetailRowTransaction(detailId int64, trans gorm.DB) SalesOrder
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return detail
+	}
+
+	return detail
+}
+
+func getSalesOrderDetailRowByOrderAndProduct(orderId int64, productId int32) *SalesOrderDetail {
+	var detail *SalesOrderDetail
+	// get a single sale order detail from the database where the id is the same as the one passed using dbOrm
+	result := dbOrm.Where(`"order" = ? AND product = ?`, orderId, productId).Preload(clause.Associations).First(&detail)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return nil
 	}
 
 	return detail
@@ -202,6 +215,8 @@ func (s *SalesOrderDetail) insertSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	}
 	///
 
+	s.processProductIncludedProductOnNewInsertedLine(s.EnterpriseId, userId)
+
 	insertTransactionalLog(s.EnterpriseId, "sales_order_detail", int(s.Id), userId, "I")
 	json, _ := json.Marshal(s)
 	go fireWebHook(s.EnterpriseId, "sales_order_detail", "POST", string(json))
@@ -260,6 +275,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	}
 
 	s.TotalAmount = (s.Price * float64(s.Quantity)) * (1 + (s.VatPercent / 100))
+	oldQuantity := inMemoryDetail.Quantity
 
 	// take out the old value
 	ok := addTotalProductsSalesOrder(s.EnterpriseId, inMemoryDetail.OrderId, userId, -(inMemoryDetail.Price * float64(inMemoryDetail.Quantity)), inMemoryDetail.VatPercent, *trans)
@@ -297,6 +313,8 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 	}
 	///
 
+	s.processProductIncludedProductOnUpdatedLine(s.EnterpriseId, userId, oldQuantity)
+
 	insertTransactionalLog(s.EnterpriseId, "sales_order_detail", int(s.Id), userId, "U")
 	json, _ := json.Marshal(s)
 	go fireWebHook(s.EnterpriseId, "sales_order_detail", "PUT", string(json))
@@ -313,6 +331,7 @@ func (s *SalesOrderDetail) updateSalesOrderDetail(userId int32) OkAndErrorCodeRe
 // 4. there are manufacturing orders already created
 // 5. there is digital product data that must be deleted first
 // 6. the product has been packaged
+// 7. this detail holds the included product for another detail
 func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *gorm.DB) OkAndErrorCodeReturn {
 	if s.Id <= 0 {
 		return OkAndErrorCodeReturn{Ok: false}
@@ -395,6 +414,19 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *gorm.DB) 
 		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 6}
 	}
 
+	// check for product_included_products_sales_order_details
+	var productIncludedProductsSalesOrderDetailsRows int64
+	result = dbOrm.Model(&ProductIncludedProductSalesOrderDetail{}).Where("sales_order_detail = ?", s.Id).Count(&productIncludedProductsSalesOrderDetailsRows)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false}
+	}
+	if productIncludedProductsSalesOrderDetailsRows > 0 {
+		trans.Rollback()
+		return OkAndErrorCodeReturn{Ok: false, ErrorCode: 7}
+	}
+
 	insertTransactionalLog(s.EnterpriseId, "sales_order_detail", int(s.Id), userId, "D")
 	json, _ := json.Marshal(s)
 	go fireWebHook(s.EnterpriseId, "sales_order_detail", "DELETE", string(json))
@@ -430,6 +462,8 @@ func (s *SalesOrderDetail) deleteSalesOrderDetail(userId int32, trans *gorm.DB) 
 		}
 		///
 	}
+
+	detailInMemory.processProductIncludedProductOnDeletedLine(s.EnterpriseId, userId)
 
 	return OkAndErrorCodeReturn{Ok: true}
 }

@@ -1130,6 +1130,16 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getTransferBetweenWarehousesMinimumStock(int32(id), enterpriseId))
+	case "PRODUCT_INCLUEDED_PRODUCTS":
+		if !permissions.Masters {
+			return
+		}
+		data, _ = json.Marshal(getProductIncludedProduct(int32(id), enterpriseId))
+	case "PRODUCT_INCLUDED_PRODUCTS_SALES_ORDER_DETAIL":
+		if !permissions.Sales {
+			return
+		}
+		data, _ = json.Marshal(getProductIncludedProductSalesOrderDetail(int64(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1682,6 +1692,14 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &transferBetweenWarehousesMinimumStock)
 		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
 		ok = transferBetweenWarehousesMinimumStock.insertTransferBetweenWarehousesMinimumStock()
+	case "PRODUCT_INCLUEDED_PRODUCTS":
+		if !permissions.Masters {
+			return
+		}
+		var productIncludedProduct ProductIncludedProduct
+		json.Unmarshal([]byte(message), &productIncludedProduct)
+		productIncludedProduct.EnterpriseId = enterpriseId
+		ok = productIncludedProduct.insertProductIncludedProduct()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2003,6 +2021,14 @@ func instructionUpdate(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &transferBetweenWarehousesMinimumStock)
 		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
 		ok = transferBetweenWarehousesMinimumStock.updateTransferBetweenWarehousesMinimumStock()
+	case "PRODUCT_INCLUEDED_PRODUCTS":
+		if !permissions.Masters {
+			return
+		}
+		var productIncludedProduct ProductIncludedProduct
+		json.Unmarshal([]byte(message), &productIncludedProduct)
+		productIncludedProduct.EnterpriseId = enterpriseId
+		ok = productIncludedProduct.updateProductIncludedProduct()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2507,6 +2533,14 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		transferBetweenWarehousesMinimumStock.Id = int64(id)
 		transferBetweenWarehousesMinimumStock.EnterpriseId = enterpriseId
 		ok = transferBetweenWarehousesMinimumStock.deleteTransferBetweenWarehousesMinimumStock()
+	case "PRODUCT_INCLUEDED_PRODUCTS":
+		if !permissions.Masters {
+			return
+		}
+		var productIncludedProduct ProductIncludedProduct
+		productIncludedProduct.Id = int32(id)
+		productIncludedProduct.EnterpriseId = enterpriseId
+		ok = productIncludedProduct.deleteProductIncludedProduct()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
