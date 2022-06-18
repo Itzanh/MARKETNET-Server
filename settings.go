@@ -192,6 +192,7 @@ type Settings struct {
 	UndoManufacturingOrderSeconds int16              `json:"undoManufacturingOrderSeconds" gorm:"not null:true"`
 	CronSendCloudTracking         string             `json:"cronSendCloudTracking" gorm:"column:cron_sendcloud_tracking;type:character varying(25);not null:true"`
 	SettingsEmail                 *SettingsEmail     `json:"settingsEmail" gorm:"foreignKey:Id;references:EnterpriseId"`
+	SettingsCleanUp               *SettingsCleanUp   `json:"settingsCleanUp" gorm:"foreignKey:Id;references:EnterpriseId"`
 }
 
 func (s *Settings) TableName() string {
@@ -356,6 +357,12 @@ func (s *Settings) updateSettingsRecord() bool {
 		return false
 	}
 
+	s.SettingsCleanUp.EnterpriseId = s.Id
+	if !s.SettingsCleanUp.updateSettingsCleanUp(trans) {
+		trans.Rollback()
+		return false
+	}
+
 	trans.Commit()
 	return true
 }
@@ -511,6 +518,53 @@ func (s *SettingsEmail) updateSettingsEmail(trans *gorm.DB) bool {
 		settingsInDisk.SMTPSTARTTLS = s.SMTPSTARTTLS
 		settingsInDisk.SMTPReplyTo = s.SMTPReplyTo
 	}
+
+	result = trans.Save(&settingsInDisk)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	return true
+}
+
+type SettingsCleanUp struct {
+	CronCleanTransactionalLog string   `json:"cronCleanTransactionalLog" gorm:"type:character varying(25);not null:true"`
+	TransactionalLogDays      int16    `json:"transactionalLogDays" gorm:"type:smallint;not null:true"`
+	CronCleanConnectionLog    string   `json:"cronCleanConnectionLog" gorm:"type:character varying(25);not null:true"`
+	ConnectionLogDays         int16    `json:"connectionLogDays" gorm:"type:smallint;not null:true"`
+	CronCleanLoginToken       string   `json:"cronCleanLoginToken" gorm:"type:character varying(25);not null:true"`
+	EnterpriseId              int32    `json:"-" gorm:"column:enterprise;not null:true;index:config_cleanup_enterprise,unique:true"`
+	Enterprise                Settings `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+}
+
+func (s *SettingsCleanUp) TableName() string {
+	return "config_cleanup"
+}
+
+func (s *SettingsCleanUp) isValid() bool {
+	return !(len(s.CronCleanTransactionalLog) > 25 || len(s.CronCleanConnectionLog) > 25 || len(s.CronCleanLoginToken) > 25 || s.TransactionalLogDays < 0 || s.ConnectionLogDays < 0)
+}
+
+func (s *SettingsCleanUp) updateSettingsCleanUp(trans *gorm.DB) bool {
+	if !s.isValid() {
+		return false
+	}
+
+	var settingsInDisk SettingsCleanUp
+	result := dbOrm.Model(&SettingsCleanUp{}).Where("enterprise = ?", s.EnterpriseId).First(&settingsInDisk)
+	if result.Error != nil {
+		fmt.Println(result.Error)
+		log("DB", result.Error.Error())
+		return false
+	}
+
+	settingsInDisk.CronCleanTransactionalLog = s.CronCleanTransactionalLog
+	settingsInDisk.TransactionalLogDays = s.TransactionalLogDays
+	settingsInDisk.CronCleanConnectionLog = s.CronCleanConnectionLog
+	settingsInDisk.ConnectionLogDays = s.ConnectionLogDays
+	settingsInDisk.CronCleanLoginToken = s.CronCleanLoginToken
 
 	result = trans.Save(&settingsInDisk)
 	if result.Error != nil {

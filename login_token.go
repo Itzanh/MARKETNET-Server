@@ -125,3 +125,10 @@ func deleteAllLoginTokens(enterpriseId int32) bool {
 	}
 	return true
 }
+
+func cleanUpLoginTokens(enterpriseId int32) {
+	result := dbOrm.Model(&LoginToken{}).Where(`"user" IN (SELECT id FROM "user" WHERE config = ?) AND date_last_used < ?`, enterpriseId, time.Now().Add(-time.Duration(settings.Server.TokenExpirationHours)*time.Hour)).Delete(&LoginToken{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
+}

@@ -6,11 +6,6 @@ func addORMModels() bool {
 	// GORM does not do this automatically
 	dbOrm.Exec("UPDATE pg_opclass SET opcdefault = true WHERE opcname='gin_trgm_ops'")
 
-	dbOrm.Exec("ALTER TABLE public.sales_order DROP COLUMN IF EXISTS warehouse")
-	dbOrm.Exec("ALTER TABLE public.sales_delivery_note DROP COLUMN IF EXISTS warehouse")
-	dbOrm.Exec("ALTER TABLE public.purchase_order DROP COLUMN IF EXISTS warehouse")
-	dbOrm.Exec("ALTER TABLE public.purchase_delivery_note DROP COLUMN IF EXISTS warehouse")
-
 	err := dbOrm.AutoMigrate(&Country{}, &Language{}, &Currency{}, &Warehouse{}, &Settings{}, &SettingsEcommerce{}, &BillingSerie{}, &PaymentMethod{}, &Account{}, &Journal{},
 		&User{}, &Group{}, &UserGroup{}, &PermissionDictionary{}, &PermissionDictionaryGroup{}, &DocumentContainer{}, &Document{}, &ProductFamily{}, &ProductAccount{},
 		&Carrier{}, &State{}, &Color{}, &Packages{}, &Incoterm{}, &Product{}, &ConfigAccountsVat{}, &ManufacturingOrderType{}, &ManufacturingOrderTypeComponents{},
@@ -23,11 +18,25 @@ func addORMModels() bool {
 		&ShippingStatusHistory{}, &ShippingTag{}, &ProductImage{}, &PwdBlacklist{}, &PwdSHA1Blacklist{}, &PSAddress{}, &PSCarrier{}, &PSCountry{}, &PSCurrency{}, &PSCustomer{}, &PSLanguage{},
 		&PSOrder{}, &PSOrderDetail{}, &PSProduct{}, &PSProductCombination{}, &PSProductOptionValue{}, &PSState{}, &PSZone{}, &SYAddress{}, &SYCustomer{}, &SYDraftOrderLineItem{}, &SYDraftOrder{},
 		&SYOrderLineItem{}, &SYOrder{}, &SYProduct{}, &SYVariant{}, &WCCustomer{}, &WCOrderDetail{}, &WCOrder{}, &WCProductVariation{}, &WCProduct{}, &LabelPrinterProfile{},
-		&TransferBetweenWarehousesMinimumStock{}, &ProductIncludedProduct{}, &ProductIncludedProductSalesOrderDetail{}) // 114
+		&TransferBetweenWarehousesMinimumStock{}, &ProductIncludedProduct{}, &ProductIncludedProductSalesOrderDetail{}, &SettingsCleanUp{}) // 115
 	if err != nil {
 		fmt.Println("AutoMigrate", err)
 		log("AutoMigrate", err.Error())
 		return false
+	}
+
+	// create default rows for Settings Clean Up
+	settingsRecords := getSettingsRecords()
+	for _, settingsRecord := range settingsRecords {
+		settingsCleanUp := SettingsCleanUp{
+			CronCleanTransactionalLog: "@monthly",
+			TransactionalLogDays:      90,
+			CronCleanConnectionLog:    "@weekly",
+			ConnectionLogDays:         30,
+			CronCleanLoginToken:       "@weekly",
+			EnterpriseId:              settingsRecord.Id,
+		}
+		dbOrm.Create(&settingsCleanUp)
 	}
 
 	return true

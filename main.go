@@ -185,6 +185,16 @@ func main() {
 			}
 		}
 		runningCrons[enterpriseId] = enterpriseCronInfo
+		// clean-up crons
+		c.AddFunc(settingsRecords[i].SettingsCleanUp.CronCleanTransactionalLog, func() {
+			cleanUpTransactionalLog(enterpriseId)
+		})
+		c.AddFunc(settingsRecords[i].SettingsCleanUp.CronCleanConnectionLog, func() {
+			cleanUpConnectionLogs(enterpriseId)
+		})
+		c.AddFunc(settingsRecords[i].SettingsCleanUp.CronCleanLoginToken, func() {
+			cleanUpLoginTokens(enterpriseId)
+		})
 	}
 	c.AddFunc(settings.Server.CronClearLogs, clearLogs)
 	c.AddFunc("@every 1m", resetMaxRequestsPerEnterprise)

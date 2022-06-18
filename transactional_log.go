@@ -132,3 +132,12 @@ func insertTransactionalLog(enterpriseId int32, tableName string, registerId int
 		log("DB", result.Error.Error())
 	}
 }
+
+func cleanUpTransactionalLog(enterpriseId int32) {
+	settings := getSettingsRecordById(enterpriseId)
+
+	result := dbOrm.Model(&TransactionalLog{}).Where("enterprise = ? AND date_created < ?", enterpriseId, time.Now().Add(-time.Duration(settings.SettingsCleanUp.TransactionalLogDays)*time.Hour*24)).Delete(&TransactionalLog{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
+}

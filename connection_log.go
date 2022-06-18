@@ -165,6 +165,15 @@ func userDisconnected(user int32) {
 	}
 }
 
+func cleanUpConnectionLogs(enterpriseId int32) {
+	settings := getSettingsRecordById(enterpriseId)
+
+	result := dbOrm.Model(&ConnectionLog{}).Where("enterprise = ? AND date_connected < ?", enterpriseId, time.Now().Add(-time.Duration(settings.SettingsCleanUp.ConnectionLogDays)*time.Hour*24)).Delete(&ConnectionLog{})
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
+}
+
 type ConnectionFilter struct {
 	Id           int32      `json:"id"`
 	Name         string     `json:"name" gorm:"not null:true;type:character varying(100)"`
