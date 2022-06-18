@@ -90,9 +90,11 @@ func (q *PaginationQuery) getSalesOrder(enterpriseId int32) SaleOrders {
 
 type SalesOrderSearch struct {
 	PaginatedSearch
-	DateStart *time.Time `json:"dateStart"`
-	DateEnd   *time.Time `json:"dateEnd"`
-	Status    string     `json:"status"`
+	DateStart          *time.Time `json:"dateStart"`
+	DateEnd            *time.Time `json:"dateEnd"`
+	Status             string     `json:"status"`
+	InvoicedStatus     string     `json:"invoicedStatus"`     // "" = All, A = Invoiced, B = Not invoiced, C = Partially invoiced
+	DeliveryNoteStatus string     `json:"deliveryNoteStatus"` // "" = All, A = Delivered, B = Not delivered, C = Partially delivered
 }
 
 func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
@@ -118,6 +120,24 @@ func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
 		if s.Status != "" {
 			cursor = cursor.Where("sales_order.sales_order.status = ?", s.Status)
 		}
+		if s.InvoicedStatus != "" {
+			if s.InvoicedStatus == "A" {
+				cursor = cursor.Where("sales_order.lines_number = sales_order.invoiced_lines")
+			} else if s.InvoicedStatus == "B" {
+				cursor = cursor.Where("sales_order.lines_number = 0")
+			} else if s.InvoicedStatus == "C" {
+				cursor = cursor.Where("sales_order.lines_number < sales_order.invoiced_lines")
+			}
+		}
+		if s.DeliveryNoteStatus != "" {
+			if s.DeliveryNoteStatus == "A" {
+				cursor = cursor.Where("sales_order.lines_number = sales_order.delivery_note_lines")
+			} else if s.DeliveryNoteStatus == "B" {
+				cursor = cursor.Where("sales_order.lines_number = 0")
+			} else if s.DeliveryNoteStatus == "C" {
+				cursor = cursor.Where("sales_order.lines_number < sales_order.delivery_note_lines")
+			}
+		}
 	}
 	result := cursor.Order("sales_order.date_created DESC").Limit(int(s.Limit)).Offset(int(s.Offset)).Preload(clause.Associations).Find(&so.Orders)
 	if result.Error != nil {
@@ -140,6 +160,24 @@ func (s *SalesOrderSearch) searchSalesOrder() SaleOrders {
 		}
 		if s.Status != "" {
 			cursor = cursor.Where("sales_order.sales_order.status = ?", s.Status)
+		}
+		if s.InvoicedStatus != "" {
+			if s.InvoicedStatus == "A" {
+				cursor = cursor.Where("sales_order.lines_number = sales_order.invoiced_lines")
+			} else if s.InvoicedStatus == "B" {
+				cursor = cursor.Where("sales_order.lines_number = 0")
+			} else if s.InvoicedStatus == "C" {
+				cursor = cursor.Where("sales_order.lines_number < sales_order.invoiced_lines")
+			}
+		}
+		if s.DeliveryNoteStatus != "" {
+			if s.DeliveryNoteStatus == "A" {
+				cursor = cursor.Where("sales_order.lines_number = sales_order.delivery_note_lines")
+			} else if s.DeliveryNoteStatus == "B" {
+				cursor = cursor.Where("sales_order.lines_number = 0")
+			} else if s.DeliveryNoteStatus == "C" {
+				cursor = cursor.Where("sales_order.lines_number < sales_order.delivery_note_lines")
+			}
 		}
 	}
 	result = cursor.Count(&so.Rows).Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&so.Footer)

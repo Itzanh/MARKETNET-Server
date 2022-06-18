@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"gorm.io/gorm"
 )
 
@@ -23,7 +25,8 @@ func getColor(enterpriseId int32) []Color {
 }
 
 func (c *Color) isValid() bool {
-	return !(len(c.Name) == 0 || len(c.Name) > 100 || len(c.HexColor) > 6)
+	c.HexColor = strings.ToUpper(c.HexColor)
+	return !(len(c.Name) == 0 || len(c.Name) > 100 || len(c.HexColor) != 6 || !checkHex(c.HexColor))
 }
 
 func (c *Color) BeforeCreate(tx *gorm.DB) (err error) {

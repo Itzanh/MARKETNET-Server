@@ -23,22 +23,58 @@ func (cl *ConnectionLog) TableName() string {
 	return "connection_log"
 }
 
+type ConnectionLogQuery struct {
+	enterprise int32
+	Offset     int64      `json:"offset"`
+	Limit      int64      `json:"limit"`
+	DateStart  *time.Time `json:"dateStart"`
+	DateEnd    *time.Time `json:"dateEnd"`
+	Ok         *bool      `json:"ok"`
+	UserId     *int32     `json:"userId"`
+}
+
 type ConnectionLogs struct {
 	Logs []ConnectionLog `json:"logs"`
 	Rows int64           `json:"rows"`
 }
 
-func (q *PaginationQuery) getConnectionLogs() ConnectionLogs {
+func (q *ConnectionLogQuery) getConnectionLogs() ConnectionLogs {
 	logs := make([]ConnectionLog, 0)
 	// get all connection logs from the database for the current enterprise and pagination using dbOrm
-	result := dbOrm.Where("connection_log.enterprise = ?", q.enterprise).Offset(int(q.Offset)).Limit(int(q.Limit)).Preload("User").Order("connection_log.date_connected DESC").Find(&logs)
+	cursor := dbOrm.Where("connection_log.enterprise = ?", q.enterprise)
+	if q.DateStart != nil {
+		cursor = cursor.Where("date_connected >= ?", *q.DateStart)
+	}
+	if q.DateEnd != nil {
+		cursor = cursor.Where("date_connected <= ?", *q.DateEnd)
+	}
+	if q.Ok != nil {
+		cursor = cursor.Where("ok = ?", *q.Ok)
+	}
+	if q.UserId != nil {
+		cursor = cursor.Where(`"user" = ?`, *q.UserId)
+	}
+	result := cursor.Offset(int(q.Offset)).Limit(int(q.Limit)).Preload("User").Order("connection_log.date_connected DESC").Find(&logs)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 	}
 
 	// get all the connection logs count from the database using dbOrm
 	var count int64
-	result = dbOrm.Model(&ConnectionLog{}).Where("connection_log.enterprise = ?", q.enterprise).Count(&count)
+	cursor = dbOrm.Model(&ConnectionLog{}).Where("connection_log.enterprise = ?", q.enterprise)
+	if q.DateStart != nil {
+		cursor = cursor.Where("date_connected >= ?", *q.DateStart)
+	}
+	if q.DateEnd != nil {
+		cursor = cursor.Where("date_connected <= ?", *q.DateEnd)
+	}
+	if q.Ok != nil {
+		cursor = cursor.Where("ok = ?", *q.Ok)
+	}
+	if q.UserId != nil {
+		cursor = cursor.Where(`"user" = ?`, *q.UserId)
+	}
+	result = cursor.Count(&count)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 	}

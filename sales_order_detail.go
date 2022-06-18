@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -53,16 +54,23 @@ func getSalesOrderDetail(orderId int64, enterpriseId int32) []SalesOrderDetail {
 
 type SalesOrderDetailWaitingForManufacturingOrders struct {
 	SalesOrderDetail
-	OrderName    string `json:"orderName"`
-	CustomerName string `json:"customerName"`
+	OrderName    string `json:"orderName" gorm:"-"`
+	CustomerName string `json:"customerName" gorm:"-"`
 }
 
 func getSalesOrderDetailWaitingForManufacturingOrders(enterpriseId int32) []SalesOrderDetailWaitingForManufacturingOrders {
 	var details []SalesOrderDetailWaitingForManufacturingOrders = make([]SalesOrderDetailWaitingForManufacturingOrders, 0)
 	// get all the sale order details from the database where the order id is the same as the one passed and the enterprise id is the same as the one passed order by id using dbOrm
-	result := dbOrm.Model(&SalesOrderDetailWaitingForManufacturingOrders{}).Where("enterprise = ? AND status = 'C'", enterpriseId).Order("ASC").Preload(clause.Associations).Limit(300).Find(&details)
+	result := dbOrm.Model(&SalesOrderDetail{}).Where("enterprise = ? AND status = 'C'", enterpriseId).Order("id DESC").Preload(clause.Associations).Limit(300).Find(&details)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
+		fmt.Println(result.Error)
+		return details
+	}
+
+	for i := 0; i < len(details); i++ {
+		details[i].OrderName = details[i].Order.OrderName
+		details[i].CustomerName = getCustomerRow(details[i].Order.CustomerId).Name
 	}
 
 	return details

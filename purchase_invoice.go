@@ -84,7 +84,18 @@ func getPurchaseInvoices(enterpriseId int32) PurchaseInvoices {
 	return in
 }
 
-func (s *OrderSearch) searchPurchaseInvoice() PurchaseInvoices {
+type PurchaseInvoiceSearch struct {
+	PaginatedSearch
+	DateStart         *time.Time `json:"dateStart"`
+	DateEnd           *time.Time `json:"dateEnd"`
+	NotPosted         bool       `json:"notPosted"`
+	PostedStatus      string     `json:"postedStatus"`      // "" = All, "P" = Posted, "N" = Not Posted
+	SimplifiedInvoice string     `json:"simplifiedInvoice"` // "" = All, "S" = Simplified, "F" = Full
+	Amending          string     `json:"amending"`          // "" = All, "A" = Amending, "R" = Regular
+	BillingSeries     *string    `json:"billingSeries"`
+}
+
+func (s *PurchaseInvoiceSearch) searchPurchaseInvoice() PurchaseInvoices {
 	in := PurchaseInvoices{}
 	in.Invoices = make([]PurchaseInvoice, 0)
 
@@ -102,6 +113,27 @@ func (s *OrderSearch) searchPurchaseInvoice() PurchaseInvoices {
 		}
 		if s.NotPosted {
 			cursor = cursor.Where("purchase_invoice.accounting_movement IS NULL")
+		}
+		if s.PostedStatus != "" {
+			if s.PostedStatus == "P" {
+				cursor = cursor.Where("purchase_invoice.accounting_movement IS NOT NULL")
+			} else if s.PostedStatus == "N" {
+				cursor = cursor.Where("purchase_invoice.accounting_movement IS NULL")
+			}
+		}
+		if s.SimplifiedInvoice != "" {
+			if s.SimplifiedInvoice == "S" {
+				cursor = cursor.Where("purchase_invoice.simplified_invoice = ?", true)
+			} else if s.SimplifiedInvoice == "F" {
+				cursor = cursor.Where("purchase_invoice.simplified_invoice = ?", false)
+			}
+		}
+		if s.Amending != "" {
+			if s.Amending == "A" {
+				cursor = cursor.Where("purchase_invoice.amending = ?", true)
+			} else if s.Amending == "R" {
+				cursor = cursor.Where("purchase_invoice.amending = ?", false)
+			}
 		}
 	}
 	result := cursor.Order("purchase_invoice.date_created DESC").Limit(int(s.Limit)).Offset(int(s.Offset)).Count(&in.Rows).Preload(clause.Associations).Find(&in.Invoices)
@@ -123,6 +155,27 @@ func (s *OrderSearch) searchPurchaseInvoice() PurchaseInvoices {
 		}
 		if s.NotPosted {
 			cursor = cursor.Where("purchase_invoice.accounting_movement IS NULL")
+		}
+		if s.PostedStatus != "" {
+			if s.PostedStatus == "P" {
+				cursor = cursor.Where("purchase_invoice.accounting_movement IS NOT NULL")
+			} else if s.PostedStatus == "N" {
+				cursor = cursor.Where("purchase_invoice.accounting_movement IS NULL")
+			}
+		}
+		if s.SimplifiedInvoice != "" {
+			if s.SimplifiedInvoice == "S" {
+				cursor = cursor.Where("purchase_invoice.simplified_invoice = ?", true)
+			} else if s.SimplifiedInvoice == "F" {
+				cursor = cursor.Where("purchase_invoice.simplified_invoice = ?", false)
+			}
+		}
+		if s.Amending != "" {
+			if s.Amending == "A" {
+				cursor = cursor.Where("purchase_invoice.amending = ?", true)
+			} else if s.Amending == "R" {
+				cursor = cursor.Where("purchase_invoice.amending = ?", false)
+			}
 		}
 	}
 	result = cursor.Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&in.Footer)

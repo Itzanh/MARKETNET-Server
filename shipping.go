@@ -409,8 +409,10 @@ func associatePackagingToShipping(packagingId int64, shippingId int64, enterpris
 }
 
 type ToggleShippingSent struct {
-	Ok           bool    `json:"ok"`
-	ErrorMessage *string `json:"errorMessage"`
+	Ok             bool    `json:"ok"`
+	ErrorMessage   *string `json:"errorMessage"`
+	ShippingNumber *string `json:"shippingNumber"`
+	TrackingNumber *string `json:"trackingNumber"`
 }
 
 func toggleShippingSent(shippingId int64, enterpriseId int32, userId int32) ToggleShippingSent {
@@ -426,9 +428,12 @@ func toggleShippingSent(shippingId int64, enterpriseId int32, userId int32) Togg
 	if s.Carrier.Webservice != "_" {
 		ok, errorMessage := s.sendShipping(enterpriseId)
 		if ok {
+			s := getShippingRow(shippingId)
 			go ecommerceControllerUpdateTrackingNumber(s.OrderId, s.TrackingNumber, enterpriseId)
+			return ToggleShippingSent{Ok: ok, TrackingNumber: &s.TrackingNumber, ShippingNumber: &s.ShippingNumber}
+		} else {
+			return ToggleShippingSent{Ok: ok, ErrorMessage: errorMessage}
 		}
-		return ToggleShippingSent{Ok: ok, ErrorMessage: errorMessage}
 	}
 
 	s.Sent = !s.Sent
@@ -494,7 +499,7 @@ func setShippingCollected(shippings []int64, enterpriseId int32, userId int32) b
 			return false
 		}
 
-		result := trans.Model(&Shipping{}).Where("id = ?", shippings[i]).Where("collected", true)
+		result := trans.Model(&Shipping{}).Where("id = ?", shippings[i]).Update("collected", true)
 		if result.Error != nil {
 			log("DB", result.Error.Error())
 			trans.Rollback()

@@ -1,6 +1,9 @@
 package main
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
 
 type Packages struct {
 	Id           int32    `json:"id" gorm:"index:_packages_id_enterprise,unique:true,priority:1"`
@@ -21,7 +24,7 @@ func (p *Packages) TableName() string {
 
 func getPackages(enterpriseId int32) []Packages {
 	var packages []Packages = make([]Packages, 0)
-	dbOrm.Model(&Packages{}).Where("enterprise = ?", enterpriseId).Order("id ASC").Find(&packages)
+	dbOrm.Model(&Packages{}).Where("enterprise = ?", enterpriseId).Preload(clause.Associations).Order("id ASC").Find(&packages)
 	return packages
 }
 

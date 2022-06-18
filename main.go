@@ -632,7 +632,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Admin {
 			return
 		}
-		var paginationQuery PaginationQuery
+		var paginationQuery ConnectionLogQuery
 		json.Unmarshal([]byte(message), &paginationQuery)
 		paginationQuery.enterprise = enterpriseId
 		data, _ = json.Marshal(paginationQuery.getConnectionLogs())
@@ -3439,7 +3439,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Sales {
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch SalesInvoiceSearch
 		json.Unmarshal([]byte(message), &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchSalesInvoices())
@@ -3447,7 +3447,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Sales {
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch SalesDeliveryNoteSearch
 		json.Unmarshal([]byte(message), &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchSalesDelvieryNotes())
@@ -3455,7 +3455,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Purchases {
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch PurchaseOrderSearch
 		json.Unmarshal([]byte(message), &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchPurchaseOrder())
@@ -3463,7 +3463,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Purchases {
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch PurchaseInvoiceSearch
 		json.Unmarshal([]byte(message), &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchPurchaseInvoice())
@@ -3471,7 +3471,7 @@ func instructionSearch(command string, message string, mt int, ws *websocket.Con
 		if !permissions.Purchases {
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch PurchaseDeliveryNoteSearch
 		json.Unmarshal([]byte(message), &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		data, _ = json.Marshal(orderSearch.searchPurchaseDeliveryNote())

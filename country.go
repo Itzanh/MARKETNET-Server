@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 
 	"gorm.io/gorm"
@@ -81,7 +80,6 @@ func (c *Country) insertCountry() bool {
 
 	result := dbOrm.Create(&c)
 	if result.Error != nil {
-		fmt.Println(result.Error)
 		log("DB", result.Error.Error())
 		return false
 	}

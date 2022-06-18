@@ -27,7 +27,8 @@ func getWarehouses(enterpriseId int32) []Warehouse {
 }
 
 func (w *Warehouse) isValid() bool {
-	return !(len(w.Id) == 0 || len(w.Id) > 2 || len(w.Name) == 0 || len(w.Name) > 50)
+	w.Id = strings.ToUpper(w.Id)
+	return !(len(w.Id) != 2 || len(w.Name) == 0 || len(w.Name) > 50)
 }
 
 func (w *Warehouse) insertWarehouse() bool {
@@ -83,7 +84,7 @@ func (w *Warehouse) deleteWarehouse() bool {
 
 func findWarehouseByName(warehouseName string, enterpriseId int32) []NameString {
 	var warehouses []NameString = make([]NameString, 0)
-	result := dbOrm.Model(&Currency{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(warehouseName), enterpriseId).Limit(10).Find(&warehouses)
+	result := dbOrm.Model(&Warehouse{}).Where("(UPPER(name) LIKE ? || '%') AND enterprise = ?", strings.ToUpper(warehouseName), enterpriseId).Limit(10).Find(&warehouses)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return warehouses

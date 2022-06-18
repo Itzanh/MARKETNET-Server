@@ -28,6 +28,7 @@ type CollectionOperation struct {
 	PaymentMethod              PaymentMethod            `json:"paymentMethod" gorm:"foreignkey:PaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
 	EnterpriseId               int32                    `json:"-" gorm:"column:enterprise;not null:true;index:collection_operation_id_enterprise,unique:true,priority:2;index:collection_operation_status_enterprise,priority:2"`
 	Enterprise                 Settings                 `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	CustomerName               *string                  `json:"customerName" gorm:"-"`
 }
 
 func (co *CollectionOperation) TableName() string {
@@ -38,19 +39,24 @@ type CollectionOperationPaymentTransactionSearch struct {
 	Mode      uint8      `json:"mode"` // 0 = All, 1 = Pending, 2 = Paid, 3 = Unpaid
 	StartDate *time.Time `json:"startDate"`
 	EndDate   *time.Time `json:"endDate"`
-	Search    string     `json:"search"` // Customer / supplier name
 }
 
 func (search *CollectionOperationPaymentTransactionSearch) isDefault() bool {
-	return search.Mode == 1 && search.StartDate == nil && search.EndDate == nil && len(search.Search) == 0
+	return search.Mode == 1 && search.StartDate == nil && search.EndDate == nil
 }
 
 func getPendingColletionOperations(enterpriseId int32) []CollectionOperation {
 	var collectionOperation []CollectionOperation = make([]CollectionOperation, 0)
 	// get pending collection operations for the current enterprise where the status is 'P' using dbOrm
-	result := dbOrm.Where("status = 'P' AND enterprise = ?", enterpriseId).Order("collection_operation.id DESC").Preload(clause.Associations).Preload("AccountingMovement.SalesInvoice.Customer").Find(&collectionOperation)
+	result := dbOrm.Where("status = 'P' AND enterprise = ?", enterpriseId).Order("collection_operation.id DESC").Preload(clause.Associations).Find(&collectionOperation)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
+	}
+	for i := 0; i < len(collectionOperation); i++ {
+		invoices := getAccountingMovementSaleInvoices(collectionOperation[i].AccountingMovementId)
+		if len(invoices) > 0 {
+			collectionOperation[i].CustomerName = &invoices[0].Customer.Name
+		}
 	}
 	return collectionOperation
 }
@@ -84,9 +90,16 @@ func searchCollectionOperations(search CollectionOperationPaymentTransactionSear
 		cursor.Where("collection_operation.date_created <= ?", search.EndDate)
 	}
 
-	result := cursor.Order("collection_operation.id DESC").Preload(clause.Associations).Preload("AccountingMovement.SalesInvoice.Customer").Find(&collectionOperation)
+	result := cursor.Order("collection_operation.id DESC").Preload(clause.Associations).Find(&collectionOperation)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
+	}
+
+	for i := 0; i < len(collectionOperation); i++ {
+		invoices := getAccountingMovementSaleInvoices(collectionOperation[i].AccountingMovementId)
+		if len(invoices) > 0 {
+			collectionOperation[i].CustomerName = &invoices[0].Customer.Name
+		}
 	}
 
 	return collectionOperation

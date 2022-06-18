@@ -30,7 +30,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
+	q := PurchaseOrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
 	o := q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
@@ -41,7 +41,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
+	q = PurchaseOrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
 	o = q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
@@ -52,7 +52,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
+	q = PurchaseOrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
 	o = q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
@@ -65,7 +65,7 @@ func TestSearchPurchaseOrder(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
+	q = PurchaseOrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchPurchaseOrder().Orders
 
 	for i := 0; i < len(o); i++ {
@@ -981,7 +981,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
+	q := PurchaseInvoiceSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
 	o := q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
@@ -992,7 +992,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
+	q = PurchaseInvoiceSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
 	o = q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
@@ -1003,7 +1003,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
+	q = PurchaseInvoiceSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
 	o = q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
@@ -1016,7 +1016,7 @@ func TestSearchPurchaseInvoice(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
+	q = PurchaseInvoiceSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchPurchaseInvoice().Invoices
 
 	for i := 0; i < len(o); i++ {
@@ -1381,7 +1381,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	}
 
 	// search all
-	q := OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
+	q := PurchaseDeliveryNoteSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}}
 	o := q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
@@ -1392,7 +1392,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	}
 
 	// search for ID
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
+	q = PurchaseDeliveryNoteSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "1"}}
 	o = q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
@@ -1403,7 +1403,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	}
 
 	// search for customer name
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
+	q = PurchaseDeliveryNoteSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}, Search: "Itzan"}}
 	o = q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {
@@ -1416,7 +1416,7 @@ func TestSearchPurchaseDeliveryNote(t *testing.T) {
 	// search with date
 	start := time.Date(2000, 0, 0, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2030, 0, 0, 0, 0, 0, 0, time.UTC)
-	q = OrderSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
+	q = PurchaseDeliveryNoteSearch{PaginatedSearch: PaginatedSearch{PaginationQuery: PaginationQuery{Offset: 0, Limit: MAX_INT32, enterprise: 1}}, DateStart: &start, DateEnd: &end}
 	o = q.searchPurchaseDeliveryNote().Notes
 
 	for i := 0; i < len(o); i++ {

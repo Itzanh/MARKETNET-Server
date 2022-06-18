@@ -2,6 +2,8 @@ package main
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type ShippingTag struct {
@@ -25,6 +27,13 @@ func getShippingTags(shippingId int64, enterpriseId int32) []ShippingTag {
 		log("DB", result.Error.Error())
 	}
 	return tags
+}
+
+func (t *ShippingTag) BeforeCreate(tx *gorm.DB) (err error) {
+	var shippingTag ShippingTag
+	tx.Model(&ShippingTag{}).Last(&shippingTag)
+	t.Id = shippingTag.Id + 1
+	return nil
 }
 
 func (t *ShippingTag) insertShippingTag() bool {

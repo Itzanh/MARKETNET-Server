@@ -22,7 +22,7 @@ func (s *SalesOrderDetailPackaged) TableName() string {
 func getSalesOrderDetailPackaged(packagingId int64, enterpriseId int32) []SalesOrderDetailPackaged {
 	var packaged []SalesOrderDetailPackaged = make([]SalesOrderDetailPackaged, 0)
 	// get the packaged details for this packaging id and enterprise id using dbOrm
-	result := dbOrm.Where("packaging = ? AND enterprise = ?", packagingId, enterpriseId).Preload(clause.Associations).Order("order_detail ASC").Find(&packaged)
+	result := dbOrm.Where("packaging = ? AND enterprise = ?", packagingId, enterpriseId).Preload(clause.Associations).Preload("OrderDetail.Product").Order("order_detail ASC").Find(&packaged)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return nil

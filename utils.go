@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"net/mail"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -218,4 +220,14 @@ func base64ToUuid(base64String string) (string, error) {
 		return "", err
 	}
 	return uuid.String(), nil
+}
+
+func checkHex(hexString string) bool {
+	_, err := hex.DecodeString(hexString)
+	return err == nil
+}
+
+func checkUrl(urlString string) bool {
+	_, err := url.Parse(urlString)
+	return err == nil
 }

@@ -81,7 +81,15 @@ func getPurchaseOrder(enterpriseId int32) PurchaseOrders {
 	return o
 }
 
-func (s *OrderSearch) searchPurchaseOrder() PurchaseOrders {
+type PurchaseOrderSearch struct {
+	PaginatedSearch
+	DateStart          *time.Time `json:"dateStart"`
+	DateEnd            *time.Time `json:"dateEnd"`
+	InvoicedStatus     string     `json:"invoicedStatus"`     // "" = All, A = Invoiced, B = Not invoiced, C = Partially invoiced
+	DeliveryNoteStatus string     `json:"deliveryNoteStatus"` // "" = All, A = Delivered, B = Not delivered, C = Partially delivered
+}
+
+func (s *PurchaseOrderSearch) searchPurchaseOrder() PurchaseOrders {
 	o := PurchaseOrders{}
 	o.Orders = make([]PurchaseOrder, 0)
 
@@ -96,6 +104,24 @@ func (s *OrderSearch) searchPurchaseOrder() PurchaseOrders {
 		}
 		if s.DateEnd != nil {
 			cursor = cursor.Where("purchase_order.date_created <= ?", s.DateEnd)
+		}
+		if s.InvoicedStatus != "" {
+			if s.InvoicedStatus == "A" {
+				cursor = cursor.Where("purchase_order.lines_number = purchase_order.invoiced_lines")
+			} else if s.InvoicedStatus == "B" {
+				cursor = cursor.Where("purchase_order.lines_number = 0")
+			} else if s.InvoicedStatus == "C" {
+				cursor = cursor.Where("purchase_order.lines_number < purchase_order.invoiced_lines")
+			}
+		}
+		if s.DeliveryNoteStatus != "" {
+			if s.DeliveryNoteStatus == "A" {
+				cursor = cursor.Where("purchase_order.lines_number = purchase_order.delivery_note_lines")
+			} else if s.DeliveryNoteStatus == "B" {
+				cursor = cursor.Where("purchase_order.lines_number = 0")
+			} else if s.DeliveryNoteStatus == "C" {
+				cursor = cursor.Where("purchase_order.lines_number < purchase_order.delivery_note_lines")
+			}
 		}
 	}
 	result := cursor.Preload(clause.Associations).Order("purchase_order.date_created DESC").Count(&o.Rows).Find(&o.Orders)
@@ -114,6 +140,24 @@ func (s *OrderSearch) searchPurchaseOrder() PurchaseOrders {
 		}
 		if s.DateEnd != nil {
 			cursor = cursor.Where("purchase_order.date_created <= ?", s.DateEnd)
+		}
+		if s.InvoicedStatus != "" {
+			if s.InvoicedStatus == "A" {
+				cursor = cursor.Where("purchase_order.lines_number = purchase_order.invoiced_lines")
+			} else if s.InvoicedStatus == "B" {
+				cursor = cursor.Where("purchase_order.lines_number = 0")
+			} else if s.InvoicedStatus == "C" {
+				cursor = cursor.Where("purchase_order.lines_number < purchase_order.invoiced_lines")
+			}
+		}
+		if s.DeliveryNoteStatus != "" {
+			if s.DeliveryNoteStatus == "A" {
+				cursor = cursor.Where("purchase_order.lines_number = purchase_order.delivery_note_lines")
+			} else if s.DeliveryNoteStatus == "B" {
+				cursor = cursor.Where("purchase_order.lines_number = 0")
+			} else if s.DeliveryNoteStatus == "C" {
+				cursor = cursor.Where("purchase_order.lines_number < purchase_order.delivery_note_lines")
+			}
 		}
 	}
 	result = cursor.Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&o.Footer)

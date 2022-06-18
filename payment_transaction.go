@@ -28,6 +28,7 @@ type PaymentTransaction struct {
 	PaymentMethod              PaymentMethod            `json:"paymentMethod" gorm:"foreignkey:PaymentMethodId,EnterpriseId;references:Id,EnterpriseId"`
 	EnterpriseId               int32                    `json:"-" gorm:"column:enterprise;not null:true;index:payment_transaction_id_enterprise,unique:true,priority:2"`
 	Enterprise                 Settings                 `json:"-" gorm:"foreignKey:EnterpriseId;references:Id"`
+	SupplierName               *string                  `json:"supplierName" gorm:"-"`
 }
 
 func (pt *PaymentTransaction) TableName() string {
@@ -40,6 +41,12 @@ func getPendingPaymentTransaction(enterpriseId int32) []PaymentTransaction {
 	result := dbOrm.Model(&PaymentTransaction{}).Where("payment_transaction.status = ? AND payment_transaction.enterprise = ?", "P", enterpriseId).Preload(clause.Associations).Preload("AccountingMovement.PurchaseInvoice.Supplier").Order("payment_transaction.id DESC").Find(&paymentTransaction)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
+	}
+	for i := 0; i < len(paymentTransaction); i++ {
+		invoices := getAccountingMovementPurchaseInvoices(paymentTransaction[i].AccountingMovementId)
+		if len(invoices) > 0 {
+			paymentTransaction[i].SupplierName = &invoices[0].Supplier.Name
+		}
 	}
 	return paymentTransaction
 }
@@ -77,6 +84,13 @@ func searchPaymentTransactions(search CollectionOperationPaymentTransactionSearc
 	result := cursor.Preload(clause.Associations).Preload("AccountingMovement.PurchaseInvoice.Supplier").Order("payment_transaction.id DESC").Find(&paymentTransaction)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
+	}
+
+	for i := 0; i < len(paymentTransaction); i++ {
+		invoices := getAccountingMovementPurchaseInvoices(paymentTransaction[i].AccountingMovementId)
+		if len(invoices) > 0 {
+			paymentTransaction[i].SupplierName = &invoices[0].Supplier.Name
+		}
 	}
 
 	return paymentTransaction

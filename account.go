@@ -55,7 +55,7 @@ func (s *AccountSearch) searchAccounts(enterpriseId int32) []Account {
 		interfaces = append(interfaces, enterpriseId)
 	}
 
-	result := dbOrm.Model(&Account{}).Where(query, interfaces...).Order("account.account_name ASC").Find(&accounts)
+	result := dbOrm.Model(&Account{}).Where(query, interfaces...).Order("account.account_name ASC").Preload(clause.Associations).Find(&accounts)
 	if result.Error != nil {
 		fmt.Println(result.Error)
 		log("DB", result.Error.Error())
@@ -138,7 +138,6 @@ func (a *Account) updateAccount() bool {
 		return false
 	}
 
-	account.JournalId = a.JournalId
 	account.Name = a.Name
 	account.AccountNumber = a.AccountNumber
 	account.setAccountName()

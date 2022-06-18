@@ -72,7 +72,15 @@ func getPurchaseDeliveryNotes(enterpriseId int32) PurchaseDeliveryNotes {
 	return dn
 }
 
-func (s *OrderSearch) searchPurchaseDeliveryNote() PurchaseDeliveryNotes {
+type PurchaseDeliveryNoteSearch struct {
+	PaginatedSearch
+	DateStart     *time.Time `json:"dateStart"`
+	DateEnd       *time.Time `json:"dateEnd"`
+	NotPosted     bool       `json:"notPosted"`
+	BillingSeries *string    `json:"billingSeries"`
+}
+
+func (s *PurchaseDeliveryNoteSearch) searchPurchaseDeliveryNote() PurchaseDeliveryNotes {
 	dn := PurchaseDeliveryNotes{}
 	dn.Notes = make([]PurchaseDeliveryNote, 0)
 	cursor := dbOrm.Model(&PurchaseDeliveryNote{}).Where("purchase_delivery_note.enterprise = ?", s.enterprise)
@@ -86,6 +94,9 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() PurchaseDeliveryNotes {
 		}
 		if s.DateEnd != nil {
 			cursor = cursor.Where("purchase_delivery_note.date_created <= ?", s.DateEnd)
+		}
+		if s.BillingSeries != nil {
+			cursor = cursor.Where("purchase_delivery_note.billing_series = ?", *s.BillingSeries)
 		}
 	}
 	result := cursor.Order("purchase_delivery_note.date_created DESC").Preload(clause.Associations).Count(&dn.Rows).Find(&dn.Notes)
@@ -104,6 +115,9 @@ func (s *OrderSearch) searchPurchaseDeliveryNote() PurchaseDeliveryNotes {
 		}
 		if s.DateEnd != nil {
 			cursor = cursor.Where("purchase_delivery_note.date_created <= ?", s.DateEnd)
+		}
+		if s.BillingSeries != nil {
+			cursor = cursor.Where("purchase_delivery_note.billing_series = ?", *s.BillingSeries)
 		}
 	}
 	result = cursor.Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&dn.Footer)

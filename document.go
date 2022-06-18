@@ -66,11 +66,6 @@ func getDocuments(enterpriseId int32) []Document {
 func (d *Document) getDocumentsRelations(enterpriseId int32) []Document {
 	var documents []Document = make([]Document, 0)
 
-	docDB := getDocumentRowById(d.Id)
-	if docDB.EnterpriseId != enterpriseId {
-		return documents
-	}
-
 	var query string
 	var interfaces []interface{} = make([]interface{}, 0)
 	if d.SalesOrderId != nil {
@@ -97,7 +92,7 @@ func (d *Document) getDocumentsRelations(enterpriseId int32) []Document {
 	} else {
 		return documents
 	}
-	dbOrm.Model(&Document{}).Where(query, interfaces...).Order("id DESC").Find(&documents)
+	dbOrm.Model(&Document{}).Where(query, interfaces...).Where("enterprise = ?", enterpriseId).Order("id DESC").Find(&documents)
 	return documents
 }
 

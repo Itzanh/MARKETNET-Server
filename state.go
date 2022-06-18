@@ -46,10 +46,6 @@ func getStateRow(id int32) State {
 	return s
 }
 
-func (c *State) isValid() bool {
-	return !(c.CountryId <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.IsoCode) > 7)
-}
-
 func searchStates(search string, enterpriseId int32) []State {
 	var states []State = make([]State, 0)
 	result := dbOrm.Model(&State{}).Where("state.name ILIKE @search AND state.enterprise = @enterpriseId", sql.Named("search", "%"+search+"%"), sql.Named("enterpriseId", enterpriseId)).Preload("Country").Order("state.id ASC").Find(&states)
@@ -64,6 +60,10 @@ func (s *State) BeforeCreate(tx *gorm.DB) (err error) {
 	tx.Model(&State{}).Last(&state)
 	s.Id = state.Id + 1
 	return nil
+}
+
+func (c *State) isValid() bool {
+	return !(c.CountryId <= 0 || len(c.Name) == 0 || len(c.Name) > 100 || len(c.IsoCode) > 7)
 }
 
 func (s *State) insertState() bool {

@@ -61,7 +61,7 @@ func (q *TransferBetweenWarehousesQuery) searchTransferBetweenWarehouses() []Tra
 
 func getTransferBetweenWarehousesRow(transferBetweenWarehousesId int64) TransferBetweenWarehouses {
 	t := TransferBetweenWarehouses{}
-	result := dbOrm.Where("id = ?", transferBetweenWarehousesId).First(&t)
+	result := dbOrm.Where("id = ?", transferBetweenWarehousesId).Preload(clause.Associations).First(&t)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 	}

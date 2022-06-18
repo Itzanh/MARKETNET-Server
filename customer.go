@@ -18,7 +18,7 @@ type Customer struct {
 	FiscalName            string         `json:"fiscalName" gorm:"type:character varying(150);not null:true"`
 	TaxId                 string         `json:"taxId" gorm:"type:character varying(25);not null:true;index:customer_tax_id,type:gin"`
 	VatNumber             string         `json:"vatNumber" gorm:"type:character varying(25);not null:true"`
-	Phone                 string         `json:"phone" gorm:"type:character varying(15);not null:true"`
+	Phone                 string         `json:"phone" gorm:"type:character varying(15);not null:true;index:customer_phone,type:gin"`
 	Email                 string         `json:"email" gorm:"type:character varying(150);not null:true;index:customer_email,type:gin"`
 	MainAddressId         *int32         `json:"mainAddressId" gorm:"column:main_address"`
 	MainAddress           *Address       `json:"mainAddress" gorm:"foreignKey:MainAddressId,EnterpriseId;references:Id,EnterpriseId"`
@@ -80,7 +80,7 @@ func (s *PaginatedSearch) searchCustomers() Customers {
 	ct.Customers = make([]Customer, 0)
 
 	// get all customers from the database using dbOrm
-	dbOrm.Model(&Customer{}).Where("(name ILIKE @search OR tax_id ILIKE @search OR email ILIKE @search) AND enterprise = @enterpriseId", sql.Named("search", "%"+s.Search+"%"), sql.Named("enterpriseId", s.enterprise)).Limit(int(s.Limit)).Offset(int(s.Offset)).Preload(clause.Associations).Order("customer.id DESC").Find(&ct.Customers)
+	dbOrm.Model(&Customer{}).Where("(name ILIKE @search OR tax_id ILIKE @search OR email ILIKE @search OR phone ILIKE @search) AND enterprise = @enterpriseId", sql.Named("search", "%"+s.Search+"%"), sql.Named("enterpriseId", s.enterprise)).Limit(int(s.Limit)).Offset(int(s.Offset)).Preload(clause.Associations).Order("customer.id DESC").Find(&ct.Customers)
 
 	// get the total number of customers from the database using dbOrm
 	dbOrm.Model(&Customer{}).Count(&ct.Rows)

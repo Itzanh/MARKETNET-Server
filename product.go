@@ -71,6 +71,7 @@ func getProduct(enterpriseId int32) []Product {
 type ProductSearch struct {
 	Search            string `json:"search"`
 	TrackMinimumStock bool   `json:"trackMinimumStock"`
+	FamilyId          *int32 `json:"familyId"`
 }
 
 func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
@@ -87,13 +88,15 @@ func (search *ProductSearch) searchProduct(enterpriseId int32) []Product {
 		}
 	}
 
-	var query string
+	query := `((product.name ILIKE @search) OR (product.barcode = @text) OR (product.reference ILIKE @search) OR (product_family.name ILIKE @search)) AND (product.enterprise = @enterpriseId)`
+	cursor := dbOrm.Model(&Product{}).Where(query, sql.Named("search", "%"+search.Search+"%"), sql.Named("enterpriseId", enterpriseId), sql.Named("text", search.Search))
 	if search.TrackMinimumStock {
-		query = `(((product.name ILIKE @search) OR (product.barcode = @text)) AND product.track_minimum_stock=true) AND (product.enterprise = @enterpriseId)`
-	} else {
-		query = `((product.name ILIKE @search) OR (product.barcode = @text) OR (product.reference ILIKE @search) OR (product_family.name ILIKE @search)) AND (product.enterprise = @enterpriseId)`
+		cursor = cursor.Where("product.track_minimum_stock = true")
 	}
-	result := dbOrm.Model(&Product{}).Where(query, sql.Named("search", "%"+search.Search+"%"), sql.Named("enterpriseId", enterpriseId), sql.Named("text", search.Search)).Joins("FULL JOIN product_family ON product.family = product_family.id").Preload(clause.Associations).Order("id ASC").Find(&products)
+	if search.FamilyId != nil {
+		cursor = cursor.Where("product.family = ?", *search.FamilyId)
+	}
+	result := cursor.Joins("FULL JOIN product_family ON product.family = product_family.id").Preload(clause.Associations).Order("id ASC").Find(&products)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 	}

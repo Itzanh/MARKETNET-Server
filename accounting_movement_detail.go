@@ -77,10 +77,6 @@ func (a *AccountingMovementDetail) insertAccountingMovementDetail(userId int32, 
 		return false
 	}
 
-	/*// Round float to 2 decimal places (round to nearest)
-	a.Credit = float64(math.Round(float64(a.Credit)*100) / 100)
-	a.Debit = float64(math.Round(float64(a.Debit)*100) / 100)*/
-
 	result := trans.Create(&a)
 	if result.Error != nil {
 		log("DB", result.Error.Error())

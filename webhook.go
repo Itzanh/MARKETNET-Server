@@ -47,7 +47,7 @@ func getWebHookSettings(enterpriseId int32) []WebHookSettings {
 }
 
 func (s *WebHookSettings) isValid() bool {
-	return !(len(s.Url) == 0 || len(s.Url) > 255 || (s.AuthMethod != "H" && s.AuthMethod != "P"))
+	return !(len(s.Url) == 0 || len(s.Url) > 255 || !checkUrl(s.Url) || (s.AuthMethod != "H" && s.AuthMethod != "P"))
 }
 
 func (s *WebHookSettings) BeforeCreate(tx *gorm.DB) (err error) {

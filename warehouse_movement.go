@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"time"
 
 	"gorm.io/gorm"
@@ -479,12 +480,14 @@ type WarehouseMovementRelations struct {
 	SalesOrderName             *string                     `json:"saleOrderName"`
 	ManufacturingOrders        []ManufacturingOrder        `json:"manufacturingOrders"`
 	ComplexManufacturingOrders []ComplexManufacturingOrder `json:"complexManufacturingOrders"`
+	TransferBetweenWarehouses  []TransferBetweenWarehouses `json:"transferBetweenWarehouses"`
 }
 
 func getWarehouseMovementRelations(warehouseMovementId int64, enterpriseId int32) WarehouseMovementRelations {
 	r := WarehouseMovementRelations{}
 	r.ManufacturingOrders = make([]ManufacturingOrder, 0)
 	r.ComplexManufacturingOrders = make([]ComplexManufacturingOrder, 0)
+	r.TransferBetweenWarehouses = make([]TransferBetweenWarehouses, 0)
 
 	movement := getWarehouseMovementRow(warehouseMovementId)
 
@@ -522,6 +525,17 @@ func getWarehouseMovementRelations(warehouseMovementId int64, enterpriseId int32
 	result = dbOrm.Model(&ManufacturingOrder{}).Where("warehouse_movement = ? AND enterprise = ?", warehouseMovementId, enterpriseId).Find(&r.ManufacturingOrders)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
+	}
+
+	// transfer between warehouses
+	var transferBetweenWarehousesIds []int64
+	result = dbOrm.Model(&TransferBetweenWarehousesDetail{}).Where("(warehouse_movement_out = @warehouseMovementId OR warehouse_movement_in = @warehouseMovementId) AND enterprise = @enterpriseId", sql.Named("warehouseMovementId", warehouseMovementId), sql.Named("enterpriseId", enterpriseId)).Select("transfer_between_warehouses").Distinct().Scan(&transferBetweenWarehousesIds)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+	}
+
+	for i := 0; i < len(transferBetweenWarehousesIds); i++ {
+		r.TransferBetweenWarehouses = append(r.TransferBetweenWarehouses, getTransferBetweenWarehousesRow(transferBetweenWarehousesIds[i]))
 	}
 
 	return r

@@ -736,6 +736,10 @@ type TrialBalanceQuery struct {
 	Journal   int32     `json:"journal"`
 }
 
+func (q *TrialBalanceQuery) isValid() bool {
+	return !(q.Journal <= 0 || q.DateStart.IsZero() || q.DateEnd.IsZero())
+}
+
 type TrialBalanceAccount struct {
 	JournalId int32   `json:"journalId" gorm:"column:journal"`
 	AccountId int32   `json:"accountId" gorm:"column:account"`
@@ -747,6 +751,10 @@ type TrialBalanceAccount struct {
 
 func (q *TrialBalanceQuery) getTrialBalance(enterpriseId int32) []TrialBalanceAccount {
 	balance := make([]TrialBalanceAccount, 0)
+	if !q.isValid() {
+		return balance
+	}
+
 	result := dbOrm.Model(&AccountingMovementDetail{}).Where("accounting_movement_detail.journal = ? AND accounting_movement_detail.enterprise = ? AND accounting_movement_detail.date_created >= ? AND accounting_movement_detail.date_created <= ?", q.Journal, enterpriseId, q.DateStart, q.DateEnd).Select("accounting_movement_detail.journal, accounting_movement_detail.account, SUM(accounting_movement_detail.debit) AS debit, SUM(accounting_movement_detail.credit) AS credit").Group("accounting_movement_detail.journal,accounting_movement_detail.account").Find(&balance)
 	if result.Error != nil {
 		log("DB", result.Error.Error())

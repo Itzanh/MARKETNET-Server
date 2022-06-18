@@ -311,7 +311,7 @@ func (o *ManufacturingOrder) deleteManufacturingOrder(userId int32, trans *gorm.
 	}
 
 	inMemoryManufacturingOrder := getManufacturingOrderRow(o.Id)
-	if inMemoryManufacturingOrder.Id <= 0 || inMemoryManufacturingOrder.EnterpriseId != o.EnterpriseId {
+	if inMemoryManufacturingOrder.Id <= 0 || inMemoryManufacturingOrder.EnterpriseId != o.EnterpriseId || inMemoryManufacturingOrder.Manufactured {
 		return false
 	}
 
@@ -605,17 +605,23 @@ func (orderInfo *ManufacturingOrderGenerate) manufacturingOrderPartiallySaleOrde
 			return false
 		}
 		if orderDetail.Status == "C" {
-			o := ManufacturingOrder{}
-			o.ProductId = orderDetail.ProductId
-			o.OrderDetailId = &orderDetail.Id
-			o.OrderId = &orderDetail.OrderId
-			o.UserCreatedId = userId
-			o.EnterpriseId = enterpriseId
-			o.WarehouseId = orderDetail.WarehouseId
-			ok := o.insertManufacturingOrder(userId, trans).Ok
-			if !ok {
-				trans.Rollback()
-				return false
+			manufacturingOrderType := getManufacturingOrderTypeRow(orderDetail.ProductId)
+			if manufacturingOrderType.Id <= 0 || manufacturingOrderType.QuantityManufactured <= 0 || manufacturingOrderType.Complex {
+				continue
+			}
+			for j := 0; j < int(orderInfoSelection.Quantity); j += int(manufacturingOrderType.QuantityManufactured) {
+				o := ManufacturingOrder{}
+				o.ProductId = orderDetail.ProductId
+				o.OrderDetailId = &orderDetail.Id
+				o.OrderId = &orderDetail.OrderId
+				o.UserCreatedId = userId
+				o.EnterpriseId = enterpriseId
+				o.WarehouseId = orderDetail.WarehouseId
+				ok := o.insertManufacturingOrder(userId, trans).Ok
+				if !ok {
+					trans.Rollback()
+					return false
+				}
 			}
 		}
 	}
@@ -628,6 +634,14 @@ func (orderInfo *ManufacturingOrderGenerate) manufacturingOrderPartiallySaleOrde
 
 func manufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int32) bool {
 	if orderId <= 0 {
+		return false
+	}
+
+	inMemoryManufacturingOrder := getManufacturingOrderRow(orderId)
+	if inMemoryManufacturingOrder.Id <= 0 || inMemoryManufacturingOrder.EnterpriseId != enterpriseId {
+		return false
+	}
+	if inMemoryManufacturingOrder.TagPrinted {
 		return false
 	}
 

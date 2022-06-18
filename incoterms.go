@@ -1,6 +1,10 @@
 package main
 
-import "gorm.io/gorm"
+import (
+	"strings"
+
+	"gorm.io/gorm"
+)
 
 type Incoterm struct {
 	Id           int32    `json:"id" gorm:"index:incoterm_id_enterprise,unique:true,priority:1"`
@@ -21,6 +25,7 @@ func getIncoterm(enterpriseId int32) []Incoterm {
 }
 
 func (i *Incoterm) isValid() bool {
+	i.Key = strings.ToUpper(i.Key)
 	return !(len(i.Key) == 0 || len(i.Key) > 3 || len(i.Name) == 0 || len(i.Name) > 50)
 }
 

@@ -87,7 +87,15 @@ func getSalesDeliveryNoteRow(deliveryNoteId int64) SalesDeliveryNote {
 	return n
 }
 
-func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
+type SalesDeliveryNoteSearch struct {
+	PaginatedSearch
+	DateStart     *time.Time `json:"dateStart"`
+	DateEnd       *time.Time `json:"dateEnd"`
+	NotPosted     bool       `json:"notPosted"`
+	BillingSeries *string    `json:"billingSeries"`
+}
+
+func (s *SalesDeliveryNoteSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 	sd := SalesDeliveryNotes{}
 	if !s.isValid() {
 		return sd
@@ -106,6 +114,9 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 		if s.DateEnd != nil {
 			cursor = cursor.Where("sales_delivery_note.date_created <= ?", s.DateEnd)
 		}
+		if s.BillingSeries != nil {
+			cursor = cursor.Where("sales_delivery_note.billing_series = ?", *s.BillingSeries)
+		}
 	}
 	result := cursor.Offset(int(s.Offset)).Limit(int(s.Limit)).Order("sales_delivery_note.date_created DESC").Preload(clause.Associations).Count(&sd.Rows).Find(&sd.Notes)
 	if result.Error != nil {
@@ -123,6 +134,9 @@ func (s *OrderSearch) searchSalesDelvieryNotes() SalesDeliveryNotes {
 		}
 		if s.DateEnd != nil {
 			cursor = cursor.Where("sales_delivery_note.date_created <= ?", s.DateEnd)
+		}
+		if s.BillingSeries != nil {
+			cursor = cursor.Where("sales_delivery_note.billing_series = ?", *s.BillingSeries)
 		}
 	}
 	result = cursor.Select("SUM(total_products) as total_products, SUM(total_amount) as total_amount").Scan(&sd.Footer)

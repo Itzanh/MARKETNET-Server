@@ -4093,7 +4093,7 @@ func apiPostSaleInvoices(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch SalesInvoiceSearch
 		json.Unmarshal(body, &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		orderSearch.NotPosted = true
@@ -4155,7 +4155,7 @@ func apiPostPurchaseInvoices(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		var orderSearch OrderSearch
+		var orderSearch PurchaseInvoiceSearch
 		json.Unmarshal(body, &orderSearch)
 		orderSearch.enterprise = enterpriseId
 		orderSearch.NotPosted = true

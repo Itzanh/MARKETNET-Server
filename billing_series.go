@@ -29,7 +29,8 @@ func getBillingSeries(enterpriseId int32) []BillingSerie {
 }
 
 func (s *BillingSerie) isValid() bool {
-	return !(len(s.Id) == 0 || len(s.Id) > 3 || len(s.Name) == 0 || len(s.Name) > 50 || s.Year <= 0 || (s.BillingType != "S" && s.BillingType != "P"))
+	s.Id = strings.ToUpper(s.Id)
+	return !(len(s.Id) != 3 || len(s.Name) == 0 || len(s.Name) > 50 || s.Year <= 0 || (s.BillingType != "S" && s.BillingType != "P"))
 }
 
 func (s *BillingSerie) insertBillingSerie() bool {

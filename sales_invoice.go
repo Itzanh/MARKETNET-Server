@@ -83,7 +83,18 @@ type OrderSearch struct {
 	NotPosted bool       `json:"notPosted"`
 }
 
-func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
+type SalesInvoiceSearch struct {
+	PaginatedSearch
+	DateStart         *time.Time `json:"dateStart"`
+	DateEnd           *time.Time `json:"dateEnd"`
+	NotPosted         bool       `json:"notPosted"`
+	PostedStatus      string     `json:"postedStatus"`      // "" = All, "P" = Posted, "N" = Not Posted
+	SimplifiedInvoice string     `json:"simplifiedInvoice"` // "" = All, "S" = Simplified, "F" = Full
+	Amending          string     `json:"amending"`          // "" = All, "A" = Amending, "R" = Regular
+	BillingSeries     *string    `json:"billingSeries"`
+}
+
+func (s *SalesInvoiceSearch) searchSalesInvoices() SaleInvoices {
 	si := SaleInvoices{}
 	if !s.isValid() {
 		return si
@@ -106,6 +117,30 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 		if s.NotPosted {
 			cursor = cursor.Where("sales_invoice.accounting_movement IS NULL")
 		}
+		if s.PostedStatus != "" {
+			if s.PostedStatus == "P" {
+				cursor = cursor.Where("sales_invoice.accounting_movement IS NOT NULL")
+			} else if s.PostedStatus == "N" {
+				cursor = cursor.Where("sales_invoice.accounting_movement IS NULL")
+			}
+		}
+		if s.SimplifiedInvoice != "" {
+			if s.SimplifiedInvoice == "S" {
+				cursor = cursor.Where("sales_invoice.simplified_invoice = ?", true)
+			} else if s.SimplifiedInvoice == "F" {
+				cursor = cursor.Where("sales_invoice.simplified_invoice = ?", false)
+			}
+		}
+		if s.Amending != "" {
+			if s.Amending == "A" {
+				cursor = cursor.Where("sales_invoice.amending = ?", true)
+			} else if s.Amending == "R" {
+				cursor = cursor.Where("sales_invoice.amending = ?", false)
+			}
+		}
+		if s.BillingSeries != nil {
+			cursor = cursor.Where("sales_invoice.billing_series = ?", *s.BillingSeries)
+		}
 	}
 	result := cursor.Order("sales_invoice.date_created DESC").Offset(int(s.Offset)).Limit(int(s.Limit)).Preload(clause.Associations).Find(&si.Invoices)
 	if result.Error != nil {
@@ -126,6 +161,30 @@ func (s *OrderSearch) searchSalesInvoices() SaleInvoices {
 		}
 		if s.NotPosted {
 			cursor = cursor.Where("sales_invoice.accounting_movement IS NULL")
+		}
+		if s.PostedStatus != "" {
+			if s.PostedStatus == "P" {
+				cursor = cursor.Where("sales_invoice.accounting_movement IS NOT NULL")
+			} else if s.PostedStatus == "N" {
+				cursor = cursor.Where("sales_invoice.accounting_movement IS NULL")
+			}
+		}
+		if s.SimplifiedInvoice != "" {
+			if s.SimplifiedInvoice == "S" {
+				cursor = cursor.Where("sales_invoice.simplified_invoice = ?", true)
+			} else if s.SimplifiedInvoice == "N" {
+				cursor = cursor.Where("sales_invoice.simplified_invoice = ?", false)
+			}
+		}
+		if s.Amending != "" {
+			if s.Amending == "A" {
+				cursor = cursor.Where("sales_invoice.amending = ?", true)
+			} else if s.Amending == "R" {
+				cursor = cursor.Where("sales_invoice.amending = ?", false)
+			}
+		}
+		if s.BillingSeries != nil {
+			cursor = cursor.Where("sales_invoice.billing_series = ?", *s.BillingSeries)
 		}
 	}
 	result = cursor.Count(&si.Rows).Select("SUM(total_products) AS total_products,SUM(total_amount) AS total_amount").Scan(&si.Footer)

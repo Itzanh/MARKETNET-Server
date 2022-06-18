@@ -76,7 +76,7 @@ func getConnections(enterpriseId int32) []ConnectionWeb {
 		}
 		var userName string
 		// get a user's username from the user id in the connection using dbOrm
-		dbOrm.Model(&User{}).Where("id = ?", connections[i].User).Pluck("name", &userName)
+		dbOrm.Model(&User{}).Where("id = ?", connections[i].User).Pluck("username", &userName)
 		conn = append(conn, ConnectionWeb{Id: connections[i].Id, Address: connections[i].Address, User: userName, DateConnected: connections[i].DateConnected})
 	}
 

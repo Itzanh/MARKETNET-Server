@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -31,7 +32,9 @@ func getLanguages(enterpriseId int32) []Language {
 }
 
 func (l *Language) isValid() bool {
-	return !(len(l.Name) == 0 || len(l.Name) > 50 || len(l.Iso2) != 2 || (len(l.Iso3) != 0 && len(l.Iso3) != 3))
+	l.Iso2 = strings.ToUpper(l.Iso2)
+	l.Iso3 = strings.ToUpper(l.Iso3)
+	return !(len(l.Name) == 0 || len(l.Name) > 50 || len(l.Iso2) != 2 || len(l.Iso3) != 3)
 }
 
 func searchLanguages(search string, enterpriseId int32) []Language {

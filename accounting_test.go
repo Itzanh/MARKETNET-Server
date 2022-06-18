@@ -283,7 +283,6 @@ func TestSearchCollectionOperations(t *testing.T) {
 		Mode:      0,
 		StartDate: nil,
 		EndDate:   nil,
-		Search:    "",
 	}
 
 	collectionOperation := searchCollectionOperations(search, 1)
@@ -332,7 +331,6 @@ func TestSearchPaymentTransactions(t *testing.T) {
 		Mode:      0,
 		StartDate: nil,
 		EndDate:   nil,
-		Search:    "",
 	}
 
 	paymentTransaction := searchPaymentTransactions(search, 1)

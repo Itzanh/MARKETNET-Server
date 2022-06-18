@@ -45,7 +45,7 @@ func (q *ManufacturingPaginationQuery) getComplexManufacturingOrder(enterpriseId
 	if q.isDefault() {
 		return (q.PaginationQuery).getAllComplexManufacturingOrders(enterpriseId)
 	} else {
-		return q.getComplexManufacturingOrdersByType(enterpriseId)
+		return q.searchComplexManufacturingOrders(enterpriseId)
 	}
 }
 
@@ -65,9 +65,28 @@ func (q *PaginationQuery) getAllComplexManufacturingOrders(enterpriseId int32) C
 	return mo
 }
 
-func (q *ManufacturingPaginationQuery) getComplexManufacturingOrdersByType(enterpriseId int32) ComplexManufacturingOrders {
+func (q *ManufacturingPaginationQuery) searchComplexManufacturingOrders(enterpriseId int32) ComplexManufacturingOrders {
 	mo := ComplexManufacturingOrders{}
 	mo.ComplexManufacturingOrders = make([]ComplexManufacturingOrder, 0)
+
+	if len(q.Uuid) == 36 && checkUUID(q.Uuid) {
+		manufacturingOrder := getComplexManufacturingOrderByUUID(q.Uuid, enterpriseId)
+		if manufacturingOrder.Id > 0 {
+			mo.ComplexManufacturingOrders = append(mo.ComplexManufacturingOrders, manufacturingOrder)
+			mo.Rows = 1
+		}
+		return mo
+	} else if checkBase64(q.Uuid) {
+		decodedUuid, err := base64ToUuid(q.Uuid)
+		if err == nil {
+			manufacturingOrder := getComplexManufacturingOrderByUUID(decodedUuid, enterpriseId)
+			if manufacturingOrder.Id > 0 {
+				mo.ComplexManufacturingOrders = append(mo.ComplexManufacturingOrders, manufacturingOrder)
+				mo.Rows = 1
+			}
+			return mo
+		}
+	}
 
 	cursor := dbOrm.Model(&ComplexManufacturingOrder{}).Where("enterprise = ?", enterpriseId)
 	if q.OrderTypeId != 0 {
@@ -111,6 +130,16 @@ func getComplexManufacturingOrderRowTransaction(complexManufacturingOrderId int6
 		return c
 	}
 	return c
+}
+
+func getComplexManufacturingOrderByUUID(manufacturingOrderUUID string, enterpriseId int32) ComplexManufacturingOrder {
+	o := ComplexManufacturingOrder{}
+	result := dbOrm.Model(&ComplexManufacturingOrder{}).Where("uuid = ? AND enterprise = ?", manufacturingOrderUUID, enterpriseId).Preload(clause.Associations).First(&o)
+	if result.Error != nil {
+		log("DB", result.Error.Error())
+		return o
+	}
+	return o
 }
 
 // Specify a negative number to substract
@@ -572,6 +601,9 @@ func (c *ComplexManufacturingOrder) deleteComplexManufacturingOrder(userId int32
 	if orderInMemory.Id <= 0 || orderInMemory.EnterpriseId != c.EnterpriseId {
 		return false
 	}
+	if orderInMemory.Manufactured {
+		return false
+	}
 
 	components := getComplexManufacturingOrderManufacturingOrder(c.Id, c.EnterpriseId)
 
@@ -1019,6 +1051,14 @@ func setComplexManufacturingOrderManufacturingOrderManufactured(manufacturingOrd
 
 func complexManufacturingOrderTagPrinted(orderId int64, userId int32, enterpriseId int32) bool {
 	if orderId <= 0 {
+		return false
+	}
+
+	inMemoryManufacturingOrder := getComplexManufacturingOrderRow(orderId)
+	if inMemoryManufacturingOrder.Id <= 0 || inMemoryManufacturingOrder.EnterpriseId != enterpriseId {
+		return false
+	}
+	if inMemoryManufacturingOrder.TagPrinted {
 		return false
 	}
 
