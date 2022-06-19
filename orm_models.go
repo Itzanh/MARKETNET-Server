@@ -25,19 +25,5 @@ func addORMModels() bool {
 		return false
 	}
 
-	// create default rows for Settings Clean Up
-	settingsRecords := getSettingsRecords()
-	for _, settingsRecord := range settingsRecords {
-		settingsCleanUp := SettingsCleanUp{
-			CronCleanTransactionalLog: "@monthly",
-			TransactionalLogDays:      90,
-			CronCleanConnectionLog:    "@weekly",
-			ConnectionLogDays:         30,
-			CronCleanLoginToken:       "@weekly",
-			EnterpriseId:              settingsRecord.Id,
-		}
-		dbOrm.Create(&settingsCleanUp)
-	}
-
 	return true
 }
