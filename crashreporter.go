@@ -43,14 +43,8 @@ func crashreporter() {
 		return
 	}
 
-	var enterpriseKey string
-	for k := range settings.Server.Activation {
-		enterpriseKey = k
-		break
-	}
 	crashreport := CrashReporter{
-		Logs:        logs,
-		LicenseCode: settings.Server.Activation[enterpriseKey].LicenseCode,
+		Logs: logs,
 	}
 	data, _ := json.Marshal(crashreport)
 	_, err = http.Post(CRASHREPORTER_URL, "application/json", bytes.NewBuffer(data))

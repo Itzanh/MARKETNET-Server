@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math"
+
 	"os"
 	"path"
 	"strings"
@@ -36,18 +36,17 @@ type DatabaseSettings struct {
 
 // Basic info for the app.
 type ServerSettings struct {
-	Port                           uint16                              `json:"port"`
-	HashIterations                 int32                               `json:"hashIterations"`
-	TokenExpirationHours           int16                               `json:"tokenExpirationHours"`
-	MaxLoginAttemps                int16                               `json:"maxLoginAttemps"`
-	CronClearLogs                  string                              `json:"cronClearLogs"`
-	MaxRequestsPerMinuteEnterprise int32                               `json:"maxRequestsPerMinuteEnterprise"`
-	SaaSAccessToken                string                              `json:"SaaSAccessToken"`
-	MaxWebHooksPerEnterprise       uint16                              `json:"maxWebHooksPerEnterprise"`
-	MaxQueueSizePerWebHook         int32                               `json:"maxQueueSizePerWebHook"`
-	WebSecurity                    ServerSettingsWebSecurity           `json:"webSecurity"`
-	TLS                            ServerSettingsTLS                   `json:"tls"`
-	Activation                     map[string]ServerSettingsActivation `json:"activation"`
+	Port                           uint16                    `json:"port"`
+	HashIterations                 int32                     `json:"hashIterations"`
+	TokenExpirationHours           int16                     `json:"tokenExpirationHours"`
+	MaxLoginAttemps                int16                     `json:"maxLoginAttemps"`
+	CronClearLogs                  string                    `json:"cronClearLogs"`
+	MaxRequestsPerMinuteEnterprise int32                     `json:"maxRequestsPerMinuteEnterprise"`
+	SaaSAccessToken                string                    `json:"SaaSAccessToken"`
+	MaxWebHooksPerEnterprise       uint16                    `json:"maxWebHooksPerEnterprise"`
+	MaxQueueSizePerWebHook         int32                     `json:"maxQueueSizePerWebHook"`
+	WebSecurity                    ServerSettingsWebSecurity `json:"webSecurity"`
+	TLS                            ServerSettingsTLS         `json:"tls"`
 }
 
 type ServerSettingsWebSecurity struct {
@@ -64,14 +63,6 @@ type ServerSettingsTLS struct {
 	UseTLS  bool   `json:"useTLS"`
 	CrtPath string `json:"crtPath"`
 	KeyPath string `json:"keyPath"`
-}
-
-// License activation.
-type ServerSettingsActivation struct {
-	LicenseCode string  `json:"licenseCode"`
-	Chance      *string `json:"chance"`
-	Secret      *string `json:"secret"`
-	InstallId   *string `json:"installId"`
 }
 
 func getBackendSettings() (BackendSettings, bool) {
@@ -164,7 +155,6 @@ type Settings struct {
 	PalletWidth                   float64            `json:"palletWidth" gorm:"type:numeric(14,6);not null:true"`
 	PalletHeight                  float64            `json:"palletHeight" gorm:"type:numeric(14,6);not null:true"`
 	PalletDepth                   float64            `json:"palletDepth" gorm:"type:numeric(14,6);not null:true"`
-	MaxConnections                int32              `json:"maxConnections" gorm:"not null:true"`
 	MinimumStockSalesPeriods      int16              `json:"minimumStockSalesPeriods" gorm:"not null:true"`
 	MinimumStockSalesDays         int16              `json:"minimumStockSalesDays" gorm:"not null:true"`
 	CustomerJournalId             *int32             `json:"customerJournalId" gorm:"column:customer_journal"`
@@ -227,7 +217,7 @@ func getSettingsRecordByEnterprise(enterpriseKey string) Settings {
 }
 
 func (s *Settings) isValid() bool {
-	return !(s.DefaultVatPercent < 0 || len(s.DefaultWarehouseId) != 2 || len(s.DateFormat) == 0 || len(s.DateFormat) > 25 || len(s.EnterpriseName) == 0 || len(s.EnterpriseName) > 50 || len(s.EnterpriseDescription) > 250 || (s.Currency != "_" && s.Currency != "E") || len(s.CurrencyECBurl) > 100 || (s.Currency == "E" && len(s.CurrencyECBurl) == 0) || len(s.BarcodePrefix) > 4 || len(s.CronCurrency) > 25 || len(s.CronPrestaShop) > 25 || s.PalletWeight < 0 || s.PalletWidth < 0 || s.PalletHeight < 0 || s.PalletDepth < 0 || s.MaxConnections < 0 || s.MinimumStockSalesPeriods < 0 || s.MinimumStockSalesDays < 0 || s.PasswordMinimumLength < 6 || (s.PasswordMinumumComplexity != "A" && s.PasswordMinumumComplexity != "B" && s.PasswordMinumumComplexity != "C" && s.PasswordMinumumComplexity != "D") || s.InvoiceDeletePolicy < 0 || s.InvoiceDeletePolicy > 2 || s.UndoManufacturingOrderSeconds < 0 || len(s.CronSendCloudTracking) > 25)
+	return !(s.DefaultVatPercent < 0 || len(s.DefaultWarehouseId) != 2 || len(s.DateFormat) == 0 || len(s.DateFormat) > 25 || len(s.EnterpriseName) == 0 || len(s.EnterpriseName) > 50 || len(s.EnterpriseDescription) > 250 || (s.Currency != "_" && s.Currency != "E") || len(s.CurrencyECBurl) > 100 || (s.Currency == "E" && len(s.CurrencyECBurl) == 0) || len(s.BarcodePrefix) > 4 || len(s.CronCurrency) > 25 || len(s.CronPrestaShop) > 25 || s.PalletWeight < 0 || s.PalletWidth < 0 || s.PalletHeight < 0 || s.PalletDepth < 0 || s.MinimumStockSalesPeriods < 0 || s.MinimumStockSalesDays < 0 || s.PasswordMinimumLength < 6 || (s.PasswordMinumumComplexity != "A" && s.PasswordMinumumComplexity != "B" && s.PasswordMinumumComplexity != "C" && s.PasswordMinumumComplexity != "D") || s.InvoiceDeletePolicy < 0 || s.InvoiceDeletePolicy > 2 || s.UndoManufacturingOrderSeconds < 0 || len(s.CronSendCloudTracking) > 25)
 }
 
 func (s *Settings) updateSettingsRecord() bool {
@@ -248,19 +238,6 @@ func (s *Settings) updateSettingsRecord() bool {
 		if acc > 0 {
 			purchaseAccount = &acc
 		}
-	}
-
-	// licensing
-	// not in the license map
-	_, ok := licenseMaxConnections[s.Id]
-	if !ok {
-		s.MaxConnections = 0
-	}
-	// don't let to set more connections than the allowed in the license
-	if s.MaxConnections <= 0 {
-		s.MaxConnections = int32(licenseMaxConnections[s.Id])
-	} else {
-		s.MaxConnections = int32(math.Min(float64(s.MaxConnections), float64(licenseMaxConnections[s.Id])))
 	}
 
 	// limit accounting date
@@ -315,7 +292,6 @@ func (s *Settings) updateSettingsRecord() bool {
 	settingsInDisk.PalletWeight = s.PalletWeight
 	settingsInDisk.PalletHeight = s.PalletHeight
 	settingsInDisk.PalletDepth = s.PalletDepth
-	settingsInDisk.MaxConnections = s.MaxConnections
 	settingsInDisk.MinimumStockSalesPeriods = s.MinimumStockSalesPeriods
 	settingsInDisk.MinimumStockSalesDays = s.MinimumStockSalesDays
 	settingsInDisk.CustomerJournalId = s.CustomerJournalId
@@ -753,16 +729,7 @@ func createNewEnterprise(enterpriseName string, enterpriseDesc string, enterpris
 		return false
 	}
 
-	activation := ServerSettingsActivation{
-		LicenseCode: licenseCode,
-		Chance:      &licenseChance,
-	}
-	settings.Server.Activation[enterpriseKey] = activation
 	settings.setBackendSettings()
-	if !activation.activateEnterprise(enterpriseId) {
-		fmt.Println("Error: Could not activate by license the new enterprise.")
-		return false
-	}
 
 	insert := UserInsert{
 		Username: "marketnet",

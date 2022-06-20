@@ -50,43 +50,8 @@ func handleEnterprise(w http.ResponseWriter, r *http.Request) {
 		newEnterprise := NewEnterpriseRequest{}
 		json.Unmarshal(body, &newEnterprise)
 		ok = createNewEnterprise(newEnterprise.EnterpriseName, newEnterprise.EnterpriseDescription, newEnterprise.EnterpriseKey, newEnterprise.LicenseCode, newEnterprise.LicenseChance, newEnterprise.UserPassword, newEnterprise.DocumentSpace)
-
-	case "PUT":
-		activateEnterprise := EnterpriseActivationRequest{}
-		json.Unmarshal(body, &activateEnterprise)
-		ok = activateEnterprise.reActivateEnterprise()
-
-	case "DELETE":
-		dactivateEnterprise := EnterpriseDeactivationRequest{}
-		json.Unmarshal(body, &dactivateEnterprise)
-		ok = deactivateEnterprise(dactivateEnterprise.EnterpriseKey)
 	}
 
 	json, _ := json.Marshal(ok)
 	w.Write(json)
-}
-
-func (activateEnterprise *EnterpriseActivationRequest) reActivateEnterprise() bool {
-	e := getSettingsRecordByEnterprise(activateEnterprise.EnterpriseKey)
-	if e.Id <= 0 {
-		return false
-	}
-
-	activation := ServerSettingsActivation{
-		LicenseCode: activateEnterprise.LicenseCode,
-		Chance:      &activateEnterprise.LicenseChance,
-	}
-	settings.Server.Activation[activateEnterprise.EnterpriseKey] = activation
-	settings.setBackendSettings()
-	return activation.activateEnterprise(e.Id)
-}
-
-func deactivateEnterprise(enterpriseKey string) bool {
-	sqlStatement := `UPDATE config SET max_connections=0 WHERE enterprise_key=$1`
-	res, err := db.Exec(sqlStatement, enterpriseKey)
-	if err != nil {
-		return false
-	}
-	rows, _ := res.RowsAffected()
-	return rows > 0
 }
