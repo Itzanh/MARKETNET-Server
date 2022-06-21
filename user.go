@@ -52,6 +52,12 @@ func getUserByUsername(enterpriseId int32, username string) User {
 	return user
 }
 
+func searchUsers(enterpriseId int32, search string) []User {
+	var users []User = make([]User, 0)
+	dbOrm.Model(&User{}).Where("config = ? AND username ILIKE ?", enterpriseId, "%"+search+"%").Order("id ASC").Find(&users)
+	return users
+}
+
 func getUserRow(userId int32) User {
 	var user User
 	dbOrm.Model(&User{}).Where("id = ?", userId).First(&user)

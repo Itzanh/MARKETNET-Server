@@ -519,7 +519,7 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 		if !permissions.Admin {
 			return
 		}
-		data, _ = json.Marshal(getUser(enterpriseId))
+		data, _ = json.Marshal(searchUsers(enterpriseId, message))
 	case "GROUPS":
 		if !permissions.Admin {
 			return
