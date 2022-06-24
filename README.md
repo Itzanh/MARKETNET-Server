@@ -46,7 +46,7 @@ Go to the [backend repository](https://github.com/Itzanh/MARKETNET-Server), down
 
 Example of command to compile:
 ```
-go build main.go sales_order.go address.go billing_series.go currency.go payment_method.go warehouse.go language.go country.go state.go customer.go product.go product_family.go color.go sales_order_detail.go stock.go sales_order_discount.go sales_invoice.go sales_invoice_detail.go manufacturing_order.go manufacturing_order_type.go packages.go packaging.go sales_order_detail_packaged.go warehouse_movement.go sales_delivery_note.go incoterms.go carrier.go shipping.go user.go group.go user_group.go login_token.go supplier.go purchase_order.go purchase_order_detail.go needs.go purchase_delivery_note.go purchase_invoice.go purchase_invoice_detail.go initial_data.go settings.go document_container.go document.go prestashop.go reports.go mail.go pallet.go connections.go journal.go account.go accounting_movement.go accounting_movement_detail.go config_accounts_vat.go collection_operation.go charges.go payment_transaction.go payment.go data_generator.go logs.go analytics.go api_rest.go api_key.go sendcloud.go shipping_tag.go woocommerce.go ecommerce.go connection_log.go shopify.go report_template.go saas.go google_authenticator.go transactional_log.go shipping_status_history.go sales_order_detail_digital_product_data.go email_log.go utils.go enterprise_logo.go manufacturing_order_type_components.go complex_manufacturing_order.go pos_terminals.go permission_dictionary.go crashreporter.go product_account.go vat_number_check.go report_translation.go hs_codes.go accounting_reports.go inventory.go webhook.go transfer_between_warehouses.go custom_fields.go orm_models.go label_printer_profile.go transfer_between_warehouses_minimum_stock.go product_included_products.go
+go build main.go sales_order.go address.go billing_series.go currency.go payment_method.go warehouse.go language.go country.go state.go customer.go product.go product_family.go color.go sales_order_detail.go stock.go sales_order_discount.go sales_invoice.go sales_invoice_detail.go manufacturing_order.go manufacturing_order_type.go packages.go packaging.go sales_order_detail_packaged.go warehouse_movement.go sales_delivery_note.go incoterms.go carrier.go shipping.go user.go group.go user_group.go login_token.go supplier.go purchase_order.go purchase_order_detail.go needs.go purchase_delivery_note.go purchase_invoice.go purchase_invoice_detail.go initial_data.go settings.go document_container.go document.go prestashop.go reports.go mail.go pallet.go connections.go journal.go account.go accounting_movement.go accounting_movement_detail.go config_accounts_vat.go collection_operation.go charges.go payment_transaction.go payment.go data_generator.go logs.go analytics.go api_rest.go api_key.go sendcloud.go shipping_tag.go woocommerce.go ecommerce.go connection_log.go shopify.go report_template.go saas.go google_authenticator.go transactional_log.go shipping_status_history.go sales_order_detail_digital_product_data.go email_log.go utils.go enterprise_logo.go manufacturing_order_type_components.go complex_manufacturing_order.go pos_terminals.go permission_dictionary.go product_account.go vat_number_check.go report_translation.go hs_codes.go accounting_reports.go inventory.go webhook.go transfer_between_warehouses.go custom_fields.go orm_models.go label_printer_profile.go transfer_between_warehouses_minimum_stock.go product_included_products.go
 ```
 
 Example of config.json file:
@@ -127,12 +127,8 @@ Please make sure to update tests as appropriate.
 
 ## License
 
-This code is distributed under [AGPL](https://spdx.org/licenses/AGPL-3.0-or-later.html) license.
+This code is distributed under the [AGPL](https://spdx.org/licenses/AGPL-3.0-only.html) license (AGPL-3.0-only).
 
-```
-.\main.exe --dev-no-upgrade-database --add-enterprise enterprise_key=PRODTEST enterprise_name=ProductionTest enterprise_desc=ProductionTest user_password=12345678 license_code=c312cff3-113a-4bdf-8dd3-c8da2094f7f1 license_chance=c312cff3-113a-4bdf-8dd3-c8da20
-```
+You can find the full text of this license in the `COPYING` file.
 
-```
-C:\Program Files\PostgreSQL\13\bin\pg_dump.exe --file "C:\\Users\\Itzan\\Desktop\\go\\MARKET~1\\db.sql" --host "localhost" --port "5432" --username "postgres" --no-password --format=p --schema-only --no-owner --no-privileges --no-comments "marketnet"
-```
+

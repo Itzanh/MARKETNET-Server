@@ -29,14 +29,6 @@
             "useTLS": false,
             "crtPath": "./certificates/fullchain.pem",
             "keyPath": "./certificates/privkey.pem"
-        },
-        "activation": {
-            "MARKETNET": {
-                "licenseCode": "51be72b7-b0fe-4d97-9203-9f9b0eb74e3b",
-                "chance": null,
-                "secret": "TGwu2Q8FoKuo6q2pAKAqrjP0ofKP50",
-                "installId": "48df134a-4950-4ad4-be25-5380f61aed9a"
-            }
         }
     }
 }
