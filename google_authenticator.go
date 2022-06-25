@@ -97,11 +97,14 @@ func authenticateUserInGoogleAuthenticator(userId int32, enterpriseId int32, tok
 
 func removeUserFromGoogleAuthenticator(userId int32, enterpriseId int32) bool {
 	user := getUserRow(userId)
+	if user.EnterpriseId != enterpriseId {
+		return false
+	}
 
 	user.UsesGoogleAuthenticator = false
 	user.GoogleAuthenticatorSecret = nil
 
-	result := dbOrm.Updates(user)
+	result := dbOrm.Save(&user)
 	if result.Error != nil {
 		log("DB", result.Error.Error())
 		return false
