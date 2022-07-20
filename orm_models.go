@@ -28,7 +28,7 @@ func addORMModels() bool {
 		&ShippingStatusHistory{}, &ShippingTag{}, &ProductImage{}, &PwdBlacklist{}, &PwdSHA1Blacklist{}, &PSAddress{}, &PSCarrier{}, &PSCountry{}, &PSCurrency{}, &PSCustomer{}, &PSLanguage{},
 		&PSOrder{}, &PSOrderDetail{}, &PSProduct{}, &PSProductCombination{}, &PSProductOptionValue{}, &PSState{}, &PSZone{}, &SYAddress{}, &SYCustomer{}, &SYDraftOrderLineItem{}, &SYDraftOrder{},
 		&SYOrderLineItem{}, &SYOrder{}, &SYProduct{}, &SYVariant{}, &WCCustomer{}, &WCOrderDetail{}, &WCOrder{}, &WCProductVariation{}, &WCProduct{}, &LabelPrinterProfile{},
-		&TransferBetweenWarehousesMinimumStock{}, &ProductIncludedProduct{}, &ProductIncludedProductSalesOrderDetail{}, &SettingsCleanUp{}) // 115
+		&TransferBetweenWarehousesMinimumStock{}, &ProductIncludedProduct{}, &ProductIncludedProductSalesOrderDetail{}, &SettingsCleanUp{}, &DeprecatedProducts{}, &DeprecatedProductCheckList{}) // 117
 	if err != nil {
 		fmt.Println("AutoMigrate", err)
 		log("AutoMigrate", err.Error())

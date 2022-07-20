@@ -33,5 +33,9 @@
     {
         "key": "CANT_DELETE_MANUFACTURING_ORDERS",
         "description": "If this permission is given to a group, none of this group's users will be able to delete complex/normal manufacturing orders."
+    },
+    {
+        "key": "PRODUCT_MANAGER",
+        "description": "Allows to use the product manager to create products or drop existing products."
     }
 ]

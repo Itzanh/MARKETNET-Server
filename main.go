@@ -103,9 +103,9 @@ func main() {
 
 	// initial data
 	settingsRecords := getSettingsRecords()
-	/*for i := 0; i < len(settingsRecords); i++ {
-		initialData(settingsRecords[i].Id)
-	}*/
+	for i := 0; i < len(settingsRecords); i++ {
+		initialPermissionDictionary(settingsRecords[i].Id)
+	}
 	if isParameterPresent("--install-only") {
 		fmt.Println("The parameter --install-only is set and the app will exit. All the operations were successfull.")
 		return
@@ -355,7 +355,7 @@ func authentication(ws *websocket.Conn, remoteAddr string) (bool, int32, *Permis
 func commandProcessor(instruction string, command string, message []byte, mt int, ws *websocket.Conn, permissions Permissions, userId int32, enterpriseId int32) {
 	switch instruction {
 	case "GET":
-		instructionGet(command, string(message), mt, ws, permissions, enterpriseId)
+		instructionGet(command, string(message), mt, ws, permissions, enterpriseId, userId)
 	case "INSERT":
 		instructionInsert(command, message, mt, ws, permissions, userId, enterpriseId)
 	case "UPDATE":
@@ -393,7 +393,7 @@ type OperationResult struct {
 	ExtraData string `json:"extraData"`
 }
 
-func instructionGet(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32) {
+func instructionGet(command string, message string, mt int, ws *websocket.Conn, permissions Permissions, enterpriseId int32, userId int32) {
 	var found bool = true
 	var data []byte
 
@@ -826,6 +826,13 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getLabelPrinterProfiles(enterpriseId))
+	case "DEPRECATED_PRODUCTS":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		var query DeprecatedProductsQuery
+		json.Unmarshal([]byte(message), &query)
+		data, _ = json.Marshal(query.searchDeprecatedProducts(enterpriseId))
 	default:
 		found = false
 	}
@@ -1156,6 +1163,11 @@ func instructionGet(command string, message string, mt int, ws *websocket.Conn, 
 			return
 		}
 		data, _ = json.Marshal(getProductIncludedProductSalesOrderDetail(int64(id), enterpriseId))
+	case "DEPRECATED_PRODUCTS_CHECK_LIST":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		data, _ = json.Marshal(getDeprecatedProductCheckList(int64(id), enterpriseId))
 	}
 	ws.WriteMessage(mt, data)
 }
@@ -1716,6 +1728,22 @@ func instructionInsert(command string, message []byte, mt int, ws *websocket.Con
 		json.Unmarshal([]byte(message), &productIncludedProduct)
 		productIncludedProduct.EnterpriseId = enterpriseId
 		ok = productIncludedProduct.insertProductIncludedProduct()
+	case "DEPRECATED_PRODUCT":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		var deprecatedProduct DeprecatedProducts
+		json.Unmarshal([]byte(message), &deprecatedProduct)
+		deprecatedProduct.EnterpriseId = enterpriseId
+		ok = deprecatedProduct.insertDeprecatedProduct(userId)
+	case "DEPRECATED_PRODUCT_CHECK_LIST":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		var deprecatedProductCheckList DeprecatedProductCheckList
+		json.Unmarshal([]byte(message), &deprecatedProductCheckList)
+		deprecatedProductCheckList.EnterpriseId = enterpriseId
+		ok = deprecatedProductCheckList.insertDeprecatedProductCheckList()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -2557,6 +2585,22 @@ func instructionDelete(command string, message string, mt int, ws *websocket.Con
 		productIncludedProduct.Id = int32(id)
 		productIncludedProduct.EnterpriseId = enterpriseId
 		ok = productIncludedProduct.deleteProductIncludedProduct()
+	case "DEPRECATED_PRODUCT":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		var deprecatedProduct DeprecatedProducts
+		deprecatedProduct.Id = int64(id)
+		deprecatedProduct.EnterpriseId = enterpriseId
+		ok = deprecatedProduct.deleteDeprecatedProduct()
+	case "DEPRECATED_PRODUCT_CHECK_LIST":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		var deprecatedProductCheckList DeprecatedProductCheckList
+		deprecatedProductCheckList.Id = int64(id)
+		deprecatedProductCheckList.EnterpriseId = enterpriseId
+		ok = deprecatedProductCheckList.deleteDeprecatedProductCheckList()
 	}
 	data, _ := json.Marshal(ok)
 	ws.WriteMessage(mt, data)
@@ -3403,6 +3447,46 @@ func instructionAction(command string, message string, mt int, ws *websocket.Con
 			return
 		}
 		data, _ = json.Marshal(regenerateStockRecords(enterpriseId))
+	case "TOGGLE_DEPRECATED_PRODUCT_CHECK_LIST":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		var deprecatedProductCheckList DeprecatedProductCheckList
+		deprecatedProductCheckList.EnterpriseId = enterpriseId
+		deprecatedProductCheckList.Id = int64(id)
+		data, _ = json.Marshal(deprecatedProductCheckList.toggleDeprecatedProductCheckList(userId))
+	case "MOVE_DEPRECATED_PRODUCT_CHECK_LIST_POSITION":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		var deprecatedProductCheckListChangePosition DeprecatedProductCheckListChangePosition
+		json.Unmarshal([]byte(message), &deprecatedProductCheckListChangePosition)
+		data, _ = json.Marshal(deprecatedProductCheckListChangePosition.movePositionDeprecatedProductCheckList(enterpriseId))
+	case "CALCULATE_DEPRECATED_PRODUCT_USES":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		data, _ = json.Marshal(calcDeprecatedProductUses(int64(id), enterpriseId))
+	case "DROP_DEPRECATED_PRODUCT":
+		if !(permissions.Masters && getUserPermission("PRODUCT_MANAGER", enterpriseId, userId)) {
+			return
+		}
+		id, err := strconv.Atoi(message)
+		if err != nil {
+			return
+		}
+		var deprecatedProduct DeprecatedProducts
+		deprecatedProduct.Id = int64(id)
+		deprecatedProduct.EnterpriseId = enterpriseId
+		data, _ = json.Marshal(deprecatedProduct.dropDeprecatedProduct())
 	}
 	ws.WriteMessage(mt, data)
 
